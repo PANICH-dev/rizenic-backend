@@ -27,15 +27,17 @@ app.get('/api/customers', async (req, res) => {
   }
 });
 
-// 2. API สำหรับบันทึกข้อมูลลูกค้าใหม่ (POST)
+/// 2. API สำหรับบันทึกข้อมูลลูกค้าใหม่ (POST)
 app.post('/api/customers', async (req, res) => {
-  const { name, phone } = req.body; // รับชื่อและเบอร์โทรที่พิมพ์จากหน้าเว็บ
+  const { customer_name, phone_number } = req.body; // รับชื่อและเบอร์โทรที่พิมพ์จากหน้าเว็บ
   
   const client = new Client({ connectionString });
   try {
     await client.connect();
     const queryText = 'INSERT INTO customers (customer_name, phone_number) VALUES ($1, $2) RETURNING *;';
-    const result = await client.query(queryText, [name, phone]);
+    
+    // 🎯 🔥 แก้ตรงนี้: เปลี่ยนจาก [name, phone] เป็น [customer_name, phone_number] ให้ตรงกับด้านบนครับนาย!
+    const result = await client.query(queryText, [customer_name, phone_number]); 
     
     res.json({ message: 'บันทึกข้อมูลสำเร็จแล้วครับนาย!', data: result.rows[0] });
   } catch (err) {
