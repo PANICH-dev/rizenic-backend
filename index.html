@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>RIZENIC - ระบบจัดการลูกค้า</title>
+    <style>
+        body { font-family: sans-serif; margin: 40px; background-color: #f4f4f9; }
+        .container { max-width: 600px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        input, button { width: 100%; padding: 10px; margin: 10px 0; box-sizing: border-box; }
+        button { background-color: #28a745; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #218838; }
+        ul { list-style-type: none; padding: 0; }
+        li { background: #eee; margin: 5px 0; padding: 10px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>เพิ่มรายชื่อลูกค้า RIZENIC</h2>
+    <input type="text" id="nameInput" placeholder="ชื่อลูกค้า">
+    <input type="text" id="phoneInput" placeholder="เบอร์โทรศัพท์">
+    <button onclick="saveCustomer()">บันทึกข้อมูล</button>
+
+    <h3>รายชื่อลูกค้าทั้งหมด (จากฐานข้อมูล)</h3>
+    <ul id="customerList"></ul>
+</div>
+
+<script>
+    // 1. ฟังก์ชันโหลดข้อมูลลูกค้าจาก หลังบ้าน (Backend) มาโชว์
+    async function loadCustomers() {
+        const response = await fetch('http://localhost:3000/api/customers');
+        const customers = await response.json();
+        
+        const ul = document.getElementById('customerList');
+        ul.innerHTML = ''; // เคลียร์รายชื่อเก่า
+        
+        customers.forEach(c => {
+            const li = document.createElement('li');
+            li.textContent = `ID: ${c.id} | ${c.customer_name} - เบอร์โทร: ${c.phone_number}`;
+            ul.appendChild(li);
+        });
+    }
+
+    // 2. ฟังก์ชันส่งข้อมูลที่กรอก ไปบันทึกที่หลังบ้าน
+    async function saveCustomer() {
+        const name = document.getElementById('nameInput').value;
+        const phone = document.getElementById('phoneInput').value;
+
+        if(!name || !phone) return alert('กรุณากรอกข้อมูลให้ครบนะนาย');
+
+        await fetch('http://localhost:3000/api/customers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, phone })
+        });
+
+        // ล้างช่องกรอก แล้วโหลดรายชื่อใหม่
+        document.getElementById('nameInput').value = '';
+        document.getElementById('phoneInput').value = '';
+        loadCustomers();
+    }
+
+    // สั่งให้โหลดข้อมูลมาโชว์ทันทีที่เปิดหน้าเว็บ
+    loadCustomers();
+</script>
+
+</body>
+</html>
