@@ -48,7 +48,12 @@ app.post('/api/customers', async (req, res) => {
   }
 });
 
-// สั่งให้เซิร์ฟเวอร์เริ่มทำงาน
-app.listen(port, () => {
-  console.log(`🚀 เซิร์ฟเวอร์ RIZENIC หลังบ้านพร้อมแล้ว! รันอยู่ที่ http://localhost:${port}`);
-});
+/// 🚀 ท่อนเดิมของนาย ปรับให้ฉลาดขึ้น: รันในคอมก็ได้ รันบน Vercel ก็ไม่พัง
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(port, () => {
+        console.log(`🚀 เซิร์ฟเวอร์ RIZENIC หลังบ้านพร้อมแล้ว! รันอยู่ที่ http://localhost:${port}`);
+    });
+}
+
+// 📦 เพิ่มบรรทัดนี้ปิดท้ายไฟล์ (สำคัญมาก สำหรับให้ Vercel ดึงไปรันบนฟ้าฟรี ๆ)
+module.exports = app;
