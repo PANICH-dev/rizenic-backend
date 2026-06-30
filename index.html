@@ -2,67 +2,356 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <title>RIZENIC - ระบบจัดการลูกค้า</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIZENIC ERP - Premium Garage Management</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        body { font-family: sans-serif; margin: 40px; background-color: #f4f4f9; }
-        .container { max-width: 600px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        input, button { width: 100%; padding: 10px; margin: 10px 0; box-sizing: border-box; }
-        button { background-color: #28a745; color: white; border: none; cursor: pointer; }
-        button:hover { background-color: #218838; }
-        ul { list-style-type: none; padding: 0; }
-        li { background: #eee; margin: 5px 0; padding: 10px; border-radius: 4px; }
+        /* ตั้งค่าฟอนต์ให้อ่านง่าย สบายตา สไตล์แอปยุคใหม่ */
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Noto Sans Thai', sans-serif;
+        }
+        /* สีเขียวพรีเมียมตามสั่ง #003220 */
+        .bg-rizenic-green { background-color: #003220; }
+        .text-rizenic-green { color: #003220; }
+        .border-rizenic-green { border-color: #003220; }
     </style>
 </head>
-<body>
+<body class="bg-gray-900 text-gray-100 min-height-screen">
 
-<div class="container">
-    <h2>เพิ่มรายชื่อลูกค้า RIZENIC</h2>
-    <input type="text" id="nameInput" placeholder="ชื่อลูกค้า">
-    <input type="text" id="phoneInput" placeholder="เบอร์โทรศัพท์">
-    <button onclick="saveCustomer()">บันทึกข้อมูล</button>
+    <header class="bg-rizenic-green text-white shadow-xl border-b border-black sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-car-noble text-2xl text-white"></i>
+                <h1 class="text-2xl font-bold tracking-wider">RIZENIC <span class="text-black bg-white px-2 py-0.5 rounded text-lg font-black">ERP</span></h1>
+            </div>
+            
+            <nav class="flex gap-2">
+                <button onclick="switchTab('sa-tab')" id="btn-sa-tab" class="px-5 py-2.5 rounded-lg font-semibold bg-white text-[#003220] shadow transition-all duration-200 cursor-pointer flex items-center gap-2">
+                    <i class="fa-solid fa-file-invoice"></i> บันทึกข้อมูลรถเข้าซ่อม (SA)
+                </button>
+                <button onclick="switchTab('admin-tab')" id="btn-admin-tab" class="px-5 py-2.5 rounded-lg font-semibold bg-gray-800 text-gray-300 hover:bg-gray-700 transition-all duration-200 cursor-pointer flex items-center gap-2">
+                    <i class="fa-solid fa-sliders"></i> ตั้งค่าระบบ (Admin)
+                </button>
+            </nav>
+        </div>
+    </header>
 
-    <h3>รายชื่อลูกค้าทั้งหมด (จากฐานข้อมูล)</h3>
-    <ul id="customerList"></ul>
-</div>
-
-<script>
-    // 1. ฟังก์ชันโหลดข้อมูลลูกค้าจาก หลังบ้าน (Backend) มาโชว์
-    async function loadCustomers() {
-        const response = await fetch('https://rizenic-api.onrender.com');
-        const customers = await response.json();
+    <main class="max-w-7xl mx-auto px-4 py-8">
         
-        const ul = document.getElementById('customerList');
-        ul.innerHTML = ''; // เคลียร์รายชื่อเก่า
-        
-        customers.forEach(c => {
-            const li = document.createElement('li');
-            li.textContent = `ID: ${c.id} | ${c.customer_name} - เบอร์โทร: ${c.phone_number}`;
-            ul.appendChild(li);
-        });
-    }
+        <section id="sa-tab" class="tab-content block">
+            <div class="bg-white text-gray-900 rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
+                <div class="bg-rizenic-green p-6 text-white flex justify-between items-center">
+                    <div>
+                        <h2 class="text-xl font-bold flex items-center gap-2"><i class="fa-solid fa-clipboard-list"></i> ใบเปิดงานซ่อมและประเมินอาการ</h2>
+                        <p class="text-gray-300 text-sm mt-1">กรอกข้อมูลรายละเอียดรถยนต์และข้อมูลการรับประกัน</p>
+                    </div>
+                    <span class="text-xs bg-black/40 px-3 py-1.5 rounded-full border border-white/20">RIZENIC REPORT v1.0</span>
+                </div>
 
-    // 2. ฟังก์ชันส่งข้อมูลที่กรอก ไปบันทึกที่หลังบ้าน
-    async function saveCustomer() {
-        const name = document.getElementById('nameInput').value;
-        const phone = document.getElementById('phoneInput').value;
+                <form id="saForm" class="p-6 sm:p-8 space-y-8">
+                    
+                    <div>
+                        <h3 class="text-md font-bold text-rizenic-green mb-4 border-b pb-2 flex items-center gap-2"><i class="fa-solid fa-user"></i> 1. ข้อมูลผู้ติดต่อ & ประเภทลูกค้า</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">ชื่อ-นามสกุล ลูกค้า</label>
+                                <input type="text" id="customer_name" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none transition" placeholder="ระบุชื่อลูกค้า">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">เบอร์โทรศัพท์</label>
+                                <input type="text" id="customer_phone" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none transition" placeholder="เช่น 08X-XXX-XXXX">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">ประเภทลูกค้า</label>
+                                <select id="customer_type" class="w-full p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-[#003220] outline-none">
+                                    <option value="">-- ดึงจาก RizenicCustomerTypeMaster --</option>
+                                    <option value="CT-01">บุคคลธรรมดา (ทั่วไป)</option>
+                                    <option value="CT-02">นิติบุคคล / บริษัท</option>
+                                    <option value="CT-03">ลูกค้า VIP / คอนเทรค</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
 
-        if(!name || !phone) return alert('กรุณากรอกข้อมูลให้ครบนะนาย');
+                    <div>
+                        <h3 class="text-md font-bold text-rizenic-green mb-4 border-b pb-2 flex items-center gap-2"><i class="fa-solid fa-car"></i> 2. ข้อมูลตัวรถยนต์ & ประกันภัย</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">ยี่ห้อรถยนต์</label>
+                                <select id="car_brand" class="w-full p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-[#003220] outline-none">
+                                    <option value="">-- ดึงรายชื่อแบรนด์ --</option>
+                                    <option value="Tesla">Tesla</option>
+                                    <option value="Toyota">Toyota</option>
+                                    <option value="Honda">Honda</option>
+                                    <option value="BYD">BYD</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">รุ่นรถยนต์</label>
+                                <select id="car_model" class="w-full p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-[#003220] outline-none">
+                                    <option value="">-- ดึงรุ่นตามยี่ห้อรถ --</option>
+                                    <option value="Model Y">Model Y</option>
+                                    <option value="Model 3">Model 3</option>
+                                    <option value="Camry">Camry</option>
+                                    <option value="Civic">Civic</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">เลขตัวถัง / VIN (17 หลัก)</label>
+                                <input type="text" id="vin_number" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none transition" placeholder="กรอกเลข VIN รถยนต์">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">ประกันภัย / เงินสด</label>
+                                <select id="insurance_company" class="w-full p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-[#003220] outline-none">
+                                    <option value="">-- ดึงจาก RizenicInsuranceMaster --</option>
+                                    <option value="INS-001">เงินสด</option>
+                                    <option value="INS-002">วิริยะประกันภัย</option>
+                                    <option value="INS-003">กรุงเทพประกันภัย</option>
+                                    <option value="INS-012">บริษัท เทสล่า (ประเทศไทย) จำกัด</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
 
-        await fetch('https://rizenic-api.onrender.com/api/customers', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, phone })
-        });
+                    <div>
+                        <h3 class="text-md font-bold text-rizenic-green mb-4 border-b pb-2 flex items-center gap-2"><i class="fa-solid fa-screwdriver-wrench"></i> 3. การประเมินความเสียหาย & ชิ้นส่วนซ่อม</h3>
+                        
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold text-gray-700 mb-1">ระดับความเสียหาย</label>
+                            <div class="flex gap-4 mt-1">
+                                <label class="inline-flex items-center text-sm font-medium text-gray-700 cursor-pointer"><input type="radio" name="damage_level" value="เบา" class="w-4 h-4 text-[#003220] mr-2"> 🟢 เบา</label>
+                                <label class="inline-flex items-center text-sm font-medium text-gray-700 cursor-pointer"><input type="radio" name="damage_level" value="กลาง" class="w-4 h-4 text-[#003220] mr-2"> 🟡 กลาง</label>
+                                <label class="inline-flex items-center text-sm font-medium text-gray-700 cursor-pointer"><input type="radio" name="damage_level" value="หนัก" class="w-4 h-4 text-[#003220] mr-2"> 🔴 หนัก</label>
+                            </div>
+                        </div>
 
-        // ล้างช่องกรอก แล้วโหลดรายชื่อใหม่
-        document.getElementById('nameInput').value = '';
-        document.getElementById('phoneInput').value = '';
-        loadCustomers();
-    }
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-5 rounded-xl border border-gray-200">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">ชิ้นส่วนอะไหล่ (หลัก)</label>
+                                    <select id="main_part" class="w-full p-3 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-[#003220] outline-none">
+                                        <option value="">-- เลือกรายการอะไหล่หลัก --</option>
+                                        <option value="กันชนหน้า">กันชนหน้า</option>
+                                        <option value="ฝากระโปรงหน้า">ฝากระโปรงหน้า</option>
+                                        <option value="กันชนหลัง">กันชนหลัง</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">จำนวนอะไหล่ (หลัก)</label>
+                                    <input type="number" id="main_part_qty" value="0" min="0" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">ชิ้นส่วนอะไหล่ (รอง)</label>
+                                    <select id="sub_part" class="w-full p-3 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-[#003220] outline-none">
+                                        <option value="">-- เลือกรายการอะไหล่รอง --</option>
+                                        <option value="กระจกมองข้าง-ซ้าย">กระจกมองข้าง-ซ้าย</option>
+                                        <option value="กันชนหลังชิ้นล่าง">กันชนหลังชิ้นล่าง</option>
+                                        <option value="คิ้วบังโคลนหน้าขวา">คิ้วบังโคลนหน้าขวา</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">จำนวนอะไหล่ (รอง)</label>
+                                    <input type="number" id="sub_part_qty" value="0" min="0" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-    // สั่งให้โหลดข้อมูลมาโชว์ทันทีที่เปิดหน้าเว็บ
-    loadCustomers();
-</script>
+                    <div>
+                        <h3 class="text-md font-bold text-rizenic-green mb-4 border-b pb-2 flex items-center gap-2"><i class="fa-solid fa-baht-sign"></i> 4. ประมาณการค่าใช้จ่าย & การนัดหมาย</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">ค่าแรง (บาท)</label>
+                                <input type="number" id="estimated_labor_cost" value="0.00" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">ค่าอะไหล่ (บาท)</label>
+                                <input type="number" id="estimated_parts_cost" value="0.00" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">งานนอก (บาท)</label>
+                                <input type="number" id="external_job_cost" value="0.00" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1"><i class="fa-regular fa-calendar-days text-amber-600"></i> กำหนดซ่อมเสร็จ</label>
+                                <input type="date" id="target_finish_date" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1"><i class="fa-regular fa-calendar-check text-green-600"></i> วันที่เสร็จจริง</label>
+                                <input type="date" id="actual_finish_date" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1"><i class="fa-solid fa-handshake text-blue-600"></i> วันที่ส่งมอบรถ</label>
+                                <input type="date" id="delivery_date" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
+                            </div>
+                        </div>
+                    </div>
 
+                    <div>
+                        <h3 class="text-md font-bold text-rizenic-green mb-4 border-b pb-2 flex items-center gap-2"><i class="fa-solid fa-circle-info"></i> 5. หมายเหตุ & สเตตัสงาน</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">หมายเหตุเพิ่มเติม</label>
+                                <input type="text" id="notes" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none" placeholder="ระบุรายละเอียดเพิ่มเติม หรือแผลรอบรถ">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">สถานะงานปัจจุบัน</label>
+                                <select id="status_code" class="w-full p-3 border border-gray-300 rounded-xl bg-amber-50 text-amber-900 font-bold focus:ring-2 focus:ring-[#003220] outline-none">
+                                    <option value="01">01 - ลูกค้าติดต่อสอบถาม</option>
+                                    <option value="02">02 - รอประกันอนุมัติ</option>
+                                    <option value="03">03 - เริ่มซ่อมสเตชั่นเคาะ</option>
+                                    <option value="19">19 - ส่งมอบรถเสร็จสมบูรณ์</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-6 border-t border-gray-200 flex justify-end gap-3">
+                        <button type="button" class="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-xl transition cursor-pointer">ล้างข้อมูลฟอร์ม</button>
+                        <button type="button" onclick="submitSaForm()" class="px-8 py-3 bg-rizenic-green hover:opacity-90 text-white font-bold rounded-xl shadow-lg transition cursor-pointer flex items-center gap-2">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> บันทึกข้อมูลและยิงลง Neon DB
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </section>
+
+        <section id="admin-tab" class="tab-content hidden">
+            <div class="bg-gray-800 rounded-2xl shadow-2xl border border-gray-700 overflow-hidden">
+                <div class="p-6 bg-black text-white flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold flex items-center gap-2 text-green-400"><i class="fa-solid fa-lock"></i> ศูนย์ควบคุมข้อมูลระบบหลังบ้าน (Admin Console)</h2>
+                        <p class="text-gray-400 text-sm mt-1">อัปเดตข้อมูลดรอปดาวน์มาตรฐาน โดยไม่ต้องเข้าจัดการหลังบ้านตัวเว็บ Neon</p>
+                    </div>
+                </div>
+
+                <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    
+                    <div class="bg-gray-900 p-5 rounded-xl border border-gray-700 flex flex-col justify-between">
+                        <div>
+                            <span class="text-xs font-bold text-green-400 uppercase tracking-widest block mb-1">Table: RizenicInsuranceMaster</span>
+                            <h4 class="text-lg font-bold mb-3 text-white">จัดการข้อมูลค่ายประกัน</h4>
+                            <div class="space-y-3">
+                                <input type="text" placeholder="รหัสประกัน เช่น INS-021" class="w-full p-2.5 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white">
+                                <input type="text" placeholder="ชื่อบริษัทประกันภัย เช่น วิริยะ, เงินสด" class="w-full p-2.5 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white">
+                            </div>
+                        </div>
+                        <button type="button" onclick="alert('กำลังอัปเดตรายชื่อประกันภัยเข้า Neon.tech')" class="mt-4 w-full py-2 bg-green-700 hover:bg-green-600 text-white font-bold rounded-lg text-sm transition cursor-pointer">+ เพิ่มตัวเลือกประกันใหม่</button>
+                    </div>
+
+                    <div class="bg-gray-900 p-5 rounded-xl border border-gray-700 flex flex-col justify-between">
+                        <div>
+                            <span class="text-xs font-bold text-blue-400 uppercase tracking-widest block mb-1">Table: RizenicCarModelMaster</span>
+                            <h4 class="text-lg font-bold mb-3 text-white">จัดการรายชื่อแบรนด์/รุ่นรถ</h4>
+                            <div class="space-y-3">
+                                <input type="text" placeholder="ยี่ห้อรถยนต์ เช่น Tesla, Toyota" class="w-full p-2.5 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white">
+                                <input type="text" placeholder="รุ่นรถยนต์ เช่น Model Y, Alphard" class="w-full p-2.5 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white">
+                            </div>
+                        </div>
+                        <button type="button" onclick="alert('กำลังเชื่อมไปเก็บข้อมูลรุ่นรถตัวใหม่')" class="mt-4 w-full py-2 bg-blue-700 hover:bg-blue-600 text-white font-bold rounded-lg text-sm transition cursor-pointer">+ เพิ่มตัวเลือกรุ่นรถใหม่</button>
+                    </div>
+
+                    <div class="bg-gray-900 p-5 rounded-xl border border-gray-700 flex flex-col justify-between">
+                        <div>
+                            <span class="text-xs font-bold text-purple-400 uppercase tracking-widest block mb-1">Table: RizenicPartsMaster</span>
+                            <h4 class="text-lg font-bold mb-3 text-white">จัดการคลังรายการอะไหล่</h4>
+                            <div class="space-y-3">
+                                <input type="text" placeholder="ชื่อชิ้นส่วนอะไหล่ เช่น ฝากระโปรงท้าย" class="w-full p-2.5 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white">
+                                <select class="w-full p-2.5 bg-gray-800 border border-gray-600 rounded-lg text-sm text-gray-300">
+                                    <option>ชิ้นส่วนหลัก</option>
+                                    <option>ชิ้นส่วนรอง</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="button" onclick="alert('กำลังอัปเดตคลังรายชื่ออะไหล่มาตรฐาน')" class="mt-4 w-full py-2 bg-purple-700 hover:bg-purple-600 text-white font-bold rounded-lg text-sm transition cursor-pointer">+ เพิ่มรายการอะไหล่ใหม่</button>
+                    </div>
+
+                    <div class="bg-gray-900 p-5 rounded-xl border border-gray-700 flex flex-col justify-between">
+                        <div>
+                            <span class="text-xs font-bold text-amber-400 uppercase tracking-widest block mb-1">Table: RizenicStatusMaster</span>
+                            <h4 class="text-lg font-bold mb-3 text-white">สถานะงานมาสเตอร์ (19 สเต็ป)</h4>
+                            <div class="space-y-3">
+                                <input type="text" placeholder="รหัสสถานะ เช่น 05" class="w-full p-2.5 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white">
+                                <input type="text" placeholder="ข้อความสถานะ เช่น รออะไหล่พรีออเดอร์" class="w-full p-2.5 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white">
+                            </div>
+                        </div>
+                        <button type="button" onclick="alert('กำลังอัปเดตขบวนการขั้นตอนการทำงาน')" class="mt-4 w-full py-2 bg-amber-700 hover:bg-amber-600 text-white font-bold rounded-lg text-sm transition cursor-pointer">+ แก้ไขสถานะระบบ</button>
+                    </div>
+
+                    <div class="bg-gray-900 p-5 rounded-xl border border-gray-700 flex flex-col justify-between lg:col-span-2">
+                        <div>
+                            <span class="text-xs font-bold text-cyan-400 uppercase tracking-widest block mb-1">Table: RizenicEmployeeMaster & CustomerType</span>
+                            <h4 class="text-lg font-bold mb-3 text-white">จัดการข้อมูลกำลังพลทีมช่าง & ประเภทสมาชิกอู่</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="space-y-2">
+                                    <p class="text-xs text-gray-400">ลงข้อมูลทีมช่าง/SA</p>
+                                    <input type="text" placeholder="ชื่อพนักงาน เช่น ช่างเคาะ มานะ" class="w-full p-2.5 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white">
+                                    <input type="text" placeholder="ตำแหน่ง เช่น ช่างสี, SA, บัญชี" class="w-full p-2.5 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white">
+                                </div>
+                                <div class="space-y-2">
+                                    <p class="text-xs text-gray-400">ลงข้อมูลกลุ่มลูกค้า</p>
+                                    <input type="text" placeholder="รหัสกลุ่ม เช่น CT-05" class="w-full p-2.5 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white">
+                                    <input type="text" placeholder="เช่น ลูกค้าบริษัทประกันภัยพันธมิตร" class="w-full p-2.5 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white">
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" onclick="alert('บันทึกรายชื่อพนักงานและกลุ่มสมาชิก')" class="mt-4 w-full py-2.5 bg-cyan-700 hover:bg-cyan-600 text-white font-bold rounded-lg text-sm transition cursor-pointer">💾 อัปเดตผังพนักงานและสมาชิก</button>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // ฟังก์ชันสำหรับสลับแท็บระหว่างหน้า SA และ หน้าจอตั้งค่าของแอดมิน
+        function switchTab(tabId) {
+            // ซ่อนหน้าจอกลุ่ม Content ทั้งหมดก่อน
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('block'));
+            
+            // สั่งให้หน้าจอที่เลือกแสดงตัวออกมา
+            document.getElementById(tabId).classList.remove('hidden');
+            document.getElementById(tabId).classList.add('block');
+
+            // รีเซ็ตปุ่มเมนูด้านบนให้สลับสีสวยงาม
+            const btnSa = document.getElementById('btn-sa-tab');
+            const btnAdmin = document.getElementById('btn-admin-tab');
+
+            if (tabId === 'sa-tab') {
+                btnSa.className = "px-5 py-2.5 rounded-lg font-semibold bg-white text-[#003220] shadow transition-all duration-200 cursor-pointer flex items-center gap-2";
+                btnAdmin.className = "px-5 py-2.5 rounded-lg font-semibold bg-gray-800 text-gray-300 hover:bg-gray-700 transition-all duration-200 cursor-pointer flex items-center gap-2";
+            } else {
+                btnSa.className = "px-5 py-2.5 rounded-lg font-semibold bg-gray-800 text-gray-300 hover:bg-gray-700 transition-all duration-200 cursor-pointer flex items-center gap-2";
+                btnAdmin.className = "px-5 py-2.5 rounded-lg font-semibold bg-white text-[#003220] shadow transition-all duration-200 cursor-pointer flex items-center gap-2";
+            }
+        }
+
+        // ฟังก์ชันส่งฟอร์มข้อมูล SA (หลังจากหลังบ้านต่อท่อเสร็จ มันจะวิ่งไปทาง API โค้ดชุดนี้เลย)
+        function submitSaForm() {
+            // ดึงค่ามาทดสอบความพร้อมในฟรอนต์เอนด์ก่อน
+            const customer = document.getElementById('customer_name').value;
+            const plate = document.getElementById('car_plate').value;
+            const brand = document.getElementById('car_brand').value;
+            const model = document.getElementById('car_model').value;
+            const status = document.getElementById('status_code').value;
+
+            if(!customer || !plate || !brand || !model) {
+                alert('⚠️ นายครับ! กรุณากรอกชื่อลูกค้า ทะเบียนรถ ยี่ห้อ และรุ่นรถให้เรียบร้อยก่อนกดส่งงานนะ');
+                return;
+            }
+
+            alert(`🎉 โค้ดหน้าบ้านทำงานเรียบร้อยครับนาย!\nพร้อมส่งต่อข้อมูลรถทะเบียน: ${plate} (คุณ ${customer}) เข้าสู่สถานะรหัส ${status} ไปยังท่อ Node.js หลังบ้านเพื่อบันทึกลง Neon Database ทันทีในขั้นตอนต่อไป!`);
+        }
+    </script>
 </body>
 </html>
