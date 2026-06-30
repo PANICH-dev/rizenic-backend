@@ -1,24 +1,3 @@
-const express = require('express');
-const cors = require('cors'); 
-const { Pool } = require('pg');
-
-const app = express();
-const port = 3000; 
-
-app.use(cors()); 
-app.use(express.json());
-
-// 🔑 เชื่อมต่อฐานข้อมูลผ่านระบบความปลอดภัย (Vercel / .env)
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
-
-// ==========================================
-// 🌐 1. โซนหน้าบ้านพรีเมียม (โชว์เว็บ RIZENIC ERP ทันทีที่เข้าลิงก์หลัก)
-// ==========================================
-app.get('/', (req, res) => {
-  res.send(`
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -29,7 +8,9 @@ app.get('/', (req, res) => {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Noto Sans Thai', sans-serif; }
+        body {
+            font-family: 'Noto Sans Thai', sans-serif;
+        }
         .bg-rizenic-green { background-color: #003220; }
         .text-rizenic-green { color: #003220; }
         .border-rizenic-green { border-color: #003220; }
@@ -43,6 +24,7 @@ app.get('/', (req, res) => {
                 <i class="fa-solid fa-car text-2xl text-white"></i>
                 <h1 class="text-2xl font-bold tracking-wider">RIZENIC <span class="text-black bg-white px-2 py-0.5 rounded text-lg font-black">ERP</span></h1>
             </div>
+            
             <nav class="flex gap-2">
                 <button onclick="switchTab('sa-tab')" id="btn-sa-tab" class="px-5 py-2.5 rounded-lg font-semibold bg-white text-[#003220] shadow transition-all duration-200 cursor-pointer flex items-center gap-2">
                     <i class="fa-solid fa-file-invoice"></i> บันทึกข้อมูลรถเข้าซ่อม (SA)
@@ -55,6 +37,7 @@ app.get('/', (req, res) => {
     </header>
 
     <main class="max-w-7xl mx-auto px-4 py-8">
+        
         <section id="sa-tab" class="tab-content block">
             <div class="bg-white text-gray-900 rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
                 <div class="bg-rizenic-green p-6 text-white flex justify-between items-center">
@@ -66,6 +49,7 @@ app.get('/', (req, res) => {
                 </div>
 
                 <form id="saForm" class="p-6 sm:p-8 space-y-8">
+                    
                     <div>
                         <h3 class="text-md font-bold text-rizenic-green mb-4 border-b pb-2 flex items-center gap-2"><i class="fa-solid fa-user"></i> 1. ข้อมูลผู้ติดต่อ & ประเภทลูกค้า</h3>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -80,6 +64,7 @@ app.get('/', (req, res) => {
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-1">ประเภทลูกค้า</label>
                                 <select id="customer_type" class="w-full p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-[#003220] outline-none">
+                                    <option value="">-- รอโหลดข้อมูลสิทธิ์ลูกค้า --</option>
                                     <option value="CT-01">บุคคลธรรมดา (ทั่วไป)</option>
                                     <option value="CT-02">นิติบุคคล / บริษัท</option>
                                     <option value="CT-03">ลูกค้า VIP / คอนเทรค</option>
@@ -112,6 +97,7 @@ app.get('/', (req, res) => {
 
                     <div>
                         <h3 class="text-md font-bold text-rizenic-green mb-4 border-b pb-2 flex items-center gap-2"><i class="fa-solid fa-screwdriver-wrench"></i> 3. การประเมินความเสียหาย & ชิ้นส่วนซ่อม</h3>
+                        
                         <div class="mb-4">
                             <label class="block text-sm font-semibold text-gray-700 mb-1">ระดับความเสียหาย</label>
                             <div class="flex gap-4 mt-1">
@@ -134,6 +120,7 @@ app.get('/', (req, res) => {
                                     <input type="number" id="main_part_qty" value="0" min="0" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
                                 </div>
                             </div>
+                            
                             <div class="space-y-4">
                                 <div>
                                     <label class="block text-sm font-semibold text-gray-700 mb-1">ชิ้นส่วนอะไหล่ (รอง)</label>
@@ -165,6 +152,20 @@ app.get('/', (req, res) => {
                                 <input type="number" id="external_job_cost" value="0.00" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
                             </div>
                         </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1"><i class="fa-regular fa-calendar-days text-amber-600"></i> กำหนดซ่อมเสร็จ</label>
+                                <input type="date" id="target_finish_date" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1"><i class="fa-regular fa-calendar-check text-green-600"></i> วันที่เสร็จจริง</label>
+                                <input type="date" id="actual_finish_date" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1"><i class="fa-solid fa-handshake text-blue-600"></i> วันที่ส่งมอบรถ</label>
+                                <input type="date" id="delivery_date" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
+                            </div>
+                        </div>
                     </div>
 
                     <div>
@@ -172,12 +173,12 @@ app.get('/', (req, res) => {
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div class="md:col-span-2">
                                 <label class="block text-sm font-semibold text-gray-700 mb-1">หมายเหตุเพิ่มเติม</label>
-                                <input type="text" id="notes" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none" placeholder="ระบุรายละเอียดเพิ่มเติม">
+                                <input type="text" id="notes" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none" placeholder="ระบุรายละเอียดเพิ่มเติม หรือแผลรอบรถ">
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-1">สถานะงานปัจจุบัน</label>
                                 <select id="status_code" class="w-full p-3 border border-gray-300 rounded-xl bg-amber-50 text-amber-900 font-bold focus:ring-2 focus:ring-[#003220] outline-none">
-                                    <option value="">🔄 กำลังโหลดสถานะ...</option>
+                                    <option value="">🔄 กำลังโหลดสถานะจาก Neon...</option>
                                 </select>
                             </div>
                         </div>
@@ -189,6 +190,7 @@ app.get('/', (req, res) => {
                             <i class="fa-solid fa-cloud-arrow-up"></i> บันทึกข้อมูลและยิงลง Neon DB
                         </button>
                     </div>
+
                 </form>
             </div>
         </section>
@@ -198,23 +200,63 @@ app.get('/', (req, res) => {
                 <div class="p-6 bg-black text-white flex items-center justify-between">
                     <div>
                         <h2 class="text-xl font-bold flex items-center gap-2 text-green-400"><i class="fa-solid fa-lock"></i> ศูนย์ควบคุมข้อมูลระบบหลังบ้าน (Admin Console)</h2>
-                        <p class="text-gray-400 text-sm mt-1">จัดการมาสเตอร์ผ่านคลาวด์ Vercel Single-Web</p>
+                        <p class="text-gray-400 text-sm mt-1">อัปเดตข้อมูลดรอปดาวน์มาตรฐาน โดยไม่ต้องเข้าจัดการหลังบ้านตัวเว็บ Neon</p>
                     </div>
                 </div>
-                <div class="p-6 text-gray-300">ระบบแอดมินมาสเตอร์เชื่อมต่อท่อตรงเรียบร้อยแล้ว</div>
+
+                <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-gray-900 p-5 rounded-xl border border-gray-700 flex flex-col justify-between">
+                        <div>
+                            <span class="text-xs font-bold text-green-400 uppercase tracking-widest block mb-1">Table: RizenicInsuranceMaster</span>
+                            <h4 class="text-lg font-bold mb-3 text-white">จัดการข้อมูลค่ายประกัน</h4>
+                            <div class="space-y-3">
+                                <input type="text" placeholder="รหัสประกัน เช่น INS-021" class="w-full p-2.5 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white">
+                                <input type="text" placeholder="ชื่อบริษัทประกันภัย เช่น วิริยะ, เงินสด" class="w-full p-2.5 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white">
+                            </div>
+                        </div>
+                        <button type="button" onclick="alert('กำลังอัปเดตรายชื่อประกันภัยเข้า Neon.tech')" class="mt-4 w-full py-2 bg-green-700 hover:bg-green-600 text-white font-bold rounded-lg text-sm transition cursor-pointer">+ เพิ่มตัวเลือกประกันใหม่</button>
+                    </div>
+
+                    <div class="bg-gray-900 p-5 rounded-xl border border-gray-700 flex flex-col justify-between">
+                        <div>
+                            <span class="text-xs font-bold text-blue-400 uppercase tracking-widest block mb-1">Table: RizenicCarModelMaster</span>
+                            <h4 class="text-lg font-bold mb-3 text-white">จัดการรายชื่อแบรนด์/รุ่นรถ</h4>
+                            <div class="space-y-3">
+                                <input type="text" placeholder="ยี่ห้อรถยนต์ เช่น Tesla, Toyota" class="w-full p-2.5 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white">
+                                <input type="text" placeholder="รุ่นรถยนต์ เช่น Model Y, Alphard" class="w-full p-2.5 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white">
+                            </div>
+                        </div>
+                        <button type="button" onclick="alert('กำลังเชื่อมไปเก็บข้อมูลรุ่นรถตัวใหม่')" class="mt-4 w-full py-2 bg-blue-700 hover:bg-blue-600 text-white font-bold rounded-lg text-sm transition cursor-pointer">+ เพิ่มตัวเลือกรุ่นรถใหม่</button>
+                    </div>
+
+                    <div class="bg-gray-900 p-5 rounded-xl border border-gray-700 flex flex-col justify-between">
+                        <div>
+                            <span class="text-xs font-bold text-purple-400 uppercase tracking-widest block mb-1">Table: RizenicPartsMaster</span>
+                            <h4 class="text-lg font-bold mb-3 text-white">จัดการคลังรายการอะไหล่</h4>
+                            <div class="space-y-3">
+                                <input type="text" placeholder="ชื่อชิ้นส่วนอะไหล่ เช่น ฝากระโปรงท้าย" class="w-full p-2.5 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white">
+                                <select class="w-full p-2.5 bg-gray-800 border border-gray-600 rounded-lg text-sm text-gray-300">
+                                    <option>ชิ้นส่วนหลัก</option>
+                                    <option>ชิ้นส่วนรอง</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="button" onclick="alert('กำลังอัปเดตคลังรายชื่ออะไหล่มาตรฐาน')" class="mt-4 w-full py-2 bg-purple-700 hover:bg-purple-600 text-white font-bold rounded-lg text-sm transition cursor-pointer">+ เพิ่มรายการอะไหล่ใหม่</button>
+                    </div>
+                </div>
             </div>
         </section>
     </main>
 
     <script>
-        // 🌐 ท่อส่งภายในตึกเดียวกัน (ปล่อยว่างเพื่อเรียกหาตัวเองออโต้ชั่วนิรันดร์)
-        const API_BASE_URL = '';
-
+        // ฟังก์ชันสลับแท็บเมนู
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.getElementById(tabId).classList.remove('hidden');
+
             const btnSa = document.getElementById('btn-sa-tab');
             const btnAdmin = document.getElementById('btn-admin-tab');
+
             if (tabId === 'sa-tab') {
                 btnSa.className = "px-5 py-2.5 rounded-lg font-semibold bg-white text-[#003220] shadow transition-all duration-200 cursor-pointer flex items-center gap-2";
                 btnAdmin.className = "px-5 py-2.5 rounded-lg font-semibold bg-gray-800 text-gray-300 hover:bg-gray-700 transition-all duration-200 cursor-pointer flex items-center gap-2";
@@ -224,6 +266,7 @@ app.get('/', (req, res) => {
             }
         }
 
+        // 📡 รันโหลดข้อมูลจากหลังบ้านทันทีที่หน้าจอเปิดสำเร็จ
         document.addEventListener("DOMContentLoaded", () => {
             loadCarBrandsAndModels();
             loadInsurances();
@@ -231,57 +274,67 @@ app.get('/', (req, res) => {
             loadStatuses();
         });
 
+        // 🚗 1. ฟังก์ชันดึงยี่ห้อและรุ่นรถจาก Neon มาพ่นใส่ Dropdown
         async function loadCarBrandsAndModels() {
             try {
-                const response = await fetch(\`\${API_BASE_URL}/api/car-models\`);
+                const response = await fetch('http://localhost:3000/api/car-models');
                 const data = await response.json();
                 const carSelect = document.getElementById("car_model_select");
                 if (!carSelect) return;
+                
                 carSelect.innerHTML = '<option value="">-- เลือกยี่ห้อและรุ่นรถ --</option>';
                 data.forEach(item => {
                     const option = document.createElement("option");
                     option.value = item.model_id;
-                    option.textContent = \`\${item.brand} - \${item.model_name} (\${item.year})\`;
+                    option.textContent = `${item.brand} - ${item.model_name} (${item.year})`;
                     carSelect.appendChild(option);
                 });
             } catch (error) {
-                console.error(error);
-                document.getElementById("car_model_select").innerHTML = '<option value="">⚠️ โหลดล้มเหลว (เช็กหลังบ้าน)</option>';
+                console.error("ดึงข้อมูลรุ่นรถล้มเหลว:", error);
+                document.getElementById("car_model_select").innerHTML = '<option value="">⚠️ โหลดข้อมูลล้มเหลว (เช็กหลังบ้าน)</option>';
             }
         }
 
+        // 🛡️ 2. ฟังก์ชันดึงค่ายประกันภัยจาก Neon มาพ่นใส่ Dropdown
         async function loadInsurances() {
             try {
-                const response = await fetch(\`\${API_BASE_URL}/api/insurances\`);
+                const response = await fetch('http://localhost:3000/api/insurances');
                 const data = await response.json();
                 const insSelect = document.getElementById("insurance_select");
                 if (!insSelect) return;
+                
                 insSelect.innerHTML = '<option value="">-- เลือกค่ายประกันภัย --</option>';
                 data.forEach(item => {
                     const option = document.createElement("option");
                     option.value = item.insurance_id;
-                    option.textContent = \`\${item.insurance_name} (\${item.insurance_type || 'ทั่วไป'})\`;
+                    option.textContent = `${item.insurance_name} (${item.insurance_type || 'ทั่วไป'})`;
                     insSelect.appendChild(option);
                 });
             } catch (error) {
-                console.error(error);
-                document.getElementById("insurance_select").innerHTML = '<option value="">⚠️ โหลดล้มเหลว</option>';
+                console.error("ดึงข้อมูลประกันภัยล้มเหลว:", error);
+                document.getElementById("insurance_select").innerHTML = '<option value="">⚠️ โหลดข้อมูลล้มเหลว</option>';
             }
         }
 
+        // 🔧 3. ฟังก์ชันดึงรายการอะไหล่ทั้งหมดมาแยกใส่ดร็อปดาวน์หลักและรอง
         async function loadPartsMaster() {
             try {
-                const response = await fetch(\`\${API_BASE_URL}/api/parts\`);
+                const response = await fetch('http://localhost:3000/api/parts');
                 const partsData = await response.json();
+                window.rizenicPartsMaster = partsData; 
+
                 const mainPartSelect = document.getElementById("main_part");
                 const subPartSelect = document.getElementById("sub_part");
+
                 if(mainPartSelect && subPartSelect) {
                     mainPartSelect.innerHTML = '<option value="">-- เลือกรายการอะไหล่หลัก --</option>';
                     subPartSelect.innerHTML = '<option value="">-- เลือกรายการอะไหล่รอง --</option>';
+
                     partsData.forEach(part => {
                         const option = document.createElement("option");
                         option.value = part.part_name;
                         option.textContent = part.part_name;
+                        
                         if(part.part_category === "ชิ้นส่วนหลัก") {
                             mainPartSelect.appendChild(option);
                         } else {
@@ -289,107 +342,44 @@ app.get('/', (req, res) => {
                         }
                     });
                 }
-            } catch (error) { console.error(error); }
+            } catch (error) {
+                console.error("ดึงข้อมูลคลังอะไหล่ล้มเหลว:", error);
+            }
         }
 
+        // 📊 4. ดึงสถานะงานมาสเตอร์ 19 ขั้นตอน
         async function loadStatuses() {
             try {
-                const response = await fetch(\`\${API_BASE_URL}/api/statuses\`);
+                const response = await fetch('http://localhost:3000/api/statuses');
                 const data = await response.json();
                 const statusSelect = document.getElementById("status_code");
                 if (!statusSelect) return;
+
                 statusSelect.innerHTML = '<option value="">-- เลือกสถานะงานซ่อม --</option>';
                 data.forEach(item => {
                     const option = document.createElement("option");
                     option.value = item.status_code;
-                    option.textContent = \`\${item.status_code} - \${item.status_name}\`;
+                    option.textContent = `${item.status_code} - ${item.status_name}`;
                     statusSelect.appendChild(option);
                 });
-            } catch (error) { console.error(error); }
+            } catch (error) {
+                console.error("ดึงสถานะงานล้มเหลว:", error);
+            }
         }
 
+        // ฟังก์ชันทดสอบส่งฟอร์มข้อมูล
         function submitSaForm() {
             const customer = document.getElementById('customer_name').value;
             const carModel = document.getElementById('car_model_select').value;
+            const status = document.getElementById('status_code').value;
+
             if(!customer || !carModel) {
-                alert('⚠️ นายครับ! กรุณากรอกชื่อลูกค้า และเลือกยี่ห้อ/รุ่นรถยนต์ก่อนนะ');
+                alert('⚠️ นายครับ! กรุณากรอกชื่อลูกค้า และเลือกยี่ห้อ/รุ่นรถยนต์ก่อนกดส่งงานนะ');
                 return;
             }
-            alert('🎉 ระบบบันทึกข้อมูลแบบ Full-Stack ตึกเดียวกันเชื่อมต่อ Neon DB สำเร็จแล้วครับนาย!');
+
+            alert(`🎉 ข้อมูลหน้าบ้านลิงก์ท่อพร้อมแล้วครับนาย!\nพร้อมส่งต่อข้อมูลคุณ ${customer} เข้าสู่สถานะรหัส ${status} ไปยังเซิร์ฟเวอร์หลังบ้านเพื่อบันทึกลง Neon Database ทันทีในสเต็ปถัดไป!`);
         }
     </script>
 </body>
 </html>
-  `);
-});
-
-// ==========================================
-// 🛠️ 2. โซนท่อ API ส่งข้อมูลดิบหลังบ้าน (Backend JSON API)
-// ==========================================
-
-app.get('/api/car-models', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM RizenicCarModelMaster ORDER BY brand ASC, model_name ASC;');
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: 'ดึงข้อมูลรุ่นรถล้มเหลว' });
-  }
-});
-
-app.get('/api/insurances', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM RizenicInsuranceMaster ORDER BY insurance_id ASC;');
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: 'ดึงข้อมูลประกันภัยล้มเหลว' });
-  }
-});
-
-app.get('/api/parts', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM RizenicPartsMaster ORDER BY part_category ASC, part_name ASC;');
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: 'ดึงข้อมูลคลังอะไหล่ล้มเหลว' });
-  }
-});
-
-app.get('/api/statuses', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM RizenicStatusMaster ORDER BY status_code ASC;');
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: 'ดึงข้อมูลสถานะล้มเหลว' });
-  }
-});
-
-app.get('/api/customers', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM customers ORDER BY id ASC;');
-    res.json(result.rows); 
-  } catch (err) {
-    res.status(500).json({ error: 'ดึงข้อมูลลูกค้าไม่สำเร็จ' });
-  }
-});
-
-app.post('/api/customers', async (req, res) => {
-  const { customer_name, phone_number } = req.body; 
-  try {
-    const queryText = 'INSERT INTO customers (customer_name, phone_number) VALUES ($1, $2) RETURNING *;';
-    const result = await pool.query(queryText, [customer_name, phone_number]); 
-    res.json({ message: 'บันทึกข้อมูลสำเร็จแล้วครับนาย!', data: result.rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: 'บันทึกข้อมูลไม่สำเร็จ' });
-  }
-});
-
-// ==========================================
-// 🚀 3. โซนสตาร์ทเครื่องยนต์
-// ==========================================
-if (process.env.NODE_ENV !== 'production') {
-    app.listen(port, () => {
-        console.log(`🚀 เซิร์ฟเวอร์ RIZENIC หลังบ้านพร้อมแล้ว! รันอยู่ที่ http://localhost:${port}`);
-    });
-}
-
-module.exports = app;
