@@ -207,7 +207,6 @@ app.get('/', (req, res) => {
     </main>
 
     <script>
-        // 🌐 ท่อส่งภายในตึกเดียวกัน (ปล่อยว่างเพื่อเรียกหาตัวเองออโต้ชั่วนิรันดร์)
         const API_BASE_URL = '';
 
         function switchTab(tabId) {
@@ -241,7 +240,7 @@ app.get('/', (req, res) => {
                 data.forEach(item => {
                     const option = document.createElement("option");
                     option.value = item.model_id;
-                    option.textContent = \`\${item.brand} - \${item.model_name} (\${item.year})\`;
+                    option.textContent = \`\${item.brand} - \${item.model_name} (\\u0e23\\u0e38\\u0e4b\\u0e13\\u0e1b\\u0e31\\u0e09\\u0e0current)\`;
                     carSelect.appendChild(option);
                 });
             } catch (error) {
@@ -260,7 +259,7 @@ app.get('/', (req, res) => {
                 data.forEach(item => {
                     const option = document.createElement("option");
                     option.value = item.insurance_id;
-                    option.textContent = \`\${item.insurance_name} (\${item.insurance_type || 'ทั่วไป'})\`;
+                    option.textContent = \`\${item.insurance_name}\`;
                     insSelect.appendChild(option);
                 });
             } catch (error) {
@@ -282,7 +281,7 @@ app.get('/', (req, res) => {
                         const option = document.createElement("option");
                         option.value = part.part_name;
                         option.textContent = part.part_name;
-                        if(part.part_category === "ชิ้นส่วนหลัก") {
+                        if(part.part_category === "\\u0e0a\\u0e34\\u0e4b\\u0e11\\u0e2a\\u0e42\\u0e27\\u0e11\\u0e2b\\u0e25\\u0e31\\u0e01" || part.part_category === "ชิ้นส่วนหลัก") {
                             mainPartSelect.appendChild(option);
                         } else {
                             subPartSelect.appendChild(option.cloneNode(true));
@@ -324,12 +323,12 @@ app.get('/', (req, res) => {
 });
 
 // ==========================================
-// 🛠️ 2. โซนท่อ API ส่งข้อมูลดิบหลังบ้าน (Backend JSON API)
+// 🛠️ 2. โซนท่อ API ส่งข้อมูลดิบหลังบ้าน (จิ้มตารางตัวพิมพ์เล็กตรงตาม Neon DB)
 // ==========================================
 
 app.get('/api/car-models', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM RizenicCarModelMaster ORDER BY brand ASC, model_name ASC;');
+    const result = await pool.query('SELECT * FROM rizeniccarmodelmaster;');
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: 'ดึงข้อมูลรุ่นรถล้มเหลว' });
@@ -338,7 +337,7 @@ app.get('/api/car-models', async (req, res) => {
 
 app.get('/api/insurances', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM RizenicInsuranceMaster ORDER BY insurance_id ASC;');
+    const result = await pool.query('SELECT * FROM rizenicinsurancemaster;');
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: 'ดึงข้อมูลประกันภัยล้มเหลว' });
@@ -347,7 +346,7 @@ app.get('/api/insurances', async (req, res) => {
 
 app.get('/api/parts', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM RizenicPartsMaster ORDER BY part_category ASC, part_name ASC;');
+    const result = await pool.query('SELECT * FROM rizenicpartsmaster;');
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: 'ดึงข้อมูลคลังอะไหล่ล้มเหลว' });
@@ -356,30 +355,10 @@ app.get('/api/parts', async (req, res) => {
 
 app.get('/api/statuses', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM RizenicStatusMaster ORDER BY status_code ASC;');
+    const result = await pool.query('SELECT * FROM rizenicstatusmaster;');
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: 'ดึงข้อมูลสถานะล้มเหลว' });
-  }
-});
-
-app.get('/api/customers', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM customers ORDER BY id ASC;');
-    res.json(result.rows); 
-  } catch (err) {
-    res.status(500).json({ error: 'ดึงข้อมูลลูกค้าไม่สำเร็จ' });
-  }
-});
-
-app.post('/api/customers', async (req, res) => {
-  const { customer_name, phone_number } = req.body; 
-  try {
-    const queryText = 'INSERT INTO customers (customer_name, phone_number) VALUES ($1, $2) RETURNING *;';
-    const result = await pool.query(queryText, [customer_name, phone_number]); 
-    res.json({ message: 'บันทึกข้อมูลสำเร็จแล้วครับนาย!', data: result.rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: 'บันทึกข้อมูลไม่สำเร็จ' });
   }
 });
 
