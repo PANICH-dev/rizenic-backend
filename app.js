@@ -3,7 +3,7 @@ const cors = require('cors');
 const { Pool } = require('pg');
 
 const app = express();
-const port = 3000; 
+const port = process.env.PORT || 3000; 
 
 app.use(cors()); 
 app.use(express.json());
@@ -15,7 +15,7 @@ const pool = new Pool({
 });
 
 // ==========================================
-// 🌐 1. โซนหน้าบ้านพรีเมียม (โชว์เว็บ RIZENIC ERP ทันทีที่เข้าลิงก์หลัก)
+// 🌐 1. โซนหน้าบ้านพรีเมียม (เสิร์ฟเว็บ HTML หน้าเดียวจบ)
 // ==========================================
 app.get('/', (req, res) => {
   res.send(`
@@ -125,9 +125,7 @@ app.get('/', (req, res) => {
                             <div class="space-y-4">
                                 <div>
                                     <label class="block text-sm font-semibold text-gray-700 mb-1">ชิ้นส่วนอะไหล่ (หลัก)</label>
-                                    <select id="main_part" class="w-full p-3 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-[#003220] outline-none">
-                                        <option value="">-- เลือกรายการอะไหล่หลัก --</option>
-                                    </select>
+                                    <input type="text" id="main_part" class="w-full p-3 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-[#003220] outline-none" placeholder="เช่น กันชนหน้า, โช๊คอัพ">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-semibold text-gray-700 mb-1">จำนวนอะไหล่ (หลัก)</label>
@@ -137,9 +135,7 @@ app.get('/', (req, res) => {
                             <div class="space-y-4">
                                 <div>
                                     <label class="block text-sm font-semibold text-gray-700 mb-1">ชิ้นส่วนอะไหล่ (รอง)</label>
-                                    <select id="sub_part" class="w-full p-3 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-[#003220] outline-none">
-                                        <option value="">-- เลือกรายการอะไหล่รอง --</option>
-                                    </select>
+                                    <input type="text" id="sub_part" class="w-full p-3 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-[#003220] outline-none" placeholder="เช่น น็อตยึด, ไฟหรี่">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-semibold text-gray-700 mb-1">จำนวนอะไหล่ (รอง)</label>
@@ -184,7 +180,7 @@ app.get('/', (req, res) => {
                     </div>
 
                     <div class="pt-6 border-t border-gray-200 flex justify-end gap-3">
-                        <button type="button" class="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-xl transition cursor-pointer">ล้างข้อมูลฟอร์ม</button>
+                        <button type="button" onclick="document.getElementById('saForm').reset()" class="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-xl transition cursor-pointer">ล้างข้อมูลฟอร์ม</button>
                         <button type="button" onclick="submitSaForm()" class="px-8 py-3 bg-rizenic-green hover:opacity-90 text-white font-bold rounded-xl shadow-lg transition cursor-pointer flex items-center gap-2">
                             <i class="fa-solid fa-cloud-arrow-up"></i> บันทึกข้อมูลและยิงลง Neon DB
                         </button>
@@ -207,8 +203,6 @@ app.get('/', (req, res) => {
     </main>
 
     <script>
-        const API_BASE_URL = 'https://rizenic-backend.vercel.app';
-
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.getElementById(tabId).classList.remove('hidden');
@@ -216,4 +210,175 @@ app.get('/', (req, res) => {
             const btnAdmin = document.getElementById('btn-admin-tab');
             if (tabId === 'sa-tab') {
                 btnSa.className = "px-5 py-2.5 rounded-lg font-semibold bg-white text-[#003220] shadow transition-all duration-200 cursor-pointer flex items-center gap-2";
-                btnAdmin.className = "px-5
+                btnAdmin.className = "px-5 py-2.5 rounded-lg font-semibold bg-gray-800 text-gray-300 hover:bg-gray-700 transition-all duration-200 cursor-pointer flex items-center gap-2";
+            } else {
+                btnSa.className = "px-5 py-2.5 rounded-lg font-semibold bg-gray-800 text-gray-300 hover:bg-gray-700 transition-all duration-200 cursor-pointer flex items-center gap-2";
+                btnAdmin.className = "px-5 py-2.5 rounded-lg font-semibold bg-white text-[#003220] shadow transition-all duration-200 cursor-pointer flex items-center gap-2";
+            }
+        }
+
+        // ดึงข้อมูลมาสเตอร์มาใส่ Dropdown อัตโนมัติเมื่อเปิดเว็บ
+        document.addEventListener('DOMContentLoaded', () => {
+            // 1. ดึงรุ่นรถ
+            fetch('/api/car-models')
+                .then(res => res.json())
+                .then(data => {
+                    const select = document.getElementById('car_model_select');
+                    select.innerHTML = '<option value="">-- เลือกรุ่นรถยนต์ --</option>';
+                    data.forEach(item => {
+                        select.innerHTML += \`<option value="\${item.id}">\${item.brand} \${item.model} (\${item.year_model})</option>\`;
+                    });
+                }).catch(err => console.error(err));
+
+            // 2. ดึงประกัน
+            fetch('/api/insurances')
+                .then(res => res.json())
+                .then(data => {
+                    const select = document.getElementById('insurance_select');
+                    select.innerHTML = '<option value="">-- เลือกประกันภัย/ชำระสด --</option>';
+                    data.forEach(item => {
+                        select.innerHTML += \`<option value="\${item.id}">\${item.insurance_name} (\${item.insurance_type})</option>\`;
+                    });
+                }).catch(err => console.error(err));
+
+            // 3. ดึงสถานะ
+            fetch('/api/statuses')
+                .then(res => res.json())
+                .then(data => {
+                    const select = document.getElementById('status_code');
+                    select.innerHTML = '';
+                    data.forEach(item => {
+                        select.innerHTML += \`<option value="\${item.status_code}">\${item.status_name}</option>\`;
+                    });
+                }).catch(err => console.error(err));
+        });
+
+        // ฟังก์ชันกดยิงข้อมูลฟอร์ม
+        async function submitSaForm() {
+            const formData = {
+                customer_name: document.getElementById('customer_name').value,
+                customer_phone: document.getElementById('customer_phone').value,
+                customer_type: document.getElementById('customer_type').value,
+                car_model_id: document.getElementById('car_model_select').value,
+                vin_number: document.getElementById('vin_number').value,
+                insurance_id: document.getElementById('insurance_select').value,
+                damage_level: document.querySelector('input[name="damage_level"]:checked').value,
+                main_part: document.getElementById('main_part').value,
+                main_part_qty: document.getElementById('main_part_qty').value,
+                sub_part: document.getElementById('sub_part').value,
+                sub_part_qty: document.getElementById('sub_part_qty').value,
+                labor_cost: document.getElementById('estimated_labor_cost').value,
+                parts_cost: document.getElementById('estimated_parts_cost').value,
+                external_cost: document.getElementById('external_job_cost').value,
+                notes: document.getElementById('notes').value,
+                status_code: document.getElementById('status_code').value
+            };
+
+            try {
+                const response = await fetch('/api/report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert('🎉 สำเร็จ! ข้อมูลใบเปิดงานซ่อมวิ่งข้ามท่อลงตาราง rizenicreport บน Neon DB เรียบร้อยแล้ว');
+                    document.getElementById('saForm').reset();
+                } else {
+                    alert('❌ เกิดข้อผิดพลาดจากเซิร์ฟเวอร์: ' + result.error);
+                }
+            } catch (error) {
+                alert('❌ ไม่สามารถเชื่อมต่อ API หลังบ้านได้: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
+  `);
+});
+
+// ==========================================
+// 🔌 2. โซนท่อเชื่อม API ข้อมูลหลังบ้าน (REST API RESTFUL)
+// ==========================================
+
+// GET: ดึงรุ่นรถยนต์จาก Neon
+app.get('/api/car-models', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, brand, model, year_model FROM carmodels ORDER BY brand, model ASC');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET: ดึงรายชื่อค่ายประกันจาก Neon
+app.get('/api/insurances', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, insurance_name, insurance_type FROM insurances ORDER BY insurance_name ASC');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET: ดึงสเตตัสงานจาก Neon
+app.get('/api/statuses', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT status_code, status_name FROM jobstatuses ORDER BY status_code ASC');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST: บันทึกข้อมูลใบเปิดงานซ่อมลงตาราง rizenicreport
+app.post('/api/report', async (req, res) => {
+  const {
+    customer_name, customer_phone, customer_type, car_model_id,
+    vin_number, insurance_id, damage_level, main_part,
+    main_part_qty, sub_part, sub_part_qty, labor_cost,
+    parts_cost, external_cost, notes, status_code
+  } = req.body;
+
+  const queryText = `
+    INSERT INTO rizenicreport (
+      customer_name, customer_phone, customer_type, car_model_id,
+      vin_number, insurance_id, damage_level, main_part,
+      main_part_qty, sub_part, sub_part_qty, labor_cost,
+      parts_cost, external_cost, notes, status_code
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+    RETURNING id;
+  `;
+
+  const values = [
+    customer_name || null,
+    customer_phone || null,
+    customer_type || null,
+    car_model_id ? parseInt(car_model_id) : null,
+    vin_number || null,
+    insurance_id ? parseInt(insurance_id) : null,
+    damage_level || 'เบา',
+    main_part || null,
+    main_part_qty ? parseInt(main_part_qty) : 0,
+    sub_part || null,
+    sub_part_qty ? parseInt(sub_part_qty) : 0,
+    labor_cost ? parseFloat(labor_cost) : 0.00,
+    parts_cost ? parseFloat(parts_cost) : 0.00,
+    external_cost ? parseFloat(external_cost) : 0.00,
+    notes || null,
+    status_code || null
+  ];
+
+  try {
+    const result = await pool.query(queryText, values);
+    res.status(201).json({ success: true, insertedId: result.rows[0].id });
+  } catch (err) {
+    console.error('❌ Database Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// เปิดเครื่องยนต์สแตนด์บายรับทราฟฟิก
+app.listen(port, () => {
+  console.log(`🚀 Server is running on port ${port}`);
+});
