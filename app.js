@@ -115,7 +115,7 @@ app.get('/', (req, res) => {
                         <div class="mb-4">
                             <label class="block text-sm font-semibold text-gray-700 mb-1">ระดับความเสียหาย</label>
                             <div class="flex gap-4 mt-1">
-                                <label class="inline-flex items-center text-sm font-medium text-gray-700 cursor-pointer"><input type="radio" name="damage_level" value="เบา" class="w-4 h-4 text-[#003220] mr-2"> 🟢 เบา</label>
+                                <label class="inline-flex items-center text-sm font-medium text-gray-700 cursor-pointer"><input type="radio" name="damage_level" value="เบา" class="w-4 h-4 text-[#003220] mr-2" checked> 🟢 เบา</label>
                                 <label class="inline-flex items-center text-sm font-medium text-gray-700 cursor-pointer"><input type="radio" name="damage_level" value="กลาง" class="w-4 h-4 text-[#003220] mr-2"> 🟡 กลาง</label>
                                 <label class="inline-flex items-center text-sm font-medium text-gray-700 cursor-pointer"><input type="radio" name="damage_level" value="หนัก" class="w-4 h-4 text-[#003220] mr-2"> 🔴 หนัก</label>
                             </div>
@@ -207,7 +207,7 @@ app.get('/', (req, res) => {
     </main>
 
     <script>
-        const API_BASE_URL = '';
+        const API_BASE_URL = 'https://rizenic-backend.vercel.app';
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
@@ -216,159 +216,4 @@ app.get('/', (req, res) => {
             const btnAdmin = document.getElementById('btn-admin-tab');
             if (tabId === 'sa-tab') {
                 btnSa.className = "px-5 py-2.5 rounded-lg font-semibold bg-white text-[#003220] shadow transition-all duration-200 cursor-pointer flex items-center gap-2";
-                btnAdmin.className = "px-5 py-2.5 rounded-lg font-semibold bg-gray-800 text-gray-300 hover:bg-gray-700 transition-all duration-200 cursor-pointer flex items-center gap-2";
-            } else {
-                btnSa.className = "px-5 py-2.5 rounded-lg font-semibold bg-gray-800 text-gray-300 hover:bg-gray-700 transition-all duration-200 cursor-pointer flex items-center gap-2";
-                btnAdmin.className = "px-5 py-2.5 rounded-lg font-semibold bg-white text-[#003220] shadow transition-all duration-200 cursor-pointer flex items-center gap-2";
-            }
-        }
-
-        document.addEventListener("DOMContentLoaded", () => {
-            loadCarBrandsAndModels();
-            loadInsurances();
-            loadPartsMaster();
-            loadStatuses();
-        });
-
-        async function loadCarBrandsAndModels() {
-            try {
-                const response = await fetch(\`\${API_BASE_URL}/api/car-models\`);
-                const data = await response.json();
-                const carSelect = document.getElementById("car_model_select");
-                if (!carSelect) return;
-                carSelect.innerHTML = '<option value="">-- เลือกยี่ห้อและรุ่นรถ --</option>';
-                data.forEach(item => {
-                    const option = document.createElement("option");
-                    option.value = item.model_id;
-                    option.textContent = \`\${item.brand} - \${item.model_name} (\\u0e23\\u0e38\\u0e4b\\u0e13\\u0e1b\\u0e31\\u0e09\\u0e0current)\`;
-                    carSelect.appendChild(option);
-                });
-            } catch (error) {
-                console.error(error);
-                document.getElementById("car_model_select").innerHTML = '<option value="">⚠️ โหลดล้มเหลว (เช็กหลังบ้าน)</option>';
-            }
-        }
-
-        async function loadInsurances() {
-            try {
-                const response = await fetch(\`\${API_BASE_URL}/api/insurances\`);
-                const data = await response.json();
-                const insSelect = document.getElementById("insurance_select");
-                if (!insSelect) return;
-                insSelect.innerHTML = '<option value="">-- เลือกค่ายประกันภัย --</option>';
-                data.forEach(item => {
-                    const option = document.createElement("option");
-                    option.value = item.insurance_id;
-                    option.textContent = \`\${item.insurance_name}\`;
-                    insSelect.appendChild(option);
-                });
-            } catch (error) {
-                console.error(error);
-                document.getElementById("insurance_select").innerHTML = '<option value="">⚠️ โหลดล้มเหลว</option>';
-            }
-        }
-
-        async function loadPartsMaster() {
-            try {
-                const response = await fetch(\`\${API_BASE_URL}/api/parts\`);
-                const partsData = await response.json();
-                const mainPartSelect = document.getElementById("main_part");
-                const subPartSelect = document.getElementById("sub_part");
-                if(mainPartSelect && subPartSelect) {
-                    mainPartSelect.innerHTML = '<option value="">-- เลือกรายการอะไหล่หลัก --</option>';
-                    subPartSelect.innerHTML = '<option value="">-- เลือกรายการอะไหล่รอง --</option>';
-                    partsData.forEach(part => {
-                        const option = document.createElement("option");
-                        option.value = part.part_name;
-                        option.textContent = part.part_name;
-                        if(part.part_category === "\\u0e0a\\u0e34\\u0e4b\\u0e11\\u0e2a\\u0e42\\u0e27\\u0e11\\u0e2b\\u0e25\\u0e31\\u0e01" || part.part_category === "ชิ้นส่วนหลัก") {
-                            mainPartSelect.appendChild(option);
-                        } else {
-                            subPartSelect.appendChild(option.cloneNode(true));
-                        }
-                    });
-                }
-            } catch (error) { console.error(error); }
-        }
-
-        async function loadStatuses() {
-            try {
-                const response = await fetch(\`\${API_BASE_URL}/api/statuses\`);
-                const data = await response.json();
-                const statusSelect = document.getElementById("status_code");
-                if (!statusSelect) return;
-                statusSelect.innerHTML = '<option value="">-- เลือกสถานะงานซ่อม --</option>';
-                data.forEach(item => {
-                    const option = document.createElement("option");
-                    option.value = item.status_code;
-                    option.textContent = \`\${item.status_code} - \${item.status_name}\`;
-                    statusSelect.appendChild(option);
-                });
-            } catch (error) { console.error(error); }
-        }
-
-        function submitSaForm() {
-            const customer = document.getElementById('customer_name').value;
-            const carModel = document.getElementById('car_model_select').value;
-            if(!customer || !carModel) {
-                alert('⚠️ นายครับ! กรุณากรอกชื่อลูกค้า และเลือกยี่ห้อ/รุ่นรถยนต์ก่อนนะ');
-                return;
-            }
-            alert('🎉 ระบบบันทึกข้อมูลแบบ Full-Stack ตึกเดียวกันเชื่อมต่อ Neon DB สำเร็จแล้วครับนาย!');
-        }
-    </script>
-</body>
-</html>
-  `);
-});
-
-// ==========================================
-// 🛠️ 2. โซนท่อ API ส่งข้อมูลดิบหลังบ้าน (จิ้มตารางตัวพิมพ์เล็กตรงตาม Neon DB)
-// ==========================================
-
-app.get('/api/car-models', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM rizeniccarmodelmaster;');
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: 'ดึงข้อมูลรุ่นรถล้มเหลว' });
-  }
-});
-
-app.get('/api/insurances', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM rizenicinsurancemaster;');
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: 'ดึงข้อมูลประกันภัยล้มเหลว' });
-  }
-});
-
-app.get('/api/parts', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM rizenicpartsmaster;');
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: 'ดึงข้อมูลคลังอะไหล่ล้มเหลว' });
-  }
-});
-
-app.get('/api/statuses', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM rizenicstatusmaster;');
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: 'ดึงข้อมูลสถานะล้มเหลว' });
-  }
-});
-
-// ==========================================
-// 🚀 3. โซนสตาร์ทเครื่องยนต์
-// ==========================================
-if (process.env.NODE_ENV !== 'production') {
-    app.listen(port, () => {
-        console.log(`🚀 เซิร์ฟเวอร์ RIZENIC หลังบ้านพร้อมแล้ว! รันอยู่ที่ http://localhost:${port}`);
-    });
-}
-
-module.exports = app;
+                btnAdmin.className = "px-5
