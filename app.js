@@ -43,6 +43,7 @@ app.get('/', (req, res) => {
                 <i class="fa-solid fa-car text-2xl text-white"></i>
                 <h1 class="text-2xl font-bold tracking-wider">RIZENIC <span class="text-black bg-white px-2 py-0.5 rounded text-lg font-black">ERP</span></h1>
             </div>
+            
             <nav class="flex gap-2">
                 <button onclick="switchTab('sa-tab')" id="btn-sa-tab" class="px-5 py-2.5 rounded-lg font-semibold bg-white text-[#003220] shadow transition-all duration-200 cursor-pointer flex items-center gap-2">
                     <i class="fa-solid fa-file-invoice"></i> บันทึกข้อมูลรถเข้าซ่อม (SA)
@@ -55,6 +56,7 @@ app.get('/', (req, res) => {
     </header>
 
     <main class="max-w-7xl mx-auto px-4 py-8">
+        
         <section id="sa-tab" class="tab-content block">
             <div class="bg-white text-gray-900 rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
                 <div class="bg-rizenic-green p-6 text-white flex justify-between items-center">
@@ -66,6 +68,7 @@ app.get('/', (req, res) => {
                 </div>
 
                 <form id="saForm" class="p-6 sm:p-8 space-y-8">
+                    
                     <div>
                         <h3 class="text-md font-bold text-rizenic-green mb-4 border-b pb-2 flex items-center gap-2"><i class="fa-solid fa-user"></i> 1. ข้อมูลผู้ติดต่อ & ประเภทลูกค้า</h3>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -75,14 +78,14 @@ app.get('/', (req, res) => {
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-1">เบอร์โทรศัพท์</label>
-                                <input type="text" id="customer_phone" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none transition" placeholder="เช่น 08X-XXX-XXXX">
+                                <input type="text" id="phone_number" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none transition" placeholder="เช่น 08X-XXX-XXXX">
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-1">ประเภทลูกค้า</label>
                                 <select id="customer_type" class="w-full p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-[#003220] outline-none">
-                                    <option value="CT-01">บุคคลธรรมดา (ทั่วไป)</option>
-                                    <option value="CT-02">นิติบุคคล / บริษัท</option>
-                                    <option value="CT-03">ลูกค้า VIP / คอนเทรค</option>
+                                    <option value="บุคคลธรรมดา">บุคคลธรรมดา (ทั่วไป)</option>
+                                    <option value="นิติบุคคล">นิติบุคคล / บริษัท</option>
+                                    <option value="ลูกค้า VIP">ลูกค้า VIP / คอนเทรค</option>
                                 </select>
                             </div>
                         </div>
@@ -99,11 +102,11 @@ app.get('/', (req, res) => {
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-1">เลขตัวถัง / VIN (17 หลัก)</label>
-                                <input type="text" id="vin_number" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none transition" placeholder="กรอกเลข VIN รถยนต์">
+                                <input type="text" id="vin_no" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none transition" placeholder="กรอกเลข VIN รถยนต์">
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-1">ประกันภัย / เงินสด</label>
-                                <select id="insurance_select" class="w-full p-3 border border-gray-300 rounded-xl bg-amber-50 font-medium text-amber-950 focus:ring-2 focus:ring-[#003220] outline-none">
+                                <select id="payment_type" class="w-full p-3 border border-gray-300 rounded-xl bg-amber-50 font-medium text-amber-950 focus:ring-2 focus:ring-[#003220] outline-none">
                                     <option value="">🔄 กำลังดึงรายชื่อค่ายประกัน...</option>
                                 </select>
                             </div>
@@ -112,6 +115,7 @@ app.get('/', (req, res) => {
 
                     <div>
                         <h3 class="text-md font-bold text-rizenic-green mb-4 border-b pb-2 flex items-center gap-2"><i class="fa-solid fa-screwdriver-wrench"></i> 3. การประเมินความเสียหาย & ชิ้นส่วนซ่อม</h3>
+                        
                         <div class="mb-4">
                             <label class="block text-sm font-semibold text-gray-700 mb-1">ระดับความเสียหาย</label>
                             <div class="flex gap-4 mt-1">
@@ -125,17 +129,18 @@ app.get('/', (req, res) => {
                             <div class="space-y-4">
                                 <div>
                                     <label class="block text-sm font-semibold text-gray-700 mb-1">ชิ้นส่วนอะไหล่ (หลัก)</label>
-                                    <input type="text" id="main_part" class="w-full p-3 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-[#003220] outline-none" placeholder="เช่น กันชนหน้า, โช๊คอัพ">
+                                    <input type="text" id="main_part_name" class="w-full p-3 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-[#003220] outline-none" placeholder="เช่น กันชนหน้า, โช๊คอัพ">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-semibold text-gray-700 mb-1">จำนวนอะไหล่ (หลัก)</label>
                                     <input type="number" id="main_part_qty" value="0" min="0" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
                                 </div>
                             </div>
+                            
                             <div class="space-y-4">
                                 <div>
                                     <label class="block text-sm font-semibold text-gray-700 mb-1">ชิ้นส่วนอะไหล่ (รอง)</label>
-                                    <input type="text" id="sub_part" class="w-full p-3 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-[#003220] outline-none" placeholder="เช่น น็อตยึด, ไฟหรี่">
+                                    <input type="text" id="sub_part_name" class="w-full p-3 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-[#003220] outline-none" placeholder="เช่น น็อตยึด, ไฟหรี่">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-semibold text-gray-700 mb-1">จำนวนอะไหล่ (รอง)</label>
@@ -150,15 +155,29 @@ app.get('/', (req, res) => {
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-1">ค่าแรง (บาท)</label>
-                                <input type="number" id="estimated_labor_cost" value="0.00" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
+                                <input type="number" id="cost_labor" value="0.00" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-1">ค่าอะไหล่ (บาท)</label>
-                                <input type="number" id="estimated_parts_cost" value="0.00" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
+                                <input type="number" id="cost_part" value="0.00" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-1">งานนอก (บาท)</label>
-                                <input type="number" id="external_job_cost" value="0.00" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
+                                <input type="number" id="cost_external" value="0.00" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1"><i class="fa-regular fa-calendar-days text-amber-600"></i> กำหนดซ่อมเสร็จ</label>
+                                <input type="date" id="target_finish_date" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1"><i class="fa-regular fa-calendar-check text-green-600"></i> วันที่เสร็จจริง</label>
+                                <input type="date" id="actual_finish_date" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1"><i class="fa-solid fa-handshake text-blue-600"></i> วันที่ส่งมอบรถ</label>
+                                <input type="date" id="delivery_date" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
                             </div>
                         </div>
                     </div>
@@ -172,8 +191,8 @@ app.get('/', (req, res) => {
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-1">สถานะงานปัจจุบัน</label>
-                                <select id="status_code" class="w-full p-3 border border-gray-300 rounded-xl bg-amber-50 text-amber-900 font-bold focus:ring-2 focus:ring-[#003220] outline-none">
-                                    <option value="">🔄 กำลังโหลดสถานะ...</option>
+                                <select id="job_status" class="w-full p-3 border border-gray-300 rounded-xl bg-amber-50 text-amber-900 font-bold focus:ring-2 focus:ring-[#003220] outline-none">
+                                    <option value="">🔄 กำลังโหลดสถานะจาก Neon...</option>
                                 </select>
                             </div>
                         </div>
@@ -203,6 +222,8 @@ app.get('/', (req, res) => {
     </main>
 
     <script>
+        const API_BASE_URL = window.location.origin;
+
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.getElementById(tabId).classList.remove('hidden');
@@ -217,72 +238,84 @@ app.get('/', (req, res) => {
             }
         }
 
-        // ดึงข้อมูลมาสเตอร์มาใส่ Dropdown อัตโนมัติเมื่อเปิดเว็บ
         document.addEventListener('DOMContentLoaded', () => {
-            // 1. ดึงรุ่นรถ
-            fetch('/api/car-models')
+            // 1. ดึงรุ่นรถยนต์
+            fetch(\`\${API_BASE_URL}/api/car-models\`)
                 .then(res => res.json())
                 .then(data => {
                     const select = document.getElementById('car_model_select');
                     select.innerHTML = '<option value="">-- เลือกรุ่นรถยนต์ --</option>';
                     data.forEach(item => {
-                        select.innerHTML += \`<option value="\${item.id}">\${item.brand} \${item.model} (\${item.year_model})</option>\`;
+                        // เก็บค่าแบรนด์พ่วงกับรุ่นส่งกลับไปเป็นสัญญาลักษณ์ข้อความ
+                        select.innerHTML += \`<option value="\${item.brand}|\${item.model_name}">\${item.brand} \${item.model_name}</option>\`;
                     });
                 }).catch(err => console.error(err));
 
-            // 2. ดึงประกัน
-            fetch('/api/insurances')
+            // 2. ดึงค่ายประกันภัย
+            fetch(\`\${API_BASE_URL}/api/insurances\`)
                 .then(res => res.json())
                 .then(data => {
-                    const select = document.getElementById('insurance_select');
+                    const select = document.getElementById('payment_type');
                     select.innerHTML = '<option value="">-- เลือกประกันภัย/ชำระสด --</option>';
                     data.forEach(item => {
-                        select.innerHTML += \`<option value="\${item.id}">\${item.insurance_name} (\${item.insurance_type})</option>\`;
+                        select.innerHTML += \`<option value="\${item.insurance_name}">\${item.insurance_name}</option>\`;
                     });
                 }).catch(err => console.error(err));
 
-            // 3. ดึงสถานะ
-            fetch('/api/statuses')
+            // 3. ดึงสถานะงานซ่อม
+            fetch(\`\${API_BASE_URL}/api/statuses\`)
                 .then(res => res.json())
                 .then(data => {
-                    const select = document.getElementById('status_code');
-                    select.innerHTML = '';
+                    const select = document.getElementById('job_status');
+                    select.innerHTML = '<option value="">-- เลือกสถานะงานซ่อม --</option>';
                     data.forEach(item => {
-                        select.innerHTML += \`<option value="\${item.status_code}">\${item.status_name}</option>\`;
+                        select.innerHTML += \`<option value="\${item.status_name}">\".status_code + " - " + item.status_name + "</option>\`;
+                        select.innerHTML += \`<option value="\${item.status_name}">\${item.status_code} - \${item.status_name}</option>\`;
                     });
                 }).catch(err => console.error(err));
         });
 
-        // ฟังก์ชันกดยิงข้อมูลฟอร์ม
         async function submitSaForm() {
+            const carSelectValue = document.getElementById('car_model_select').value;
+            const [car_brand, car_model] = carSelectValue ? carSelectValue.split('|') : [null, null];
+
             const formData = {
                 customer_name: document.getElementById('customer_name').value,
-                customer_phone: document.getElementById('customer_phone').value,
+                phone_number: document.getElementById('phone_number').value,
                 customer_type: document.getElementById('customer_type').value,
-                car_model_id: document.getElementById('car_model_select').value,
-                vin_number: document.getElementById('vin_number').value,
-                insurance_id: document.getElementById('insurance_select').value,
+                car_brand: car_brand,
+                car_model: car_model,
+                vin_no: document.getElementById('vin_no').value,
+                payment_type: document.getElementById('payment_type').value,
                 damage_level: document.querySelector('input[name="damage_level"]:checked').value,
-                main_part: document.getElementById('main_part').value,
+                main_part_name: document.getElementById('main_part_name').value,
                 main_part_qty: document.getElementById('main_part_qty').value,
-                sub_part: document.getElementById('sub_part').value,
+                sub_part_name: document.getElementById('sub_part_name').value,
                 sub_part_qty: document.getElementById('sub_part_qty').value,
-                labor_cost: document.getElementById('estimated_labor_cost').value,
-                parts_cost: document.getElementById('estimated_parts_cost').value,
-                external_cost: document.getElementById('external_job_cost').value,
+                cost_labor: document.getElementById('cost_labor').value,
+                cost_part: document.getElementById('cost_part').value,
+                cost_external: document.getElementById('cost_external').value,
+                target_finish_date: document.getElementById('target_finish_date').value || null,
+                actual_finish_date: document.getElementById('actual_finish_date').value || null,
+                delivery_date: document.getElementById('delivery_date').value || null,
                 notes: document.getElementById('notes').value,
-                status_code: document.getElementById('status_code').value
+                job_status: document.getElementById('job_status').value
             };
 
+            if(!formData.customer_name || !formData.car_brand || !formData.job_status) {
+                alert('⚠️ นายครับ! กรุณากรอกชื่อลูกค้า, เลือกยี่ห้อรถ และเลือกสถานะงานซ่อมก่อนกดส่งงานนะจ๊ะ');
+                return;
+            }
+
             try {
-                const response = await fetch('/api/report', {
+                const response = await fetch(\`\${API_BASE_URL}/api/report\`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)
                 });
                 const result = await response.json();
                 if (response.ok) {
-                    alert('🎉 สำเร็จ! ข้อมูลใบเปิดงานซ่อมวิ่งข้ามท่อลงตาราง rizenicreport บน Neon DB เรียบร้อยแล้ว');
+                    alert('🎉 สำเร็จ! ข้อมูลใบเปิดงานวิ่งลงตาราง rizenicreport บน Neon DB ของจริงเรียบร้อยแล้วครับนาย!');
                     document.getElementById('saForm').reset();
                 } else {
                     alert('❌ เกิดข้อผิดพลาดจากเซิร์ฟเวอร์: ' + result.error);
@@ -298,75 +331,78 @@ app.get('/', (req, res) => {
 });
 
 // ==========================================
-// 🔌 2. โซนท่อเชื่อม API ข้อมูลหลังบ้าน (REST API RESTFUL)
+// 🔌 2. โซนท่อเชื่อม API คิวรีลงตารางตัวจริงของนายเป๊ะ ๆ
 // ==========================================
 
-// GET: ดึงรุ่นรถยนต์จาก Neon
 app.get('/api/car-models', async (req, res) => {
   try {
-    const result = await pool.query('SELECT id, brand, model, year_model FROM carmodels ORDER BY brand, model ASC');
+    const result = await pool.query('SELECT model_id, brand, model_name FROM rizeniccarmodelmaster ORDER BY brand, model_name ASC');
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// GET: ดึงรายชื่อค่ายประกันจาก Neon
 app.get('/api/insurances', async (req, res) => {
   try {
-    const result = await pool.query('SELECT id, insurance_name, insurance_type FROM insurances ORDER BY insurance_name ASC');
+    const result = await pool.query('SELECT insurance_id, insurance_name FROM rizenicinsurancemaster ORDER BY insurance_name ASC');
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// GET: ดึงสเตตัสงานจาก Neon
 app.get('/api/statuses', async (req, res) => {
   try {
-    const result = await pool.query('SELECT status_code, status_name FROM jobstatuses ORDER BY status_code ASC');
+    const result = await pool.query('SELECT status_code, status_name FROM rizenicstatusmaster ORDER BY status_code ASC');
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// POST: บันทึกข้อมูลใบเปิดงานซ่อมลงตาราง rizenicreport
+// POST: บันทึกข้อมูลตัดขั้วตรงตาม Schema ตารางจริงของนายใน Neon!
 app.post('/api/report', async (req, res) => {
   const {
-    customer_name, customer_phone, customer_type, car_model_id,
-    vin_number, insurance_id, damage_level, main_part,
-    main_part_qty, sub_part, sub_part_qty, labor_cost,
-    parts_cost, external_cost, notes, status_code
+    customer_name, phone_number, customer_type, car_brand, car_model,
+    vin_no, payment_type, damage_level, main_part_name,
+    main_part_qty, sub_part_name, sub_part_qty, cost_labor,
+    cost_part, cost_external, notes, job_status,
+    target_finish_date, actual_finish_date, delivery_date
   } = req.body;
 
   const queryText = `
     INSERT INTO rizenicreport (
-      customer_name, customer_phone, customer_type, car_model_id,
-      vin_number, insurance_id, damage_level, main_part,
-      main_part_qty, sub_part, sub_part_qty, labor_cost,
-      parts_cost, external_cost, notes, status_code
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      customer_name, phone_number, customer_type, car_brand, car_model,
+      vin_no, payment_type, damage_level, main_part_name,
+      main_part_qty, sub_part_name, sub_part_qty, cost_labor,
+      cost_part, cost_external, notes, job_status,
+      target_finish_date, actual_finish_date, delivery_date
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
     RETURNING id;
   `;
 
   const values = [
     customer_name || null,
-    customer_phone || null,
+    phone_number || null,
     customer_type || null,
-    car_model_id ? parseInt(car_model_id) : null,
-    vin_number || null,
-    insurance_id ? parseInt(insurance_id) : null,
+    car_brand || null,
+    car_model || null,
+    vin_no || null,
+    payment_type || null,
     damage_level || 'เบา',
-    main_part || null,
+    main_part_name || null,
     main_part_qty ? parseInt(main_part_qty) : 0,
-    sub_part || null,
+    sub_part_name || null,
     sub_part_qty ? parseInt(sub_part_qty) : 0,
-    labor_cost ? parseFloat(labor_cost) : 0.00,
-    parts_cost ? parseFloat(parts_cost) : 0.00,
-    external_cost ? parseFloat(external_cost) : 0.00,
+    cost_labor ? parseFloat(cost_labor) : 0.00,
+    cost_part ? parseFloat(cost_part) : 0.00,
+    cost_external ? parseFloat(cost_external) : 0.00,
     notes || null,
-    status_code || null
+    job_status || null,
+    target_finish_date || null,
+    actual_finish_date || null,
+    delivery_date || null
   ];
 
   try {
@@ -378,7 +414,5 @@ app.post('/api/report', async (req, res) => {
   }
 });
 
-// เปิดเครื่องยนต์สแตนด์บายรับทราฟฟิก
-app.listen(port, () => {
-  console.log(`🚀 Server is running on port ${port}`);
-});
+// สตาร์ทเปิดพอร์ตรับทราฟฟิกฝั่ง Vercel Serverless
+module.exports = app;
