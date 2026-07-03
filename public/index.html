@@ -162,14 +162,14 @@
                                 <input type="text" id="notes" class="w-full p-3 border border-gray-300 rounded-xl">
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-1">สถานะงานปัจจุบัน</label>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Regular-Status สถานะงานปัจจุบัน</label>
                                 <select id="job_status" class="w-full p-3 border border-gray-300 rounded-xl bg-amber-50 text-amber-900 font-bold outline-none"></select>
                             </div>
                         </div>
                     </div>
 
                     <div class="pt-6 border-t border-gray-200 flex justify-end">
-                        <button type="button" onclick="submitSaForm()" class="px-8 py-3 bg-rizenic-green text-white font-bold rounded-xl shadow-lg hover:bg-[#002210] transition">
+                        <button type="button" onclick="submitSaForm()" class="px-8 py-3 bg-rizenic-green text-white font-bold rounded-xl shadow-lg cursor-pointer hover:bg-[#002210] transition">
                             <i class="fa-solid fa-cloud-arrow-up"></i> บันทึกข้อมูล
                         </button>
                     </div>
@@ -250,56 +250,39 @@
     <script>
         const API_BASE_URL = window.location.origin;
 
-        // 🟢 เปลี่ยนแท็บหลัก
         function switchTab(tabId) {
             if (tabId === 'admin-tab') {
                 const pin = prompt("🔒 กรุณาใส่รหัสผ่านแอดมิน (PIN):");
-                if (pin !== "1234") { alert("❌ รหัสผ่านไม่ถูกต้อง! ปฏิเสธการเข้าถึง"); return; }
-                loadAllAdminData(); // โหลดข้อมูลทุกตาราง
+                if (pin !== "1234") { alert("❌ ปฏิเสธการเข้าถึง"); return; }
+                loadAllAdminData();
             }
-
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.getElementById(tabId).classList.remove('hidden');
-            
-            const btnSa = document.getElementById('btn-sa-tab');
-            const btnAdmin = document.getElementById('btn-admin-tab');
-            if (tabId === 'sa-tab') {
-                btnSa.className = "px-5 py-2.5 rounded-lg font-semibold bg-white text-[#003220] shadow transition-all duration-200 cursor-pointer flex items-center gap-2";
-                btnAdmin.className = "px-5 py-2.5 rounded-lg font-semibold bg-gray-800 text-gray-300 hover:bg-gray-700 transition-all duration-200 cursor-pointer flex items-center gap-2";
-            } else {
-                btnSa.className = "px-5 py-2.5 rounded-lg font-semibold bg-gray-800 text-gray-300 hover:bg-gray-700 transition-all duration-200 cursor-pointer flex items-center gap-2";
-                btnAdmin.className = "px-5 py-2.5 rounded-lg font-semibold bg-white text-[#003220] shadow transition-all duration-200 cursor-pointer flex items-center gap-2";
-            }
         }
 
-        // 🟢 เปลี่ยนหน้าจอย่อย Admin
         function showAdminPanel(panelId) {
             ['btn-emp-panel', 'btn-car-panel', 'btn-ins-panel'].forEach(id => {
                 document.getElementById(id).className = "text-left px-4 py-3 rounded-xl hover:bg-gray-800 text-gray-300 transition";
             });
             document.getElementById('btn-' + panelId).className = "text-left px-4 py-3 rounded-xl bg-green-900/40 text-green-400 font-semibold border border-green-800 transition";
-            
             document.querySelectorAll('.admin-panel').forEach(el => el.classList.remove('active'));
             document.getElementById(panelId).classList.add('active');
         }
 
-        // ==========================================
-        // 🛠️ อะไหล่แบบชิป (SA Form)
-        // ==========================================
         let partsDB = { main: [], sub: [] };
         let selectedParts = { main: [], sub: [] };
 
         function renderPartsUI() {
             const mainAvailBox = document.getElementById('main_parts_available'); const mainSelBox = document.getElementById('main_parts_selected');
             mainAvailBox.innerHTML = ''; mainSelBox.innerHTML = '';
-            partsDB.main.forEach(p => { if(!selectedParts.main.includes(p)) mainAvailBox.innerHTML += \`<span onclick="togglePart('main', '\${p}', 'add')" class="part-chip px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-semibold hover:bg-[#003220] hover:text-white border border-gray-300">\${p} +</span>\`; });
-            selectedParts.main.forEach(p => { mainSelBox.innerHTML += \`<span onclick="togglePart('main', '\${p}', 'remove')" class="part-chip px-3 py-1 bg-[#003220] text-white rounded-full text-xs font-bold shadow-sm border border-black">\${p} <i class="fa-solid fa-xmark ml-1"></i></span>\`; });
+            partsDB.main.forEach(p => { if(!selectedParts.main.includes(p)) mainAvailBox.innerHTML += `<span onclick="togglePart('main', '${p}', 'add')" class="part-chip px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-semibold hover:bg-[#003220] hover:text-white border border-gray-300">${p} +</span>`; });
+            selectedParts.main.forEach(p => { mainSelBox.innerHTML += `<span onclick="togglePart('main', '${p}', 'remove')" class="part-chip px-3 py-1 bg-[#003220] text-white rounded-full text-xs font-bold shadow-sm border border-black">${p} <i class="fa-solid fa-xmark ml-1"></i></span>`; });
             document.getElementById('main_part_qty_display').innerText = selectedParts.main.length;
 
             const subAvailBox = document.getElementById('sub_parts_available'); const subSelBox = document.getElementById('sub_parts_selected');
             subAvailBox.innerHTML = ''; subSelBox.innerHTML = '';
-            partsDB.sub.forEach(p => { if(!selectedParts.sub.includes(p)) subAvailBox.innerHTML += \`<span onclick="togglePart('sub', '\${p}', 'add')" class="part-chip px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-semibold hover:bg-gray-600 hover:text-white border border-gray-300">\${p} +</span>\`; });
-            selectedParts.sub.forEach(p => { subSelBox.innerHTML += \`<span onclick="togglePart('sub', '\${p}', 'remove')" class="part-chip px-3 py-1 bg-gray-700 text-white rounded-full text-xs font-bold shadow-sm border border-black">\${p} <i class="fa-solid fa-xmark ml-1"></i></span>\`; });
+            partsDB.sub.forEach(p => { if(!selectedParts.sub.includes(p)) subAvailBox.innerHTML += `<span onclick="togglePart('sub', '${p}', 'add')" class="part-chip px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-semibold hover:bg-gray-600 hover:text-white border border-gray-300">${p} +</span>`; });
+            selectedParts.sub.forEach(p => { subSelBox.innerHTML += `<span onclick="togglePart('sub', '${p}', 'remove')" class="part-chip px-3 py-1 bg-gray-700 text-white rounded-full text-xs font-bold shadow-sm border border-black">${p} <i class="fa-solid fa-xmark ml-1"></i></span>`; });
             document.getElementById('sub_part_qty_display').innerText = selectedParts.sub.length;
         }
 
@@ -309,39 +292,36 @@
             renderPartsUI();
         }
 
-        // ==========================================
-        // 🔄 โหลดข้อมูลหน้า SA Form ตอนเปิดเว็บ
-        // ==========================================
         let globalCarData = [];
         document.addEventListener('DOMContentLoaded', () => {
-            fetch(\`\${API_BASE_URL}/api/employees\`).then(r=>r.json()).then(data => {
+            fetch(`${API_BASE_URL}/api/employees`).then(r=>r.json()).then(data => {
                 const select = document.getElementById('sa_owner'); select.innerHTML = '<option value="">-- เลือกพนักงานรับรถ --</option>';
-                data.filter(e => e.is_active).forEach(e => select.innerHTML += \`<option value="\${e.employee_name}">\${e.employee_code} - \${e.employee_name}</option>\`);
+                data.forEach(e => select.innerHTML += `<option value="${e.employee_name}">${e.employee_code} - ${e.employee_name}</option>`);
             });
-            fetch(\`\${API_BASE_URL}/api/customer-types\`).then(r=>r.json()).then(data => {
+            fetch(`${API_BASE_URL}/api/customer-types`).then(r=>r.json()).then(data => {
                 const select = document.getElementById('customer_type'); select.innerHTML = '<option value="">-- เลือกประเภทลูกค้า --</option>';
-                data.forEach(item => select.innerHTML += \`<option value="\${item.type_name}">\${item.type_name}</option>\`);
+                data.forEach(item => select.innerHTML += `<option value="${item.type_name}">${item.type_name}</option>`);
             });
-            fetch(\`\${API_BASE_URL}/api/parts\`).then(r=>r.json()).then(data => {
+            fetch(`${API_BASE_URL}/api/parts`).then(r=>r.json()).then(data => {
                 partsDB.main = data.filter(p => p.part_category === 'ชิ้นส่วนหลัก').map(p => p.part_name);
                 partsDB.sub = data.filter(p => p.part_category === 'ชิ้นส่วนรอง').map(p => p.part_name);
                 renderPartsUI();
             });
-            fetch(\`\${API_BASE_URL}/api/car-models\`).then(r=>r.json()).then(data => {
+            fetch(`${API_BASE_URL}/api/car-models`).then(r=>r.json()).then(data => {
                 globalCarData = data;
                 const uniqueBrands = [...new Set(data.map(car => car.car_brand))];
                 const brandSelect = document.getElementById('car_brand'); brandSelect.innerHTML = '<option value="">-- เลือกยี่ห้อรถ --</option>';
-                uniqueBrands.forEach(brand => brandSelect.innerHTML += \`<option value="\${brand}">\${brand}</option>\`);
+                uniqueBrands.forEach(brand => brandSelect.innerHTML += `<option value="${brand}">${brand}</option>`);
                 if(uniqueBrands.includes('Tesla')) { brandSelect.value = 'Tesla'; updateCarModels('Tesla'); }
             });
             document.getElementById('car_brand').addEventListener('change', function() { updateCarModels(this.value); });
-            fetch(\`\${API_BASE_URL}/api/insurances\`).then(r=>r.json()).then(data => {
-                const select = document.getElementById('payment_type'); select.innerHTML = '<option value="">-- เลือกประกันภัย/ชำระสด --</option>';
-                data.forEach(item => select.innerHTML += \`<option value="\${item.insurance_name}">\${item.insurance_name}</option>\`);
+            fetch(`${API_BASE_URL}/api/insurances`).then(r=>r.json()).then(data => {
+                const select = document.getElementById('payment_type'); select.innerHTML = '<option value="">-- เลือกประกันภัย --</option>';
+                data.forEach(item => select.innerHTML += `<option value="${item.insurance_name}">${item.insurance_name}</option>`);
             });
-            fetch(\`\${API_BASE_URL}/api/statuses\`).then(r=>r.json()).then(data => {
+            fetch(`${API_BASE_URL}/api/statuses`).then(r=>r.json()).then(data => {
                 const select = document.getElementById('job_status'); select.innerHTML = '<option value="">-- เลือกสถานะ --</option>';
-                data.forEach(item => select.innerHTML += \`<option value="\${item.status_name}">\${item.status_code} - \${item.status_name}</option>\`);
+                data.forEach(item => select.innerHTML += `<option value="${item.status_name}">${item.status_code} - ${item.status_name}</option>`);
             });
         });
 
@@ -349,7 +329,7 @@
             const select = document.getElementById('car_model'); select.innerHTML = '<option value="">-- เลือกรุ่นรถ --</option>';
             if (!brandName) return;
             const filteredModels = globalCarData.filter(car => car.car_brand === brandName);
-            filteredModels.forEach(car => select.innerHTML += \`<option value="\${car.car_model}">\${car.car_model}</option>\`);
+            filteredModels.forEach(car => select.innerHTML += `<option value="${car.car_model}">${car.car_model}</option>`);
         }
 
         async function submitSaForm() {
@@ -362,41 +342,37 @@
                 target_finish_date: document.getElementById('target_finish_date').value || null, actual_finish_date: document.getElementById('actual_finish_date').value || null, delivery_date: document.getElementById('delivery_date').value || null,
                 notes: document.getElementById('notes').value, job_status: document.getElementById('job_status').value
             };
-            if(!formData.sa_owner || !formData.customer_name || !formData.car_brand || !formData.car_model || !formData.job_status) return alert('⚠️ กรอกพนักงาน SA, ชื่อลูกค้า, เลือกรถยนต์ และสถานะให้ครบก่อน!');
-            
+            if(!formData.sa_owner || !formData.customer_name || !formData.car_brand || !formData.car_model || !formData.job_status) return alert('⚠️ กรอกข้อมูลสำคัญให้ครบก่อนครับ!');
             try {
-                const response = await fetch(\`\${API_BASE_URL}/api/report\`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
+                const response = await fetch(`${API_BASE_URL}/api/report`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
                 if (response.ok) {
                     alert('🎉 สำเร็จ! บันทึกใบแจ้งซ่อมเรียบร้อยแล้ว!'); document.getElementById('saForm').reset();
                     selectedParts = { main: [], sub: [] }; renderPartsUI();
                     if(document.getElementById('car_brand').querySelector('option[value="Tesla"]')) { document.getElementById('car_brand').value = 'Tesla'; updateCarModels('Tesla'); }
                 } else alert('❌ ข้อผิดพลาดจากระบบ');
-            } catch (error) { alert('❌ ติดต่อ API ไม่ได้ สาเหตุ: ' + error.message); }
+            } catch (error) { alert('❌ ติดต่อ API ล้มเหลว'); }
         }
 
-        // ==========================================
-        // 🧑‍💻 ระบบ Admin CRUD ทั้งหมด
-        // ==========================================
         async function loadAllAdminData() {
             loadAdminEmployees(); loadAdminCarModels(); loadAdminInsurances();
         }
 
-        // --- 1. Employees ---
         async function loadAdminEmployees() {
-            const data = await (await fetch(\`\${API_BASE_URL}/api/employees\`)).json();
+            const data = await (await fetch(`${API_BASE_URL}/api/employees`)).json();
             const tbody = document.getElementById('emp_table_body'); tbody.innerHTML = '';
             data.forEach(e => {
-                tbody.innerHTML += \`<tr class="hover:bg-gray-800/50">
-                    <td class="p-4 font-mono text-green-400">\${e.employee_code}</td><td class="p-4">\${e.employee_name}</td><td class="p-4">\${e.employee_role}</td>
+                tbody.innerHTML += `<tr class="hover:bg-gray-800/50">
+                    <td class="p-4 font-mono text-green-400">${e.employee_code}</td><td class="p-4">${e.employee_name}</td><td class="p-4">${e.employee_role}</td>
                     <td class="p-4 text-center">
-                        <button onclick="editEmployee('\${e.employee_id}', '\${e.employee_code}', '\${e.employee_name}', '\${e.employee_role}')" class="text-blue-400 hover:text-white px-2"><i class="fa-solid fa-pen-to-square"></i></button>
-                        <button onclick="deleteData('/api/employees/\${e.employee_id}', loadAdminEmployees)" class="text-gray-400 hover:text-red-400 px-2"><i class="fa-solid fa-trash"></i></button>
+                        <button type="button" onclick="editEmployee('${e.employee_id}', '${e.employee_code}', '${e.employee_name}', '${e.employee_role}')" class="text-blue-400 hover:text-white px-2"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button type="button" onclick="deleteData('/api/employees/${e.employee_id}', loadAdminEmployees)" class="text-gray-400 hover:text-red-400 px-2"><i class="fa-solid fa-trash"></i></button>
                     </td>
-                </tr>\`;
+                </tr>`;
             });
         }
         function editEmployee(id, code, name, role) {
-            document.getElementById('edit_emp_id').value = id; document.getElementById('emp_code').value = code; document.getElementById('emp_name').value = name; document.getElementById('emp_role').value = role;
+            document.getElementById('edit_emp_id').value = id; document.getElementById('emp_code').value = code;
+            document.getElementById('emp_name').value = name; document.getElementById('emp_role').value = role;
             document.getElementById('btn_save_emp').innerText = 'บันทึกแก้ไข'; document.getElementById('btn_save_emp').classList.replace('bg-green-600', 'bg-blue-600');
         }
         function resetEmpForm() {
@@ -407,23 +383,22 @@
             const id = document.getElementById('edit_emp_id').value;
             const payload = { employee_code: document.getElementById('emp_code').value, employee_name: document.getElementById('emp_name').value, employee_role: document.getElementById('emp_role').value };
             if(!payload.employee_code || !payload.employee_name) return alert('กรอกข้อมูลให้ครบก่อนครับ');
-            const method = id ? 'PUT' : 'POST'; const url = id ? \`/api/employees/\${id}\` : '/api/employees';
-            await fetch(\`\${API_BASE_URL}\${url}\`, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+            const method = id ? 'PUT' : 'POST'; const url = id ? `/api/employees/${id}` : '/api/employees';
+            await fetch(`${API_BASE_URL}${url}`, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
             resetEmpForm(); loadAdminEmployees();
         }
 
-        // --- 2. Car Models ---
         async function loadAdminCarModels() {
-            const data = await (await fetch(\`\${API_BASE_URL}/api/car-models\`)).json();
+            const data = await (await fetch(`${API_BASE_URL}/api/car-models`)).json();
             const tbody = document.getElementById('car_table_body'); tbody.innerHTML = '';
             data.forEach(c => {
-                tbody.innerHTML += \`<tr class="hover:bg-gray-800/50">
-                    <td class="p-4 text-gray-500">\${c.model_id}</td><td class="p-4 font-bold">\${c.car_brand}</td><td class="p-4">\${c.car_model}</td>
+                tbody.innerHTML += `<tr class="hover:bg-gray-800/50">
+                    <td class="p-4 text-gray-500">${c.model_id}</td><td class="p-4 font-bold">${c.car_brand}</td><td class="p-4">${c.car_model}</td>
                     <td class="p-4 text-center">
-                        <button onclick="editCarModel('\${c.model_id}', '\${c.car_brand}', '\${c.car_model}')" class="text-blue-400 hover:text-white px-2"><i class="fa-solid fa-pen-to-square"></i></button>
-                        <button onclick="deleteData('/api/car-models/\${c.model_id}', loadAdminCarModels)" class="text-gray-400 hover:text-red-400 px-2"><i class="fa-solid fa-trash"></i></button>
+                        <button type="button" onclick="editCarModel('${c.model_id}', '${c.car_brand}', '${c.car_model}')" class="text-blue-400 hover:text-white px-2"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button type="button" onclick="deleteData('/api/car-models/${c.model_id}', loadAdminCarModels)" class="text-gray-400 hover:text-red-400 px-2"><i class="fa-solid fa-trash"></i></button>
                     </td>
-                </tr>\`;
+                </tr>`;
             });
         }
         function editCarModel(id, brand, model) {
@@ -437,24 +412,23 @@
         async function saveCarModel() {
             const id = document.getElementById('edit_car_id').value;
             const payload = { car_brand: document.getElementById('car_brand_input').value, car_model: document.getElementById('car_model_input').value };
-            if(!payload.car_brand || !payload.car_model) return alert('กรอกยี่ห้อและรุ่นรถให้ครบก่อนครับ');
-            const method = id ? 'PUT' : 'POST'; const url = id ? \`/api/car-models/\${id}\` : '/api/car-models';
-            await fetch(\`\${API_BASE_URL}\${url}\`, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+            if(!payload.car_brand || !payload.car_model) return alert('กรอกข้อมูลรถให้ครบก่อนครับ');
+            const method = id ? 'PUT' : 'POST'; const url = id ? `/api/car-models/${id}` : '/api/car-models';
+            await fetch(`${API_BASE_URL}${url}`, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
             resetCarForm(); loadAdminCarModels();
         }
 
-        // --- 3. Insurances ---
         async function loadAdminInsurances() {
-            const data = await (await fetch(\`\${API_BASE_URL}/api/insurances\`)).json();
+            const data = await (await fetch(`${API_BASE_URL}/api/insurances`)).json();
             const tbody = document.getElementById('ins_table_body'); tbody.innerHTML = '';
             data.forEach(i => {
-                tbody.innerHTML += \`<tr class="hover:bg-gray-800/50">
-                    <td class="p-4 font-mono text-amber-400">\${i.insurance_code}</td><td class="p-4">\${i.insurance_name}</td><td class="p-4">\${i.insurance_type}</td>
+                tbody.innerHTML += `<tr class="hover:bg-gray-800/50">
+                    <td class="p-4 font-mono text-amber-400">${i.insurance_code}</td><td class="p-4">${i.insurance_name}</td><td class="p-4">${i.insurance_type}</td>
                     <td class="p-4 text-center">
-                        <button onclick="editInsurance('\${i.insurance_code}', '\${i.insurance_name}', '\${i.insurance_type}')" class="text-blue-400 hover:text-white px-2"><i class="fa-solid fa-pen-to-square"></i></button>
-                        <button onclick="deleteData('/api/insurances/\${i.insurance_code}', loadAdminInsurances)" class="text-gray-400 hover:text-red-400 px-2"><i class="fa-solid fa-trash"></i></button>
+                        <button type="button" onclick="editInsurance('${i.insurance_code}', '${i.insurance_name}', '${i.insurance_type}')" class="text-blue-400 hover:text-white px-2"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button type="button" onclick="deleteData('/api/insurances/${i.insurance_code}', loadAdminInsurances)" class="text-gray-400 hover:text-red-400 px-2"><i class="fa-solid fa-trash"></i></button>
                     </td>
-                </tr>\`;
+                </tr>`;
             });
         }
         function editInsurance(code, name, type) {
@@ -468,19 +442,17 @@
             document.getElementById('btn_save_ins').innerText = 'เพิ่มข้อมูล'; document.getElementById('btn_save_ins').classList.replace('bg-blue-600', 'bg-green-600');
         }
         async function saveInsurance() {
-            const id = document.getElementById('edit_ins_id').value;
-            const code = document.getElementById('ins_code').value;
+            const id = document.getElementById('edit_ins_id').value; const code = document.getElementById('ins_code').value;
             const payload = { insurance_code: code, insurance_name: document.getElementById('ins_name').value, insurance_type: document.getElementById('ins_type').value };
-            if(!code || !payload.insurance_name) return alert('กรอกรหัสและชื่อประกันให้ครบก่อนครับ');
-            const method = id ? 'PUT' : 'POST'; const url = id ? \`/api/insurances/\${code}\` : '/api/insurances';
-            await fetch(\`\${API_BASE_URL}\${url}\`, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+            if(!code || !payload.insurance_name) return alert('กรอกข้อมูลให้ครบก่อนครับ');
+            const method = id ? 'PUT' : 'POST'; const url = id ? `/api/insurances/${code}` : '/api/insurances';
+            await fetch(`${API_BASE_URL}${url}`, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
             resetInsForm(); loadAdminInsurances();
         }
 
-        // --- ฟังก์ชันลบกลาง ---
         async function deleteData(url, reloadCallback) {
             if(!confirm('🚨 ยืนยันการลบข้อมูลนี้หรือไม่?')) return;
-            await fetch(\`\${API_BASE_URL}\${url}\`, { method: 'DELETE' });
+            await fetch(`${API_BASE_URL}${url}`, { method: 'DELETE' });
             reloadCallback();
         }
     </script>
