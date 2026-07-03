@@ -76,6 +76,7 @@
         </header>
 
         <main class="max-w-7xl mx-auto px-4 py-8">
+            
             <section id="sa-tab" class="tab-content block">
                 <div class="bg-white text-gray-900 rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
                     <div class="bg-rizenic-green p-6 text-white flex justify-between items-center">
@@ -261,7 +262,8 @@
                     alert('❌ ' + data.error);
                 }
             } catch (err) { 
-                alert('❌ ติดต่อเซิร์ฟเวอร์ไม่ได้ครับ'); 
+                alert('❌ โค้ดหน้าบ้านพังเพราะ: ' + err.message); 
+                console.error("จุดที่พังแบบละเอียด:", err);
             }
         }
 
@@ -270,13 +272,62 @@
             window.location.reload(); 
         }
 
-        // 🌐 Load Initial Data
+        // ==========================================
+        // 🌐 โหลด Master Data ทั้งหมด (หน้าบิล + หน้าพนักงาน)
+        // ==========================================
+        function loadInitialData() {
+            loadAdminEmployees(); // บังคับโหลดตารางแอดมินพนักงานทันที!
+
+            fetch(`${API_BASE_URL}/api/customer-types`).then(r=>r.json()).then(data => {
+                const select = document.getElementById('customer_type'); 
+                select.innerHTML = '<option value="">-- เลือก --</option>';
+                if(data && data.length) data.forEach(item => select.innerHTML += `<option value="${item.type_name}">${item.type_name}</option>`);
+            }).catch(e => console.log("โหลดประเภทลูกค้าพัง", e));
+
+            fetch(`${API_BASE_URL}/api/parts`).then(r=>r.json()).then(data => {
+                if(data && data.length) {
+                    partsDB.main = data.filter(p => p.part_category === 'ชิ้นส่วนหลัก').map(p => p.part_name);
+                    partsDB.sub = data.filter(p => p.part_category === 'ชิ้นส่วนรอง').map(p => p.part_name); 
+                    renderPartsUI();
+                }
+            }).catch(e => console.log("โหลดอะไหล่พัง", e));
+
+            fetch(`${API_BASE_URL}/api/car-models`).then(r=>r.json()).then(data => {
+                if(data && data.length) {
+                    globalCarData = data; 
+                    const uniqueBrands = [...new Set(data.map(car => car.car_brand))];
+                    const brandSelect = document.getElementById('car_brand'); 
+                    brandSelect.innerHTML = '<option value="">-- เลือก --</option>';
+                    uniqueBrands.forEach(brand => brandSelect.innerHTML += `<option value="${brand}">${brand}</option>`);
+                    
+                    const newBrandSelect = brandSelect.cloneNode(true);
+                    brandSelect.parentNode.replaceChild(newBrandSelect, brandSelect);
+                    newBrandSelect.addEventListener('change', function() { updateCarModels(this.value); });
+                }
+            }).catch(e => console.log("โหลดยี่ห้อรถพัง", e));
+
+            fetch(`${API_BASE_URL}/api/insurances`).then(r=>r.json()).then(data => {
+                const select = document.getElementById('payment_type'); 
+                select.innerHTML = '<option value="">-- เลือก --</option>';
+                if(data && data.length) data.forEach(item => select.innerHTML += `<option value="${item.insurance_name}">${item.insurance_name}</option>`);
+            }).catch(e => console.log("โหลดประกันพัง", e));
+
+            fetch(`${API_BASE_URL}/api/statuses`).then(r=>r.json()).then(data => {
+                const select = document.getElementById('job_status'); 
+                select.innerHTML = '<option value="">-- เลือก --</option>';
+                if(data && data.length) data.forEach(item => select.innerHTML += `<option value="${item.status_name}">${item.status_code} - ${item.status_name}</option>`);
+            }).catch(e => console.log("โหลดสถานะพัง", e));
+        }
+
+        // ==========================================
+        // 🧑‍💻 ระบบจัดการพนักงานและสาขา (Admin CRUD)
+        // ==========================================
         async function loadAdminEmployees() {
             try {
                 const res = await fetch(`${API_BASE_URL}/api/employees`);
                 const data = await res.json();
                 
-                // 🛡️ ป้องกันคราฟท์: แปลงค่าหากเป็น null/ขยะ ให้เป็นข้อความธรรมดาก่อนทำดร็อปดาวน์
+                // 🛡️ ระบบเซฟตี้อุดรอยรั่ว: หากแถวไหนใน DB เป็น NULL ให้เซ็ตค่าเริ่มต้นทันทีไม่ให้ JS พัง
                 const cleanedData = data.map(e => ({
                     ...e,
                     branch_name: e.branch_name || 'สำนักงานใหญ่',
@@ -305,10 +356,76 @@
                         </td>
                     </tr>`; 
                 });
-            } catch (err) { console.error("ตารางพนักงานพังเพราะ:", err); }
+            } catch (err) { 
+                console.error("ตารางพนักงานพังเพราะ:", err); 
+            }
         }
 
-        // 🛠 UI & Navigation
+        function editEmployee(id, code, name, role, branch, user, pass) { 
+            document.getElementById('edit_emp_id').value = id; 
+            document.getElementById('emp_code').value = code; 
+            document.getElementById('emp_name').value = name; 
+            document.getElementById('emp_role').value = role !== 'null' ? role : ''; 
+            document.getElementById('emp_branch').value = branch !== 'null' ? branch : ''; 
+            document.getElementById('emp_user').value = user !== 'null' ? user : ''; 
+            document.getElementById('emp_pass').value = pass !== 'null' ? pass : ''; 
+            document.getElementById('btn_save_emp').innerText = 'บันทึกอัปเดต'; 
+            document.getElementById('btn_save_emp').classList.replace('bg-green-600', 'bg-blue-600'); 
+        }
+
+        function resetEmpForm() { 
+            document.getElementById('edit_emp_id').value = ''; 
+            document.getElementById('emp_code').value = ''; 
+            document.getElementById('emp_name').value = ''; 
+            document.getElementById('emp_role').value = ''; 
+            document.getElementById('emp_branch').value = ''; 
+            document.getElementById('emp_user').value = ''; 
+            document.getElementById('emp_pass').value = ''; 
+            document.getElementById('btn_save_emp').innerText = 'บันทึกพนักงาน'; 
+            document.getElementById('btn_save_emp').classList.replace('bg-blue-600', 'bg-green-600'); 
+        }
+
+        async function saveEmployee() {
+            const id = document.getElementById('edit_emp_id').value;
+            const payload = { 
+                employee_code: document.getElementById('emp_code').value, 
+                employee_name: document.getElementById('emp_name').value, 
+                employee_role: document.getElementById('emp_role').value, 
+                branch_name: document.getElementById('emp_branch').value, 
+                username: document.getElementById('emp_user').value, 
+                password: document.getElementById('emp_pass').value 
+            };
+            
+            if(!payload.employee_name || !payload.username || !payload.password) {
+                alert('⚠️ กรอกชื่อ ไอดี และรหัสผ่านให้ครบครับ');
+                return;
+            }
+
+            const method = id ? 'PUT' : 'POST'; 
+            const url = id ? `/api/employees/${id}` : '/api/employees';
+            
+            try { 
+                const res = await fetch(`${API_BASE_URL}${url}`, { 
+                    method, 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify(payload) 
+                }); 
+                const data = await res.json(); 
+                
+                if (res.ok && data.success) { 
+                    resetEmpForm(); 
+                    loadAdminEmployees(); 
+                } else {
+                    alert('❌ ' + (data.error || 'เกิดข้อผิดพลาด'));
+                }
+            } catch (e) { 
+                alert('❌ ล้มเหลว ติดต่อเซิร์ฟเวอร์ไม่ได้'); 
+            }
+        }
+
+        // ==========================================
+        // 🛠️ ฟังก์ชันหน้าบ้าน SA และ UI อื่นๆ
+        // ==========================================
         function switchTab(tabId) {
             if (tabId === 'admin-tab') {
                 const role = sessionStorage.getItem('emp_role');
@@ -370,20 +487,15 @@
         }
 
         function togglePart(category, partName, action) { 
-            if (action === 'add') {
-                selectedParts[category].push(partName);
-            } else {
-                selectedParts[category] = selectedParts[category].filter(p => p !== partName);
-            }
+            if (action === 'add') selectedParts[category].push(partName);
+            else selectedParts[category] = selectedParts[category].filter(p => p !== partName);
             renderPartsUI(); 
         }
 
         function updateCarModels(brandName) {
             const select = document.getElementById('car_model'); 
             select.innerHTML = '<option value="">-- เลือกรุ่นรถ --</option>';
-            if (!brandName) {
-                return;
-            }
+            if (!brandName) return;
             globalCarData.filter(car => car.car_brand === brandName).forEach(car => {
                 select.innerHTML += `<option value="${car.car_model}">${car.car_model}</option>`;
             });
@@ -426,7 +538,6 @@
                     headers: { 'Content-Type': 'application/json' }, 
                     body: JSON.stringify(formData) 
                 }); 
-                
                 if (response.ok) { 
                     alert(`🎉 บันทึกใบงานสำเร็จ!`); 
                     document.getElementById('saForm').reset(); 
@@ -438,101 +549,11 @@
             }
         }
 
-        // 🧑‍💻 Admin Panel Functions
-        async function loadAdminEmployees() {
-            const res = await fetch(`${API_BASE_URL}/api/employees`);
-            const data = await res.json();
-            
-            const uniqueRoles = [...new Set(data.map(e => e.employee_role).filter(Boolean))]; 
-            const uniqueBranches = [...new Set(data.map(e => e.branch_name).filter(Boolean))];
-            
-            document.getElementById('role_list').innerHTML = uniqueRoles.map(r => `<option value="${r}">`).join(''); 
-            document.getElementById('branch_list').innerHTML = uniqueBranches.map(b => `<option value="${b}">`).join('');
-            
-            const tbody = document.getElementById('emp_table_body'); 
-            tbody.innerHTML = '';
-            data.forEach(e => { 
-                tbody.innerHTML += `<tr class="hover:bg-gray-800/50">
-                    <td class="p-4 font-bold text-amber-400">${e.branch_name||'-'}</td>
-                    <td class="p-4">${e.employee_name} <span class="text-xs text-gray-500">(${e.employee_code})</span></td>
-                    <td class="p-4">${e.employee_role}</td>
-                    <td class="p-4 font-mono text-cyan-400">${e.username||'-'}</td>
-                    <td class="p-4 text-center">
-                        <button type="button" onclick="editEmployee('${e.employee_id}', '${e.employee_code}', '${e.employee_name}', '${e.employee_role}', '${e.branch_name}', '${e.username}', '${e.password}')" class="text-blue-400 hover:text-white px-2"><i class="fa-solid fa-pen-to-square"></i></button> 
-                        <button type="button" onclick="deleteData('/api/employees/${e.employee_id}', loadAdminEmployees)" class="text-gray-400 hover:text-red-400 px-2"><i class="fa-solid fa-trash"></i></button>
-                    </td>
-                </tr>`; 
-            });
-        }
-
-        function editEmployee(id, code, name, role, branch, user, pass) { 
-            document.getElementById('edit_emp_id').value = id; 
-            document.getElementById('emp_code').value = code; 
-            document.getElementById('emp_name').value = name; 
-            document.getElementById('emp_role').value = role !== 'null' ? role : ''; 
-            document.getElementById('emp_branch').value = branch !== 'null' ? branch : ''; 
-            document.getElementById('emp_user').value = user !== 'null' ? user : ''; 
-            document.getElementById('emp_pass').value = pass !== 'null' ? pass : ''; 
-            document.getElementById('btn_save_emp').innerText = 'บันทึกอัปเดต'; 
-            document.getElementById('btn_save_emp').classList.replace('bg-green-600', 'bg-blue-600'); 
-        }
-
-        function resetEmpForm() { 
-            document.getElementById('edit_emp_id').value = ''; 
-            document.getElementById('emp_code').value = ''; 
-            document.getElementById('emp_name').value = ''; 
-            document.getElementById('emp_role').value = ''; 
-            document.getElementById('emp_branch').value = ''; 
-            document.getElementById('emp_user').value = ''; 
-            document.getElementById('emp_pass').value = ''; 
-            document.getElementById('btn_save_emp').innerText = 'เพิ่มข้อมูลพนักงาน'; 
-            document.getElementById('btn_save_emp').classList.replace('bg-blue-600', 'bg-green-600'); 
-        }
-
-        async function saveEmployee() {
-            const id = document.getElementById('edit_emp_id').value;
-            const payload = { 
-                employee_code: document.getElementById('emp_code').value, 
-                employee_name: document.getElementById('emp_name').value, 
-                employee_role: document.getElementById('emp_role').value, 
-                branch_name: document.getElementById('emp_branch').value, 
-                username: document.getElementById('emp_user').value, 
-                password: document.getElementById('emp_pass').value 
-            };
-            
-            if(!payload.employee_name || !payload.username || !payload.password) {
-                alert('⚠️ กรอกชื่อ ไอดี และรหัสผ่านให้ครบครับ');
-                return;
-            }
-
-            const method = id ? 'PUT' : 'POST'; 
-            const url = id ? `/api/employees/${id}` : '/api/employees';
-            
-            try { 
-                const res = await fetch(`${API_BASE_URL}${url}`, { 
-                    method, 
-                    headers: {'Content-Type': 'application/json'}, 
-                    body: JSON.stringify(payload) 
-                }); 
-                const data = await res.json(); 
-                
-                if (res.ok && data.success) { 
-                    resetEmpForm(); 
-                    loadAdminEmployees(); 
-                } else {
-                    alert('❌ ' + (data.error || 'เกิดข้อผิดพลาด'));
-                }
-            } catch (e) { 
-                alert('❌ ล้มเหลว ติดต่อเซิร์ฟเวอร์ไม่ได้'); 
-            }
-        }
-
-        // --- Other Masters ---
+        // --- Other Masters CRUD ---
         async function loadAdminCarModels() { 
             const res = await fetch(`${API_BASE_URL}/api/car-models`);
             const data = await res.json(); 
-            const tbody = document.getElementById('car_table_body'); 
-            tbody.innerHTML = ''; 
+            const tbody = document.getElementById('car_table_body'); tbody.innerHTML = ''; 
             data.forEach(c => { 
                 tbody.innerHTML += `<tr class="hover:bg-gray-800/50"><td class="p-4">${c.model_id}</td><td class="p-4 font-bold">${c.car_brand}</td><td class="p-4">${c.car_model}</td><td class="p-4 text-center"><button onclick="editCarModel('${c.model_id}', '${c.car_brand}', '${c.car_model}')" class="text-blue-400 px-2"><i class="fa-solid fa-pen-to-square"></i></button> <button onclick="deleteData('/api/car-models/${c.model_id}', loadAdminCarModels)" class="text-gray-400 hover:text-red-400 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`; 
             }); 
@@ -542,18 +563,15 @@
         async function saveCarModel() { 
             const id = document.getElementById('edit_car_id').value; 
             const payload = { car_brand: document.getElementById('car_brand_input').value, car_model: document.getElementById('car_model_input').value }; 
-            const m = id ? 'PUT' : 'POST'; 
-            const u = id ? `/api/car-models/${id}` : '/api/car-models'; 
+            const m = id ? 'PUT' : 'POST'; const u = id ? `/api/car-models/${id}` : '/api/car-models'; 
             await fetch(`${API_BASE_URL}${u}`, {method:m, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}); 
-            resetCarForm(); 
-            loadAdminCarModels(); 
+            resetCarForm(); loadAdminCarModels(); 
         }
 
         async function loadAdminInsurances() { 
             const res = await fetch(`${API_BASE_URL}/api/insurances`);
             const data = await res.json(); 
-            const tbody = document.getElementById('ins_table_body'); 
-            tbody.innerHTML = ''; 
+            const tbody = document.getElementById('ins_table_body'); tbody.innerHTML = ''; 
             data.forEach(i => { 
                 tbody.innerHTML += `<tr class="hover:bg-gray-800/50"><td class="p-4">${i.insurance_code}</td><td class="p-4">${i.insurance_name}</td><td class="p-4">${i.insurance_type}</td><td class="p-4 text-center"><button onclick="editInsurance('${i.insurance_code}', '${i.insurance_name}', '${i.insurance_type}')" class="text-blue-400 px-2"><i class="fa-solid fa-pen-to-square"></i></button> <button onclick="deleteData('/api/insurances/${i.insurance_code}', loadAdminInsurances)" class="text-gray-400 hover:text-red-400 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`; 
             }); 
@@ -561,21 +579,17 @@
         function editInsurance(c, n, t) { document.getElementById('edit_ins_id').value=c; document.getElementById('ins_code').value=c; document.getElementById('ins_code').disabled=true; document.getElementById('ins_name').value=n; document.getElementById('ins_type').value=t; document.getElementById('btn_save_ins').innerText='บันทึกอัปเดต'; }
         function resetInsForm() { document.getElementById('edit_ins_id').value=''; document.getElementById('ins_code').value=''; document.getElementById('ins_code').disabled=false; document.getElementById('ins_name').value=''; document.getElementById('ins_type').value=''; document.getElementById('btn_save_ins').innerText='เพิ่มข้อมูล'; }
         async function saveInsurance() { 
-            const id = document.getElementById('edit_ins_id').value; 
-            const c = document.getElementById('ins_code').value; 
+            const id = document.getElementById('edit_ins_id').value; const c = document.getElementById('ins_code').value; 
             const payload = { insurance_code: c, insurance_name: document.getElementById('ins_name').value, insurance_type: document.getElementById('ins_type').value }; 
-            const m = id ? 'PUT' : 'POST'; 
-            const u = id ? `/api/insurances/${c}` : '/api/insurances'; 
+            const m = id ? 'PUT' : 'POST'; const u = id ? `/api/insurances/${c}` : '/api/insurances'; 
             await fetch(`${API_BASE_URL}${u}`, {method:m, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}); 
-            resetInsForm(); 
-            loadAdminInsurances(); 
+            resetInsForm(); loadAdminInsurances(); 
         }
 
         async function loadAdminCustomerTypes() { 
             const res = await fetch(`${API_BASE_URL}/api/customer-types`);
             const data = await res.json(); 
-            const tbody = document.getElementById('custype_table_body'); 
-            tbody.innerHTML = ''; 
+            const tbody = document.getElementById('custype_table_body'); tbody.innerHTML = ''; 
             data.forEach(i => { 
                 tbody.innerHTML += `<tr class="hover:bg-gray-800/50"><td class="p-4">${i.customer_type_id}</td><td class="p-4 font-mono text-cyan-400 font-bold">${i.type_code}</td><td class="p-4">${i.type_name}</td><td class="p-4 text-center"><button onclick="editCustomerType('${i.customer_type_id}', '${i.type_name}')" class="text-blue-400 px-2"><i class="fa-solid fa-pen-to-square"></i></button> <button onclick="deleteData('/api/customer-types/${i.customer_type_id}', loadAdminCustomerTypes)" class="text-gray-400 hover:text-red-400 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`; 
             }); 
@@ -585,19 +599,14 @@
         async function saveCustomerType() { 
             const id = document.getElementById('edit_custype_id').value; 
             const payload = { type_name: document.getElementById('custype_name').value }; 
-            const m = id ? 'PUT' : 'POST'; 
-            const u = id ? `/api/customer-types/${id}` : '/api/customer-types'; 
+            const m = id ? 'PUT' : 'POST'; const u = id ? `/api/customer-types/${id}` : '/api/customer-types'; 
             await fetch(`${API_BASE_URL}${u}`, {method:m, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}); 
-            resetCustypeForm(); 
-            loadAdminCustomerTypes(); 
+            resetCustypeForm(); loadAdminCustomerTypes(); 
         }
 
         async function deleteData(url, reloadCallback) { 
-            if (!confirm('🚨 ยืนยันการลบข้อมูลนี้หรือไม่?')) {
-                return;
-            }
-            await fetch(`${API_BASE_URL}${url}`, { method: 'DELETE' }); 
-            reloadCallback(); 
+            if (!confirm('🚨 ยืนยันการลบข้อมูลนี้หรือไม่?')) return;
+            await fetch(`${API_BASE_URL}${url}`, { method: 'DELETE' }); reloadCallback(); 
         }
     </script>
 </body>
