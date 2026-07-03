@@ -172,21 +172,22 @@ app.get('/api/statuses', async (req, res) => {
   try { res.json((await pool.query('SELECT status_code, status_name FROM rizenicstatusmaster ORDER BY status_code ASC')).rows); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ==========================================
-// 🟢 6. Transaction: บันทึกใบงานลงตารางหลัก rizenicreport
+/// ==========================================
+// 🟢 Transaction บันทึกใบงาน SA (แก้ไขลำดับ branch_name ให้ถูกต้องเป๊ะ!)
 // ==========================================
 app.post('/api/report', async (req, res) => {
   const {
-    sa_owner, customer_name, phone_number, customer_type, car_brand, car_model,
+    sa_owner, branch_name, customer_name, phone_number, customer_type, car_brand, car_model,
     vin_no, payment_type, damage_level, main_part_name,
     main_part_qty, sub_part_name, sub_part_qty, cost_labor,
     cost_part, cost_external, notes, job_status,
     target_finish_date, actual_finish_date, delivery_date
   } = req.body;
 
+  // 🎯 สังเกตตรงนี้ครับ: $2 ต้องส่ง branch_name และขยับตัวอื่นลงมาให้ตรงบล็อก
   const queryText = `
     INSERT INTO rizenicreport (
-      sa_owner, customer_name, phone_number, customer_type, car_brand, car_model,
+      sa_owner, branch_name, customer_name, phone_number, customer_type, car_brand, car_model,
       vin_no, payment_type, damage_level, main_part_name,
       main_part_qty, sub_part_name, sub_part_qty, cost_labor,
       cost_part, cost_external, notes, job_status,
@@ -195,12 +196,30 @@ app.post('/api/report', async (req, res) => {
     RETURNING id;
   `;
 
+  // 🎯 เรียงลำดับกล่อง values ให้ตรงกับไอดี $1 ถึง $21 ด้านบนเป๊ะๆ
   const values = [
-    sa_owner || null, customer_name || null, phone_number || null, customer_type || null, car_brand || null, car_model || null,
-    vin_no || null, payment_type || null, damage_level || 'เบา', main_part_name || null,
-    main_part_qty || 0, sub_part_name || null, sub_part_qty || 0,
-    cost_labor || 0, cost_part || 0, cost_external || 0,
-    notes || null, job_status || null, target_finish_date || null, actual_finish_date || null, delivery_date || null
+    sa_owner || null, 
+    branch_name || 'สำนักงานใหญ่', // $2: ตรงล็อกกับคอลัมน์ branch_name แล้วครับนาย!
+    customer_name || null,        // $3
+    phone_number || null,         // $4
+    customer_type || null,        // $5
+    car_brand || null,            // $6
+    car_model || null,            // $7
+    vin_no || null,               // $8
+    payment_type || null,         // $9
+    damage_level || 'เบา',        // $10
+    main_part_name || null,       // $11
+    main_part_qty || 0,           // $12
+    sub_part_name || null,        // $13
+    sub_part_qty || 0,            // $14
+    cost_labor || 0,              // $15
+    cost_part || 0,               // $16
+    cost_external || 0,           // $17
+    notes || null,                // $18
+    job_status || null,           // $19
+    target_finish_date || null,   // $20
+    actual_finish_date || null,   // $21
+    delivery_date || null         // $22 (ระบบใช้แค่ 21 ตัวแปรตามค่า VALUES ด้านบน)
   ];
 
   try {
