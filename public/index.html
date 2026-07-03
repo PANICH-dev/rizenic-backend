@@ -398,8 +398,12 @@
             renderPartsUI();
         }
 
+        // 🟢 แก้ไขฟังก์ชันนี้เพื่อให้โหลดข้อมูลพนักงานและสาขาขึ้นตารางทันที!
         let globalCarData = [];
         function loadInitialData() {
+            // ดึงข้อมูลพนักงานมาเติมในตาราง Admin ตั้งแต่แรก
+            loadAdminEmployees(); 
+
             fetch(`${API_BASE_URL}/api/customer-types`).then(r=>r.json()).then(data => {
                 const select = document.getElementById('customer_type'); select.innerHTML = '<option value="">-- เลือกประเภทลูกค้า --</option>';
                 data.forEach(item => select.innerHTML += `<option value="${item.type_name}">${item.type_name}</option>`);
@@ -499,13 +503,29 @@
             document.getElementById('emp_user').value = ''; document.getElementById('emp_pass').value = '';
             document.getElementById('btn_save_emp').innerText = 'บันทึกข้อมูลพนักงาน'; document.getElementById('btn_save_emp').classList.replace('bg-blue-600', 'bg-green-600');
         }
-        async function saveEmployee() {
+      async function saveEmployee() {
             const id = document.getElementById('edit_emp_id').value;
             const payload = { 
                 employee_code: document.getElementById('emp_code').value, employee_name: document.getElementById('emp_name').value, 
                 employee_role: document.getElementById('emp_role').value, branch_name: document.getElementById('emp_branch').value, 
                 username: document.getElementById('emp_user').value, password: document.getElementById('emp_pass').value 
             };
+            if(!payload.employee_name || !payload.username || !payload.password) return alert('กรอกชื่อ ไอดี และรหัสผ่านให้ครบครับ');
+            
+            const method = id ? 'PUT' : 'POST'; const url = id ? `/api/employees/${id}` : '/api/employees';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}${url}`, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    resetEmpForm(); loadAdminEmployees();
+                } else {
+                    // 🛑 ถ้าซ้ำ มันจะเด้ง Alert ข้อความจากหลังบ้านที่เราเขียนดักไว้ครับ!
+                    alert('❌ ' + (data.error || 'เกิดข้อผิดพลาดในการบันทึก'));
+                }
+            } catch (err) { alert('❌ ติดต่อเซิร์ฟเวอร์ไม่ได้ครับ'); }
+        };
             if(!payload.employee_name || !payload.username || !payload.password) return alert('กรอกชื่อ ไอดี และรหัสผ่านให้ครบครับ');
             const method = id ? 'PUT' : 'POST'; const url = id ? `/api/employees/${id}` : '/api/employees';
             await fetch(`${API_BASE_URL}${url}`, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
