@@ -110,11 +110,17 @@
                         <div>
                             <h3 class="text-md font-bold text-rizenic-green mb-4 border-b pb-2"><i class="fa-solid fa-screwdriver-wrench"></i> 3. อะไหล่และการประเมิน</h3>
                             <div class="mb-4">
-                                <label class="block text-sm font-semibold text-gray-700 mb-1">ระดับความเสียหาย</label>
-                                <div class="flex gap-4">
-                                    <label><input type="radio" name="damage_level" value="เบา" checked> 🟢 เบา</label>
-                                    <label><input type="radio" name="damage_level" value="กลาง"> 🟡 กลาง</label>
-                                    <label><input type="radio" name="damage_level" value="หนัก"> 🔴 หนัก</label>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">ระดับความเสียหาย</label>
+                                <div class="flex flex-wrap gap-4">
+                                    <label class="flex items-center gap-2 px-4 py-2 border rounded-xl bg-green-50 border-green-200 text-green-700 cursor-pointer font-bold select-none">
+                                        <input type="radio" name="damage_level" value="เบา" checked class="accent-green-600 w-4 h-4"> 🟢 เบา
+                                    </label>
+                                    <label class="flex items-center gap-2 px-4 py-2 border rounded-xl bg-yellow-50 border-yellow-200 text-yellow-700 cursor-pointer font-bold select-none">
+                                        <input type="radio" name="damage_level" value="กลาง" class="accent-yellow-600 w-4 h-4"> 🟡 กลาง
+                                    </label>
+                                    <label class="flex items-center gap-2 px-4 py-2 border rounded-xl bg-red-50 border-red-200 text-red-700 cursor-pointer font-bold select-none">
+                                        <input type="radio" name="damage_level" value="หนัก" class="accent-red-600 w-4 h-4"> 🔴 หนัก
+                                    </label>
                                 </div>
                             </div>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -273,10 +279,10 @@
         }
 
         // ==========================================
-        // 🌐 โหลด Master Data ทั้งหมด (หน้าบิล + หน้าพนักงาน)
+        // 🌐 โหลด Master Data & ดึงพนักงานมาโชว์ตาราง
         // ==========================================
         function loadInitialData() {
-            loadAdminEmployees(); // บังคับโหลดตารางแอดมินพนักงานทันที!
+            loadAdminEmployees(); // ดึงข้อมูลรายการพนักงานมาขึ้นตารางทันทีตั้งแต่สตาร์ท!
 
             fetch(`${API_BASE_URL}/api/customer-types`).then(r=>r.json()).then(data => {
                 const select = document.getElementById('customer_type'); 
@@ -303,6 +309,15 @@
                     const newBrandSelect = brandSelect.cloneNode(true);
                     brandSelect.parentNode.replaceChild(newBrandSelect, brandSelect);
                     newBrandSelect.addEventListener('change', function() { updateCarModels(this.value); });
+
+                    // 🎯 ตั้งค่าเริ่มต้นดร็อปดาวน์ ยี่ห้อรถยนต์ เป็น TESLA อัตโนมัติ!
+                    if(uniqueBrands.includes('Tesla')) {
+                        newBrandSelect.value = 'Tesla';
+                        updateCarModels('Tesla');
+                    } else if(uniqueBrands.includes('TESLA')) {
+                        newBrandSelect.value = 'TESLA';
+                        updateCarModels('TESLA');
+                    }
                 }
             }).catch(e => console.log("โหลดยี่ห้อรถพัง", e));
 
@@ -327,7 +342,6 @@
                 const res = await fetch(`${API_BASE_URL}/api/employees`);
                 const data = await res.json();
                 
-                // 🛡️ ระบบเซฟตี้อุดรอยรั่ว: หากแถวไหนใน DB เป็น NULL ให้เซ็ตค่าเริ่มต้นทันทีไม่ให้ JS พัง
                 const cleanedData = data.map(e => ({
                     ...e,
                     branch_name: e.branch_name || 'สำนักงานใหญ่',
@@ -348,7 +362,7 @@
                     tbody.innerHTML += `<tr class="hover:bg-gray-800/50">
                         <td class="p-4 font-bold text-amber-400">${e.branch_name}</td>
                         <td class="p-4">${e.employee_name} <span class="text-xs text-gray-500">(${e.employee_code})</span></td>
-                        <td class="p-4">${e.employee_role}</td>
+                        <td class="p-4 font-semibold">${e.employee_role}</td>
                         <td class="p-4 font-mono text-cyan-400">${e.username}</td>
                         <td class="p-4 text-center">
                             <button type="button" onclick="editEmployee('${e.employee_id}', '${e.employee_code}', '${e.employee_name}', '${e.employee_role}', '${e.branch_name}', '${e.username}', '${e.password}')" class="text-blue-400 hover:text-white px-2"><i class="fa-solid fa-pen-to-square"></i></button> 
@@ -424,13 +438,15 @@
         }
 
         // ==========================================
-        // 🛠️ ฟังก์ชันหน้าบ้าน SA และ UI อื่นๆ
+        // 🛠️ UI & เมนู แท็บสลับหน้าจอ (ล็อกสิทธิ์ BA, Manager)
         // ==========================================
         function switchTab(tabId) {
             if (tabId === 'admin-tab') {
                 const role = sessionStorage.getItem('emp_role');
-                if (role !== 'Admin' && role !== 'แอดมิน') { 
-                    alert("❌ สิทธิ์ไม่เพียงพอ! เฉพาะแอดมินเท่านั้น"); 
+                
+                // 🔐 กำหนดสิทธิ์: ต้องเท่ากับ BA หรือ Manager หรือ Admin เดิมเท่านั้นถึงจะผ่านประตูได้
+                if (role !== 'BA' && role !== 'Manager' && role !== 'Admin' && role !== 'แอดมิน') { 
+                    alert(`❌ เข้าไม่ได้ครับนาย! สิทธิ์ของคุณคือ (${role || 'ไม่มีตำแหน่ง'}) เมนูแอดมินจำกัดเฉพาะตำแหน่ง BA และ Manager เท่านั้นครับ!`); 
                     return; 
                 }
                 loadAdminCarModels(); 
