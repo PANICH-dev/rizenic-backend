@@ -239,7 +239,7 @@ app.get('/', (req, res) => {
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            // 1. ดึงรุ่นรถยนต์ (🟢 ปรับแก้ตามคอลัมน์จริง car_brand และ car_model เรียบร้อยจ๊ะ)
+            // 1. ดึงรุ่นรถยนต์ (car_brand และ car_model แมตช์ตามรูปหลักฐาน)
             fetch(\`\${API_BASE_URL}/api/car-models\`)
                 .then(res => res.json())
                 .then(data => {
@@ -250,18 +250,18 @@ app.get('/', (req, res) => {
                     });
                 }).catch(err => console.error("Car Models Load Error:", err));
 
-            // 2. ดึงค่ายประกันภัย
+            // 2. ดึงค่ายประกันภัย (ถอดรหัสและดึงข้อมูลมาพ่นใส่หน้าบ้าน)
             fetch(\`\${API_BASE_URL}/api/insurances\`)
                 .then(res => res.json())
                 .then(data => {
                     const select = document.getElementById('payment_type');
                     select.innerHTML = '<option value="">-- เลือกประกันภัย/ชำระสด --</option>';
                     data.forEach(item => {
-                        select.innerHTML += \`<option value="\${item.insurance_name}">\${item.insurance_name}</option>\`;
+                        select.innerHTML += \`<option value="\${item.insurance_name}">\${item.insurance_name} (\${item.insurance_type})</option>\`;
                     });
                 }).catch(err => console.error("Insurances Load Error:", err));
 
-            // 3. ดึงสถานะงานซ่อม (🟢 คลีน ล้างท่อนขยะรหัสพิการหลุดโลกเรียบร้อยจ๊ะ)
+            // 3. ดึงสถานะงานซ่อม
             fetch(\`\${API_BASE_URL}/api/statuses\`)
                 .then(res => res.json())
                 .then(data => {
@@ -313,7 +313,7 @@ app.get('/', (req, res) => {
                 });
                 const result = await response.json();
                 if (response.ok) {
-                    alert('🎉 สำเร็จ! ข้อมูลใบเปิดงานวิ่งลงตาราง rizenicreport บน Neon DB ของจริงเรียบร้อยแล้วครับนาย!');
+                    alert('🎉 สำเร็จ! ข้อมูลใบเปิดงานวิ่งลงตาราง rizenicreport บน Neon DB เรียบร้อยแล้วครับนาย!');
                     document.getElementById('saForm').reset();
                 } else {
                     alert('❌ เกิดข้อผิดพลาดจากเซิร์ฟเวอร์: ' + result.error);
@@ -329,10 +329,10 @@ app.get('/', (req, res) => {
 });
 
 // ==========================================
-// 🔌 2. โซนท่อเชื่อม API คิวรีลงตารางมาสเตอร์ตัวพิมพ์เล็กตรงเป๊ะ
+// 🔌 2. โซนท่อเชื่อม API คิวรีลงตารางมาสเตอร์พิมพ์เล็กตรงตามจริง 
 // ==========================================
 
-// 🟢 ดึงรุ่นรถยนต์: ปรับ SQL คิวรีคอลัมน์จริง car_brand และ car_model ตามรูปหน้าจอของนายเป๊ะ ๆ!
+// 🚗 คิวรีรุ่นรถยนต์ (ตรงตามรูปที่ 2: car_brand, car_model)
 app.get('/api/car-models', async (req, res) => {
   try {
     const result = await pool.query('SELECT model_id, car_brand, car_model FROM rizeniccarmodelmaster ORDER BY car_brand, car_model ASC');
@@ -342,17 +342,17 @@ app.get('/api/car-models', async (req, res) => {
   }
 });
 
-// 🟢 ดึงรายชื่อค่ายประกัน: ลบคอลัมน์ type ส่วนเกินออก ป้องกันระบบล่ม
+// 🛡️ คิวรีประกันภัย (🟢 แก้ไขตามรูปภาพปัจจุบันของนายเป๊ะ ๆ: insurance_code, insurance_name, insurance_type)
 app.get('/api/insurances', async (req, res) => {
   try {
-    const result = await pool.query('SELECT insurance_id, insurance_name FROM rizenicinsurancemaster ORDER BY insurance_name ASC');
+    const result = await pool.query('SELECT insurance_code, insurance_name, insurance_type FROM rizenicinsurancemaster ORDER BY insurance_name ASC');
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ดึงสเตตัสงานจาก Neon
+// 📊 คิวรีสถานะงานซ่อม
 app.get('/api/statuses', async (req, res) => {
   try {
     const result = await pool.query('SELECT status_code, status_name FROM rizenicstatusmaster ORDER BY status_code ASC');
@@ -362,7 +362,7 @@ app.get('/api/statuses', async (req, res) => {
   }
 });
 
-// POST: บันทึกข้อมูล
+// POST: บันทึกข้อมูลเข้าตารางหลัก
 app.post('/api/report', async (req, res) => {
   const {
     customer_name, phone_number, customer_type, car_brand, car_model,
@@ -415,7 +415,7 @@ app.post('/api/report', async (req, res) => {
   }
 });
 
-// 🚀 สตาร์ทแยกโหมดรันระบบ
+// 🚀 รันระบบในโหมด Local Development
 if (process.env.NODE_ENV !== 'production') {
     app.listen(port, () => {
         console.log(`🚀 เซิร์ฟเวอร์ RIZENIC พร้อมเปิดท่อทดสอบที่: http://localhost:${port}`);
