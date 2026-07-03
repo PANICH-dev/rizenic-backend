@@ -9,36 +9,27 @@ const port = process.env.PORT || 3000;
 app.use(cors()); 
 app.use(express.json());
 
-// เสิร์ฟหน้าเว็บ Frontend จากโฟลเดอร์ public
 app.use(express.static(path.join(__dirname, 'public')));
 
-// เชื่อมต่อฐานข้อมูล Neon
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
-// 🔒 ท่อล็อกอิน
+// 🔒 API ล็อกอิน
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
     const result = await pool.query('SELECT * FROM rizenicemployeemaster WHERE username = $1 AND password = $2', [username, password]);
-    if (result.rows.length > 0) {
-      res.json({ success: true, employee: result.rows[0] });
-    } else {
-      res.status(401).json({ success: false, error: 'Username หรือ Password ไม่ถูกต้องครับนาย!' });
-    }
+    if (result.rows.length > 0) res.json({ success: true, employee: result.rows[0] });
+    else res.status(401).json({ success: false, error: 'Username หรือ Password ไม่ถูกต้องครับนาย!' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 👥 API จัดการพนักงาน - CRUD
+// 👥 API พนักงาน - CRUD
 app.get('/api/employees', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM rizenicemployeemaster ORDER BY branch_name ASC, employee_code ASC');
-    res.json(result.rows);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  try { res.json((await pool.query('SELECT * FROM rizenicemployeemaster ORDER BY branch_name ASC, employee_code ASC')).rows); } catch (e) { res.status(500).json({ error: e.message }); }
 });
-
 app.post('/api/employees', async (req, res) => {
   try {
     const { employee_code, employee_name, employee_role, branch_name, username, password } = req.body;
@@ -48,22 +39,15 @@ app.post('/api/employees', async (req, res) => {
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
-
 app.put('/api/employees/:id', async (req, res) => {
   try {
     const { employee_code, employee_name, employee_role, branch_name, username, password } = req.body;
-    const checkDup = await pool.query('SELECT username FROM rizenicemployeemaster WHERE username = $1 AND employee_id != $2', [username, req.params.id]);
-    if (checkDup.rows.length > 0) return res.status(400).json({ error: 'Username นี้ถูกใช้งานแล้วครับนาย!' });
     await pool.query('UPDATE rizenicemployeemaster SET employee_code=$1, employee_name=$2, employee_role=$3, branch_name=$4, username=$5, password=$6 WHERE employee_id=$7', [employee_code, employee_name, employee_role, branch_name, username, password, req.params.id]); 
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
-
 app.delete('/api/employees/:id', async (req, res) => {
-  try {
-    await pool.query('DELETE FROM rizenicemployeemaster WHERE employee_id = $1', [req.params.id]);
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  try { await pool.query('DELETE FROM rizenicemployeemaster WHERE employee_id = $1', [req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // 🚗 Car Models - CRUD
@@ -100,11 +84,8 @@ app.get('/api/customer-types', async (req, res) => {
 });
 app.post('/api/customer-types', async (req, res) => {
   try {
-    const { type_name } = req.body;
-    const countResult = await pool.query('SELECT COUNT(*) FROM rizeniccustomertypemaster');
-    const nextNum = parseInt(countResult.rows[0].count) + 1;
-    await pool.query('INSERT INTO rizeniccustomertypemaster (type_code, type_name) VALUES ($1, $2)', ['CT-' + String(nextNum).padStart(2, '0'), type_name]);
-    res.json({ success: true });
+    const { type_name } = req.body; const countResult = await pool.query('SELECT COUNT(*) FROM rizeniccustomertypemaster'); const nextNum = parseInt(countResult.rows[0].count) + 1;
+    await pool.query('INSERT INTO rizeniccustomertypemaster (type_code, type_name) VALUES ($1, $2)', ['CT-' + String(nextNum).padStart(2, '0'), type_name]); res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 app.put('/api/customer-types/:id', async (req, res) => {
@@ -123,13 +104,10 @@ app.get('/api/statuses', async (req, res) => {
 });
 
 // ==========================================
-// 📋 ระบบจัดการใบงานซ่อมหลัก (Reports API) - ขยายช่องรองรับ 2 วันที่ใหม่
+// 📋 ระบบจัดการใบงานซ่อมหลัก (Reports & Stations API)
 // ==========================================
 app.get('/api/reports', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM rizenicreport ORDER BY id DESC');
-    res.json(result.rows);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  try { res.json((await pool.query('SELECT * FROM rizenicreport ORDER BY id DESC')).rows); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/report/:id', async (req, res) => {
@@ -140,7 +118,7 @@ app.get('/api/report/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 🎯 [POST] เพิ่มใบงานใหม่ (ขยาย SQL รองรับกล่องพารามิเตอร์ 23 ตัวแปรพอดีเป๊ะ)
+// 🎯 บันทึกใบงานใหม่ (เพิ่ม car_plate ทะเบียนรถเข้าไปด้วยครับ)
 app.post('/api/report', async (req, res) => {
   try {
     const {
@@ -149,7 +127,7 @@ app.post('/api/report', async (req, res) => {
       main_part_qty, sub_part_name, sub_part_qty, cost_labor,
       cost_part, cost_external, notes, job_status,
       target_finish_date, actual_finish_date, delivery_date,
-      contact_date, arrived_date // 2 ตัวแปรใหม่แกะกล่อง
+      contact_date, arrived_date, car_plate
     } = req.body;
 
     const queryText = `
@@ -159,8 +137,8 @@ app.post('/api/report', async (req, res) => {
         main_part_qty, sub_part_name, sub_part_qty, cost_labor,
         cost_part, cost_external, notes, job_status,
         target_finish_date, actual_finish_date, delivery_date,
-        contact_date, arrived_date
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+        contact_date, arrived_date, car_plate
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
       RETURNING id;
     `;
 
@@ -170,7 +148,7 @@ app.post('/api/report', async (req, res) => {
       main_part_qty || 0, sub_part_name || null, sub_part_qty || 0,
       cost_labor || 0, cost_part || 0, cost_external || 0,
       notes || null, job_status || null, target_finish_date || null, actual_finish_date || null, delivery_date || null,
-      contact_date || null, arrived_date || null // หยอดเข้าสล็อตท้ายตู้
+      contact_date || null, arrived_date || null, car_plate || null
     ];
 
     const result = await pool.query(queryText, values);
@@ -178,7 +156,7 @@ app.post('/api/report', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 🎯 [PUT] แก้ไขอัปเดตใบงานซ่อมเดิม (เพิ่มการเซฟข้อมูล 2 วันที่ใหม่)
+// 🎯 บันทึกอัปเดตใบงานซ่อมเดิม (รองรับ 12 สถานีซ่อม และคอลัมน์ซ่อมสร้างครบถ้วน)
 app.put('/api/report/:id', async (req, res) => {
   try {
     const {
@@ -187,7 +165,10 @@ app.put('/api/report/:id', async (req, res) => {
       main_part_qty, sub_part_name, sub_part_qty, cost_labor,
       cost_part, cost_external, notes, job_status,
       target_finish_date, actual_finish_date, delivery_date,
-      contact_date, arrived_date
+      contact_date, arrived_date, car_plate,
+      station_kho, station_pou, station_puan, station_pon, station_prak, station_kat,
+      station_qc, station_mag, station_kraj, station_film, station_pak, station_ready,
+      repair_notes, repair_finish_date
     } = req.body;
 
     const queryText = `
@@ -197,8 +178,11 @@ app.put('/api/report/:id', async (req, res) => {
         main_part_name=$11, main_part_qty=$12, sub_part_name=$13, sub_part_qty=$14, 
         cost_labor=$15, cost_part=$16, cost_external=$17, notes=$18, job_status=$19, 
         target_finish_date=$20, actual_finish_date=$21, delivery_date=$22,
-        contact_date=$23, arrived_date=$24
-      WHERE id=$25;
+        contact_date=$23, arrived_date=$24, car_plate=$25,
+        station_kho=$26, station_pou=$27, station_puan=$28, station_pon=$29, station_prak=$30, station_kat=$31,
+        station_qc=$32, station_mag=$33, station_kraj=$34, station_film=$35, station_pak=$36, station_ready=$37,
+        repair_notes=$38, repair_finish_date=$39
+      WHERE id=$40;
     `;
 
     const values = [
@@ -207,8 +191,40 @@ app.put('/api/report/:id', async (req, res) => {
       main_part_name || null, main_part_qty || 0, sub_part_name || null, sub_part_qty || 0,
       cost_labor || 0, cost_part || 0, cost_external || 0, notes || null, job_status || null,
       target_finish_date || null, actual_finish_date || null, delivery_date || null,
-      contact_date || null, arrived_date || null,
-      req.params.id // $25 บล็อกสุดท้าย
+      contact_date || null, arrived_date || null, car_plate || null,
+      station_kho || false, station_pou || false, station_puan || false, station_pon || false, station_prak || false, station_kat || false,
+      station_qc || false, station_mag || false, station_kraj || false, station_film || false, station_pak || false, station_ready || false,
+      repair_notes || null, repair_finish_date || null,
+      req.params.id
+    ];
+
+    await pool.query(queryText, values);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 🎯 API ตัวใหม่เฉพาะทางสำหรับช่างซ่อมแซม: อัปเดตสถานีและความเห็นช่างด่วนๆ
+app.put('/api/report/:id/station', async (req, res) => {
+  try {
+    const {
+      station_kho, station_pou, station_puan, station_pon, station_prak, station_kat,
+      station_qc, station_mag, station_kraj, station_film, station_pak, station_ready,
+      repair_notes, repair_finish_date, job_status
+    } = req.body;
+
+    const queryText = `
+      UPDATE rizenicreport SET 
+        station_kho=$1, station_pou=$2, station_puan=$3, station_pon=$4, station_prak=$5, station_kat=$6,
+        station_qc=$7, station_mag=$8, station_kraj=$9, station_film=$10, station_pak=$11, station_ready=$12,
+        repair_notes=$13, repair_finish_date=$14, job_status=$15
+      WHERE id=$16;
+    `;
+
+    const values = [
+      station_kho || false, station_pou || false, station_puan || false, station_pon || false, station_prak || false, station_kat || false,
+      station_qc || false, station_mag || false, station_kraj || false, station_film || false, station_pak || false, station_ready || false,
+      repair_notes || null, repair_finish_date || null, job_status || null,
+      req.params.id
     ];
 
     await pool.query(queryText, values);
