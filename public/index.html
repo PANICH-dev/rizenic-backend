@@ -470,10 +470,14 @@
         }
 
         // 🎯 บันทึกใบงานธุรกรรม SA (ผูกสาขาอัตโนมัติ + คลีนฟิลด์โทรศัพท์)
+        // 🎯 บันทึกใบงาน SA (แก้ไขระบบดักจับสาขาอัตโนมัติให้แม่นยำ 100%)
         async function submitSaForm() {
+            // ดักจับค่าสาขาจาก Session ให้ชัวร์ ถ้าไม่มีให้ใส่ตามที่ขึ้นแสดงบนหน้าจอ
+            const loggedInBranch = sessionStorage.getItem('emp_branch') || document.getElementById('display_branch').innerText || 'สำนักงานใหญ่';
+
             const formData = {
                 sa_owner: sessionStorage.getItem('emp_name'), 
-                branch_name: sessionStorage.getItem('emp_branch'), // 🔗 ผูกล็อกสาขาของพนักงานบันทึกอัตโนมัติ!
+                branch_name: loggedInBranch, // 🔗 ผูกล็อกค่าสาขาตัวแปรที่ดักมาอย่างแม่นยำ!
                 customer_name: document.getElementById('customer_name').value, 
                 phone_number: document.getElementById('phone_number').value, 
                 customer_type: document.getElementById('customer_type').value, 
@@ -499,8 +503,21 @@
             if(!formData.customer_name || !formData.car_brand || !formData.job_status) return alert('⚠️ กรุณากรอกข้อมูลสำคัญให้ครบ!');
 
             try { 
-                const response = await fetch(`${API_BASE_URL}/api/report`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) }); 
-                if (response.ok) { alert(`🎉 บันทึกใบงานสำเร็จ! (ผูกเข้าสาขา: ${formData.branch_name})`); document.getElementById('saForm').reset(); selectedParts = { main: [], sub: [] }; renderPartsUI(); } 
+                const response = await fetch(`${API_BASE_URL}/api/report`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(formData) 
+                }); 
+                if (response.ok) { 
+                    alert(`🎉 บันทึกใบงานสำเร็จ! (ผูกเข้าสาขา: ${formData.branch_name})`); 
+                    document.getElementById('saForm').reset(); 
+                    selectedParts = { main: [], sub: [] }; 
+                    renderPartsUI(); 
+                    
+                    // ล็อกค่ายี่ห้อรถเป็น Tesla กลับมาหลังรีเซ็ตฟอร์ม
+                    document.getElementById('car_brand').value = 'Tesla';
+                    updateCarModels('Tesla');
+                } 
             } catch (e) { alert('❌ การบันทึกล้มเหลว'); }
         }
 
