@@ -271,48 +271,41 @@
         }
 
         // 🌐 Load Initial Data
-        function loadInitialData() {
-            loadAdminEmployees(); 
+        async function loadAdminEmployees() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/employees`);
+                const data = await res.json();
+                
+                // 🛡️ ป้องกันคราฟท์: แปลงค่าหากเป็น null/ขยะ ให้เป็นข้อความธรรมดาก่อนทำดร็อปดาวน์
+                const cleanedData = data.map(e => ({
+                    ...e,
+                    branch_name: e.branch_name || 'สำนักงานใหญ่',
+                    employee_role: e.employee_role || 'พนักงาน',
+                    username: e.username || '-'
+                }));
 
-            fetch(`${API_BASE_URL}/api/customer-types`).then(r=>r.json()).then(data => {
-                const select = document.getElementById('customer_type'); 
-                select.innerHTML = '<option value="">-- เลือก --</option>';
-                data.forEach(item => select.innerHTML += `<option value="${item.type_name}">${item.type_name}</option>`);
-            });
-
-            fetch(`${API_BASE_URL}/api/parts`).then(r=>r.json()).then(data => {
-                partsDB.main = data.filter(p => p.part_category === 'ชิ้นส่วนหลัก').map(p => p.part_name);
-                partsDB.sub = data.filter(p => p.part_category === 'ชิ้นส่วนรอง').map(p => p.part_name); 
-                renderPartsUI();
-            });
-
-            fetch(`${API_BASE_URL}/api/car-models`).then(r=>r.json()).then(data => {
-                globalCarData = data; 
-                const uniqueBrands = [...new Set(data.map(car => car.car_brand))];
-                const brandSelect = document.getElementById('car_brand'); 
-                brandSelect.innerHTML = '<option value="">-- เลือก --</option>';
-                uniqueBrands.forEach(brand => brandSelect.innerHTML += `<option value="${brand}">${brand}</option>`);
-                if(uniqueBrands.includes('Tesla')) { 
-                    brandSelect.value = 'Tesla'; 
-                    updateCarModels('Tesla'); 
-                }
-            });
-
-            document.getElementById('car_brand').addEventListener('change', function() { 
-                updateCarModels(this.value); 
-            });
-
-            fetch(`${API_BASE_URL}/api/insurances`).then(r=>r.json()).then(data => {
-                const select = document.getElementById('payment_type'); 
-                select.innerHTML = '<option value="">-- เลือก --</option>';
-                data.forEach(item => select.innerHTML += `<option value="${item.insurance_name}">${item.insurance_name}</option>`);
-            });
-
-            fetch(`${API_BASE_URL}/api/statuses`).then(r=>r.json()).then(data => {
-                const select = document.getElementById('job_status'); 
-                select.innerHTML = '<option value="">-- เลือก --</option>';
-                data.forEach(item => select.innerHTML += `<option value="${item.status_name}">${item.status_code} - ${item.status_name}</option>`);
-            });
+                const uniqueRoles = [...new Set(cleanedData.map(e => e.employee_role))]; 
+                const uniqueBranches = [...new Set(cleanedData.map(e => e.branch_name))];
+                
+                document.getElementById('role_list').innerHTML = uniqueRoles.map(r => `<option value="${r}">`).join(''); 
+                document.getElementById('branch_list').innerHTML = uniqueBranches.map(b => `<option value="${b}">`).join('');
+                
+                const tbody = document.getElementById('emp_table_body'); 
+                tbody.innerHTML = '';
+                
+                cleanedData.forEach(e => { 
+                    tbody.innerHTML += `<tr class="hover:bg-gray-800/50">
+                        <td class="p-4 font-bold text-amber-400">${e.branch_name}</td>
+                        <td class="p-4">${e.employee_name} <span class="text-xs text-gray-500">(${e.employee_code})</span></td>
+                        <td class="p-4">${e.employee_role}</td>
+                        <td class="p-4 font-mono text-cyan-400">${e.username}</td>
+                        <td class="p-4 text-center">
+                            <button type="button" onclick="editEmployee('${e.employee_id}', '${e.employee_code}', '${e.employee_name}', '${e.employee_role}', '${e.branch_name}', '${e.username}', '${e.password}')" class="text-blue-400 hover:text-white px-2"><i class="fa-solid fa-pen-to-square"></i></button> 
+                            <button type="button" onclick="deleteData('/api/employees/${e.employee_id}', loadAdminEmployees)" class="text-gray-400 hover:text-red-400 px-2"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>`; 
+                });
+            } catch (err) { console.error("ตารางพนักงานพังเพราะ:", err); }
         }
 
         // 🛠 UI & Navigation
