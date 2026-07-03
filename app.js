@@ -39,8 +39,20 @@ app.post('/api/login', async (req, res) => {
 });
 
 // ==========================================
-// 👥 Employees (อัปเกรดรับรองสาขา ไอดี รหัสผ่าน)
+// 👥 API จัดการพนักงาน (Employees) - CRUD ครบหมู่!
 // ==========================================
+
+// 🟢 [GET] ดึงข้อมูลพนักงานทั้งหมดมาวาดตารางหน้าบ้าน (ท่อนี้แหละที่หายไป!)
+app.get('/api/employees', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM rizenicemployeemaster ORDER BY branch_name ASC, employee_code ASC');
+    res.json(result.rows);
+  } catch (e) { 
+    res.status(500).json({ error: e.message }); 
+  }
+});
+
+// 🟢 [POST] เพิ่มพนักงานใหม่
 app.post('/api/employees', async (req, res) => {
   try { 
     const { employee_code, employee_name, employee_role, branch_name, username, password } = req.body;
@@ -57,6 +69,7 @@ app.post('/api/employees', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// 🟢 [PUT] แก้ไขข้อมูลพนักงาน
 app.put('/api/employees/:id', async (req, res) => {
   try { 
     const { employee_code, employee_name, employee_role, branch_name, username, password } = req.body;
@@ -73,7 +86,19 @@ app.put('/api/employees/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// 🟢 [DELETE] ลบพนักงานออกจากระบบ (ท่อนี้ก็หายไปรอบที่แล้ว!)
+app.delete('/api/employees/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM rizenicemployeemaster WHERE employee_id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ==========================================
 // 🚗 2. Car Models (รุ่นรถ) - CRUD
+// ==========================================
 app.get('/api/car-models', async (req, res) => {
   try { res.json((await pool.query('SELECT model_id, car_brand, car_model FROM rizeniccarmodelmaster ORDER BY car_brand ASC')).rows); } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -87,7 +112,9 @@ app.delete('/api/car-models/:id', async (req, res) => {
   try { await pool.query('DELETE FROM rizeniccarmodelmaster WHERE model_id = $1', [req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ==========================================
 // 🛡️ 3. Insurances (ประกันภัย) - CRUD
+// ==========================================
 app.get('/api/insurances', async (req, res) => {
   try { res.json((await pool.query('SELECT insurance_code, insurance_name, insurance_type FROM rizenicinsurancemaster ORDER BY insurance_code ASC')).rows); } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -101,7 +128,9 @@ app.delete('/api/insurances/:id', async (req, res) => {
   try { await pool.query('DELETE FROM rizenicinsurancemaster WHERE insurance_code = $1', [req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ==========================================
 // 👥 4. Customer Types (ประเภทลูกค้า) - CRUD
+// ==========================================
 app.get('/api/customer-types', async (req, res) => {
   try { 
     const result = await pool.query('SELECT customer_type_id, type_code, type_name FROM rizeniccustomertypemaster ORDER BY type_code ASC');
@@ -133,7 +162,9 @@ app.delete('/api/customer-types/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ==========================================
 // ⚙️ 5. Masters อื่นๆ (เรียกดูข้อมูลอย่างเดียว)
+// ==========================================
 app.get('/api/parts', async (req, res) => {
   try { res.json((await pool.query('SELECT part_name, part_category FROM rizenicpartsmaster ORDER BY part_name ASC')).rows); } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -141,7 +172,9 @@ app.get('/api/statuses', async (req, res) => {
   try { res.json((await pool.query('SELECT status_code, status_name FROM rizenicstatusmaster ORDER BY status_code ASC')).rows); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ==========================================
 // 🟢 6. Transaction: บันทึกใบงานลงตารางหลัก rizenicreport
+// ==========================================
 app.post('/api/report', async (req, res) => {
   const {
     sa_owner, customer_name, phone_number, customer_type, car_brand, car_model,
