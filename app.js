@@ -239,17 +239,16 @@ app.get('/', (req, res) => {
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            // 1. ดึงรุ่นรถยนต์
+            // 1. ดึงรุ่นรถยนต์ (จูนแมตช์ตามคอลัมน์จริงของนาย)
             fetch(\`\${API_BASE_URL}/api/car-models\`)
                 .then(res => res.json())
                 .then(data => {
                     const select = document.getElementById('car_model_select');
                     select.innerHTML = '<option value="">-- เลือกรุ่นรถยนต์ --</option>';
                     data.forEach(item => {
-                        // เก็บค่าแบรนด์พ่วงกับรุ่นส่งกลับไปเป็นสัญญาลักษณ์ข้อความ
                         select.innerHTML += \`<option value="\${item.brand}|\${item.model_name}">\${item.brand} \${item.model_name}</option>\`;
                     });
-                }).catch(err => console.error(err));
+                }).catch(err => console.error("Car Models Load Error:", err));
 
             // 2. ดึงค่ายประกันภัย
             fetch(\`\${API_BASE_URL}/api/insurances\`)
@@ -260,19 +259,18 @@ app.get('/', (req, res) => {
                     data.forEach(item => {
                         select.innerHTML += \`<option value="\${item.insurance_name}">\${item.insurance_name}</option>\`;
                     });
-                }).catch(err => console.error(err));
+                }).catch(err => console.error("Insurances Load Error:", err));
 
-            // 3. ดึงสถานะงานซ่อม
+            // 3. ดึงสถานะงานซ่อม (คลีน ล้างท่อนผิดพลาดที่ทำข้อความหลุดออกเรียบร้อยแล้วจ๊ะ)
             fetch(\`\${API_BASE_URL}/api/statuses\`)
                 .then(res => res.json())
                 .then(data => {
                     const select = document.getElementById('job_status');
                     select.innerHTML = '<option value="">-- เลือกสถานะงานซ่อม --</option>';
                     data.forEach(item => {
-                        select.innerHTML += \`<option value="\${item.status_name}">\".status_code + " - " + item.status_name + "</option>\`;
                         select.innerHTML += \`<option value="\${item.status_name}">\${item.status_code} - \${item.status_name}</option>\`;
                     });
-                }).catch(err => console.error(err));
+                }).catch(err => console.error("Statuses Load Error:", err));
         });
 
         async function submitSaForm() {
@@ -331,7 +329,7 @@ app.get('/', (req, res) => {
 });
 
 // ==========================================
-// 🔌 2. โซนท่อเชื่อม API คิวรีลงตารางตัวจริงของนายเป๊ะ ๆ
+// 🔌 2. โซนท่อเชื่อม API คิวรีลงตารางมาสเตอร์ตัวพิมพ์เล็กตรงเป๊ะ
 // ==========================================
 
 app.get('/api/car-models', async (req, res) => {
@@ -361,7 +359,7 @@ app.get('/api/statuses', async (req, res) => {
   }
 });
 
-// POST: บันทึกข้อมูลตัดขั้วตรงตาม Schema ตารางจริงของนายใน Neon!
+// POST: บันทึกข้อมูล
 app.post('/api/report', async (req, res) => {
   const {
     customer_name, phone_number, customer_type, car_brand, car_model,
@@ -414,5 +412,11 @@ app.post('/api/report', async (req, res) => {
   }
 });
 
-// สตาร์ทเปิดพอร์ตรับทราฟฟิกฝั่ง Vercel Serverless
+// 🚀 สตาร์ทแยกโหมดรันระบบ
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(port, () => {
+        console.log(`🚀 เซิร์ฟเวอร์ RIZENIC พร้อมเปิดท่อทดสอบที่: http://localhost:${port}`);
+    });
+}
+
 module.exports = app;
