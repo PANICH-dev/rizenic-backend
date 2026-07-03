@@ -4,16 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RIZENIC ERP - Premium Garage Management</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap');
-        body {
-            font-family: 'Noto Sans Thai', sans-serif;
-        }
+        body { font-family: 'Noto Sans Thai', sans-serif; }
         .bg-rizenic-green { background-color: #003220; }
         .text-rizenic-green { color: #003220; }
         .border-rizenic-green { border-color: #003220; }
+        .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #4B5563; border-radius: 4px; }
+        .part-chip { transition: all 0.2s; cursor: pointer; user-select: none; }
+        .part-chip:hover { transform: scale(1.05); }
+        .admin-panel { display: none; }
+        .admin-panel.active { display: block; }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen">
@@ -24,13 +28,12 @@
                 <i class="fa-solid fa-car text-2xl text-white"></i>
                 <h1 class="text-2xl font-bold tracking-wider">RIZENIC <span class="text-black bg-white px-2 py-0.5 rounded text-lg font-black">ERP</span></h1>
             </div>
-            
             <nav class="flex gap-2">
                 <button onclick="switchTab('sa-tab')" id="btn-sa-tab" class="px-5 py-2.5 rounded-lg font-semibold bg-white text-[#003220] shadow transition-all duration-200 cursor-pointer flex items-center gap-2">
-                    <i class="fa-solid fa-file-invoice"></i> บันทึกข้อมูลรถเข้าซ่อม (SA)
+                    <i class="fa-solid fa-file-invoice"></i> บันทึกข้อมูล (SA)
                 </button>
                 <button onclick="switchTab('admin-tab')" id="btn-admin-tab" class="px-5 py-2.5 rounded-lg font-semibold bg-gray-800 text-gray-300 hover:bg-gray-700 transition-all duration-200 cursor-pointer flex items-center gap-2">
-                    <i class="fa-solid fa-sliders"></i> ตั้งค่าระบบ (Admin)
+                    <i class="fa-solid fa-sliders"></i> แอดมิน (Admin)
                 </button>
             </nav>
         </div>
@@ -41,224 +44,225 @@
         <section id="sa-tab" class="tab-content block">
             <div class="bg-white text-gray-900 rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
                 <div class="bg-rizenic-green p-6 text-white flex justify-between items-center">
-                    <div>
-                        <h2 class="text-xl font-bold flex items-center gap-2"><i class="fa-solid fa-clipboard-list"></i> ใบเปิดงานซ่อมและประเมินอาการ</h2>
-                        <p class="text-gray-300 text-sm mt-1">กรอกข้อมูลรายละเอียดรถยนต์และข้อมูลการรับประกัน</p>
-                    </div>
-                    <span class="text-xs bg-black/40 px-3 py-1.5 rounded-full border border-white/20">RIZENIC REPORT v1.0</span>
+                    <div><h2 class="text-xl font-bold flex items-center gap-2"><i class="fa-solid fa-clipboard-list"></i> ใบเปิดงานซ่อมและประเมินอาการ</h2></div>
                 </div>
 
                 <form id="saForm" class="p-6 sm:p-8 space-y-8">
-                    
                     <div>
-                        <h3 class="text-md font-bold text-rizenic-green mb-4 border-b pb-2 flex items-center gap-2"><i class="fa-solid fa-user"></i> 1. ข้อมูลผู้ติดต่อ & ประเภทลูกค้า</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-1">ชื่อ-นามสกุล ลูกค้า</label>
-                                <input type="text" id="customer_name" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none transition" placeholder="ระบุชื่อลูกค้า">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-1">เบอร์โทรศัพท์</label>
-                                <input type="text" id="customer_phone" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none transition" placeholder="เช่น 08X-XXX-XXXX">
+                        <h3 class="text-md font-bold text-rizenic-green mb-4 border-b pb-2"><i class="fa-solid fa-user"></i> 1. ข้อมูลลูกค้า & พนักงานรับรถ</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">พนักงานรับรถ (SA Owner)</label>
+                                <select id="sa_owner" class="w-full p-3 border border-gray-300 rounded-xl bg-blue-50 text-blue-900 font-bold focus:ring-2 focus:ring-[#003220] outline-none">
+                                    <option value="">🔄 กำลังโหลดรายชื่อพนักงาน...</option>
+                                </select>
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-1">ประเภทลูกค้า</label>
                                 <select id="customer_type" class="w-full p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-[#003220] outline-none">
-                                    <option value="CT-01">บุคคลธรรมดา (ทั่วไป)</option>
-                                    <option value="CT-02">นิติบุคคล / บริษัท</option>
-                                    <option value="CT-03">ลูกค้า VIP / คอนเทรค</option>
+                                    <option value="">🔄 กำลังโหลดประเภทลูกค้า...</option>
                                 </select>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">ชื่อ-นามสกุล ลูกค้า</label>
+                                <input type="text" id="customer_name" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none" placeholder="ระบุชื่อลูกค้า">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">เบอร์โทรศัพท์</label>
+                                <input type="text" id="phone_number" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none" placeholder="เช่น 08X-XXX-XXXX">
                             </div>
                         </div>
                     </div>
 
                     <div>
-                        <h3 class="text-md font-bold text-rizenic-green mb-4 border-b pb-2 flex items-center gap-2"><i class="fa-solid fa-car"></i> 2. ข้อมูลตัวรถยนต์ & ประกันภัย</h3>
+                        <h3 class="text-md font-bold text-rizenic-green mb-4 border-b pb-2"><i class="fa-solid fa-car"></i> 2. ข้อมูลตัวรถยนต์ & ประกันภัย</h3>
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                            <div class="md:col-span-2">
-                                <label class="block text-sm font-semibold text-gray-700 mb-1">ยี่ห้อและรุ่นรถยนต์ (ดึงจากคลาวด์ Neon)</label>
-                                <select id="car_model_select" class="w-full p-3 border border-gray-300 rounded-xl bg-amber-50 font-medium text-amber-950 focus:ring-2 focus:ring-[#003220] outline-none">
-                                    <option value="">🔄 กำลังเชื่อมต่อ Neon ดึงรุ่นรถ...</option>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">ยี่ห้อรถยนต์ (Brand)</label>
+                                <select id="car_brand" class="w-full p-3 border border-gray-300 rounded-xl bg-amber-50 font-bold text-amber-950 focus:ring-2 focus:ring-[#003220] outline-none">
+                                    <option value="">🔄 กำลังโหลดยี่ห้อรถ...</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-1">เลขตัวถัง / VIN (17 หลัก)</label>
-                                <input type="text" id="vin_number" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none transition" placeholder="กรอกเลข VIN รถยนต์">
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">รุ่นรถยนต์ (Model)</label>
+                                <select id="car_model" class="w-full p-3 border border-gray-300 rounded-xl bg-amber-50 font-medium text-amber-950 focus:ring-2 focus:ring-[#003220] outline-none">
+                                    <option value="">-- เลือกรุ่นรถ --</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">เลขตัวถัง / VIN</label>
+                                <input type="text" id="vin_no" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-1">ประกันภัย / เงินสด</label>
-                                <select id="insurance_select" class="w-full p-3 border border-gray-300 rounded-xl bg-amber-50 font-medium text-amber-950 focus:ring-2 focus:ring-[#003220] outline-none">
-                                    <option value="">🔄 กำลังดึงรายชื่อค่ายประกัน...</option>
+                                <select id="payment_type" class="w-full p-3 border border-gray-300 rounded-xl bg-amber-50 focus:ring-2 focus:ring-[#003220] outline-none">
+                                    <option value="">🔄 กำลังโหลด...</option>
                                 </select>
                             </div>
                         </div>
                     </div>
 
                     <div>
-                        <h3 class="text-md font-bold text-rizenic-green mb-4 border-b pb-2 flex items-center gap-2"><i class="fa-solid fa-screwdriver-wrench"></i> 3. การประเมินความเสียหาย & ชิ้นส่วนซ่อม</h3>
-                        
+                        <h3 class="text-md font-bold text-rizenic-green mb-4 border-b pb-2"><i class="fa-solid fa-screwdriver-wrench"></i> 3. การประเมินความเสียหาย & ชิ้นส่วนซ่อม</h3>
                         <div class="mb-4">
                             <label class="block text-sm font-semibold text-gray-700 mb-1">ระดับความเสียหาย</label>
-                            <div class="flex gap-4 mt-1">
-                                <label class="inline-flex items-center text-sm font-medium text-gray-700 cursor-pointer"><input type="radio" name="damage_level" value="เบา" class="w-4 h-4 text-[#003220] mr-2" checked> 🟢 เบา</label>
-                                <label class="inline-flex items-center text-sm font-medium text-gray-700 cursor-pointer"><input type="radio" name="damage_level" value="กลาง" class="w-4 h-4 text-[#003220] mr-2"> 🟡 กลาง</label>
-                                <label class="inline-flex items-center text-sm font-medium text-gray-700 cursor-pointer"><input type="radio" name="damage_level" value="หนัก" class="w-4 h-4 text-[#003220] mr-2"> 🔴 หนัก</label>
+                            <div class="flex gap-4">
+                                <label><input type="radio" name="damage_level" value="เบา" checked> 🟢 เบา</label>
+                                <label><input type="radio" name="damage_level" value="กลาง"> 🟡 กลาง</label>
+                                <label><input type="radio" name="damage_level" value="หนัก"> 🔴 หนัก</label>
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-5 rounded-xl border border-gray-200">
-                            <div class="space-y-4">
-                                <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-1">ชิ้นส่วนอะไหล่ (หลัก)</label>
-                                    <select id="main_part" class="w-full p-3 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-[#003220] outline-none">
-                                        <option value="">-- เลือกรายการอะไหล่หลัก --</option>
-                                    </select>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-col h-full">
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="text-sm font-bold text-gray-800">🛠️ ชิ้นส่วนอะไหล่ (หลัก)</label>
+                                    <span class="text-xs bg-gray-800 text-white px-2 py-1 rounded-lg">เลือกแล้ว: <span id="main_part_qty_display" class="font-bold text-green-400">0</span> ชิ้น</span>
                                 </div>
-                                <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-1">จำนวนอะไหล่ (หลัก)</label>
-                                    <input type="number" id="main_part_qty" value="0" min="0" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
+                                <div class="flex-1 border border-gray-300 bg-white rounded-lg p-3 overflow-y-auto h-32 custom-scrollbar flex flex-wrap gap-2 content-start" id="main_parts_available"></div>
+                                <div class="mt-2 pt-2 border-t border-gray-300">
+                                    <p class="text-xs text-gray-500 mb-1">รายการที่เลือก (กดเพื่อเอาออก):</p>
+                                    <div class="flex flex-wrap gap-2" id="main_parts_selected"></div>
                                 </div>
                             </div>
                             
-                            <div class="space-y-4">
-                                <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-1">ชิ้นส่วนอะไหล่ (รอง)</label>
-                                    <select id="sub_part" class="w-full p-3 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-[#003220] outline-none">
-                                        <option value="">-- เลือกรายการอะไหล่รอง --</option>
-                                    </select>
+                            <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-col h-full">
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="text-sm font-bold text-gray-800">🔩 ชิ้นส่วนอะไหล่ (รอง)</label>
+                                    <span class="text-xs bg-gray-800 text-white px-2 py-1 rounded-lg">เลือกแล้ว: <span id="sub_part_qty_display" class="font-bold text-green-400">0</span> ชิ้น</span>
                                 </div>
-                                <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-1">จำนวนอะไหล่ (รอง)</label>
-                                    <input type="number" id="sub_part_qty" value="0" min="0" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
+                                <div class="flex-1 border border-gray-300 bg-white rounded-lg p-3 overflow-y-auto h-32 custom-scrollbar flex flex-wrap gap-2 content-start" id="sub_parts_available"></div>
+                                <div class="mt-2 pt-2 border-t border-gray-300">
+                                    <p class="text-xs text-gray-500 mb-1">รายการที่เลือก (กดเพื่อเอาออก):</p>
+                                    <div class="flex flex-wrap gap-2" id="sub_parts_selected"></div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <div>
-                        <h3 class="text-md font-bold text-rizenic-green mb-4 border-b pb-2 flex items-center gap-2"><i class="fa-solid fa-baht-sign"></i> 4. ประมาณการค่าใช้จ่าย & การนัดหมาย</h3>
+                        <h3 class="text-md font-bold text-rizenic-green mb-4 border-b pb-2"><i class="fa-solid fa-baht-sign"></i> 4. ประมาณการค่าใช้จ่าย & การนัดหมาย</h3>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-1">Align-Right ค่าแรง (บาท)</label>
-                                <input type="number" id="estimated_labor_cost" value="0.00" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-1">ค่าอะไหล่ (บาท)</label>
-                                <input type="number" id="estimated_parts_cost" value="0.00" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-1">งานนอก (บาท)</label>
-                                <input type="number" id="external_job_cost" value="0.00" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
-                            </div>
+                            <div><label class="block text-sm font-semibold text-gray-700 mb-1">ค่าแรง (บาท)</label><input type="number" id="cost_labor" value="0" class="w-full p-3 border border-gray-300 rounded-xl"></div>
+                            <div><label class="block text-sm font-semibold text-gray-700 mb-1">ค่าอะไหล่ (บาท)</label><input type="number" id="cost_part" value="0" class="w-full p-3 border border-gray-300 rounded-xl"></div>
+                            <div><label class="block text-sm font-semibold text-gray-700 mb-1">งานนอก (บาท)</label><input type="number" id="cost_external" value="0" class="w-full p-3 border border-gray-300 rounded-xl"></div>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-1"><i class="fa-regular fa-calendar-days text-amber-600"></i> กำหนดซ่อมเสร็จ</label>
-                                <input type="date" id="target_finish_date" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-1"><i class="fa-regular fa-calendar-check text-green-600"></i> วันที่เสร็จจริง</label>
-                                <input type="date" id="actual_finish_date" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-1"><i class="fa-solid fa-handshake text-blue-600"></i> วันที่ส่งมอบรถ</label>
-                                <input type="date" id="delivery_date" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none">
-                            </div>
+                            <div><label class="block text-sm font-semibold text-gray-700 mb-1">กำหนดซ่อมเสร็จ</label><input type="date" id="target_finish_date" class="w-full p-3 border border-gray-300 rounded-xl"></div>
+                            <div><label class="block text-sm font-semibold text-gray-700 mb-1">วันที่เสร็จจริง</label><input type="date" id="actual_finish_date" class="w-full p-3 border border-gray-300 rounded-xl"></div>
+                            <div><label class="block text-sm font-semibold text-gray-700 mb-1">วันที่ส่งมอบรถ</label><input type="date" id="delivery_date" class="w-full p-3 border border-gray-300 rounded-xl"></div>
                         </div>
                     </div>
 
                     <div>
-                        <h3 class="text-md font-bold text-rizenic-green mb-4 border-b pb-2 flex items-center gap-2"><i class="fa-solid fa-circle-info"></i> 5. หมายเหตุ & สเตตัสงาน</h3>
+                        <h3 class="text-md font-bold text-rizenic-green mb-4 border-b pb-2"><i class="fa-solid fa-circle-info"></i> 5. สเตตัสงาน</h3>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div class="md:col-span-2">
                                 <label class="block text-sm font-semibold text-gray-700 mb-1">หมายเหตุเพิ่มเติม</label>
-                                <input type="text" id="notes" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003220] outline-none" placeholder="ระบุรายละเอียดเพิ่มเติม หรือแผลรอบรถ">
+                                <input type="text" id="notes" class="w-full p-3 border border-gray-300 rounded-xl">
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-1">สถานะงานปัจจุบัน</label>
-                                <select id="status_code" class="w-full p-3 border border-gray-300 rounded-xl bg-amber-50 text-amber-900 font-bold focus:ring-2 focus:ring-[#003220] outline-none">
-                                    <option value="">🔄 กำลังโหลดสถานะจาก Neon...</option>
-                                </select>
+                                <select id="job_status" class="w-full p-3 border border-gray-300 rounded-xl bg-amber-50 text-amber-900 font-bold outline-none"></select>
                             </div>
                         </div>
                     </div>
 
-                    <div class="pt-6 border-t border-gray-200 flex justify-end gap-3">
-                        <button type="button" onclick="document.getElementById('saForm').reset()" class="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-xl transition cursor-pointer">ล้างข้อมูลฟอร์ม</button>
-                        <button type="button" onclick="submitSaForm()" class="px-8 py-3 bg-rizenic-green hover:opacity-90 text-white font-bold rounded-xl shadow-lg transition cursor-pointer flex items-center gap-2">
-                            <i class="fa-solid fa-cloud-arrow-up"></i> บันทึกข้อมูลและยิงลง Neon DB
+                    <div class="pt-6 border-t border-gray-200 flex justify-end">
+                        <button type="button" onclick="submitSaForm()" class="px-8 py-3 bg-rizenic-green text-white font-bold rounded-xl shadow-lg hover:bg-[#002210] transition">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> บันทึกข้อมูล
                         </button>
                     </div>
-
                 </form>
             </div>
         </section>
 
         <section id="admin-tab" class="tab-content hidden">
-            <div class="bg-gray-800 rounded-2xl shadow-2xl border border-gray-700 overflow-hidden">
-                <div class="p-6 bg-black text-white flex items-center justify-between">
-                    <div>
-                        <h2 class="text-xl font-bold flex items-center gap-2 text-green-400"><i class="fa-solid fa-lock"></i> ศูนย์ควบคุมข้อมูลระบบหลังบ้าน (Admin Console)</h2>
-                        <p class="text-gray-400 text-sm mt-1">อัปเดตข้อมูลดรอปดาวน์มาตรฐาน โดยไม่ต้องเข้าจัดการหลังบ้านตัวเว็บ Neon</p>
-                    </div>
+            <div class="bg-gray-800 rounded-2xl shadow-2xl border border-gray-700 overflow-hidden flex flex-col md:flex-row min-h-[700px]">
+                
+                <div class="w-full md:w-64 bg-gray-900 border-r border-gray-700 p-4 flex flex-col gap-2">
+                    <h3 class="text-gray-400 text-xs font-bold uppercase tracking-wider mb-2 px-2">Master Tables</h3>
+                    <button onclick="showAdminPanel('emp-panel')" id="btn-emp-panel" class="text-left px-4 py-3 rounded-xl bg-green-900/40 text-green-400 font-semibold border border-green-800 transition"><i class="fa-solid fa-users-gear w-6"></i> Employees</button>
+                    <button onclick="showAdminPanel('car-panel')" id="btn-car-panel" class="text-left px-4 py-3 rounded-xl hover:bg-gray-800 text-gray-300 transition"><i class="fa-solid fa-car w-6"></i> Car Models</button>
+                    <button onclick="showAdminPanel('ins-panel')" id="btn-ins-panel" class="text-left px-4 py-3 rounded-xl hover:bg-gray-800 text-gray-300 transition"><i class="fa-solid fa-shield-halved w-6"></i> Insurances</button>
                 </div>
 
-                <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div class="bg-gray-900 p-5 rounded-xl border border-gray-700 flex flex-col justify-between">
-                        <div>
-                            <span class="text-xs font-bold text-green-400 uppercase tracking-widest block mb-1">Table: RizenicInsuranceMaster</span>
-                            <h4 class="text-lg font-bold mb-3 text-white">จัดการข้อมูลค่ายประกัน</h4>
-                            <div class="space-y-3">
-                                <input type="text" id="admin_ins_id" placeholder="รหัสประกัน เช่น INS-021" class="w-full p-2.5 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white">
-                                <input type="text" id="admin_ins_name" placeholder="ชื่อบริษัทประกันภัย เช่น วิริยะ, เงินสด" class="w-full p-2.5 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white">
-                            </div>
-                        </div>
-                        <button type="button" onclick="alert('ระบบมาสเตอร์กำลังซิงค์')" class="mt-4 w-full py-2 bg-green-700 hover:bg-green-600 text-white font-bold rounded-lg text-sm transition cursor-pointer">+ เพิ่มตัวเลือกประกันใหม่</button>
-                    </div>
-
-                    <div class="bg-gray-900 p-5 rounded-xl border border-gray-700 flex flex-col justify-between">
-                        <div>
-                            <span class="text-xs font-bold text-blue-400 uppercase tracking-widest block mb-1">Table: RizenicCarModelMaster</span>
-                            <h4 class="text-lg font-bold mb-3 text-white">จัดการรายชื่อแบรนด์/รุ่นรถ</h4>
-                            <div class="space-y-3">
-                                <input type="text" id="admin_car_brand" placeholder="ยี่ห้อรถยนต์ เช่น Tesla, Toyota" class="w-full p-2.5 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white">
-                                <input type="text" id="admin_car_model" placeholder="รุ่นรถยนต์ เช่น Model Y, Alphard" class="w-full p-2.5 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white">
-                            </div>
-                        </div>
-                        <button type="button" onclick="alert('ระบบมาสเตอร์กำลังซิงค์')" class="mt-4 w-full py-2 bg-blue-700 hover:bg-blue-600 text-white font-bold rounded-lg text-sm transition cursor-pointer">+ เพิ่มตัวเลือกรุ่นรถใหม่</button>
-                    </div>
-
-                    <div class="bg-gray-900 p-5 rounded-xl border border-gray-700 flex flex-col justify-between">
-                        <div>
-                            <span class="text-xs font-bold text-purple-400 uppercase tracking-widest block mb-1">Table: RizenicPartsMaster</span>
-                            <h4 class="text-lg font-bold mb-3 text-white">จัดการคลังรายการอะไหล่</h4>
-                            <div class="space-y-3">
-                                <input type="text" id="admin_part_name" placeholder="ชื่อชิ้นส่วนอะไหล่ เช่น ฝากระโปรงท้าย" class="w-full p-2.5 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white">
-                                <select id="admin_part_cat" class="w-full p-2.5 bg-gray-800 border border-gray-600 rounded-lg text-sm text-gray-300">
-                                    <option value="ชิ้นส่วนหลัก">ชิ้นส่วนหลัก</option>
-                                    <option value="ชิ้นส่วนรอง">ชิ้นส่วนรอง</option>
+                <div class="flex-1 bg-gray-800 p-6 overflow-y-auto">
+                    
+                    <div id="emp-panel" class="admin-panel active">
+                        <h2 class="text-2xl font-bold text-white mb-4">จัดการพนักงาน (Employees)</h2>
+                        <div class="bg-gray-900 p-4 rounded-xl border border-gray-700 mb-6 flex gap-4 items-end flex-wrap">
+                            <input type="hidden" id="edit_emp_id">
+                            <div><label class="text-xs text-gray-400 block mb-1">รหัสพนักงาน</label><input type="text" id="emp_code" class="p-2 bg-gray-800 border border-gray-600 rounded text-white text-sm" placeholder="SA-001"></div>
+                            <div><label class="text-xs text-gray-400 block mb-1">ชื่อ-นามสกุล</label><input type="text" id="emp_name" class="p-2 bg-gray-800 border border-gray-600 rounded text-white text-sm" placeholder="ชื่อพนักงาน"></div>
+                            <div><label class="text-xs text-gray-400 block mb-1">ตำแหน่ง</label>
+                                <select id="emp_role" class="p-2 bg-gray-800 border border-gray-600 rounded text-white text-sm">
+                                    <option value="SA">SA (รับรถ)</option>
+                                    <option value="Technician">ช่างซ่อม</option>
+                                    <option value="Admin">แอดมิน</option>
                                 </select>
                             </div>
+                            <button onclick="saveEmployee()" id="btn_save_emp" class="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded text-sm transition">เพิ่มข้อมูล</button>
+                            <button onclick="resetEmpForm()" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white font-bold rounded text-sm transition">ล้างฟอร์ม</button>
                         </div>
-                        <button type="button" onclick="alert('ระบบมาสเตอร์กำลังซิงค์')" class="mt-4 w-full py-2 bg-purple-700 hover:bg-purple-600 text-white font-bold rounded-lg text-sm transition cursor-pointer">+ เพิ่มรายการอะไหล่ใหม่</button>
+                        <table class="w-full text-left border-collapse whitespace-nowrap bg-gray-900 border border-gray-700 rounded-xl overflow-hidden">
+                            <thead class="bg-black/50 text-gray-400 text-xs uppercase"><tr class="border-b border-gray-700"><th class="p-4">Code</th><th class="p-4">Name</th><th class="p-4">Role</th><th class="p-4 text-center">Action</th></tr></thead>
+                            <tbody id="emp_table_body" class="text-sm text-gray-300 divide-y divide-gray-800"></tbody>
+                        </table>
                     </div>
+
+                    <div id="car-panel" class="admin-panel">
+                        <h2 class="text-2xl font-bold text-white mb-4">จัดการรุ่นรถยนต์ (Car Models)</h2>
+                        <div class="bg-gray-900 p-4 rounded-xl border border-gray-700 mb-6 flex gap-4 items-end flex-wrap">
+                            <input type="hidden" id="edit_car_id">
+                            <div><label class="text-xs text-gray-400 block mb-1">ยี่ห้อ (Brand)</label><input type="text" id="car_brand_input" class="p-2 bg-gray-800 border border-gray-600 rounded text-white text-sm" placeholder="เช่น Tesla"></div>
+                            <div><label class="text-xs text-gray-400 block mb-1">รุ่นรถ (Model)</label><input type="text" id="car_model_input" class="p-2 bg-gray-800 border border-gray-600 rounded text-white text-sm" placeholder="เช่น Model Y"></div>
+                            <button onclick="saveCarModel()" id="btn_save_car" class="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded text-sm transition">เพิ่มข้อมูล</button>
+                            <button onclick="resetCarForm()" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white font-bold rounded text-sm transition">ล้างฟอร์ม</button>
+                        </div>
+                        <table class="w-full text-left border-collapse whitespace-nowrap bg-gray-900 border border-gray-700 rounded-xl overflow-hidden">
+                            <thead class="bg-black/50 text-gray-400 text-xs uppercase"><tr class="border-b border-gray-700"><th class="p-4">ID</th><th class="p-4">Brand</th><th class="p-4">Model</th><th class="p-4 text-center">Action</th></tr></thead>
+                            <tbody id="car_table_body" class="text-sm text-gray-300 divide-y divide-gray-800"></tbody>
+                        </table>
+                    </div>
+
+                    <div id="ins-panel" class="admin-panel">
+                        <h2 class="text-2xl font-bold text-white mb-4">จัดการประกันภัย (Insurances)</h2>
+                        <div class="bg-gray-900 p-4 rounded-xl border border-gray-700 mb-6 flex gap-4 items-end flex-wrap">
+                            <input type="hidden" id="edit_ins_id">
+                            <div><label class="text-xs text-gray-400 block mb-1">รหัสประกัน (Code)</label><input type="text" id="ins_code" class="p-2 bg-gray-800 border border-gray-600 rounded text-white text-sm" placeholder="INS-001"></div>
+                            <div><label class="text-xs text-gray-400 block mb-1">ชื่อประกัน (Name)</label><input type="text" id="ins_name" class="p-2 bg-gray-800 border border-gray-600 rounded text-white text-sm" placeholder="เช่น วิริยะประกันภัย"></div>
+                            <div><label class="text-xs text-gray-400 block mb-1">ประเภท (Type)</label><input type="text" id="ins_type" class="p-2 bg-gray-800 border border-gray-600 rounded text-white text-sm" placeholder="เงินสด / ประกันภัยในเครือ"></div>
+                            <button onclick="saveInsurance()" id="btn_save_ins" class="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded text-sm transition">เพิ่มข้อมูล</button>
+                            <button onclick="resetInsForm()" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white font-bold rounded text-sm transition">ล้างฟอร์ม</button>
+                        </div>
+                        <table class="w-full text-left border-collapse whitespace-nowrap bg-gray-900 border border-gray-700 rounded-xl overflow-hidden">
+                            <thead class="bg-black/50 text-gray-400 text-xs uppercase"><tr class="border-b border-gray-700"><th class="p-4">Code</th><th class="p-4">Name</th><th class="p-4">Type</th><th class="p-4 text-center">Action</th></tr></thead>
+                            <tbody id="ins_table_body" class="text-sm text-gray-300 divide-y divide-gray-800"></tbody>
+                        </table>
+                    </div>
+
                 </div>
             </div>
         </section>
     </main>
 
     <script>
-        // 🛰️ ท่อเบสลิงค์ชี้เป้าตรงขึ้น Vercel คลาวด์ตัวจริง
-        const API_BASE_URL = 'https://rizenic-backend.vercel.app';
+        const API_BASE_URL = window.location.origin;
 
-        // ฟังก์ชันสลับแท็บเมนู
+        // 🟢 เปลี่ยนแท็บหลัก
         function switchTab(tabId) {
+            if (tabId === 'admin-tab') {
+                const pin = prompt("🔒 กรุณาใส่รหัสผ่านแอดมิน (PIN):");
+                if (pin !== "1234") { alert("❌ รหัสผ่านไม่ถูกต้อง! ปฏิเสธการเข้าถึง"); return; }
+                loadAllAdminData(); // โหลดข้อมูลทุกตาราง
+            }
+
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.getElementById(tabId).classList.remove('hidden');
-
+            
             const btnSa = document.getElementById('btn-sa-tab');
             const btnAdmin = document.getElementById('btn-admin-tab');
-
             if (tabId === 'sa-tab') {
                 btnSa.className = "px-5 py-2.5 rounded-lg font-semibold bg-white text-[#003220] shadow transition-all duration-200 cursor-pointer flex items-center gap-2";
                 btnAdmin.className = "px-5 py-2.5 rounded-lg font-semibold bg-gray-800 text-gray-300 hover:bg-gray-700 transition-all duration-200 cursor-pointer flex items-center gap-2";
@@ -268,162 +272,216 @@
             }
         }
 
-        // 📡 รันโหลดข้อมูลจากหลังบ้านทันทีที่หน้าจอเปิดสำเร็จ
-        document.addEventListener("DOMContentLoaded", () => {
-            loadCarBrandsAndModels();
-            loadInsurances();
-            loadPartsMaster();
-            loadStatuses();
+        // 🟢 เปลี่ยนหน้าจอย่อย Admin
+        function showAdminPanel(panelId) {
+            ['btn-emp-panel', 'btn-car-panel', 'btn-ins-panel'].forEach(id => {
+                document.getElementById(id).className = "text-left px-4 py-3 rounded-xl hover:bg-gray-800 text-gray-300 transition";
+            });
+            document.getElementById('btn-' + panelId).className = "text-left px-4 py-3 rounded-xl bg-green-900/40 text-green-400 font-semibold border border-green-800 transition";
+            
+            document.querySelectorAll('.admin-panel').forEach(el => el.classList.remove('active'));
+            document.getElementById(panelId).classList.add('active');
+        }
+
+        // ==========================================
+        // 🛠️ อะไหล่แบบชิป (SA Form)
+        // ==========================================
+        let partsDB = { main: [], sub: [] };
+        let selectedParts = { main: [], sub: [] };
+
+        function renderPartsUI() {
+            const mainAvailBox = document.getElementById('main_parts_available'); const mainSelBox = document.getElementById('main_parts_selected');
+            mainAvailBox.innerHTML = ''; mainSelBox.innerHTML = '';
+            partsDB.main.forEach(p => { if(!selectedParts.main.includes(p)) mainAvailBox.innerHTML += \`<span onclick="togglePart('main', '\${p}', 'add')" class="part-chip px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-semibold hover:bg-[#003220] hover:text-white border border-gray-300">\${p} +</span>\`; });
+            selectedParts.main.forEach(p => { mainSelBox.innerHTML += \`<span onclick="togglePart('main', '\${p}', 'remove')" class="part-chip px-3 py-1 bg-[#003220] text-white rounded-full text-xs font-bold shadow-sm border border-black">\${p} <i class="fa-solid fa-xmark ml-1"></i></span>\`; });
+            document.getElementById('main_part_qty_display').innerText = selectedParts.main.length;
+
+            const subAvailBox = document.getElementById('sub_parts_available'); const subSelBox = document.getElementById('sub_parts_selected');
+            subAvailBox.innerHTML = ''; subSelBox.innerHTML = '';
+            partsDB.sub.forEach(p => { if(!selectedParts.sub.includes(p)) subAvailBox.innerHTML += \`<span onclick="togglePart('sub', '\${p}', 'add')" class="part-chip px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-semibold hover:bg-gray-600 hover:text-white border border-gray-300">\${p} +</span>\`; });
+            selectedParts.sub.forEach(p => { subSelBox.innerHTML += \`<span onclick="togglePart('sub', '\${p}', 'remove')" class="part-chip px-3 py-1 bg-gray-700 text-white rounded-full text-xs font-bold shadow-sm border border-black">\${p} <i class="fa-solid fa-xmark ml-1"></i></span>\`; });
+            document.getElementById('sub_part_qty_display').innerText = selectedParts.sub.length;
+        }
+
+        function togglePart(category, partName, action) {
+            if(action === 'add') selectedParts[category].push(partName);
+            else selectedParts[category] = selectedParts[category].filter(p => p !== partName);
+            renderPartsUI();
+        }
+
+        // ==========================================
+        // 🔄 โหลดข้อมูลหน้า SA Form ตอนเปิดเว็บ
+        // ==========================================
+        let globalCarData = [];
+        document.addEventListener('DOMContentLoaded', () => {
+            fetch(\`\${API_BASE_URL}/api/employees\`).then(r=>r.json()).then(data => {
+                const select = document.getElementById('sa_owner'); select.innerHTML = '<option value="">-- เลือกพนักงานรับรถ --</option>';
+                data.filter(e => e.is_active).forEach(e => select.innerHTML += \`<option value="\${e.employee_name}">\${e.employee_code} - \${e.employee_name}</option>\`);
+            });
+            fetch(\`\${API_BASE_URL}/api/customer-types\`).then(r=>r.json()).then(data => {
+                const select = document.getElementById('customer_type'); select.innerHTML = '<option value="">-- เลือกประเภทลูกค้า --</option>';
+                data.forEach(item => select.innerHTML += \`<option value="\${item.type_name}">\${item.type_name}</option>\`);
+            });
+            fetch(\`\${API_BASE_URL}/api/parts\`).then(r=>r.json()).then(data => {
+                partsDB.main = data.filter(p => p.part_category === 'ชิ้นส่วนหลัก').map(p => p.part_name);
+                partsDB.sub = data.filter(p => p.part_category === 'ชิ้นส่วนรอง').map(p => p.part_name);
+                renderPartsUI();
+            });
+            fetch(\`\${API_BASE_URL}/api/car-models\`).then(r=>r.json()).then(data => {
+                globalCarData = data;
+                const uniqueBrands = [...new Set(data.map(car => car.car_brand))];
+                const brandSelect = document.getElementById('car_brand'); brandSelect.innerHTML = '<option value="">-- เลือกยี่ห้อรถ --</option>';
+                uniqueBrands.forEach(brand => brandSelect.innerHTML += \`<option value="\${brand}">\${brand}</option>\`);
+                if(uniqueBrands.includes('Tesla')) { brandSelect.value = 'Tesla'; updateCarModels('Tesla'); }
+            });
+            document.getElementById('car_brand').addEventListener('change', function() { updateCarModels(this.value); });
+            fetch(\`\${API_BASE_URL}/api/insurances\`).then(r=>r.json()).then(data => {
+                const select = document.getElementById('payment_type'); select.innerHTML = '<option value="">-- เลือกประกันภัย/ชำระสด --</option>';
+                data.forEach(item => select.innerHTML += \`<option value="\${item.insurance_name}">\${item.insurance_name}</option>\`);
+            });
+            fetch(\`\${API_BASE_URL}/api/statuses\`).then(r=>r.json()).then(data => {
+                const select = document.getElementById('job_status'); select.innerHTML = '<option value="">-- เลือกสถานะ --</option>';
+                data.forEach(item => select.innerHTML += \`<option value="\${item.status_name}">\${item.status_code} - \${item.status_name}</option>\`);
+            });
         });
 
-        // 🚗 1. ฟังก์ชันดึงยี่ห้อและรุ่นรถจาก Neon มาพ่นใส่ Dropdown
-        async function loadCarBrandsAndModels() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/car-models`);
-                const data = await response.json();
-                const carSelect = document.getElementById("car_model_select");
-                if (!carSelect) return;
-                
-                carSelect.innerHTML = '<option value="">-- เลือกยี่ห้อและรุ่นรถ --</option>';
-                data.forEach(item => {
-                    const option = document.createElement("option");
-                    option.value = item.model_id;
-                    option.textContent = `${item.brand} - ${item.model_name}`;
-                    carSelect.appendChild(option);
-                });
-            } catch (error) {
-                console.error("ดึงข้อมูลรุ่นรถล้มเหลว:", error);
-                document.getElementById("car_model_select").innerHTML = '<option value="">⚠️ โหลดข้อมูลล้มเหลว (เช็กหลังบ้าน)</option>';
-            }
+        function updateCarModels(brandName) {
+            const select = document.getElementById('car_model'); select.innerHTML = '<option value="">-- เลือกรุ่นรถ --</option>';
+            if (!brandName) return;
+            const filteredModels = globalCarData.filter(car => car.car_brand === brandName);
+            filteredModels.forEach(car => select.innerHTML += \`<option value="\${car.car_model}">\${car.car_model}</option>\`);
         }
 
-        // 🛡️ 2. ฟังก์ชันดึงค่ายประกันภัยจาก Neon มาพ่นใส่ Dropdown
-        async function loadInsurances() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/insurances`);
-                const data = await response.json();
-                const insSelect = document.getElementById("insurance_select");
-                if (!insSelect) return;
-                
-                insSelect.innerHTML = '<option value="">-- เลือกค่ายประกันภัย --</option>';
-                data.forEach(item => {
-                    const option = document.createElement("option");
-                    option.value = item.insurance_id;
-                    option.textContent = `${item.insurance_name}`;
-                    insSelect.appendChild(option);
-                });
-            } catch (error) {
-                console.error("ดึงข้อมูลประกันภัยล้มเหลว:", error);
-                document.getElementById("insurance_select").innerHTML = '<option value="">⚠️ โหลดข้อมูลล้มเหลว</option>';
-            }
-        }
-
-        // 🔧 3. ฟังก์ชันดึงรายการอะไหล่ทั้งหมดมาแยกใส่ดร็อปดาวน์หลักและรอง
-        async function loadPartsMaster() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/parts`);
-                const partsData = await response.json();
-                window.rizenicPartsMaster = partsData; 
-
-                const mainPartSelect = document.getElementById("main_part");
-                const subPartSelect = document.getElementById("sub_part");
-
-                if(mainPartSelect && subPartSelect) {
-                    mainPartSelect.innerHTML = '<option value="">-- เลือกรายการอะไหล่หลัก --</option>';
-                    subPartSelect.innerHTML = '<option value="">-- เลือกรายการอะไหล่รอง --</option>';
-
-                    partsData.forEach(part => {
-                        const option = document.createElement("option");
-                        option.value = part.part_name;
-                        option.textContent = part.part_name;
-                        
-                        if(part.part_category === "ชิ้นส่วนหลัก") {
-                            mainPartSelect.appendChild(option);
-                        } else {
-                            subPartSelect.appendChild(option.cloneNode(true));
-                        }
-                    });
-                }
-            } catch (error) {
-                console.error("ดึงข้อมูลคลังอะไหล่ล้มเหลว:", error);
-            }
-        }
-
-        // 📊 4. ดึงสถานะงานมาสเตอร์
-        async function loadStatuses() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/statuses`);
-                const data = await response.json();
-                const statusSelect = document.getElementById("status_code");
-                if (!statusSelect) return;
-
-                statusSelect.innerHTML = '<option value="">-- เลือกสถานะงานซ่อม --</option>';
-                data.forEach(item => {
-                    const option = document.createElement("option");
-                    option.value = item.status_code;
-                    option.textContent = `${item.status_code} - ${item.status_name}`;
-                    statusSelect.appendChild(option);
-                });
-            } catch (error) {
-                console.error("ดึงสถานะงานล้มเหลว:", error);
-            }
-        }
-
-        // 🟢 อัปเกรดแบบ Full-Stack: ดึงข้อมูลจากฟอร์ม ห่อกล่อง JSON แล้วยิงข้ามท่อลง Neon DB ของจริง!
         async function submitSaForm() {
-            const customer_name = document.getElementById('customer_name').value;
-            const customer_phone = document.getElementById('customer_phone').value;
-            const customer_type = document.getElementById('customer_type').value;
-            const car_model_id = document.getElementById('car_model_select').value;
-            const vin_number = document.getElementById('vin_number').value;
-            const insurance_id = document.getElementById('insurance_select').value;
-            const damage_level = document.querySelector('input[name="damage_level"]:checked')?.value || 'เบา';
-            const main_part = document.getElementById('main_part').value;
-            const main_part_qty = parseInt(document.getElementById('main_part_qty').value) || 0;
-            const sub_part = document.getElementById('sub_part').value;
-            const sub_part_qty = parseInt(document.getElementById('sub_part_qty').value) || 0;
-            const labor_cost = parseFloat(document.getElementById('estimated_labor_cost').value) || 0;
-            const parts_cost = parseFloat(document.getElementById('estimated_parts_cost').value) || 0;
-            const external_cost = parseFloat(document.getElementById('external_job_cost').value) || 0;
-            const target_finish_date = document.getElementById('target_finish_date').value || null;
-            const actual_finish_date = document.getElementById('actual_finish_date').value || null;
-            const delivery_date = document.getElementById('delivery_date').value || null;
-            const notes = document.getElementById('notes').value;
-            const status_code = document.getElementById('status_code').value;
-
-            if(!customer_name || !car_model_id || !status_code) {
-                alert('⚠️ นายครับ! กรุณากรอกชื่อลูกค้า, เลือกยี่ห้อรถ และเลือกสถานะงานซ่อมก่อนกดส่งงานนะจ๊ะ');
-                return;
-            }
-
-            // จัดแพ็กเกจข้อมูลห่อกล่อง JSON
-            const payload = {
-                customer_name, customer_phone, customer_type, car_model_id, vin_number,
-                insurance_id, damage_level, main_part, main_part_qty, sub_part, sub_part_qty,
-                labor_cost, parts_cost, external_cost, target_finish_date, actual_finish_date,
-                delivery_date, notes, status_code
+            const formData = {
+                sa_owner: document.getElementById('sa_owner').value, customer_name: document.getElementById('customer_name').value, phone_number: document.getElementById('phone_number').value,
+                customer_type: document.getElementById('customer_type').value, car_brand: document.getElementById('car_brand').value, car_model: document.getElementById('car_model').value,
+                vin_no: document.getElementById('vin_no').value, payment_type: document.getElementById('payment_type').value, damage_level: document.querySelector('input[name="damage_level"]:checked').value,
+                main_part_name: selectedParts.main.join(', '), main_part_qty: selectedParts.main.length, sub_part_name: selectedParts.sub.join(', '), sub_part_qty: selectedParts.sub.length,
+                cost_labor: document.getElementById('cost_labor').value, cost_part: document.getElementById('cost_part').value, cost_external: document.getElementById('cost_external').value,
+                target_finish_date: document.getElementById('target_finish_date').value || null, actual_finish_date: document.getElementById('actual_finish_date').value || null, delivery_date: document.getElementById('delivery_date').value || null,
+                notes: document.getElementById('notes').value, job_status: document.getElementById('job_status').value
             };
-
+            if(!formData.sa_owner || !formData.customer_name || !formData.car_brand || !formData.car_model || !formData.job_status) return alert('⚠️ กรอกพนักงาน SA, ชื่อลูกค้า, เลือกรถยนต์ และสถานะให้ครบก่อน!');
+            
             try {
-                // ยิงคำขอแบบ POST ข้ามฝั่งไปหา Express API บน Vercel
-                const response = await fetch(`${API_BASE_URL}/api/jobs/create`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                const result = await response.json();
-
+                const response = await fetch(\`\${API_BASE_URL}/api/report\`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
                 if (response.ok) {
-                    alert('🎉 สำเร็จ! ข้อมูลใบเปิดงานซ่อมวิ่งข้ามท่อลงตาราง rizenicreport บน Neon DB เรียบร้อยแล้วครับนาย!');
-                    document.getElementById('saForm').reset();
-                } else {
-                    alert(`❌ Neon ปฏิเสธการบันทึก: ${result.error}`);
-                }
-            } catch (error) {
-                console.error("Form submit error:", error);
-                alert('❌ ท่อส่งข้อมูลอุดตัน! ไม่สามารถติดต่อเซิร์ฟเวอร์หลังบ้านได้');
-            }
+                    alert('🎉 สำเร็จ! บันทึกใบแจ้งซ่อมเรียบร้อยแล้ว!'); document.getElementById('saForm').reset();
+                    selectedParts = { main: [], sub: [] }; renderPartsUI();
+                    if(document.getElementById('car_brand').querySelector('option[value="Tesla"]')) { document.getElementById('car_brand').value = 'Tesla'; updateCarModels('Tesla'); }
+                } else alert('❌ ข้อผิดพลาดจากระบบ');
+            } catch (error) { alert('❌ ติดต่อ API ไม่ได้ สาเหตุ: ' + error.message); }
+        }
+
+        // ==========================================
+        // 🧑‍💻 ระบบ Admin CRUD ทั้งหมด
+        // ==========================================
+        async function loadAllAdminData() {
+            loadAdminEmployees(); loadAdminCarModels(); loadAdminInsurances();
+        }
+
+        // --- 1. Employees ---
+        async function loadAdminEmployees() {
+            const data = await (await fetch(\`\${API_BASE_URL}/api/employees\`)).json();
+            const tbody = document.getElementById('emp_table_body'); tbody.innerHTML = '';
+            data.forEach(e => {
+                tbody.innerHTML += \`<tr class="hover:bg-gray-800/50">
+                    <td class="p-4 font-mono text-green-400">\${e.employee_code}</td><td class="p-4">\${e.employee_name}</td><td class="p-4">\${e.employee_role}</td>
+                    <td class="p-4 text-center">
+                        <button onclick="editEmployee('\${e.employee_id}', '\${e.employee_code}', '\${e.employee_name}', '\${e.employee_role}')" class="text-blue-400 hover:text-white px-2"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="deleteData('/api/employees/\${e.employee_id}', loadAdminEmployees)" class="text-gray-400 hover:text-red-400 px-2"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>\`;
+            });
+        }
+        function editEmployee(id, code, name, role) {
+            document.getElementById('edit_emp_id').value = id; document.getElementById('emp_code').value = code; document.getElementById('emp_name').value = name; document.getElementById('emp_role').value = role;
+            document.getElementById('btn_save_emp').innerText = 'บันทึกแก้ไข'; document.getElementById('btn_save_emp').classList.replace('bg-green-600', 'bg-blue-600');
+        }
+        function resetEmpForm() {
+            document.getElementById('edit_emp_id').value = ''; document.getElementById('emp_code').value = ''; document.getElementById('emp_name').value = '';
+            document.getElementById('btn_save_emp').innerText = 'เพิ่มข้อมูล'; document.getElementById('btn_save_emp').classList.replace('bg-blue-600', 'bg-green-600');
+        }
+        async function saveEmployee() {
+            const id = document.getElementById('edit_emp_id').value;
+            const payload = { employee_code: document.getElementById('emp_code').value, employee_name: document.getElementById('emp_name').value, employee_role: document.getElementById('emp_role').value };
+            if(!payload.employee_code || !payload.employee_name) return alert('กรอกข้อมูลให้ครบก่อนครับ');
+            const method = id ? 'PUT' : 'POST'; const url = id ? \`/api/employees/\${id}\` : '/api/employees';
+            await fetch(\`\${API_BASE_URL}\${url}\`, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+            resetEmpForm(); loadAdminEmployees();
+        }
+
+        // --- 2. Car Models ---
+        async function loadAdminCarModels() {
+            const data = await (await fetch(\`\${API_BASE_URL}/api/car-models\`)).json();
+            const tbody = document.getElementById('car_table_body'); tbody.innerHTML = '';
+            data.forEach(c => {
+                tbody.innerHTML += \`<tr class="hover:bg-gray-800/50">
+                    <td class="p-4 text-gray-500">\${c.model_id}</td><td class="p-4 font-bold">\${c.car_brand}</td><td class="p-4">\${c.car_model}</td>
+                    <td class="p-4 text-center">
+                        <button onclick="editCarModel('\${c.model_id}', '\${c.car_brand}', '\${c.car_model}')" class="text-blue-400 hover:text-white px-2"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="deleteData('/api/car-models/\${c.model_id}', loadAdminCarModels)" class="text-gray-400 hover:text-red-400 px-2"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>\`;
+            });
+        }
+        function editCarModel(id, brand, model) {
+            document.getElementById('edit_car_id').value = id; document.getElementById('car_brand_input').value = brand; document.getElementById('car_model_input').value = model;
+            document.getElementById('btn_save_car').innerText = 'บันทึกแก้ไข'; document.getElementById('btn_save_car').classList.replace('bg-green-600', 'bg-blue-600');
+        }
+        function resetCarForm() {
+            document.getElementById('edit_car_id').value = ''; document.getElementById('car_brand_input').value = ''; document.getElementById('car_model_input').value = '';
+            document.getElementById('btn_save_car').innerText = 'เพิ่มข้อมูล'; document.getElementById('btn_save_car').classList.replace('bg-blue-600', 'bg-green-600');
+        }
+        async function saveCarModel() {
+            const id = document.getElementById('edit_car_id').value;
+            const payload = { car_brand: document.getElementById('car_brand_input').value, car_model: document.getElementById('car_model_input').value };
+            if(!payload.car_brand || !payload.car_model) return alert('กรอกยี่ห้อและรุ่นรถให้ครบก่อนครับ');
+            const method = id ? 'PUT' : 'POST'; const url = id ? \`/api/car-models/\${id}\` : '/api/car-models';
+            await fetch(\`\${API_BASE_URL}\${url}\`, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+            resetCarForm(); loadAdminCarModels();
+        }
+
+        // --- 3. Insurances ---
+        async function loadAdminInsurances() {
+            const data = await (await fetch(\`\${API_BASE_URL}/api/insurances\`)).json();
+            const tbody = document.getElementById('ins_table_body'); tbody.innerHTML = '';
+            data.forEach(i => {
+                tbody.innerHTML += \`<tr class="hover:bg-gray-800/50">
+                    <td class="p-4 font-mono text-amber-400">\${i.insurance_code}</td><td class="p-4">\${i.insurance_name}</td><td class="p-4">\${i.insurance_type}</td>
+                    <td class="p-4 text-center">
+                        <button onclick="editInsurance('\${i.insurance_code}', '\${i.insurance_name}', '\${i.insurance_type}')" class="text-blue-400 hover:text-white px-2"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="deleteData('/api/insurances/\${i.insurance_code}', loadAdminInsurances)" class="text-gray-400 hover:text-red-400 px-2"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>\`;
+            });
+        }
+        function editInsurance(code, name, type) {
+            document.getElementById('edit_ins_id').value = code; document.getElementById('ins_code').value = code; document.getElementById('ins_code').disabled = true; 
+            document.getElementById('ins_name').value = name; document.getElementById('ins_type').value = type;
+            document.getElementById('btn_save_ins').innerText = 'บันทึกแก้ไข'; document.getElementById('btn_save_ins').classList.replace('bg-green-600', 'bg-blue-600');
+        }
+        function resetInsForm() {
+            document.getElementById('edit_ins_id').value = ''; document.getElementById('ins_code').value = ''; document.getElementById('ins_code').disabled = false;
+            document.getElementById('ins_name').value = ''; document.getElementById('ins_type').value = '';
+            document.getElementById('btn_save_ins').innerText = 'เพิ่มข้อมูล'; document.getElementById('btn_save_ins').classList.replace('bg-blue-600', 'bg-green-600');
+        }
+        async function saveInsurance() {
+            const id = document.getElementById('edit_ins_id').value;
+            const code = document.getElementById('ins_code').value;
+            const payload = { insurance_code: code, insurance_name: document.getElementById('ins_name').value, insurance_type: document.getElementById('ins_type').value };
+            if(!code || !payload.insurance_name) return alert('กรอกรหัสและชื่อประกันให้ครบก่อนครับ');
+            const method = id ? 'PUT' : 'POST'; const url = id ? \`/api/insurances/\${code}\` : '/api/insurances';
+            await fetch(\`\${API_BASE_URL}\${url}\`, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+            resetInsForm(); loadAdminInsurances();
+        }
+
+        // --- ฟังก์ชันลบกลาง ---
+        async function deleteData(url, reloadCallback) {
+            if(!confirm('🚨 ยืนยันการลบข้อมูลนี้หรือไม่?')) return;
+            await fetch(\`\${API_BASE_URL}\${url}\`, { method: 'DELETE' });
+            reloadCallback();
         }
     </script>
 </body>
