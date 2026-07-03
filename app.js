@@ -81,11 +81,9 @@ app.get('/', (req, res) => {
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-1">ประเภทลูกค้า</label>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">ประเภทลูกค้า (ดึงจาก Master)</label>
                                 <select id="customer_type" class="w-full p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-[#003220] outline-none">
-                                    <option value="บุคคลธรรมดา">บุคคลธรรมดา (ทั่วไป)</option>
-                                    <option value="นิติบุคคล">นิติบุคคล / บริษัท</option>
-                                    <option value="ลูกค้า VIP">ลูกค้า VIP / คอนเทรค</option>
+                                    <option value="">🔄 กำลังโหลดประเภทลูกค้า...</option>
                                 </select>
                             </div>
                             <div class="md:col-span-2">
@@ -105,16 +103,13 @@ app.get('/', (req, res) => {
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-1">ยี่ห้อรถยนต์ (Brand)</label>
                                 <select id="car_brand" class="w-full p-3 border border-gray-300 rounded-xl bg-amber-50 font-bold text-amber-950 focus:ring-2 focus:ring-[#003220] outline-none">
-                                    <option value="Tesla" selected>Tesla (Default)</option>
-                                    <option value="Toyota">Toyota</option>
-                                    <option value="Honda">Honda</option>
-                                    <option value="BYD">BYD</option>
+                                    <option value="">🔄 กำลังโหลดยี่ห้อรถ...</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-1">รุ่นรถยนต์ (Model)</label>
                                 <select id="car_model" class="w-full p-3 border border-gray-300 rounded-xl bg-amber-50 font-medium text-amber-950 focus:ring-2 focus:ring-[#003220] outline-none">
-                                    <option value="">🔄 รอเลือกรุ่น...</option>
+                                    <option value="">-- เลือกรุ่นรถ --</option>
                                 </select>
                             </div>
                             <div>
@@ -244,7 +239,7 @@ app.get('/', (req, res) => {
                                 <option value="Admin">แอดมิน</option>
                             </select>
                         </div>
-                        <button onclick="addEmployee()" class="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded text-sm transition">
+                        <button onclick="addEmployee()" class="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded text-sm transition cursor-pointer">
                             <i class="fa-solid fa-plus"></i> เพิ่มข้อมูล
                         </button>
                     </div>
@@ -298,7 +293,7 @@ app.get('/', (req, res) => {
         }
 
         // ==========================================
-        // 🟢 ระบบจัดการอะไหล่แบบปุ่มกด (Chips Multi-Select)
+        // 🟢 ระบบจัดการอะไหล่แบบปุ่มกด (Chips Select)
         // ==========================================
         let partsDB = { main: [], sub: [] };
         let selectedParts = { main: [], sub: [] };
@@ -318,7 +313,6 @@ app.get('/', (req, res) => {
                 mainSelBox.innerHTML += \`<span onclick="togglePart('main', '\${p}', 'remove')" class="part-chip px-3 py-1 bg-[#003220] text-white rounded-full text-xs font-bold shadow-sm border border-black">\${p} <i class="fa-solid fa-xmark ml-1"></i></span>\`;
             });
             document.getElementById('main_part_qty_display').innerText = selectedParts.main.length;
-            document.getElementById('main_part_qty').value = selectedParts.main.length;
 
             // โซนอะไหล่รอง
             const subAvailBox = document.getElementById('sub_parts_available');
@@ -334,7 +328,6 @@ app.get('/', (req, res) => {
                 subSelBox.innerHTML += \`<span onclick="togglePart('sub', '\${p}', 'remove')" class="part-chip px-3 py-1 bg-gray-700 text-white rounded-full text-xs font-bold shadow-sm border border-black">\${p} <i class="fa-solid fa-xmark ml-1"></i></span>\`;
             });
             document.getElementById('sub_part_qty_display').innerText = selectedParts.sub.length;
-            document.getElementById('sub_part_qty').value = selectedParts.sub.length;
         }
 
         function togglePart(category, partName, action) {
@@ -347,52 +340,95 @@ app.get('/', (req, res) => {
         }
 
         // ==========================================
-        // 🟢 โหลดข้อมูลเมื่อเปิดหน้าเว็บ
+        // 🟢 โหลดข้อมูลตาราง Master ทั้งหมดเมื่อเปิดหน้าเว็บ
         // ==========================================
         let globalCarData = [];
+
         document.addEventListener('DOMContentLoaded', () => {
-            // โหลดพนักงาน SA
+            
+            // 1. ดึงข้อมูลพนักงาน SA
             fetch(\`\${API_BASE_URL}/api/employees\`).then(r=>r.json()).then(data => {
                 const select = document.getElementById('sa_owner');
                 select.innerHTML = '<option value="">-- เลือกพนักงานรับรถ --</option>';
                 data.filter(e => e.is_active).forEach(e => {
                     select.innerHTML += \`<option value="\${e.employee_name}">\${e.employee_code} - \${e.employee_name}</option>\`;
                 });
-            });
+            }).catch(e => console.error("Employee Load Error:", e));
 
-            // โหลดอะไหล่เข้า Array
+            // 2. ดึงข้อมูลประเภทลูกค้า (ตารางใหม่ rizeniccustomertypemaster)
+            fetch(\`\${API_BASE_URL}/api/customer-types\`).then(r=>r.json()).then(data => {
+                const select = document.getElementById('customer_type');
+                select.innerHTML = '<option value="">-- เลือกประเภทลูกค้า --</option>';
+                data.forEach(item => {
+                    select.innerHTML += \`<option value="\${item.type_name}">\${item.type_name}</option>\`;
+                });
+            }).catch(e => console.error("Customer Types Load Error:", e));
+
+            // 3. ดึงข้อมูลอะไหล่ทั้งหมดแล้วแยกตามหมวดหมู่ (ชิ้นส่วนหลัก, ชิ้นส่วนรอง)
             fetch(\`\${API_BASE_URL}/api/parts\`).then(r=>r.json()).then(data => {
                 partsDB.main = data.filter(p => p.part_category === 'ชิ้นส่วนหลัก').map(p => p.part_name);
                 partsDB.sub = data.filter(p => p.part_category === 'ชิ้นส่วนรอง').map(p => p.part_name);
                 renderPartsUI();
-            });
+            }).catch(e => console.error("Parts Load Error:", e));
 
-            // โหลดรถยนต์
+            // 4. ดึงข้อมูลรถยนต์ (คัดกรอง Brand ไม่ซ้ำกัน)
             fetch(\`\${API_BASE_URL}/api/car-models\`).then(r=>r.json()).then(data => {
                 globalCarData = data;
-                updateCarModels('Tesla'); // Default
-            });
-            document.getElementById('car_brand').addEventListener('change', function() { updateCarModels(this.value); });
+                
+                // หา Brand ที่ไม่ซ้ำกันมาใส่ Dropdown
+                const uniqueBrands = [...new Set(data.map(car => car.car_brand))];
+                const brandSelect = document.getElementById('car_brand');
+                brandSelect.innerHTML = '<option value="">-- เลือกยี่ห้อรถ --</option>';
+                
+                uniqueBrands.forEach(brand => {
+                    brandSelect.innerHTML += \`<option value="\${brand}">\${brand}</option>\`;
+                });
 
-            // โหลดประกัน & สเตตัส
-            fetch(\`\${API_BASE_URL}/api/insurances\`).then(r=>r.json()).then(data => {
-                const s = document.getElementById('payment_type'); s.innerHTML = '<option value="">-- เลือกประกันภัย --</option>';
-                data.forEach(i => s.innerHTML += \`<option value="\${i.insurance_name}">\${i.insurance_name}</option>\`);
+                // ลองดึง Tesla ขึ้นมาเป็น Default (ถ้าใน DB มี Tesla)
+                if(uniqueBrands.includes('Tesla')) {
+                    brandSelect.value = 'Tesla';
+                    updateCarModels('Tesla');
+                }
+            }).catch(e => console.error("Car Models Load Error:", e));
+
+            // ฟังเหตุการณ์เปลี่ยนยี่ห้อรถ ให้ดึงรุ่นรถออกมาโชว์
+            document.getElementById('car_brand').addEventListener('change', function() {
+                updateCarModels(this.value);
             });
+
+            // 5. ดึงข้อมูลประกันภัย
+            fetch(\`\${API_BASE_URL}/api/insurances\`).then(r=>r.json()).then(data => {
+                const select = document.getElementById('payment_type');
+                select.innerHTML = '<option value="">-- เลือกประกันภัย/ชำระสด --</option>';
+                data.forEach(item => {
+                    select.innerHTML += \`<option value="\${item.insurance_name}">\${item.insurance_name}</option>\`;
+                });
+            });
+
+            // 6. ดึงข้อมูลสถานะงาน
             fetch(\`\${API_BASE_URL}/api/statuses\`).then(r=>r.json()).then(data => {
-                const s = document.getElementById('job_status'); s.innerHTML = '<option value="">-- เลือกสถานะ --</option>';
-                data.forEach(i => s.innerHTML += \`<option value="\${i.status_name}">\${i.status_code} - \${i.status_name}</option>\`);
+                const select = document.getElementById('job_status');
+                select.innerHTML = '<option value="">-- เลือกสถานะ --</option>';
+                data.forEach(item => {
+                    select.innerHTML += \`<option value="\${item.status_name}">\${item.status_code} - \${item.status_name}</option>\`;
+                });
             });
         });
 
+        // ฟังก์ชันอัปเดต Dropdown รุ่นรถ ตามยี่ห้อ (Brand) ที่ถูกเลือก
         function updateCarModels(brandName) {
-            const select = document.getElementById('car_model'); select.innerHTML = '';
-            const filtered = globalCarData.filter(car => car.car_brand.toUpperCase() === brandName.toUpperCase());
-            filtered.forEach(car => select.innerHTML += \`<option value="\${car.car_model}">\${car.car_model}</option>\`);
+            const select = document.getElementById('car_model');
+            select.innerHTML = '<option value="">-- เลือกรุ่นรถ --</option>';
+            if (!brandName) return;
+
+            const filteredModels = globalCarData.filter(car => car.car_brand === brandName);
+            filteredModels.forEach(car => {
+                select.innerHTML += \`<option value="\${car.car_model}">\${car.car_model}</option>\`;
+            });
         }
 
         // ==========================================
-        // 🟢 ระบบ Admin Employee CRUD
+        // 🟢 ระบบ Admin Employee CRUD (หน้าหลังบ้าน)
         // ==========================================
         async function loadAdminEmployees() {
             const res = await fetch(\`\${API_BASE_URL}/api/employees\`);
@@ -437,21 +473,21 @@ app.get('/', (req, res) => {
         }
 
         // ==========================================
-        // 🟢 ส่งข้อมูลใบรับรถ (SA)
+        // 🟢 ฟังก์ชันส่งข้อมูลบันทึกใบเปิดงานซ่อม (แก้ไขบั๊ก API)
         // ==========================================
         async function submitSaForm() {
             const formData = {
-                sa_owner: document.getElementById('sa_owner').value, // เพิ่ม SA ลงท่อ
+                sa_owner: document.getElementById('sa_owner').value,
                 customer_name: document.getElementById('customer_name').value,
                 phone_number: document.getElementById('phone_number').value,
                 customer_type: document.getElementById('customer_type').value,
-                car_brand: document.getElementById('car_brand').value,
-                car_model: document.getElementById('car_model').value,
+                car_brand: document.getElementById('car_brand').value, // ดึงยี่ห้อตรงๆ
+                car_model: document.getElementById('car_model').value, // ดึงรุ่นตรงๆ
                 vin_no: document.getElementById('vin_no').value,
                 payment_type: document.getElementById('payment_type').value,
                 damage_level: document.querySelector('input[name="damage_level"]:checked').value,
-                main_part_name: selectedParts.main.join(', '), // นำ Array มาต่อกันด้วยลูกน้ำ
-                main_part_qty: selectedParts.main.length,
+                main_part_name: selectedParts.main.join(', '), // มัดชื่ออะไหล่ด้วยลูกน้ำ
+                main_part_qty: selectedParts.main.length,      // นับจำนวนอะไหล่ที่กดเลือก
                 sub_part_name: selectedParts.sub.join(', '),
                 sub_part_qty: selectedParts.sub.length,
                 cost_labor: document.getElementById('cost_labor').value,
@@ -464,22 +500,45 @@ app.get('/', (req, res) => {
                 job_status: document.getElementById('job_status').value
             };
 
-            if(!formData.sa_owner || !formData.customer_name || !formData.job_status) {
-                return alert('⚠️ กรุณาเลือกพนักงาน SA, ชื่อลูกค้า และสถานะงานก่อนส่งครับ!');
+            // ตรวจสอบความถูกต้องพื้นฐาน
+            if(!formData.sa_owner || !formData.customer_name || !formData.car_brand || !formData.car_model || !formData.job_status) {
+                alert('⚠️ นายครับ! กรุณากรอกพนักงาน SA, ชื่อลูกค้า, เลือกรถยนต์ และสถานะงานให้ครบก่อนนะครับ!');
+                return;
             }
 
             try {
                 const response = await fetch(\`\${API_BASE_URL}/api/report\`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData)
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(formData)
                 });
-                if (response.ok) {
-                    alert('🎉 สำเร็จ! ข้อมูลบันทึกพร้อมรายชื่ออะไหล่และ SA เรียบร้อยแล้ว!');
-                    document.getElementById('saForm').reset();
-                    selectedParts = { main: [], sub: [] }; renderPartsUI(); // เคลียร์ปุ่มอะไหล่
-                } else {
-                    alert('❌ ข้อผิดพลาด: ' + (await response.json()).error);
+                
+                // 🟢 ดักจับ Error เผื่อหลังบ้านพัง จะได้รู้สาเหตุชัดเจน!
+                const textResult = await response.text(); 
+                let jsonResult;
+                try {
+                    jsonResult = JSON.parse(textResult);
+                } catch(e) {
+                    throw new Error("หลังบ้านตอบกลับมาเป็นขยะ (ไม่ใช่ JSON): " + textResult.substring(0, 50));
                 }
-            } catch (error) { alert('❌ ติดต่อ API ไม่ได้'); }
+
+                if (response.ok) {
+                    alert('🎉 สำเร็จ! บันทึกใบแจ้งซ่อม พร้อมอะไหล่ เรียบร้อยแล้ว!');
+                    document.getElementById('saForm').reset();
+                    // รีเซ็ตรถและอะไหล่กลับค่าเริ่มต้น
+                    selectedParts = { main: [], sub: [] }; 
+                    renderPartsUI();
+                    if(document.getElementById('car_brand').querySelector('option[value="Tesla"]')) {
+                        document.getElementById('car_brand').value = 'Tesla';
+                        updateCarModels('Tesla');
+                    }
+                } else {
+                    alert('❌ ข้อผิดพลาดจากระบบ: ' + (jsonResult.error || 'ไม่ทราบสาเหตุ'));
+                }
+            } catch (error) { 
+                console.error("Fetch Error:", error);
+                alert('❌ ติดต่อ API ไม่ได้ สาเหตุ: ' + error.message); 
+            }
         }
     </script>
 </body>
@@ -491,14 +550,13 @@ app.get('/', (req, res) => {
 // 🔌 2. โซนท่อเชื่อม API คิวรีหลังบ้าน
 // ==========================================
 
-// 🟢 พนักงาน (Employee Master) - GET, POST, DELETE
+// 🟢 พนักงาน (Employee Master)
 app.get('/api/employees', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM rizenicemployeemaster ORDER BY employee_code ASC');
     res.json(result.rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
-
 app.post('/api/employees', async (req, res) => {
   try {
     const { employee_code, employee_name, employee_role } = req.body;
@@ -506,7 +564,6 @@ app.post('/api/employees', async (req, res) => {
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
-
 app.delete('/api/employees/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM rizenicemployeemaster WHERE employee_id = $1', [req.params.id]);
@@ -514,7 +571,15 @@ app.delete('/api/employees/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 🟢 ดึงข้อมูลอะไหล่
+// 🟢 ประเภทลูกค้า (Customer Types)
+app.get('/api/customer-types', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT type_name FROM rizeniccustomertypemaster ORDER BY type_name ASC');
+    res.json(result.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 🟢 ข้อมูลอะไหล่ (Parts Master)
 app.get('/api/parts', async (req, res) => {
   try {
     const result = await pool.query('SELECT part_name, part_category FROM rizenicpartsmaster ORDER BY part_name ASC');
@@ -533,7 +598,7 @@ app.get('/api/statuses', async (req, res) => {
   try { res.json((await pool.query('SELECT status_code, status_name FROM rizenicstatusmaster ORDER BY status_code ASC')).rows); } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 🟢 บันทึกใบงาน (รับ sa_owner และ String รายชื่ออะไหล่)
+// 🟢 บันทึกใบงานลงตาราง rizenicreport
 app.post('/api/report', async (req, res) => {
   const {
     sa_owner, customer_name, phone_number, customer_type, car_brand, car_model,
