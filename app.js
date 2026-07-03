@@ -9,23 +9,20 @@ const port = process.env.PORT || 3000;
 app.use(cors()); 
 app.use(express.json());
 
-// 🟢 เสิร์ฟหน้าเว็บ Frontend จากโฟลเดอร์ public
+// เสิร์ฟหน้าเว็บ Frontend จากโฟลเดอร์ public
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 🔑 เชื่อมต่อฐานข้อมูลผ่านระบบความปลอดภัย Neon
+// เชื่อมต่อฐานข้อมูล Neon
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
-// ==========================================
-// 🔒 ท่อล็อกอิน (Login Authentication)
-// ==========================================
+// 🔒 ท่อล็อกอิน
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
     const result = await pool.query('SELECT * FROM rizenicemployeemaster WHERE username = $1 AND password = $2', [username, password]);
-    
     if (result.rows.length > 0) {
       res.json({ success: true, employee: result.rows[0] });
     } else {
@@ -34,9 +31,7 @@ app.post('/api/login', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ==========================================
-// 👥 API จัดการพนักงาน (Employees) - CRUD
-// ==========================================
+// 👥 API จัดการพนักงาน - CRUD
 app.get('/api/employees', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM rizenicemployeemaster ORDER BY branch_name ASC, employee_code ASC');
@@ -71,9 +66,7 @@ app.delete('/api/employees/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ==========================================
-// 🚗 Car Models (รุ่นรถ) - CRUD
-// ==========================================
+// 🚗 Car Models - CRUD
 app.get('/api/car-models', async (req, res) => {
   try { res.json((await pool.query('SELECT model_id, car_brand, car_model FROM rizeniccarmodelmaster ORDER BY car_brand ASC')).rows); } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -87,9 +80,7 @@ app.delete('/api/car-models/:id', async (req, res) => {
   try { await pool.query('DELETE FROM rizeniccarmodelmaster WHERE model_id = $1', [req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ==========================================
-// 🛡️ Insurances (ประกันภัย) - CRUD
-// ==========================================
+// 🛡️ Insurances - CRUD
 app.get('/api/insurances', async (req, res) => {
   try { res.json((await pool.query('SELECT insurance_code, insurance_name, insurance_type FROM rizenicinsurancemaster ORDER BY insurance_code ASC')).rows); } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -103,9 +94,7 @@ app.delete('/api/insurances/:id', async (req, res) => {
   try { await pool.query('DELETE FROM rizenicinsurancemaster WHERE insurance_code = $1', [req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ==========================================
-// 👥 Customer Types (ประเภทลูกค้า) - CRUD
-// ==========================================
+// 👥 Customer Types - CRUD
 app.get('/api/customer-types', async (req, res) => {
   try { res.json((await pool.query('SELECT customer_type_id, type_code, type_name FROM rizeniccustomertypemaster ORDER BY type_code ASC')).rows); } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -125,9 +114,7 @@ app.delete('/api/customer-types/:id', async (req, res) => {
   try { await pool.query('DELETE FROM rizeniccustomertypemaster WHERE customer_type_id = $1', [req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ==========================================
 // ⚙️ Masters อื่นๆ
-// ==========================================
 app.get('/api/parts', async (req, res) => {
   try { res.json((await pool.query('SELECT part_name, part_category FROM rizenicpartsmaster ORDER BY part_name ASC')).rows); } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -136,10 +123,8 @@ app.get('/api/statuses', async (req, res) => {
 });
 
 // ==========================================
-// 🟢 7. โซนท่อใหม่: ระบบจัดการใบงานซ่อมหลัก (Reports Panel API)
+// 📋 ระบบจัดการใบงานซ่อมหลัก (Reports API) - ขยายช่องรองรับ 2 วันที่ใหม่
 // ==========================================
-
-// 🎯 [GET ALL] ดึงใบงานซ่อมทั้งหมดมาวาดตารางหน้า jobs.html (อุดรอยรั่ว 404 ตัวนี้เลยครับ!)
 app.get('/api/reports', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM rizenicreport ORDER BY id DESC');
@@ -147,19 +132,15 @@ app.get('/api/reports', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 🎯 [GET SINGLE] ดึงข้อมูลเฉพาะ 1 ใบงานซ่อมตาม ID (ใช้ตอนกดแก้ไขข้ามหน้า)
 app.get('/api/report/:id', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM rizenicreport WHERE id = $1', [req.params.id]);
-    if(result.rows.length > 0) {
-      res.json(result.rows[0]);
-    } else {
-      res.status(404).json({ error: 'ไม่พบข้อมูลใบงานนี้ครับนาย' });
-    }
+    if(result.rows.length > 0) res.json(result.rows[0]);
+    else res.status(404).json({ error: 'ไม่พบข้อมูลใบงานนี้ครับนาย' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 🎯 [POST] บันทึกใบงานใหม่แกะกล่อง
+// 🎯 [POST] เพิ่มใบงานใหม่ (ขยาย SQL รองรับกล่องพารามิเตอร์ 23 ตัวแปรพอดีเป๊ะ)
 app.post('/api/report', async (req, res) => {
   try {
     const {
@@ -167,7 +148,8 @@ app.post('/api/report', async (req, res) => {
       vin_no, payment_type, damage_level, main_part_name,
       main_part_qty, sub_part_name, sub_part_qty, cost_labor,
       cost_part, cost_external, notes, job_status,
-      target_finish_date, actual_finish_date, delivery_date
+      target_finish_date, actual_finish_date, delivery_date,
+      contact_date, arrived_date // 2 ตัวแปรใหม่แกะกล่อง
     } = req.body;
 
     const queryText = `
@@ -176,8 +158,9 @@ app.post('/api/report', async (req, res) => {
         vin_no, payment_type, damage_level, main_part_name,
         main_part_qty, sub_part_name, sub_part_qty, cost_labor,
         cost_part, cost_external, notes, job_status,
-        target_finish_date, actual_finish_date, delivery_date
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+        target_finish_date, actual_finish_date, delivery_date,
+        contact_date, arrived_date
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
       RETURNING id;
     `;
 
@@ -186,7 +169,8 @@ app.post('/api/report', async (req, res) => {
       vin_no || null, payment_type || null, damage_level || 'เบา', main_part_name || null,
       main_part_qty || 0, sub_part_name || null, sub_part_qty || 0,
       cost_labor || 0, cost_part || 0, cost_external || 0,
-      notes || null, job_status || null, target_finish_date || null, actual_finish_date || null, delivery_date || null
+      notes || null, job_status || null, target_finish_date || null, actual_finish_date || null, delivery_date || null,
+      contact_date || null, arrived_date || null // หยอดเข้าสล็อตท้ายตู้
     ];
 
     const result = await pool.query(queryText, values);
@@ -194,7 +178,7 @@ app.post('/api/report', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 🎯 [PUT] บันทึกอัปเดตใบงานซ่อมเดิมที่มีอยู่แล้วในฐานข้อมูล (ใช้ตอนแก้ฟอร์มเสร็จแล้วส่งเซฟ)
+// 🎯 [PUT] แก้ไขอัปเดตใบงานซ่อมเดิม (เพิ่มการเซฟข้อมูล 2 วันที่ใหม่)
 app.put('/api/report/:id', async (req, res) => {
   try {
     const {
@@ -202,7 +186,8 @@ app.put('/api/report/:id', async (req, res) => {
       vin_no, payment_type, damage_level, main_part_name,
       main_part_qty, sub_part_name, sub_part_qty, cost_labor,
       cost_part, cost_external, notes, job_status,
-      target_finish_date, actual_finish_date, delivery_date
+      target_finish_date, actual_finish_date, delivery_date,
+      contact_date, arrived_date
     } = req.body;
 
     const queryText = `
@@ -211,8 +196,9 @@ app.put('/api/report/:id', async (req, res) => {
         car_brand=$6, car_model=$7, vin_no=$8, payment_type=$9, damage_level=$10, 
         main_part_name=$11, main_part_qty=$12, sub_part_name=$13, sub_part_qty=$14, 
         cost_labor=$15, cost_part=$16, cost_external=$17, notes=$18, job_status=$19, 
-        target_finish_date=$20, actual_finish_date=$21, delivery_date=$22 
-      WHERE id=$23;
+        target_finish_date=$20, actual_finish_date=$21, delivery_date=$22,
+        contact_date=$23, arrived_date=$24
+      WHERE id=$25;
     `;
 
     const values = [
@@ -221,7 +207,8 @@ app.put('/api/report/:id', async (req, res) => {
       main_part_name || null, main_part_qty || 0, sub_part_name || null, sub_part_qty || 0,
       cost_labor || 0, cost_part || 0, cost_external || 0, notes || null, job_status || null,
       target_finish_date || null, actual_finish_date || null, delivery_date || null,
-      req.params.id // $23 บล็อกสุดท้ายชี้เป้าแถวที่จะบันทึก
+      contact_date || null, arrived_date || null,
+      req.params.id // $25 บล็อกสุดท้าย
     ];
 
     await pool.query(queryText, values);
