@@ -239,14 +239,14 @@ app.get('/', (req, res) => {
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            // 1. ดึงรุ่นรถยนต์ (จูนแมตช์ตามคอลัมน์จริงของนาย)
+            // 1. ดึงรุ่นรถยนต์ (🟢 ปรับแก้ตามคอลัมน์จริง car_brand และ car_model เรียบร้อยจ๊ะ)
             fetch(\`\${API_BASE_URL}/api/car-models\`)
                 .then(res => res.json())
                 .then(data => {
                     const select = document.getElementById('car_model_select');
                     select.innerHTML = '<option value="">-- เลือกรุ่นรถยนต์ --</option>';
                     data.forEach(item => {
-                        select.innerHTML += \`<option value="\${item.brand}|\${item.model_name}">\${item.brand} \${item.model_name}</option>\`;
+                        select.innerHTML += \`<option value="\${item.car_brand}|\${item.car_model}">\${item.car_brand} \${item.car_model}</option>\`;
                     });
                 }).catch(err => console.error("Car Models Load Error:", err));
 
@@ -261,7 +261,7 @@ app.get('/', (req, res) => {
                     });
                 }).catch(err => console.error("Insurances Load Error:", err));
 
-            // 3. ดึงสถานะงานซ่อม (คลีน ล้างท่อนผิดพลาดที่ทำข้อความหลุดออกเรียบร้อยแล้วจ๊ะ)
+            // 3. ดึงสถานะงานซ่อม (🟢 คลีน ล้างท่อนขยะรหัสพิการหลุดโลกเรียบร้อยจ๊ะ)
             fetch(\`\${API_BASE_URL}/api/statuses\`)
                 .then(res => res.json())
                 .then(data => {
@@ -332,15 +332,17 @@ app.get('/', (req, res) => {
 // 🔌 2. โซนท่อเชื่อม API คิวรีลงตารางมาสเตอร์ตัวพิมพ์เล็กตรงเป๊ะ
 // ==========================================
 
+// 🟢 ดึงรุ่นรถยนต์: ปรับ SQL คิวรีคอลัมน์จริง car_brand และ car_model ตามรูปหน้าจอของนายเป๊ะ ๆ!
 app.get('/api/car-models', async (req, res) => {
   try {
-    const result = await pool.query('SELECT model_id, brand, model_name FROM rizeniccarmodelmaster ORDER BY brand, model_name ASC');
+    const result = await pool.query('SELECT model_id, car_brand, car_model FROM rizeniccarmodelmaster ORDER BY car_brand, car_model ASC');
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+// 🟢 ดึงรายชื่อค่ายประกัน: ลบคอลัมน์ type ส่วนเกินออก ป้องกันระบบล่ม
 app.get('/api/insurances', async (req, res) => {
   try {
     const result = await pool.query('SELECT insurance_id, insurance_name FROM rizenicinsurancemaster ORDER BY insurance_name ASC');
@@ -350,6 +352,7 @@ app.get('/api/insurances', async (req, res) => {
   }
 });
 
+// ดึงสเตตัสงานจาก Neon
 app.get('/api/statuses', async (req, res) => {
   try {
     const result = await pool.query('SELECT status_code, status_name FROM rizenicstatusmaster ORDER BY status_code ASC');
