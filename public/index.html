@@ -277,9 +277,7 @@
             window.location.reload(); 
         }
 
-        // ==========================================
-        // 🌐 โหลด Master Data & ดึงข้อมูลเริ่มต้นทั้งหมด
-        // ==========================================
+        // 🌐 Load Initial Data
         function loadInitialData() {
             loadAdminEmployees(); 
 
@@ -309,7 +307,6 @@
                     brandSelect.parentNode.replaceChild(newBrandSelect, brandSelect);
                     newBrandSelect.addEventListener('change', function() { updateCarModels(this.value); });
 
-                    // 🎯 ล็อก Default ค่าเริ่มต้นดรอปดาวน์เป็น TESLA อัตโนมัติ
                     if(uniqueBrands.includes('Tesla')) {
                         newBrandSelect.value = 'Tesla';
                         updateCarModels('Tesla');
@@ -333,9 +330,7 @@
             }).catch(e => console.log("โหลดสถานะพัง", e));
         }
 
-        // ==========================================
-        // 👥 ระบบจัดการพนักงานและสาขา (Admin Employees)
-        // ==========================================
+        // 👥 Admin Employees CRUD
         async function loadAdminEmployees() {
             try {
                 const res = await fetch(`${API_BASE_URL}/api/employees`);
@@ -416,15 +411,12 @@
             } catch (e) { alert('❌ ล้มเหลว ติดต่อเซิร์ฟเวอร์ไม่ได้'); }
         }
 
-        // ==========================================
-        // 🛠️ UI & เมนู (ล็อกสิทธิ์เฉพาะ BA, Manager)
-        // ==========================================
+        // 🛠️ UI & Navigation
         function switchTab(tabId) {
             if (tabId === 'admin-tab') {
                 const role = sessionStorage.getItem('emp_role');
-                // 🔐 คัดกรอง Role: เฉพาะ BA และ Manager เท่านั้นผ่านเข้าแผงวงจรนี้ได้!
                 if (role !== 'BA' && role !== 'Manager' && role !== 'Admin' && role !== 'แอดมิน') { 
-                    alert(`❌ สิทธิ์คุณคือ (${role || 'ไม่มี'}) จำกัดเฉพาะตำแหน่ง BA และ Manager เท่านั้นครับ!`); 
+                    alert(`❌ เข้าไม่ได้ครับนาย! สิทธิ์ของคุณคือ (${role || 'ไม่มีตำแหน่ง'}) เมนูแอดมินจำกัดเฉพาะตำแหน่ง BA และ Manager เท่านั้นครับ!`); 
                     return; 
                 }
                 loadAdminCarModels(); loadAdminInsurances(); loadAdminCustomerTypes();
@@ -469,15 +461,13 @@
             globalCarData.filter(car => car.car_brand === brandName).forEach(car => { select.innerHTML += `<option value="${car.car_model}">${car.car_model}</option>`; });
         }
 
-        // 🎯 บันทึกใบงานธุรกรรม SA (ผูกสาขาอัตโนมัติ + คลีนฟิลด์โทรศัพท์)
-        // 🎯 บันทึกใบงาน SA (แก้ไขระบบดักจับสาขาอัตโนมัติให้แม่นยำ 100%)
+        // 🎯 บันทึกใบงาน SA (ล็อกดักจับสาขาอัตโนมัติ)
         async function submitSaForm() {
-            // ดักจับค่าสาขาจาก Session ให้ชัวร์ ถ้าไม่มีให้ใส่ตามที่ขึ้นแสดงบนหน้าจอ
             const loggedInBranch = sessionStorage.getItem('emp_branch') || document.getElementById('display_branch').innerText || 'สำนักงานใหญ่';
 
             const formData = {
                 sa_owner: sessionStorage.getItem('emp_name'), 
-                branch_name: loggedInBranch, // 🔗 ผูกล็อกค่าสาขาตัวแปรที่ดักมาอย่างแม่นยำ!
+                branch_name: loggedInBranch, 
                 customer_name: document.getElementById('customer_name').value, 
                 phone_number: document.getElementById('phone_number').value, 
                 customer_type: document.getElementById('customer_type').value, 
@@ -514,65 +504,26 @@
                     selectedParts = { main: [], sub: [] }; 
                     renderPartsUI(); 
                     
-                    // ล็อกค่ายี่ห้อรถเป็น Tesla กลับมาหลังรีเซ็ตฟอร์ม
                     document.getElementById('car_brand').value = 'Tesla';
                     updateCarModels('Tesla');
                 } 
             } catch (e) { alert('❌ การบันทึกล้มเหลว'); }
         }
 
-        // ==========================================
-        // 🚗 โค้ดที่แอบหลุดหายไป: คืนชีพแผงควบคุมระบบอื่นทั้งหมด!
-        // ==========================================
-        
-        // 1. Car Models Admin Operations
-        async function loadAdminCarModels() { 
-            const data = await (await fetch(`${API_BASE_URL}/api/car-models`)).json(); 
-            const tbody = document.getElementById('car_table_body'); tbody.innerHTML = ''; 
-            data.forEach(c => { 
-                tbody.innerHTML += `<tr class="hover:bg-gray-800/50"><td class="p-4">${c.model_id}</td><td class="p-4 font-bold">${c.car_brand}</td><td class="p-4">${c.car_model}</td><td class="p-4 text-center"><button onclick="editCarModel('${c.model_id}', '${c.car_brand}', '${c.car_model}')" class="text-blue-400 px-2"><i class="fa-solid fa-pen-to-square"></i></button> <button onclick="deleteData('/api/car-models/${c.model_id}', loadAdminCarModels)" class="text-gray-400 hover:text-red-400 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`; 
-            }); 
-        }
+        // --- Other Masters CRUD ---
+        async function loadAdminCarModels() { const data = await (await fetch(`${API_BASE_URL}/api/car-models`)).json(); const tbody = document.getElementById('car_table_body'); tbody.innerHTML = ''; data.forEach(c => { tbody.innerHTML += `<tr class="hover:bg-gray-800/50"><td class="p-4">${c.model_id}</td><td class="p-4 font-bold">${c.car_brand}</td><td class="p-4">${c.car_model}</td><td class="p-4 text-center"><button onclick="editCarModel('${c.model_id}', '${c.car_brand}', '${c.car_model}')" class="text-blue-400 px-2"><i class="fa-solid fa-pen-to-square"></i></button> <button onclick="deleteData('/api/car-models/${c.model_id}', loadAdminCarModels)" class="text-gray-400 hover:text-red-400 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); }
         function editCarModel(id, b, m) { document.getElementById('edit_car_id').value=id; document.getElementById('car_brand_input').value=b; document.getElementById('car_model_input').value=m; document.getElementById('btn_save_car').innerText='บันทึกอัปเดต'; }
         function resetCarForm() { document.getElementById('edit_car_id').value=''; document.getElementById('car_brand_input').value=''; document.getElementById('car_model_input').value=''; document.getElementById('btn_save_car').innerText='เพิ่มข้อมูล'; }
-        async function saveCarModel() { 
-            const id = document.getElementById('edit_car_id').value; 
-            const payload = { car_brand: document.getElementById('car_brand_input').value, car_model: document.getElementById('car_model_input').value }; 
-            const m = id ? 'PUT' : 'POST'; const u = id ? `/api/car-models/${id}` : '/api/car-models'; 
-            await fetch(`${API_BASE_URL}${u}`, {method:m, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}); 
-            resetCarForm(); loadAdminCarModels(); 
-        }
-
-        // 2. Insurances Admin Operations
+        async function saveCarModel() { const id = document.getElementById('edit_car_id').value; const payload = { car_brand: document.getElementById('car_brand_input').value, car_model: document.getElementById('car_model_input').value }; const m = id ? 'PUT' : 'POST'; const u = id ? `/api/car-models/${id}` : '/api/car-models'; await fetch(`${API_BASE_URL}${u}`, {method:m, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}); resetCarForm(); loadAdminCarModels(); }
         async function loadAdminInsurances() { const data = await (await fetch(`${API_BASE_URL}/api/insurances`)).json(); const tbody = document.getElementById('ins_table_body'); tbody.innerHTML = ''; data.forEach(i => { tbody.innerHTML += `<tr class="hover:bg-gray-800/50"><td class="p-4">${i.insurance_code}</td><td class="p-4">${i.insurance_name}</td><td class="p-4">${i.insurance_type}</td><td class="p-4 text-center"><button onclick="editInsurance('${i.insurance_code}', '${i.insurance_name}', '${i.insurance_type}')" class="text-blue-400 px-2"><i class="fa-solid fa-pen-to-square"></i></button> <button onclick="deleteData('/api/insurances/${i.insurance_code}', loadAdminInsurances)" class="text-gray-400 hover:text-red-400 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); }
         function editInsurance(c, n, t) { document.getElementById('edit_ins_id').value=c; document.getElementById('ins_code').value=c; document.getElementById('ins_code').disabled=true; document.getElementById('ins_name').value=n; document.getElementById('ins_type').value=t; document.getElementById('btn_save_ins').innerText='บันทึกอัปเดต'; }
         function resetInsForm() { document.getElementById('edit_ins_id').value=''; document.getElementById('ins_code').value=''; document.getElementById('ins_code').disabled=false; document.getElementById('ins_name').value=''; document.getElementById('ins_type').value=''; document.getElementById('btn_save_ins').innerText='เพิ่มข้อมูล'; }
-        async function saveInsurance() { 
-            const id = document.getElementById('edit_ins_id').value; const c = document.getElementById('ins_code').value; 
-            const payload = { insurance_code: c, insurance_name: document.getElementById('ins_name').value, insurance_type: document.getElementById('ins_type').value }; 
-            const m = id ? 'PUT' : 'POST'; const u = id ? `/api/insurances/${c}` : '/api/insurances'; 
-            await fetch(`${API_BASE_URL}${u}`, {method:m, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}); 
-            resetInsForm(); loadAdminInsurances(); 
-        }
-
-        // 3. Customer Types Admin Operations
+        async function saveInsurance() { const id = document.getElementById('edit_ins_id').value; const c = document.getElementById('ins_code').value; const payload = { insurance_code: c, insurance_name: document.getElementById('ins_name').value, insurance_type: document.getElementById('ins_type').value }; const m = id ? 'PUT' : 'POST'; const u = id ? `/api/insurances/${c}` : '/api/insurances'; await fetch(`${API_BASE_URL}${u}`, {method:m, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}); resetInsForm(); loadAdminInsurances(); }
         async function loadAdminCustomerTypes() { const data = await (await fetch(`${API_BASE_URL}/api/customer-types`)).json(); const tbody = document.getElementById('custype_table_body'); tbody.innerHTML = ''; data.forEach(i => { tbody.innerHTML += `<tr class="hover:bg-gray-800/50"><td class="p-4">${i.customer_type_id}</td><td class="p-4 font-mono text-cyan-400 font-bold">${i.type_code}</td><td class="p-4">${i.type_name}</td><td class="p-4 text-center"><button onclick="editCustomerType('${i.customer_type_id}', '${i.type_name}')" class="text-blue-400 px-2"><i class="fa-solid fa-pen-to-square"></i></button> <button onclick="deleteData('/api/customer-types/${i.customer_type_id}', loadAdminCustomerTypes)" class="text-gray-400 hover:text-red-400 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); }
         function editCustomerType(id, n) { document.getElementById('edit_custype_id').value=id; document.getElementById('custype_name').value=n; document.getElementById('btn_save_custype').innerText='บันทึกอัปเดต'; }
         function resetCustypeForm() { document.getElementById('edit_custype_id').value=''; document.getElementById('custype_name').value=''; document.getElementById('btn_save_custype').innerText='เพิ่มข้อมูล'; }
-        async function saveCustomerType() { 
-            const id = document.getElementById('edit_custype_id').value; 
-            const payload = { type_name: document.getElementById('custype_name').value }; 
-            const m = id ? 'PUT' : 'POST'; const u = id ? `/api/customer-types/${id}` : '/api/customer-types'; 
-            await fetch(`${API_BASE_URL}${u}`, {method:m, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}); 
-            resetCustypeForm(); loadAdminCustomerTypes(); 
-        }
-
-        // 4. มหาเวทย์ลบข้อมูลล้างขยะตาราง (Delete Callback)
-        async function deleteData(url, reloadCallback) { 
-            if (!confirm('🚨 ยืนยันการลบข้อมูลนี้ออกจากระบบถาวรหรือไม่?')) return;
-            await fetch(`${API_BASE_URL}${url}`, { method: 'DELETE' }); 
-            reloadCallback(); 
-        }
+        async function saveCustomerType() { const id = document.getElementById('edit_custype_id').value; const payload = { type_name: document.getElementById('custype_name').value }; const m = id ? 'PUT' : 'POST'; const u = id ? `/api/customer-types/${id}` : '/api/customer-types'; await fetch(`${API_BASE_URL}${u}`, {method:m, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}); resetCustypeForm(); loadAdminCustomerTypes(); }
+        async function deleteData(url, reloadCallback) { if (!confirm('🚨 ยืนยันการลบข้อมูลนี้หรือไม่?')) return; await fetch(`${API_BASE_URL}${url}`, { method: 'DELETE' }); reloadCallback(); }
     </script>
 </body>
 </html>
