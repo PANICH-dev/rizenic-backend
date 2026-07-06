@@ -10,6 +10,8 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Noto Sans Thai', sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #4b5563; border-radius: 10px; }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen">
@@ -25,16 +27,16 @@
             </a>
         </div>
 
-        <div class="flex border-b border-gray-700 mb-8 gap-2">
-            <button onclick="switchRepairSubTab('menu-calendar')" id="btn-menu-calendar" class="px-5 py-3 border-b-2 border-amber-500 text-amber-400 font-bold flex items-center gap-2 transition"><i class="fa-solid fa-calendar-days"></i> 1. ปฏิทินและแผนกำหนดเสร็จ</button>
-            <button onclick="switchRepairSubTab('menu-cake')" id="btn-menu-cake" class="px-5 py-3 border-b-2 border-transparent text-gray-400 hover:text-white font-semibold flex items-center gap-2 transition"><i class="fa-solid fa-chart-pie"></i> 2. สรุปก้อนเค้กยอดสถานี</button>
-            <button onclick="switchRepairSubTab('menu-list')" id="btn-menu-list" class="px-5 py-3 border-b-2 border-transparent text-gray-400 hover:text-white font-semibold flex items-center gap-2 transition"><i class="fa-solid fa-rectangle-list"></i> 3. รายการรถในกระบวนการซ่อม</button>
+        <div class="flex border-b border-gray-700 mb-8 gap-2 overflow-x-auto">
+            <button onclick="switchRepairSubTab('menu-calendar')" id="btn-menu-calendar" class="px-5 py-3 border-b-2 border-amber-500 text-amber-400 font-bold flex items-center gap-2 transition whitespace-nowrap"><i class="fa-solid fa-calendar-days"></i> 1. ปฏิทินและแผนกำหนดเสร็จ</button>
+            <button onclick="switchRepairSubTab('menu-cake')" id="btn-menu-cake" class="px-5 py-3 border-b-2 border-transparent text-gray-400 hover:text-white font-semibold flex items-center gap-2 transition whitespace-nowrap"><i class="fa-solid fa-chart-pie"></i> 2. สรุปก้อนเค้กยอดสถานี</button>
+            <button onclick="switchRepairSubTab('menu-list')" id="btn-menu-list" class="px-5 py-3 border-b-2 border-transparent text-gray-400 hover:text-white font-semibold flex items-center gap-2 transition whitespace-nowrap"><i class="fa-solid fa-rectangle-list"></i> 3. รายการรถในกระบวนการซ่อม</button>
         </div>
 
         <div id="menu-calendar" class="repair-sub-tab block">
             <div class="bg-gray-800 p-6 rounded-2xl border border-gray-700 mb-6 flex justify-between items-center">
                 <button onclick="changeMonth(-1)" class="px-4 py-2 bg-gray-900 border border-gray-600 rounded-xl hover:bg-gray-700 font-bold font-mono text-sm"><i class="fa-solid fa-chevron-left"></i> เดือนก่อนหน้า</button>
-                <h2 id="calendar_month_title" class="text-xl font-black text-white tracking-wide">เดือนกรกฎาคม 2026</h2>
+                <h2 id="calendar_month_title" class="text-xl font-black text-white tracking-wide">เดือน...</h2>
                 <button onclick="changeMonth(1)" class="px-4 py-2 bg-gray-900 border border-gray-600 rounded-xl hover:bg-gray-700 font-bold font-mono text-sm">เดือนถัดไป <i class="fa-solid fa-chevron-right"></i></button>
             </div>
             <div class="grid grid-cols-7 gap-2 text-center text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
@@ -45,7 +47,7 @@
 
         <div id="menu-cake" class="repair-sub-tab hidden">
             <div class="bg-gray-800 p-8 rounded-2xl border border-gray-700 flex flex-col items-center justify-center max-w-xl mx-auto shadow-2xl">
-                <h2 class="text-lg font-bold text-white mb-6 flex items-center gap-2"><i class="fa-solid fa-chart-pie text-amber-500"></i> สัดส่วนปริมาณรถค้างในแต่ละสถานี (Pie Chart)</h2>
+                <h2 class="text-lg font-bold text-white mb-6 flex items-center gap-2"><i class="fa-solid fa-chart-pie text-amber-500"></i> สัดส่วนปริมาณรถค้างในแต่ละสถานี</h2>
                 <div class="w-full h-80 relative flex justify-center">
                     <canvas id="stationPieChart"></canvas>
                 </div>
@@ -59,9 +61,11 @@
                         <thead class="bg-black/40 text-gray-400 text-xs uppercase">
                             <tr class="border-b border-gray-700">
                                 <th class="p-4">ทะเบียนรถ / รถ</th>
-                                <th class="p-4">คำนวณสถานีซ่อมสูงสุด (IFS)</th>
-                                <th class="p-4">สเตตัส ERPหลัก</th>
-                                <th class="p-4">วันที่ช่างซ่อมเสร็จ</th>
+                                <th class="p-4">สถานีซ่อมสูงสุด</th>
+                                <th class="p-4">สเตตัส ERP</th>
+                                <th class="p-4 text-blue-400">กำหนดซ่อมเสร็จ</th>
+                                <th class="p-4 text-green-400">เสร็จจริง</th>
+                                <th class="p-4 text-purple-400">กำหนดส่งมอบ</th>
                                 <th class="p-4">หมายเหตุช่าง</th>
                                 <th class="p-4 text-center">ปฏิบัติการ</th>
                             </tr>
@@ -73,15 +77,25 @@
         </div>
     </div>
 
-    <div id="stationModal" class="fixed inset-0 bg-black/80 z-[110] flex items-center justify-center hidden p-4 overflow-y-auto">
-        <div class="bg-gray-800 rounded-2xl border border-gray-700 max-w-2xl w-full p-6 relative my-auto shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
+    <div id="dayListModal" class="fixed inset-0 bg-black/80 z-[105] flex items-center justify-center hidden p-4">
+        <div class="bg-gray-800 rounded-2xl border border-gray-700 max-w-2xl w-full p-6 relative shadow-2xl flex flex-col max-h-[85vh]">
+            <button onclick="closeDayListModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2"><i class="fa-solid fa-list-check text-amber-500"></i> รายการรถประจำวันที่: <span id="dayListDateTitle" class="text-amber-400"></span></h2>
+            
+            <div class="overflow-y-auto custom-scrollbar pr-2 flex-1" id="dayListContent">
+                </div>
+        </div>
+    </div>
+
+    <div id="stationModal" class="fixed inset-0 bg-black/90 z-[110] flex items-center justify-center hidden p-4">
+        <div class="bg-gray-800 rounded-2xl border border-gray-700 max-w-2xl w-full p-6 relative shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
             <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
             <h2 class="text-xl font-bold text-white mb-2 flex items-center gap-2 text-amber-400"><i class="fa-solid fa-circle-check"></i> อัปเดตสถานีซ่อมและรายงานผลช่าง</h2>
             <p class="text-xs text-gray-400 mb-6 border-b border-gray-700 pb-2">ทะเบียนรถ: <span id="m_plate" class="text-white font-bold font-mono bg-gray-900 px-2 py-0.5 rounded border border-gray-600"></span> | รุ่นรถ: <span id="m_car" class="text-white font-semibold"></span> | ลูกค้า: <span id="m_cust" class="text-white"></span></p>
             
             <input type="hidden" id="m_job_id">
             
-            <label class="block text-xs font-bold uppercase tracking-wider text-amber-500 mb-3">📍 ติ๊กเลือกสถานีที่รถคันนี้ผ่านกระบวนการทำงานแล้ว (เรียงลำดับความสำคัญ IFS)</label>
+            <label class="block text-xs font-bold uppercase tracking-wider text-amber-500 mb-3">📍 ติ๊กเลือกสถานีที่รถคันนี้ผ่านกระบวนการทำงานแล้ว</label>
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6 bg-gray-900/60 p-4 rounded-xl border border-gray-700">
                 <label class="flex items-center gap-2 text-sm cursor-pointer p-1"><input type="checkbox" id="chk_ready" class="w-4 h-4 accent-amber-500"> 12. รอส่งมอบ</label>
                 <label class="flex items-center gap-2 text-sm cursor-pointer p-1"><input type="checkbox" id="chk_pak" class="w-4 h-4 accent-amber-500"> 11. พักซ่อม</label>
@@ -118,7 +132,7 @@
             </div>
 
             <div class="flex justify-end gap-2 pt-4 border-t border-gray-700">
-                <button onclick="closeModal()" class="px-5 py-2.5 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-xl text-sm transition">ปิดหน้าต่าง</button>
+                <button onclick="closeModal()" class="px-5 py-2.5 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-xl text-sm transition">ยกเลิก</button>
                 <button onclick="submitRepairStation()" class="px-6 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl text-sm transition shadow-lg"><i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลช่าง</button>
             </div>
         </div>
@@ -132,22 +146,19 @@
         let chartInstance = null;
 
         document.addEventListener('DOMContentLoaded', () => {
-            // 🔐 1. ระบบรักษาความปลอดภัย: เช็กว่าล็อกอินหรือยัง?
             if(sessionStorage.getItem('isLoggedIn') !== 'true') {
                 alert('🚨 กรุณาเข้าสู่ระบบก่อนครับนาย!');
                 window.location.href = 'index.html';
                 return;
             }
 
-            // 🔐 2. ดักจับประตู Role: ตรวจสอบสิทธิ์เฉพาะแผนกช่าง THAIRAT, BA และ Manager เท่านั้น
             const role = sessionStorage.getItem('emp_role');
             if (role !== 'THAIRAT' && role !== 'BA' && role !== 'Manager' && role !== 'Admin' && role !== 'แอดมิน') { 
-                alert(`❌ สิทธิ์เข้าถึงไม่เพียงพอ! หน้าจอสถานีซ่อมนี้จำกัดเฉพาะพนักงานตำแหน่ง THAIRAT และผู้บริหารเท่านั้นครับ (สิทธิ์ของคุณคือ: ${role || 'ไม่มีตำแหน่ง'})`); 
+                alert(`❌ สิทธิ์เข้าถึงไม่เพียงพอ! หน้าจอสถานีซ่อมจำกัดเฉพาะพนักงานตำแหน่งช่างและผู้บริหารครับ`); 
                 window.location.href = 'index.html'; 
                 return; 
             }
 
-            // ถ้าตั๋วสิทธิ์ถูกต้อง เปิดเครื่องระบบทำงานฉลุย
             fetchJobList();
         });
 
@@ -155,9 +166,9 @@
             document.querySelectorAll('.repair-sub-tab').forEach(el => el.classList.add('hidden'));
             document.getElementById(tabId).classList.remove('hidden');
             ['btn-menu-calendar', 'btn-menu-cake', 'btn-menu-list'].forEach(id => {
-                document.getElementById(id).className = "px-5 py-3 border-b-2 border-transparent text-gray-400 hover:text-white font-semibold flex items-center gap-2 transition";
+                document.getElementById(id).className = "px-5 py-3 border-b-2 border-transparent text-gray-400 hover:text-white font-semibold flex items-center gap-2 transition whitespace-nowrap";
             });
-            document.getElementById('btn-' + tabId).className = "px-5 py-3 border-b-2 border-amber-500 text-amber-400 font-bold flex items-center gap-2 transition";
+            document.getElementById('btn-' + tabId).className = "px-5 py-3 border-b-2 border-amber-500 text-amber-400 font-bold flex items-center gap-2 transition whitespace-nowrap";
             if(tabId === 'menu-cake') renderPieChart();
         }
 
@@ -196,23 +207,29 @@
         function renderRepairListTable(data) {
             const tbody = document.getElementById('repair_list_body');
             if(!data || data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-500">📭 ไม่พบรถในกระบวนการผลิตซ่อมแซม</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-gray-500">📭 ไม่พบรถในกระบวนการผลิตซ่อมแซม</td></tr>`;
                 return;
             }
 
             tbody.innerHTML = data.map(j => {
                 const calculatedStation = computeHighestStationIFS(j);
+                
+                // แปลงรูปแบบวันที่ ถ้ามีข้อมูล
+                const targetDateStr = j.target_finish_date ? new Date(j.target_finish_date).toLocaleDateString('th-TH') : '-';
                 const finishDateStr = j.repair_finish_date ? new Date(j.repair_finish_date).toLocaleDateString('th-TH') : '-';
+                const deliveryDateStr = j.delivery_date ? new Date(j.delivery_date).toLocaleDateString('th-TH') : '-';
                 
                 return `
-                    <tr class="hover:bg-gray-800/40 border-b border-gray-800">
-                        <td class="p-4 font-bold text-white font-mono"><span class="bg-gray-900 border border-gray-700 px-2 py-1 rounded text-amber-400 mr-2">${j.car_plate || 'ไม่มีทะเบียน'}</span> ${j.car_brand} ${j.car_model || ''}</td>
-                        <td class="p-4"><span class="px-2.5 py-1 bg-amber-950 border border-amber-800 rounded-lg text-amber-300 text-xs font-bold"><i class="fa-solid fa-location-crosshairs"></i> ${calculatedStation}</span></td>
+                    <tr class="hover:bg-gray-800/60 border-b border-gray-800">
+                        <td class="p-4 font-bold text-white"><span class="bg-gray-900 border border-gray-700 px-2 py-1 rounded text-amber-400 mr-2 font-mono">${j.car_plate || 'ไม่มีทะเบียน'}</span> ${j.car_brand} ${j.car_model || ''}</td>
+                        <td class="p-4"><span class="px-2.5 py-1 bg-amber-950 border border-amber-800 rounded-lg text-amber-300 text-xs font-bold">${calculatedStation}</span></td>
                         <td class="p-4 text-xs font-semibold text-gray-400">${j.job_status}</td>
-                        <td class="p-4 font-mono text-xs">${finishDateStr}</td>
-                        <td class="p-4 text-gray-400 italic text-xs max-w-xs truncate">${j.repair_notes || '-'}</td>
+                        <td class="p-4 font-mono text-xs text-blue-400">${targetDateStr}</td>
+                        <td class="p-4 font-mono text-xs text-green-400">${finishDateStr}</td>
+                        <td class="p-4 font-mono text-xs text-purple-400">${deliveryDateStr}</td>
+                        <td class="p-4 text-gray-400 italic text-xs max-w-[150px] truncate" title="${j.repair_notes || ''}">${j.repair_notes || '-'}</td>
                         <td class="p-4 text-center">
-                            <button onclick="openModal('${j.id}')" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-xl transition shadow-md"><i class="fa-solid fa-gear"></i> อัปเดตสถานี</button>
+                            <button onclick="openModal('${j.id}')" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-xl transition shadow-md">อัปเดตช่าง</button>
                         </td>
                     </tr>
                 `;
@@ -237,9 +254,9 @@
                 const deliveryQty = originalRepairJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
 
                 let badgeBlock = '';
-                if(targetQty > 0) badgeBlock += `<div class="text-[10px] bg-blue-900/50 text-blue-300 font-bold border border-blue-800 rounded px-1 mt-1 flex justify-between"><span>📋 กำหนดเสร็จ:</span><span>${targetQty} คัน</span></div>`;
-                if(actualQty > 0) badgeBlock += `<div class="text-[10px] bg-green-900/50 text-green-300 font-bold border border-green-800 rounded px-1 mt-1 flex justify-between"><span>✅ เสร็จจริง:</span><span>${actualQty} คัน</span></div>`;
-                if(deliveryQty > 0) badgeBlock += `<div class="text-[10px] bg-purple-900/50 text-purple-300 font-bold border border-purple-800 rounded px-1 mt-1 flex justify-between"><span>🚗 ส่งมอบ:</span><span>${deliveryQty} คัน</span></div>`;
+                if(targetQty > 0) badgeBlock += `<div class="text-[10px] bg-blue-900/50 text-blue-300 font-bold border border-blue-800 rounded px-1 mt-1 flex justify-between"><span>📋 ซ่อมเสร็จ:</span><span>${targetQty}</span></div>`;
+                if(actualQty > 0) badgeBlock += `<div class="text-[10px] bg-green-900/50 text-green-300 font-bold border border-green-800 rounded px-1 mt-1 flex justify-between"><span>✅ เสร็จจริง:</span><span>${actualQty}</span></div>`;
+                if(deliveryQty > 0) badgeBlock += `<div class="text-[10px] bg-purple-900/50 text-purple-300 font-bold border border-purple-800 rounded px-1 mt-1 flex justify-between"><span>🚗 ส่งมอบ:</span><span>${deliveryQty}</span></div>`;
 
                 grid.innerHTML += `
                     <div onclick="clickCalendarDate('${dateStr}')" class="bg-gray-800 p-2 rounded-xl border border-gray-700 hover:border-amber-500 cursor-pointer transition flex flex-col justify-between min-h-[85px]">
@@ -257,6 +274,7 @@
             renderCalendar();
         }
 
+        // 🌟 แก้ไข: พอกดปฏิทิน ให้แสดง Pop-up รายการรถของวันนั้นแทนการเปิดคันแรกเลย
         function clickCalendarDate(dateString) {
             const dayJobs = originalRepairJobs.filter(j => 
                 (j.target_finish_date && j.target_finish_date.split('T')[0] === dateString) ||
@@ -264,8 +282,36 @@
                 (j.delivery_date && j.delivery_date.split('T')[0] === dateString)
             );
 
-            if(dayJobs.length === 0) return alert(`🔍 วันที่ ${new Date(dateString).toLocaleDateString('th-TH')} ไม่มีคิวนัดหมายใดๆ ครับนาย`);
-            openModal(dayJobs[0].id);
+            if(dayJobs.length === 0) return alert(`🔍 วันที่ ${new Date(dateString).toLocaleDateString('th-TH')} ไม่มีคิวนัดหมายใดๆ ครับ`);
+            
+            // เปลี่ยนหัวข้อ Pop-up เป็นวันที่ที่กด
+            document.getElementById('dayListDateTitle').innerText = new Date(dateString).toLocaleDateString('th-TH');
+            
+            // สร้างรายการรถใน Pop-up
+            const listContent = document.getElementById('dayListContent');
+            listContent.innerHTML = dayJobs.map(j => {
+                const station = computeHighestStationIFS(j);
+                return `
+                    <div class="bg-gray-900 border border-gray-700 rounded-xl p-4 mb-3 hover:border-amber-500 transition cursor-pointer flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3" onclick="openModal('${j.id}')">
+                        <div>
+                            <div class="font-bold text-white mb-1">
+                                <span class="text-amber-400 bg-gray-800 border border-gray-600 px-2 py-0.5 rounded font-mono mr-2">${j.car_plate || '-'}</span> 
+                                ${j.car_brand} ${j.car_model || ''}
+                            </div>
+                            <div class="text-xs text-gray-400">สถานะหลัก: ${j.job_status} | <span class="text-amber-300">สถานีล่าสุด: ${station}</span></div>
+                        </div>
+                        <button class="px-4 py-2 bg-gray-800 border border-gray-600 hover:bg-amber-600 hover:border-amber-500 text-white text-xs font-bold rounded-lg transition w-full sm:w-auto">
+                            แก้ไขข้อมูล <i class="fa-solid fa-arrow-right ml-1"></i>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('dayListModal').classList.remove('hidden');
+        }
+
+        function closeDayListModal() {
+            document.getElementById('dayListModal').classList.add('hidden');
         }
 
         function renderPieChart() {
@@ -303,10 +349,13 @@
             });
         }
 
+        // 🌟 แก้ไข: ลดความช้าโดยดึงข้อมูลจาก Local Array ทันทีแทนที่จะ Fetch จาก API ใหม่
         async function openModal(jobId) {
             try {
-                const res = await fetch(`${API_BASE_URL}/api/report/${jobId}`);
-                const job = await res.json();
+                // ค้นหาข้อมูลจากในเครื่อง (ไวมาก 0 วินาที)
+                const job = originalRepairJobs.find(j => String(j.id) === String(jobId));
+                
+                if (!job) return alert('❌ ไม่พบข้อมูลรถคันนี้ในระบบ');
 
                 document.getElementById('m_job_id').value = job.id;
                 document.getElementById('m_plate').innerText = job.car_plate || 'ไม่มีป้ายทะเบียน';
@@ -331,6 +380,8 @@
                 if(job.repair_finish_date) document.getElementById('m_repair_date').value = job.repair_finish_date.split('T')[0];
                 else document.getElementById('m_repair_date').value = '';
 
+                // ปิด Pop-up รายการ (ถ้าเปิดอยู่) แล้วเปิด Pop-up แก้ไข
+                closeDayListModal();
                 document.getElementById('stationModal').classList.remove('hidden');
             } catch(e) { alert('❌ ไม่สามารถโหลดป๊อปอัปช่างได้'); }
         }
