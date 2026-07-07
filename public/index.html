@@ -24,7 +24,7 @@
         .admin-panel.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* 🚀 ช่องกรอกข้อมูลสไตล์ Corporate: สะอาดตา ขอบคมชัด มีมิติ */
+        /* 🚀 ช่องกรอกข้อมูลสไตล์ Corporate */
         .minimal-input {
             @apply w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none transition-all duration-200 text-sm font-semibold text-slate-800 shadow-sm hover:border-slate-400 focus:border-[#00320D] focus:ring-1 focus:ring-[#00320D];
         }
@@ -351,7 +351,9 @@
 
     <script>
         const API_BASE_URL = window.location.origin;
-        let partsDB = { main: [], sub: [] }; let selectedParts = { main: [], sub: [] }; let globalCarData = [];
+        let partsDB = { main: [], sub: [] }; 
+        let selectedParts = { main: [], sub: [] }; 
+        let globalCarData = [];
 
         const rizenicStatuses = [
             "01.ติดต่อสอบถาม", "02.รอเสนอประกัน", "03.รอประกันอนุมัติ", "04.รอลูกค้าอนุมัติ (เงินสด)", 
@@ -361,158 +363,593 @@
 
         async function handleLogin(e) {
             e.preventDefault();
-            const user = document.getElementById('login_user').value; const pass = document.getElementById('login_pass').value;
+            const user = document.getElementById('login_user').value;
+            const pass = document.getElementById('login_pass').value;
             try {
-                const res = await fetch(`${API_BASE_URL}/api/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: user, password: pass }) });
+                const res = await fetch(`${API_BASE_URL}/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user, password: pass })
+                });
                 const data = await res.json();
                 if (data.success) {
-                    sessionStorage.setItem('isLoggedIn', 'true'); sessionStorage.setItem('emp_name', data.employee.employee_name);
-                    sessionStorage.setItem('emp_role', data.employee.employee_role); sessionStorage.setItem('emp_branch', data.employee.branch_name || 'สำนักงานใหญ่');
+                    sessionStorage.setItem('isLoggedIn', 'true');
+                    sessionStorage.setItem('emp_name', data.employee.employee_name);
+                    sessionStorage.setItem('emp_role', data.employee.employee_role);
+                    sessionStorage.setItem('emp_branch', data.employee.branch_name || 'สำนักงานใหญ่');
                     enterApp();
-                } else alert('❌ ' + data.error);
-            } catch (err) { alert('❌ โค้ดหน้าบ้านพังเพราะ: ' + err.message); }
+                } else {
+                    alert('❌ ' + data.error);
+                }
+            } catch (err) {
+                alert('❌ โค้ดหน้าบ้านพังเพราะ: ' + err.message);
+            }
         }
 
         function enterApp() {
-            document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name');
-            document.getElementById('display_branch').innerText = sessionStorage.getItem('emp_branch');
-            document.getElementById('display_branch_form').innerText = sessionStorage.getItem('emp_branch');
-            document.getElementById('sa_owner').value = `${sessionStorage.getItem('emp_name')} (${sessionStorage.getItem('emp_branch')})`;
-            document.getElementById('login-screen').classList.add('hidden'); document.getElementById('main-app').classList.remove('hidden');
-            setupStatusDropdown(); loadInitialData(); checkCrossPageEditMode();
+            // ระบบตรวจสอบและดึงข้อมูลสาขา
+            const eName = sessionStorage.getItem('emp_name');
+            const eBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+
+            if(document.getElementById('display_emp_name')) document.getElementById('display_emp_name').innerText = eName;
+            if(document.getElementById('display_branch')) document.getElementById('display_branch').innerText = eBranch;
+            if(document.getElementById('display_branch_form')) document.getElementById('display_branch_form').innerText = eBranch;
+            if(document.getElementById('sa_owner')) document.getElementById('sa_owner').value = `${eName} (${eBranch})`;
+            
+            if(document.getElementById('login-screen')) document.getElementById('login-screen').classList.add('hidden');
+            if(document.getElementById('main-app')) document.getElementById('main-app').classList.remove('hidden');
+            
+            setupStatusDropdown();
+            loadInitialData();
+            checkCrossPageEditMode();
         }
 
-        function setupStatusDropdown() { document.getElementById('job_status').innerHTML = rizenicStatuses.map(s => `<option value="${s}">${s}</option>`).join(''); }
-        function logout() { sessionStorage.clear(); window.location.reload(); }
+        function setupStatusDropdown() {
+            const statusDropdown = document.getElementById('job_status');
+            if(statusDropdown) {
+                statusDropdown.innerHTML = rizenicStatuses.map(s => `<option value="${s}">${s}</option>`).join('');
+            }
+        }
+
+        function logout() {
+            sessionStorage.clear();
+            window.location.reload();
+        }
 
         function loadInitialData() {
-            loadAdminEmployees(); 
-            fetch(`${API_BASE_URL}/api/customer-types`).then(r=>r.json()).then(data => {
-                const select = document.getElementById('customer_type'); select.innerHTML = '<option value="">-- เลือก --</option>';
-                if(data && data.length) data.forEach(item => select.innerHTML += `<option value="${item.type_name}">${item.type_name}</option>`);
-            });
-            fetch(`${API_BASE_URL}/api/parts`).then(r=>r.json()).then(data => {
-                if(data && data.length) {
-                    partsDB.main = data.filter(p => p.part_category === 'ชิ้นส่วนหลัก').map(p => p.part_name);
-                    partsDB.sub = data.filter(p => p.part_category === 'ชิ้นส่วนรอง').map(p => p.part_name); renderPartsUI();
-                }
-            });
-            fetch(`${API_BASE_URL}/api/car-models`).then(r=>r.json()).then(data => {
-                if(data && data.length) {
-                    globalCarData = data; const uniqueBrands = [...new Set(data.map(car => car.car_brand))];
-                    const brandSelect = document.getElementById('car_brand'); brandSelect.innerHTML = '<option value="">-- เลือก --</option>';
-                    uniqueBrands.forEach(brand => brandSelect.innerHTML += `<option value="${brand}">${brand}</option>`);
-                    const newBrandSelect = brandSelect.cloneNode(true); brandSelect.parentNode.replaceChild(newBrandSelect, brandSelect);
-                    newBrandSelect.addEventListener('change', function() { updateCarModels(this.value); });
-                    if(uniqueBrands.includes('Tesla')) { newBrandSelect.value = 'Tesla'; updateCarModels('Tesla'); }
-                }
-            });
-            fetch(`${API_BASE_URL}/api/insurances`).then(r=>r.json()).then(data => {
-                const select = document.getElementById('payment_type'); select.innerHTML = '<option value="">-- เลือก --</option>';
-                if(data && data.length) data.forEach(item => select.innerHTML += `<option value="${item.insurance_name}">${item.insurance_name}</option>`);
-            });
+            loadAdminEmployees();
+            
+            fetch(`${API_BASE_URL}/api/customer-types`)
+                .then(r => r.json())
+                .then(data => {
+                    const select = document.getElementById('customer_type');
+                    if(select) {
+                        select.innerHTML = '<option value="">-- เลือก --</option>';
+                        if(data && data.length) data.forEach(item => select.innerHTML += `<option value="${item.type_name}">${item.type_name}</option>`);
+                    }
+                });
+
+            fetch(`${API_BASE_URL}/api/parts`)
+                .then(r => r.json())
+                .then(data => {
+                    if(data && data.length) {
+                        partsDB.main = data.filter(p => p.part_category === 'ชิ้นส่วนหลัก').map(p => p.part_name);
+                        partsDB.sub = data.filter(p => p.part_category === 'ชิ้นส่วนรอง').map(p => p.part_name);
+                        renderPartsUI();
+                    }
+                });
+
+            fetch(`${API_BASE_URL}/api/car-models`)
+                .then(r => r.json())
+                .then(data => {
+                    if(data && data.length) {
+                        globalCarData = data;
+                        const uniqueBrands = [...new Set(data.map(car => car.car_brand))];
+                        const brandSelect = document.getElementById('car_brand');
+                        if(brandSelect) {
+                            brandSelect.innerHTML = '<option value="">-- เลือก --</option>';
+                            uniqueBrands.forEach(brand => brandSelect.innerHTML += `<option value="${brand}">${brand}</option>`);
+                            const newBrandSelect = brandSelect.cloneNode(true);
+                            brandSelect.parentNode.replaceChild(newBrandSelect, brandSelect);
+                            newBrandSelect.addEventListener('change', function() { updateCarModels(this.value); });
+                            if(uniqueBrands.includes('Tesla')) { newBrandSelect.value = 'Tesla'; updateCarModels('Tesla'); }
+                        }
+                    }
+                });
+
+            fetch(`${API_BASE_URL}/api/insurances`)
+                .then(r => r.json())
+                .then(data => {
+                    const select = document.getElementById('payment_type');
+                    if(select) {
+                        select.innerHTML = '<option value="">-- เลือก --</option>';
+                        if(data && data.length) data.forEach(item => select.innerHTML += `<option value="${item.insurance_name}">${item.insurance_name}</option>`);
+                    }
+                });
         }
 
         async function checkCrossPageEditMode() {
-            const idToEdit = sessionStorage.getItem('edit_job_id'); if(!idToEdit) return;
+            const idToEdit = sessionStorage.getItem('edit_job_id');
+            if(!idToEdit) return;
+            
             try {
-                const res = await fetch(`${API_BASE_URL}/api/report/${idToEdit}`); if (!res.ok) return;
+                const res = await fetch(`${API_BASE_URL}/api/report/${idToEdit}`);
+                if (!res.ok) return;
                 const job = await res.json();
-                document.getElementById('sa_report_id').value = job.id; document.getElementById('current_editing_id').innerText = job.id;
-                document.getElementById('edit_mode_badge').classList.remove('hidden'); document.getElementById('btn_cancel_edit').classList.remove('hidden');
-                document.getElementById('btn_submit_sa').innerHTML = '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม';
-                document.getElementById('btn_submit_sa').className = "w-full py-3.5 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition-all";
+                
+                if(document.getElementById('sa_report_id')) document.getElementById('sa_report_id').value = job.id;
+                if(document.getElementById('current_editing_id')) document.getElementById('current_editing_id').innerText = job.id;
+                if(document.getElementById('edit_mode_badge')) document.getElementById('edit_mode_badge').classList.remove('hidden');
+                if(document.getElementById('btn_cancel_edit')) document.getElementById('btn_cancel_edit').classList.remove('hidden');
+                if(document.getElementById('btn_submit_sa')) {
+                    document.getElementById('btn_submit_sa').innerHTML = '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม';
+                    document.getElementById('btn_submit_sa').className = "w-full py-3.5 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition-all";
+                }
 
-                document.getElementById('sa_owner').value = job.sa_owner; document.getElementById('customer_name').value = job.customer_name;
-                document.getElementById('phone_number').value = job.phone_number; document.getElementById('customer_type').value = job.customer_type || '';
-                document.getElementById('car_brand').value = job.car_brand || ''; await updateCarModels(job.car_brand);
-                document.getElementById('car_model').value = job.car_model || '';
-                document.getElementById('car_plate').value = job.car_plate || ''; 
-                document.getElementById('vin_no').value = job.vin_no; document.getElementById('payment_type').value = job.payment_type || '';
-                document.querySelector(`input[name="damage_level"][value="${job.damage_level || 'เบา'}"]`).checked = true;
+                if(document.getElementById('sa_owner')) document.getElementById('sa_owner').value = job.sa_owner;
+                if(document.getElementById('customer_name')) document.getElementById('customer_name').value = job.customer_name;
+                if(document.getElementById('phone_number')) document.getElementById('phone_number').value = job.phone_number;
+                if(document.getElementById('customer_type')) document.getElementById('customer_type').value = job.customer_type || '';
+                if(document.getElementById('car_brand')) document.getElementById('car_brand').value = job.car_brand || '';
+                
+                await updateCarModels(job.car_brand);
+                
+                if(document.getElementById('car_model')) document.getElementById('car_model').value = job.car_model || '';
+                if(document.getElementById('car_plate')) document.getElementById('car_plate').value = job.car_plate || '';
+                if(document.getElementById('vin_no')) document.getElementById('vin_no').value = job.vin_no;
+                if(document.getElementById('payment_type')) document.getElementById('payment_type').value = job.payment_type || '';
+                
+                const damageRadio = document.querySelector(`input[name="damage_level"][value="${job.damage_level || 'เบา'}"]`);
+                if(damageRadio) damageRadio.checked = true;
 
                 selectedParts.main = job.main_part_name ? job.main_part_name.split(', ') : [];
-                selectedParts.sub = job.sub_part_name ? job.sub_part_name.split(', ') : []; renderPartsUI();
-                document.getElementById('cost_labor').value = job.cost_labor || 0; document.getElementById('cost_part').value = job.cost_part || 0; document.getElementById('cost_external').value = job.cost_external || 0;
+                selectedParts.sub = job.sub_part_name ? job.sub_part_name.split(', ') : [];
+                renderPartsUI();
                 
-                if(job.contact_date) document.getElementById('contact_date').value = job.contact_date.split('T')[0];
-                if(job.arrived_date) document.getElementById('arrived_date').value = job.arrived_date.split('T')[0];
-                if(job.target_finish_date) document.getElementById('target_finish_date').value = job.target_finish_date.split('T')[0];
-                if(job.actual_finish_date) document.getElementById('actual_finish_date').value = job.actual_finish_date.split('T')[0];
-                if(job.delivery_date) document.getElementById('delivery_date').value = job.delivery_date.split('T')[0];
-                document.getElementById('notes').value = job.notes || ''; document.getElementById('job_status').value = job.job_status || rizenicStatuses[0];
-            } catch(e) { console.error(e); }
+                if(document.getElementById('cost_labor')) document.getElementById('cost_labor').value = job.cost_labor || 0;
+                if(document.getElementById('cost_part')) document.getElementById('cost_part').value = job.cost_part || 0;
+                if(document.getElementById('cost_external')) document.getElementById('cost_external').value = job.cost_external || 0;
+
+                if(job.contact_date && document.getElementById('contact_date')) document.getElementById('contact_date').value = job.contact_date.split('T')[0];
+                if(job.arrived_date && document.getElementById('arrived_date')) document.getElementById('arrived_date').value = job.arrived_date.split('T')[0];
+                if(job.target_finish_date && document.getElementById('target_finish_date')) document.getElementById('target_finish_date').value = job.target_finish_date.split('T')[0];
+                if(job.actual_finish_date && document.getElementById('actual_finish_date')) document.getElementById('actual_finish_date').value = job.actual_finish_date.split('T')[0];
+                if(job.delivery_date && document.getElementById('delivery_date')) document.getElementById('delivery_date').value = job.delivery_date.split('T')[0];
+                if(document.getElementById('notes')) document.getElementById('notes').value = job.notes || '';
+                if(document.getElementById('job_status')) document.getElementById('job_status').value = job.job_status || rizenicStatuses[0];
+            } catch(e) {
+                console.error(e);
+            }
         }
 
         function cancelEditMode() {
-            sessionStorage.removeItem('edit_job_id'); document.getElementById('saForm').reset(); document.getElementById('sa_report_id').value = '';
-            selectedParts = { main: [], sub: [] }; renderPartsUI();
-            document.getElementById('edit_mode_badge').classList.add('hidden'); document.getElementById('btn_cancel_edit').classList.add('hidden');
-            document.getElementById('btn_submit_sa').innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> บันทึกออเดอร์ใบงานใหม่';
-            document.getElementById('btn_submit_sa').className = "w-full py-3.5 bg-[#00320D] text-white font-bold rounded-lg shadow-md hover:bg-black transition-all";
-            document.getElementById('sa_owner').value = `${sessionStorage.getItem('emp_name')} (${sessionStorage.getItem('emp_branch')})`;
-            document.getElementById('car_brand').value = 'Tesla'; updateCarModels('Tesla');
+            sessionStorage.removeItem('edit_job_id');
+            if(document.getElementById('saForm')) document.getElementById('saForm').reset();
+            if(document.getElementById('sa_report_id')) document.getElementById('sa_report_id').value = '';
+            
+            selectedParts = { main: [], sub: [] };
+            renderPartsUI();
+            
+            if(document.getElementById('edit_mode_badge')) document.getElementById('edit_mode_badge').classList.add('hidden');
+            if(document.getElementById('btn_cancel_edit')) document.getElementById('btn_cancel_edit').classList.add('hidden');
+            if(document.getElementById('btn_submit_sa')) {
+                document.getElementById('btn_submit_sa').innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> บันทึกออเดอร์ใบงานใหม่';
+                document.getElementById('btn_submit_sa').className = "w-full py-3.5 bg-[#00320D] text-white font-bold rounded-lg shadow-md hover:bg-black transition-all";
+            }
+            if(document.getElementById('sa_owner')) document.getElementById('sa_owner').value = `${sessionStorage.getItem('emp_name')} (${sessionStorage.getItem('emp_branch')})`;
+            if(document.getElementById('car_brand')) document.getElementById('car_brand').value = 'Tesla';
+            updateCarModels('Tesla');
         }
 
         async function submitSaForm() {
             const editId = document.getElementById('sa_report_id').value;
-            const loggedInBranch = sessionStorage.getItem('emp_branch') || document.getElementById('display_branch').innerText || 'สำนักงานใหญ่';
+            const loggedInBranch = sessionStorage.getItem('emp_branch') || (document.getElementById('display_branch') ? document.getElementById('display_branch').innerText : 'สำนักงานใหญ่');
+            
             const formData = {
-                sa_owner: sessionStorage.getItem('emp_name'), branch_name: loggedInBranch, 
-                customer_name: document.getElementById('customer_name').value, phone_number: document.getElementById('phone_number').value, 
-                customer_type: document.getElementById('customer_type').value, car_brand: document.getElementById('car_brand').value, 
-                car_model: document.getElementById('car_model').value, vin_no: document.getElementById('vin_no').value, 
-                payment_type: document.getElementById('payment_type').value, damage_level: document.querySelector('input[name="damage_level"]:checked').value,
-                main_part_name: selectedParts.main.join(', '), main_part_qty: selectedParts.main.length, 
-                sub_part_name: selectedParts.sub.join(', '), sub_part_qty: selectedParts.sub.length, 
-                cost_labor: document.getElementById('cost_labor').value, cost_part: document.getElementById('cost_part').value, 
+                sa_owner: sessionStorage.getItem('emp_name'),
+                branch_name: loggedInBranch,
+                customer_name: document.getElementById('customer_name').value,
+                phone_number: document.getElementById('phone_number').value,
+                customer_type: document.getElementById('customer_type').value,
+                car_brand: document.getElementById('car_brand').value,
+                car_model: document.getElementById('car_model').value,
+                vin_no: document.getElementById('vin_no').value,
+                payment_type: document.getElementById('payment_type').value,
+                damage_level: document.querySelector('input[name="damage_level"]:checked').value,
+                main_part_name: selectedParts.main.join(', '),
+                main_part_qty: selectedParts.main.length,
+                sub_part_name: selectedParts.sub.join(', '),
+                sub_part_qty: selectedParts.sub.length,
+                cost_labor: document.getElementById('cost_labor').value,
+                cost_part: document.getElementById('cost_part').value,
                 cost_external: document.getElementById('cost_external').value,
-                target_finish_date: document.getElementById('target_finish_date').value || null, 
-                actual_finish_date: document.getElementById('actual_finish_date').value || null, 
-                delivery_date: document.getElementById('delivery_date').value || null, 
-                notes: document.getElementById('notes').value, job_status: document.getElementById('job_status').value,
-                contact_date: document.getElementById('contact_date').value || null, arrived_date: document.getElementById('arrived_date').value || null,
+                target_finish_date: document.getElementById('target_finish_date').value || null,
+                actual_finish_date: document.getElementById('actual_finish_date').value || null,
+                delivery_date: document.getElementById('delivery_date').value || null,
+                notes: document.getElementById('notes').value,
+                job_status: document.getElementById('job_status').value,
+                contact_date: document.getElementById('contact_date').value || null,
+                arrived_date: document.getElementById('arrived_date').value || null,
                 car_plate: document.getElementById('car_plate').value
             };
+
             if(!formData.customer_name || !formData.car_brand || !formData.job_status) return alert('⚠️ กรุณากรอกข้อมูลสำคัญให้ครบ!');
+            
             const url = editId ? `${API_BASE_URL}/api/report/${editId}` : `${API_BASE_URL}/api/report`;
             const method = editId ? 'PUT' : 'POST';
-            try { 
-                const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) }); 
-                if (response.ok) { alert(editId ? `🎉 อัปเดตใบงานหมายเลข ${editId} สำเร็จ!` : `🎉 บันทึกใบงานใหม่สำเร็จ!`); cancelEditMode(); sessionStorage.removeItem('edit_job_id'); } 
-            } catch (e) { alert('❌ การบันทึกล้มเหลว'); }
+            
+            try {
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                if (response.ok) {
+                    alert(editId ? `🎉 อัปเดตใบงานหมายเลข ${editId} สำเร็จ!` : `🎉 บันทึกใบงานใหม่สำเร็จ!`);
+                    cancelEditMode();
+                    sessionStorage.removeItem('edit_job_id');
+                }
+            } catch (e) {
+                alert('❌ การบันทึกล้มเหลว');
+            }
         }
 
-        async function loadAdminEmployees() { try { const res = await fetch(`${API_BASE_URL}/api/employees`); const data = await res.json(); const cleanedData = data.map(e => ({ ...e, branch_name: e.branch_name || 'สำนักงานใหญ่', employee_role: e.employee_role || 'พนักงาน', username: e.username || '-' })); const uniqueRoles = [...new Set(cleanedData.map(e => e.employee_role))]; const uniqueBranches = [...new Set(cleanedData.map(e => e.branch_name))]; document.getElementById('role_list').innerHTML = uniqueRoles.map(r => `<option value="${r}">`).join(''); document.getElementById('branch_list').innerHTML = uniqueBranches.map(b => `<option value="${b}">`).join(''); const tbody = document.getElementById('emp_table_body'); tbody.innerHTML = ''; cleanedData.forEach(e => { tbody.innerHTML += `<tr class="hover:bg-slate-50 transition"><td class="px-5 py-3 font-bold text-slate-800">${e.branch_name}</td><td class="px-5 py-3 font-bold text-rizenic-green">${e.employee_name} <span class="text-[10px] text-slate-400 font-normal">(${e.employee_code})</span></td><td class="px-5 py-3 font-semibold">${e.employee_role}</td><td class="px-5 py-3 font-mono text-slate-500">${e.username}</td><td class="px-5 py-3 text-center"><button type="button" onclick="editEmployee('${e.employee_id}', '${e.employee_code}', '${e.employee_name}', '${e.employee_role}', '${e.branch_name}', '${e.username}', '${e.password}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button> <button type="button" onclick="deleteData('/api/employees/${e.employee_id}', loadAdminEmployees)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); } catch (err) { console.error(err); } }
-        function editEmployee(id, code, name, role, branch, user, pass) { document.getElementById('edit_emp_id').value = id; document.getElementById('emp_code').value = code; document.getElementById('emp_name').value = name; document.getElementById('emp_role').value = role !== 'null' ? role : ''; document.getElementById('emp_branch').value = branch !== 'null' ? branch : ''; document.getElementById('emp_user').value = user !== 'null' ? user : ''; document.getElementById('emp_pass').value = pass !== 'null' ? pass : ''; document.getElementById('btn_save_emp').innerText = 'บันทึกอัปเดต'; document.getElementById('btn_save_emp').classList.replace('bg-[#00320D]', 'bg-blue-600'); }
-        function resetEmpForm() { document.getElementById('edit_emp_id').value = ''; document.getElementById('emp_code').value = ''; document.getElementById('emp_name').value = ''; document.getElementById('emp_role').value = ''; document.getElementById('emp_branch').value = ''; document.getElementById('emp_user').value = ''; document.getElementById('emp_pass').value = ''; document.getElementById('btn_save_emp').innerText = 'บันทึกพนักงาน'; document.getElementById('btn_save_emp').classList.replace('bg-blue-600', 'bg-[#00320D]'); }
-        async function saveEmployee() { const id = document.getElementById('edit_emp_id').value; const payload = { employee_code: document.getElementById('emp_code').value, employee_name: document.getElementById('emp_name').value, employee_role: document.getElementById('emp_role').value, branch_name: document.getElementById('emp_branch').value, username: document.getElementById('emp_user').value, password: document.getElementById('emp_pass').value }; if(!payload.employee_name || !payload.username || !payload.password) return alert('⚠️ กรอกให้ครบ'); const method = id ? 'PUT' : 'POST'; const url = id ? `/api/employees/${id}` : '/api/employees'; try { const res = await fetch(`${API_BASE_URL}${url}`, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }); const data = await res.json(); if (res.ok && data.success) { resetEmpForm(); loadAdminEmployees(); } else alert('❌ ' + data.error); } catch (e) { alert('❌ ล้มเหลว'); } }
+        async function loadAdminEmployees() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/employees`);
+                const data = await res.json();
+                const cleanedData = data.map(e => ({ ...e, branch_name: e.branch_name || 'สำนักงานใหญ่', employee_role: e.employee_role || 'พนักงาน', username: e.username || '-' }));
+                const uniqueRoles = [...new Set(cleanedData.map(e => e.employee_role))];
+                const uniqueBranches = [...new Set(cleanedData.map(e => e.branch_name))];
+                
+                const roleList = document.getElementById('role_list');
+                if(roleList) roleList.innerHTML = uniqueRoles.map(r => `<option value="${r}">`).join('');
+                
+                const branchList = document.getElementById('branch_list');
+                if(branchList) branchList.innerHTML = uniqueBranches.map(b => `<option value="${b}">`).join('');
+                
+                const tbody = document.getElementById('emp_table_body');
+                if(tbody){
+                    tbody.innerHTML = '';
+                    cleanedData.forEach(e => {
+                        tbody.innerHTML += `
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="px-5 py-3 font-bold text-slate-800">${e.branch_name}</td>
+                            <td class="px-5 py-3 font-bold text-rizenic-green">${e.employee_name} <span class="text-[10px] text-slate-400 font-normal">(${e.employee_code})</span></td>
+                            <td class="px-5 py-3 font-semibold">${e.employee_role}</td>
+                            <td class="px-5 py-3 font-mono text-slate-500">${e.username}</td>
+                            <td class="px-5 py-3 text-center">
+                                <button type="button" onclick="editEmployee('${e.employee_id}', '${e.employee_code}', '${e.employee_name}', '${e.employee_role}', '${e.branch_name}', '${e.username}', '${e.password}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button>
+                                <button type="button" onclick="deleteData('/api/employees/${e.employee_id}', loadAdminEmployees)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button>
+                            </td>
+                        </tr>`;
+                    });
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function editEmployee(id, code, name, role, branch, user, pass) {
+            if(document.getElementById('edit_emp_id')) document.getElementById('edit_emp_id').value = id;
+            if(document.getElementById('emp_code')) document.getElementById('emp_code').value = code;
+            if(document.getElementById('emp_name')) document.getElementById('emp_name').value = name;
+            if(document.getElementById('emp_role')) document.getElementById('emp_role').value = role !== 'null' ? role : '';
+            if(document.getElementById('emp_branch')) document.getElementById('emp_branch').value = branch !== 'null' ? branch : '';
+            if(document.getElementById('emp_user')) document.getElementById('emp_user').value = user !== 'null' ? user : '';
+            if(document.getElementById('emp_pass')) document.getElementById('emp_pass').value = pass !== 'null' ? pass : '';
+            if(document.getElementById('btn_save_emp')) {
+                document.getElementById('btn_save_emp').innerText = 'บันทึกอัปเดต';
+                document.getElementById('btn_save_emp').classList.replace('bg-[#00320D]', 'bg-blue-600');
+            }
+        }
+
+        function resetEmpForm() {
+            if(document.getElementById('edit_emp_id')) document.getElementById('edit_emp_id').value = '';
+            if(document.getElementById('emp_code')) document.getElementById('emp_code').value = '';
+            if(document.getElementById('emp_name')) document.getElementById('emp_name').value = '';
+            if(document.getElementById('emp_role')) document.getElementById('emp_role').value = '';
+            if(document.getElementById('emp_branch')) document.getElementById('emp_branch').value = '';
+            if(document.getElementById('emp_user')) document.getElementById('emp_user').value = '';
+            if(document.getElementById('emp_pass')) document.getElementById('emp_pass').value = '';
+            if(document.getElementById('btn_save_emp')){
+                document.getElementById('btn_save_emp').innerText = 'บันทึกพนักงาน';
+                document.getElementById('btn_save_emp').classList.replace('bg-blue-600', 'bg-[#00320D]');
+            }
+        }
+
+        async function saveEmployee() {
+            const id = document.getElementById('edit_emp_id').value;
+            const payload = {
+                employee_code: document.getElementById('emp_code').value,
+                employee_name: document.getElementById('emp_name').value,
+                employee_role: document.getElementById('emp_role').value,
+                branch_name: document.getElementById('emp_branch').value,
+                username: document.getElementById('emp_user').value,
+                password: document.getElementById('emp_pass').value
+            };
+            if(!payload.employee_name || !payload.username || !payload.password) return alert('⚠️ กรอกให้ครบ');
+            
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `/api/employees/${id}` : '/api/employees';
+            
+            try {
+                const res = await fetch(`${API_BASE_URL}${url}`, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    resetEmpForm();
+                    loadAdminEmployees();
+                } else {
+                    alert('❌ ' + data.error);
+                }
+            } catch (e) {
+                alert('❌ ล้มเหลว');
+            }
+        }
+
+        function switchTab(tabId) {
+            if (tabId === 'admin-tab') {
+                const role = sessionStorage.getItem('emp_role');
+                if (role !== 'BA' && role !== 'Manager' && role !== 'Admin' && role !== 'แอดมิน') {
+                    alert(`❌ สิทธิ์จำกัดเฉพาะตำแหน่ง BA และ Manager เท่านั้นครับ!`);
+                    return;
+                }
+                loadAdminCarModels();
+                loadAdminInsurances();
+                loadAdminCustomerTypes();
+            }
+            
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            if(document.getElementById(tabId)) document.getElementById(tabId).classList.remove('hidden');
+            
+            const btnSa = document.getElementById('btn-sa-tab');
+            const btnAdmin = document.getElementById('btn-admin-tab');
+            
+            if (tabId === 'sa-tab') {
+                if(btnSa) btnSa.className = "px-3.5 py-2 rounded bg-white text-[#00320D] font-bold shadow-sm transition-all text-xs";
+                if(btnAdmin) btnAdmin.className = "px-3.5 py-2 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs";
+            } else {
+                if(btnSa) btnSa.className = "px-3.5 py-2 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs";
+                if(btnAdmin) btnAdmin.className = "px-3.5 py-2 rounded bg-white text-[#00320D] font-bold shadow-sm transition-all text-xs";
+            }
+        }
+
+        function showAdminPanel(panelId) {
+            ['btn-emp-panel', 'btn-car-panel', 'btn-ins-panel', 'btn-custype-panel'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.className = "text-left px-4 py-3 rounded-lg text-slate-600 hover:bg-white border border-transparent hover:border-[#00320D] transition-all text-sm flex items-center gap-3 font-bold";
+            });
+            const activeBtn = document.getElementById('btn-' + panelId);
+            if(activeBtn) activeBtn.className = "text-left px-4 py-3 rounded-lg bg-white text-rizenic-green font-bold transition-all text-sm flex items-center gap-3 shadow-sm border border-[#00320D]";
+            
+            document.querySelectorAll('.admin-panel').forEach(el => el.classList.remove('active'));
+            if(document.getElementById(panelId)) document.getElementById(panelId).classList.add('active');
+        }
+
+        function renderPartsUI() {
+            const mainAvailBox = document.getElementById('main_parts_available');
+            const mainSelBox = document.getElementById('main_parts_selected');
+            if(mainAvailBox) mainAvailBox.innerHTML = '';
+            if(mainSelBox) mainSelBox.innerHTML = '';
+            
+            partsDB.main.forEach(p => {
+                if(!selectedParts.main.includes(p) && mainAvailBox) {
+                    mainAvailBox.innerHTML += `<span onclick="togglePart('main', '${p}', 'add')" class="cursor-pointer px-3 py-1.5 bg-slate-50 text-slate-700 border border-slate-200 rounded text-xs font-semibold hover:border-[#00320D] hover:bg-green-50 hover:text-[#00320D] transition-all shadow-sm">${p} <i class="fa-solid fa-plus text-[10px] ml-1 opacity-40"></i></span>`;
+                }
+            });
+            
+            selectedParts.main.forEach(p => {
+                if(mainSelBox) {
+                    mainSelBox.innerHTML += `<span onclick="togglePart('main', '${p}', 'remove')" class="cursor-pointer px-3 py-1.5 bg-green-50 text-[#00320D] border border-green-200 rounded font-bold text-xs shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all">${p} <i class="fa-solid fa-xmark text-[10px] ml-1"></i></span>`;
+                }
+            });
+            
+            const mainQty = document.getElementById('main_part_qty_display');
+            if(mainQty) mainQty.innerText = selectedParts.main.length;
+
+            const subAvailBox = document.getElementById('sub_parts_available');
+            const subSelBox = document.getElementById('sub_parts_selected');
+            if(subAvailBox) subAvailBox.innerHTML = '';
+            if(subSelBox) subSelBox.innerHTML = '';
+            
+            partsDB.sub.forEach(p => {
+                if(!selectedParts.sub.includes(p) && subAvailBox) {
+                    subAvailBox.innerHTML += `<span onclick="togglePart('sub', '${p}', 'add')" class="cursor-pointer px-3 py-1.5 bg-slate-50 text-slate-700 border border-slate-200 rounded text-xs font-semibold hover:border-slate-400 transition-all shadow-sm">${p} <i class="fa-solid fa-plus text-[10px] ml-1 opacity-40"></i></span>`;
+                }
+            });
+            
+            selectedParts.sub.forEach(p => {
+                if(subSelBox) {
+                    subSelBox.innerHTML += `<span onclick="togglePart('sub', '${p}', 'remove')" class="cursor-pointer px-3 py-1.5 bg-slate-100 text-slate-700 border border-slate-200 rounded font-bold text-xs shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all">${p} <i class="fa-solid fa-xmark text-[10px] ml-1"></i></span>`;
+                }
+            });
+            
+            const subQty = document.getElementById('sub_part_qty_display');
+            if(subQty) subQty.innerText = selectedParts.sub.length;
+        }
+
+        function togglePart(category, partName, action) {
+            if (action === 'add') {
+                selectedParts[category].push(partName);
+            } else {
+                selectedParts[category] = selectedParts[category].filter(p => p !== partName);
+            }
+            renderPartsUI();
+        }
+
+        function updateCarModels(brandName) {
+            const select = document.getElementById('car_model');
+            if(!select) return;
+            select.innerHTML = '<option value="">-- เลือกรุ่นรถ --</option>';
+            if (!brandName) return;
+            globalCarData.filter(car => car.car_brand === brandName).forEach(car => {
+                select.innerHTML += `<option value="${car.car_model}">${car.car_model}</option>`;
+            });
+        }
         
-        function switchTab(tabId) { if (tabId === 'admin-tab') { const role = sessionStorage.getItem('emp_role'); if (role !== 'BA' && role !== 'Manager' && role !== 'Admin' && role !== 'แอดมิน') { alert(`❌ สิทธิ์จำกัดเฉพาะตำแหน่ง BA และ Manager เท่านั้นครับ!`); return; } loadAdminCarModels(); loadAdminInsurances(); loadAdminCustomerTypes(); } document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden')); document.getElementById(tabId).classList.remove('hidden'); const btnSa = document.getElementById('btn-sa-tab'); const btnAdmin = document.getElementById('btn-admin-tab'); if (tabId === 'sa-tab') { btnSa.className = "px-3.5 py-2 rounded bg-white text-[#00320D] font-bold shadow-sm transition-all text-xs"; btnAdmin.className = "px-3.5 py-2 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs"; } else { btnSa.className = "px-3.5 py-2 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs"; btnAdmin.className = "px-3.5 py-2 rounded bg-white text-[#00320D] font-bold shadow-sm transition-all text-xs"; } }
-        function showAdminPanel(panelId) { ['btn-emp-panel', 'btn-car-panel', 'btn-ins-panel', 'btn-custype-panel'].forEach(id => { document.getElementById(id).className = "text-left px-4 py-3 rounded-lg text-slate-600 hover:bg-white border border-transparent hover:border-slate-300 transition-all text-sm flex items-center gap-3 font-bold"; }); const activeBtn = document.getElementById('btn-' + panelId); activeBtn.className = "text-left px-4 py-3 rounded-lg bg-white text-rizenic-green font-bold transition-all text-sm flex items-center gap-3 shadow-sm border border-slate-200"; document.querySelectorAll('.admin-panel').forEach(el => el.classList.remove('active')); document.getElementById(panelId).classList.add('active'); }
+        async function loadAdminCarModels() {
+            const data = await (await fetch(`${API_BASE_URL}/api/car-models`)).json();
+            const tbody = document.getElementById('car_table_body');
+            if(!tbody) return;
+            tbody.innerHTML = '';
+            data.forEach(c => {
+                tbody.innerHTML += `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="px-5 py-3 font-bold text-slate-800">${c.model_id}</td>
+                    <td class="px-5 py-3 font-bold text-rizenic-green">${c.car_brand}</td>
+                    <td class="px-5 py-3 font-semibold">${c.car_model}</td>
+                    <td class="px-5 py-3 text-center">
+                        <button onclick="editCarModel('${c.model_id}', '${c.car_brand}', '${c.car_model}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="deleteData('/api/car-models/${c.model_id}', loadAdminCarModels)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>`;
+            });
+        }
+
+        function editCarModel(id, b, m) {
+            if(document.getElementById('edit_car_id')) document.getElementById('edit_car_id').value=id;
+            if(document.getElementById('car_brand_input')) document.getElementById('car_brand_input').value=b;
+            if(document.getElementById('car_model_input')) document.getElementById('car_model_input').value=m;
+            if(document.getElementById('btn_save_car')) {
+                document.getElementById('btn_save_car').innerText='บันทึกอัปเดต';
+                document.getElementById('btn_save_car').classList.replace('bg-[#00320D]', 'bg-blue-600');
+            }
+        }
+
+        function resetCarForm() {
+            if(document.getElementById('edit_car_id')) document.getElementById('edit_car_id').value='';
+            if(document.getElementById('car_brand_input')) document.getElementById('car_brand_input').value='';
+            if(document.getElementById('car_model_input')) document.getElementById('car_model_input').value='';
+            if(document.getElementById('btn_save_car')){
+                document.getElementById('btn_save_car').innerText='บันทึก';
+                document.getElementById('btn_save_car').classList.replace('bg-blue-600', 'bg-[#00320D]');
+            }
+        }
+
+        async function saveCarModel() {
+            const id = document.getElementById('edit_car_id').value;
+            const payload = { car_brand: document.getElementById('car_brand_input').value, car_model: document.getElementById('car_model_input').value };
+            const m = id ? 'PUT' : 'POST';
+            const u = id ? `/api/car-models/${id}` : '/api/car-models';
+            await fetch(`${API_BASE_URL}${u}`, {method:m, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+            resetCarForm();
+            loadAdminCarModels();
+        }
         
-        function renderPartsUI() { const mainAvailBox = document.getElementById('main_parts_available'); const mainSelBox = document.getElementById('main_parts_selected'); mainAvailBox.innerHTML = ''; mainSelBox.innerHTML = ''; partsDB.main.forEach(p => { if(!selectedParts.main.includes(p)) mainAvailBox.innerHTML += `<span onclick="togglePart('main', '${p}', 'add')" class="cursor-pointer px-3 py-1.5 bg-slate-50 text-slate-700 border border-slate-200 rounded text-xs font-semibold hover:border-[#00320D] hover:bg-green-50 hover:text-[#00320D] transition-all shadow-sm">${p} <i class="fa-solid fa-plus text-[10px] ml-1 opacity-40"></i></span>`; }); selectedParts.main.forEach(p => { mainSelBox.innerHTML += `<span onclick="togglePart('main', '${p}', 'remove')" class="cursor-pointer px-3 py-1.5 bg-green-50 text-[#00320D] border border-green-200 rounded font-bold text-xs shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all">${p} <i class="fa-solid fa-xmark text-[10px] ml-1"></i></span>`; }); document.getElementById('main_part_qty_display').innerText = selectedParts.main.length; const subAvailBox = document.getElementById('sub_parts_available'); const subSelBox = document.getElementById('sub_parts_selected'); subAvailBox.innerHTML = ''; subSelBox.innerHTML = ''; partsDB.sub.forEach(p => { if(!selectedParts.sub.includes(p)) subAvailBox.innerHTML += `<span onclick="togglePart('sub', '${p}', 'add')" class="cursor-pointer px-3 py-1.5 bg-slate-50 text-slate-700 border border-slate-200 rounded text-xs font-semibold hover:border-slate-400 transition-all shadow-sm">${p} <i class="fa-solid fa-plus text-[10px] ml-1 opacity-40"></i></span>`; }); selectedParts.sub.forEach(p => { subSelBox.innerHTML += `<span onclick="togglePart('sub', '${p}', 'remove')" class="cursor-pointer px-3 py-1.5 bg-slate-100 text-slate-700 border border-slate-200 rounded font-bold text-xs shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all">${p} <i class="fa-solid fa-xmark text-[10px] ml-1"></i></span>`; }); document.getElementById('sub_part_qty_display').innerText = selectedParts.sub.length; }
-        function togglePart(category, partName, action) { if (action === 'add') selectedParts[category].push(partName); else selectedParts[category] = selectedParts[category].filter(p => p !== partName); renderPartsUI(); }
-        function updateCarModels(brandName) { const select = document.getElementById('car_model'); select.innerHTML = '<option value="">-- เลือกรุ่นรถ --</option>'; if (!brandName) return; globalCarData.filter(car => car.car_brand === brandName).forEach(car => { select.innerHTML += `<option value="${car.car_model}">${car.car_model}</option>`; }); }
+        async function loadAdminInsurances() {
+            const data = await (await fetch(`${API_BASE_URL}/api/insurances`)).json();
+            const tbody = document.getElementById('ins_table_body');
+            if(!tbody) return;
+            tbody.innerHTML = '';
+            data.forEach(i => {
+                tbody.innerHTML += `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="px-5 py-3 font-bold text-slate-800">${i.insurance_code}</td>
+                    <td class="px-5 py-3 font-bold text-rizenic-green">${i.insurance_name}</td>
+                    <td class="px-5 py-3 text-slate-600 font-semibold">${i.insurance_type}</td>
+                    <td class="px-5 py-3 text-center">
+                        <button onclick="editInsurance('${i.insurance_code}', '${i.insurance_name}', '${i.insurance_type}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="deleteData('/api/insurances/${i.insurance_code}', loadAdminInsurances)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>`;
+            });
+        }
+
+        function editInsurance(c, n, t) {
+            if(document.getElementById('edit_ins_id')) document.getElementById('edit_ins_id').value=c;
+            if(document.getElementById('ins_code')) {
+                document.getElementById('ins_code').value=c;
+                document.getElementById('ins_code').disabled=true;
+            }
+            if(document.getElementById('ins_name')) document.getElementById('ins_name').value=n;
+            if(document.getElementById('ins_type')) document.getElementById('ins_type').value=t;
+            if(document.getElementById('btn_save_ins')) {
+                document.getElementById('btn_save_ins').innerText='บันทึกอัปเดต';
+                document.getElementById('btn_save_ins').classList.replace('bg-[#00320D]', 'bg-blue-600');
+            }
+        }
+
+        function resetInsForm() {
+            if(document.getElementById('edit_ins_id')) document.getElementById('edit_ins_id').value='';
+            if(document.getElementById('ins_code')) {
+                document.getElementById('ins_code').value='';
+                document.getElementById('ins_code').disabled=false;
+            }
+            if(document.getElementById('ins_name')) document.getElementById('ins_name').value='';
+            if(document.getElementById('ins_type')) document.getElementById('ins_type').value='';
+            if(document.getElementById('btn_save_ins')) {
+                document.getElementById('btn_save_ins').innerText='บันทึก';
+                document.getElementById('btn_save_ins').classList.replace('bg-blue-600', 'bg-[#00320D]');
+            }
+        }
+
+        async function saveInsurance() {
+            const id = document.getElementById('edit_ins_id').value;
+            const c = document.getElementById('ins_code').value;
+            const payload = { insurance_code: c, insurance_name: document.getElementById('ins_name').value, insurance_type: document.getElementById('ins_type').value };
+            const m = id ? 'PUT' : 'POST';
+            const u = id ? `/api/insurances/${c}` : '/api/insurances';
+            await fetch(`${API_BASE_URL}${u}`, {method:m, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+            resetInsForm();
+            loadAdminInsurances();
+        }
         
-        async function loadAdminCarModels() { const data = await (await fetch(`${API_BASE_URL}/api/car-models`)).json(); const tbody = document.getElementById('car_table_body'); tbody.innerHTML = ''; data.forEach(c => { tbody.innerHTML += `<tr class="hover:bg-slate-50 transition"><td class="px-5 py-3 font-bold text-slate-800">${c.model_id}</td><td class="px-5 py-3 font-bold text-rizenic-green">${c.car_brand}</td><td class="px-5 py-3 font-semibold">${c.car_model}</td><td class="px-5 py-3 text-center"><button onclick="editCarModel('${c.model_id}', '${c.car_brand}', '${c.car_model}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button> <button onclick="deleteData('/api/car-models/${c.model_id}', loadAdminCarModels)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); }
-        function editCarModel(id, b, m) { document.getElementById('edit_car_id').value=id; document.getElementById('car_brand_input').value=b; document.getElementById('car_model_input').value=m; document.getElementById('btn_save_car').innerText='บันทึกอัปเดต'; document.getElementById('btn_save_car').classList.replace('bg-[#00320D]', 'bg-blue-600'); }
-        function resetCarForm() { document.getElementById('edit_car_id').value=''; document.getElementById('car_brand_input').value=''; document.getElementById('car_model_input').value=''; document.getElementById('btn_save_car').innerText='บันทึก'; document.getElementById('btn_save_car').classList.replace('bg-blue-600', 'bg-[#00320D]'); }
-        async function saveCarModel() { const id = document.getElementById('edit_car_id').value; const payload = { car_brand: document.getElementById('car_brand_input').value, car_model: document.getElementById('car_model_input').value }; const m = id ? 'PUT' : 'POST'; const u = id ? `/api/car-models/${id}` : '/api/car-models'; await fetch(`${API_BASE_URL}${u}`, {method:m, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}); resetCarForm(); loadAdminCarModels(); }
+        async function loadAdminCustomerTypes() {
+            const data = await (await fetch(`${API_BASE_URL}/api/customer-types`)).json();
+            const tbody = document.getElementById('custype_table_body');
+            if(!tbody) return;
+            tbody.innerHTML = '';
+            data.forEach(i => {
+                tbody.innerHTML += `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="px-5 py-3 font-bold text-slate-800">${i.customer_type_id}</td>
+                    <td class="px-5 py-3 font-mono text-slate-500 font-bold">${i.type_code}</td>
+                    <td class="px-5 py-3 font-bold text-rizenic-green">${i.type_name}</td>
+                    <td class="px-5 py-3 text-center">
+                        <button onclick="editCustomerType('${i.customer_type_id}', '${i.type_name}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button type="button" onclick="deleteData('/api/customer-types/${i.customer_type_id}', loadAdminCustomerTypes)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>`;
+            });
+        }
+
+        function editCustomerType(id, n) {
+            if(document.getElementById('edit_custype_id')) document.getElementById('edit_custype_id').value=id;
+            if(document.getElementById('custype_name')) document.getElementById('custype_name').value=n;
+            if(document.getElementById('btn_save_custype')) {
+                document.getElementById('btn_save_custype').innerText='บันทึกอัปเดต';
+                document.getElementById('btn_save_custype').classList.replace('bg-[#00320D]', 'bg-blue-600');
+            }
+        }
+
+        function resetCustypeForm() {
+            if(document.getElementById('edit_custype_id')) document.getElementById('edit_custype_id').value='';
+            if(document.getElementById('custype_name')) document.getElementById('custype_name').value='';
+            if(document.getElementById('btn_save_custype')) {
+                document.getElementById('btn_save_custype').innerText='บันทึก';
+                document.getElementById('btn_save_custype').classList.replace('bg-line-600', 'bg-[#00320D]');
+            }
+        }
+
+        async function saveCustomerType() {
+            const id = document.getElementById('edit_custype_id').value;
+            const payload = { type_name: document.getElementById('custype_name').value };
+            const m = id ? 'PUT' : 'POST';
+            const u = id ? `/api/customer-types/${id}` : '/api/customer-types';
+            await fetch(`${API_BASE_URL}${u}`, {method:m, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+            resetCustypeForm();
+            loadAdminCustomerTypes();
+        }
         
-        async function loadAdminInsurances() { const data = await (await fetch(`${API_BASE_URL}/api/insurances`)).json(); const tbody = document.getElementById('ins_table_body'); tbody.innerHTML = ''; data.forEach(i => { tbody.innerHTML += `<tr class="hover:bg-slate-50 transition"><td class="px-5 py-3 font-bold text-slate-800">${i.insurance_code}</td><td class="px-5 py-3 font-bold text-rizenic-green">${i.insurance_name}</td><td class="px-5 py-3 text-slate-600 font-semibold">${i.insurance_type}</td><td class="px-5 py-3 text-center"><button onclick="editInsurance('${i.insurance_code}', '${i.insurance_name}', '${i.insurance_type}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button> <button onclick="deleteData('/api/insurances/${i.insurance_code}', loadAdminInsurances)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); }
-        function editInsurance(c, n, t) { document.getElementById('edit_ins_id').value=c; document.getElementById('ins_code').value=c; document.getElementById('ins_code').disabled=true; document.getElementById('ins_name').value=n; document.getElementById('ins_type').value=t; document.getElementById('btn_save_ins').innerText='บันทึกอัปเดต'; document.getElementById('btn_save_ins').classList.replace('bg-[#00320D]', 'bg-blue-600'); }
-        function resetInsForm() { document.getElementById('edit_ins_id').value=''; document.getElementById('ins_code').value=''; document.getElementById('ins_code').disabled=false; document.getElementById('ins_name').value=''; document.getElementById('ins_type').value=''; document.getElementById('btn_save_ins').innerText='บันทึก'; document.getElementById('btn_save_ins').classList.replace('bg-blue-600', 'bg-[#00320D]'); }
-        async function saveInsurance() { const id = document.getElementById('edit_ins_id').value; const c = document.getElementById('ins_code').value; const payload = { insurance_code: c, insurance_name: document.getElementById('ins_name').value, insurance_type: document.getElementById('ins_type').value }; const m = id ? 'PUT' : 'POST'; const u = id ? `/api/insurances/${c}` : '/api/insurances'; await fetch(`${API_BASE_URL}${u}`, {method:m, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}); resetInsForm(); loadAdminInsurances(); }
+        async function deleteData(url, reloadCallback) {
+            if (!confirm('🚨 ยืนยันการลบข้อมูลนี้หรือไม่?')) return;
+            await fetch(`${API_BASE_URL}${url}`, { method: 'DELETE' });
+            reloadCallback();
+        }
         
-        async function loadAdminCustomerTypes() { const data = await (await fetch(`${API_BASE_URL}/api/customer-types`)).json(); const tbody = document.getElementById('custype_table_body'); tbody.innerHTML = ''; data.forEach(i => { tbody.innerHTML += `<tr class="hover:bg-slate-50 transition"><td class="px-5 py-3 font-bold text-slate-800">${i.customer_type_id}</td><td class="px-5 py-3 font-mono text-slate-500 font-bold">${i.type_code}</td><td class="px-5 py-3 font-bold text-rizenic-green">${i.type_name}</td><td class="px-5 py-3 text-center"><button onclick="editCustomerType('${i.customer_type_id}', '${i.type_name}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button> <button type="button" onclick="deleteData('/api/customer-types/${i.customer_type_id}', loadAdminCustomerTypes)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); }
-        function editCustomerType(id, n) { document.getElementById('edit_custype_id').value=id; document.getElementById('custype_name').value=n; document.getElementById('btn_save_custype').innerText='บันทึกอัปเดต'; document.getElementById('btn_save_custype').classList.replace('bg-[#00320D]', 'bg-blue-600'); }
-        function resetCustypeForm() { document.getElementById('edit_custype_id').value=''; document.getElementById('custype_name').value=''; document.getElementById('btn_save_custype').innerText='บันทึก'; document.getElementById('btn_save_custype').classList.replace('bg-blue-600', 'bg-[#00320D]'); }
-        async function saveCustomerType() { const id = document.getElementById('edit_custype_id').value; const payload = { type_name: document.getElementById('custype_name').value }; const m = id ? 'PUT' : 'POST'; const u = id ? `/api/customer-types/${id}` : '/api/customer-types'; await fetch(`${API_BASE_URL}${u}`, {method:m, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}); resetCustypeForm(); loadAdminCustomerTypes(); }
-        
-        async function deleteData(url, reloadCallback) { if (!confirm('🚨 ยืนยันการลบข้อมูลนี้หรือไม่?')) return; await fetch(`${API_BASE_URL}${url}`, { method: 'DELETE' }); reloadCallback(); }
-        
-        if(sessionStorage.getItem('isLoggedIn') === 'true') { document.addEventListener('DOMContentLoaded', () => { enterApp(); }); }
+        if(sessionStorage.getItem('isLoggedIn') === 'true') {
+            document.addEventListener('DOMContentLoaded', () => { enterApp(); });
+        }
     </script>
 </body>
 </html>
