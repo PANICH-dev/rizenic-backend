@@ -341,17 +341,60 @@
         // ================= 📊 5. ระบบคำนวณและแสดงยอดสต๊อกคงเหลือจริง (Stock In House) =================
         async function loadStockInHouse() {
             try {
-                // รอระบบหลังบ้านสร้าง API สำหรับรวมยอดคงเหลือแยกตามสาขา
-                const resIn = await fetch(`${API_BASE_URL}/api/part-inbound`).catch(() => null);
+                // 📡 ยิงไปหา API ตัวคำนวณหลังบ้าน พร้อมแนบชื่อสาขาปัจจุบันไปฟิลเตอร์
+                const res = await fetch(`${API_BASE_URL}/api/parts-inventory?branch=${encodeURIComponent(currentBranch)}`);
                 const tbody = document.getElementById('stock_table_body');
-                
-                if(!resIn || !resIn.ok) {
-                    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-400 font-mono text-xs">⚠️ แผนกอะไหล่แสแตนด์บายเรียบร้อย! กำลังรอเชื่อมต่อ API สต๊อกตามตารางความเชื่อมโยงใน Neon</td></tr>`;
+                if(!tbody) return;
+
+                if(!res.ok) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-400 font-mono text-xs">⚠️ แผนกอะไหล่สแตนด์บายเรียบร้อย! กำลังรอเชื่อมต่อ API สต๊อกตามตารางความเชื่อมโยงใน Neon</td></tr>`;
                     return;
                 }
+
+                const data = await res.json();
                 
-                // ถ้าระบบ API หลังบ้านพร้อมแล้ว ตารางจะถูกเรนเดอร์สวยงามตามสูตร (Inbound - Outbound) ทันทีครับนาย
-            } catch (err) { console.log("Stock API offline."); }
+                // 📈 1. สรุปตัวเลขลงการ์ดแดชบอร์ด 3 ใบด้านบน
+                document.getElementById('total_sku_count').innerText = `${data.length} รายการ`;
+                
+                const totalPcs = data.reduce((sum, item) => sum + Math.max(parseInt(item.stock_in_house) || 0, 0), 0);
+                document.getElementById('total_pcs_count').innerText = `${totalPcs} ชิ้น`;
+
+                // ดึงข้อมูลยอดค้างส่ง (Back Order) จากตารางสั่งซื้อมานับจำนวนชิ้นที่สถานะยังไม่จบ
+                const resOrders = await fetch(`${API_BASE_URL}/api/part-orders`).catch(() => null);
+                if(resOrders && resOrders.ok) {
+                    const orders = await resOrders.json();
+                    const boCount = orders.filter(o => o.order_status === 'รอดำเนินการ' && o.branch_name === currentBranch).length;
+                    document.getElementById('total_backorder_count').innerText = `${boCount} รายการ`;
+                }
+
+                if(data.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-400 font-mono text-xs">📦 คลังสินค้าว่างเปล่า ยอดสต๊อกในสาขาเป็น 0 (กรุณาบันทึกรับเข้าอะไหล่ที่แท็บรับเข้าก่อน)</td></tr>`;
+                    return;
+                }
+
+                // 📝 2. วาดตารางแสดงข้อมูลจริง (ดึงข้ามตารางเชื่อมเลขย่อยเข้าหาเลข MAIN ให้ตามสูตร)
+                tbody.innerHTML = data.map(item => {
+                    const isLow = parseInt(item.stock_in_house) <= 0;
+                    return `
+                        <tr class="hover:bg-slate-50 transition font-medium ${isLow ? 'bg-red-50/50 text-red-900' : ''}">
+                            <td class="px-5 py-3 font-mono text-xs text-slate-400 font-bold">${item.part_main_no || '-'}</td>
+                            <td class="px-5 py-3 font-mono font-black text-[#00320D]">${item.part_no}</td>
+                            <td class="px-5 py-3 font-bold text-slate-800">${item.part_name}</td>
+                            <td class="px-5 py-3 text-slate-600">${item.car_model || '-'}</td>
+                            <td class="px-5 py-3 text-xs">
+                                <span class="px-2 py-0.5 rounded font-bold border ${isLow ? 'bg-red-100 border-red-300 text-red-700' : 'bg-green-100 border-green-300 text-green-700'}">
+                                    ${isLow ? 'สินค้าหมด / ค้างส่ง' : 'พร้อมจ่าย'}
+                                </span>
+                            </td>
+                            <td class="px-5 py-3 text-center font-black text-base ${isLow ? 'text-red-600' : 'text-emerald-700'}">${item.stock_in_house}</td>
+                            <td class="px-5 py-3 text-xs font-mono text-slate-500 font-bold">${isLow ? '🚨 คิวสั่งด่วน (BO)' : 'Rack-' + item.part_no.substring(0,2).toUpperCase()}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+            } catch (err) { 
+                console.error("Stock Inventory UI Error:", err); 
+            }
         }
 
         function filterStockTable() {

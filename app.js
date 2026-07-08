@@ -338,63 +338,73 @@ app.get('/api/part-inbound', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ================= 📊 5. ระบบคำนวณและแสดงยอดสต๊อกคงเหลือจริง (Stock In House) =================
-        async function loadStockInHouse() {
-            try {
-                // 📡 ยิงไปหา API ตัวคำนวณหลังบ้าน พร้อมแนบชื่อสาขาปัจจุบันไปฟิลเตอร์
-                const res = await fetch(`${API_BASE_URL}/api/parts-inventory?branch=${encodeURIComponent(currentBranch)}`);
-                const tbody = document.getElementById('stock_table_body');
-                if(!tbody) return;
+app.post('/api/part-inbound', async (req, res) => {
+  try {
+    const { received_date, epc_no, part_main_no, part_no, part_name, car_model, qty, unit_price, branch_name } = req.body;
+    const queryText = `
+      INSERT INTO rizenic_part_inbound (received_date, epc_no, part_main_no, part_no, part_name, car_model, qty, unit_price, branch_name)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;
+    `;
+    const values = [
+      received_date, epc_no || null, part_main_no || null, part_no, part_name, car_model || null,
+      parseInt(qty) || 1, parseFloat(unit_price) || 0.00, branch_name
+    ];
+    const result = await pool.query(queryText, values);
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
-                if(!res.ok) {
-                    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-400 font-mono text-xs">⚠️ แผนกอะไหล่สแตนด์บายเรียบร้อย! กำลังรอเชื่อมต่อ API สต๊อกตามตารางความเชื่อมโยงใน Neon</td></tr>`;
-                    return;
-                }
+// 📤 3. เบิกจ่ายอะไหล่ (Outbound)
+app.get('/api/part-outbound', async (req, res) => {
+  try {
+    res.json((await pool.query('SELECT * FROM rizenic_part_outbound ORDER BY outbound_id DESC')).rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
-                const data = await res.json();
-                
-                // 📈 1. สรุปตัวเลขลงการ์ดแดชบอร์ด 3 ใบด้านบน
-                document.getElementById('total_sku_count').innerText = `${data.length} รายการ`;
-                
-                const totalPcs = data.reduce((sum, item) => sum + Math.max(parseInt(item.stock_in_house) || 0, 0), 0);
-                document.getElementById('total_pcs_count').innerText = `${totalPcs} ชิ้น`;
+app.post('/api/part-outbound', async (req, res) => {
+  try {
+    const { issue_date, part_no, part_main_no, part_name, qty, car_plate, qt_no, unit_price, part_type, car_model, job_status, branch_name } = req.body;
+    const queryText = `
+      INSERT INTO rizenic_part_outbound (issue_date, part_no, part_main_no, part_name, qty, car_plate, qt_no, unit_price, part_type, car_model, job_status, branch_name)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *;
+    `;
+    const values = [
+      issue_date, part_no, part_main_no || null, part_name, parseInt(qty) || 1, car_plate,
+      qt_no || null, parseFloat(unit_price) || 0.00, part_type || null, car_model || null, job_status || null, branch_name
+    ];
+    const result = await pool.query(queryText, values);
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+    app.listen(port, () => console.log(`🚀 พร้อมที่: http://localhost:${port}`));
+}
+// 📊 4. คำนวณยอดสต๊อกคงเหลือจริง (Inbound - Outbound) แยกตามสาขาและอะไหล่
+app.get('/api/parts-inventory', async (req, res) => {
+  const { branch } = req.query; // รับค่าสาขาจากหน้าบ้านมาฟิลเตอร์
+  if (!branch) return res.status(400).json({ error: 'กรุณาระบุสาขาครับนาย' });
 
-                // ดึงข้อมูลยอดค้างส่ง (Back Order) จากตารางสั่งซื้อมานับจำนวนชิ้นที่สถานะยังไม่จบ
-                const resOrders = await fetch(`${API_BASE_URL}/api/part-orders`).catch(() => null);
-                if(resOrders && resOrders.ok) {
-                    const orders = await resOrders.json();
-                    const boCount = orders.filter(o => o.order_status === 'รอดำเนินการ' && o.branch_name === currentBranch).length;
-                    document.getElementById('total_backorder_count').innerText = `${boCount} รายการ`;
-                }
-
-                if(data.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-400 font-mono text-xs">📦 คลังสินค้าว่างเปล่า ยอดสต๊อกในสาขาเป็น 0 (กรุณาบันทึกรับเข้าอะไหล่ที่แท็บรับเข้าก่อน)</td></tr>`;
-                    return;
-                }
-
-                // 📝 2. วาดตารางแสดงข้อมูลจริง (ดึงข้ามตารางเชื่อมเลขย่อยเข้าหาเลข MAIN ให้ตามสูตร)
-                tbody.innerHTML = data.map(item => {
-                    const isLow = parseInt(item.stock_in_house) <= 0;
-                    return `
-                        <tr class="hover:bg-slate-50 transition font-medium ${isLow ? 'bg-red-50/50 text-red-900' : ''}">
-                            <td class="px-5 py-3 font-mono text-xs text-slate-400 font-bold">${item.part_main_no || '-'}</td>
-                            <td class="px-5 py-3 font-mono font-black text-[#00320D]">${item.part_no}</td>
-                            <td class="px-5 py-3 font-bold text-slate-800">${item.part_name}</td>
-                            <td class="px-5 py-3 text-slate-600">${item.car_model || '-'}</td>
-                            <td class="px-5 py-3 text-xs">
-                                <span class="px-2 py-0.5 rounded font-bold border ${isLow ? 'bg-red-100 border-red-300 text-red-700' : 'bg-green-100 border-green-300 text-green-700'}">
-                                    ${isLow ? 'สินค้าหมด / ค้างส่ง' : 'พร้อมจ่าย'}
-                                </span>
-                            </td>
-                            <td class="px-5 py-3 text-center font-black text-base ${isLow ? 'text-red-600' : 'text-emerald-700'}">${item.stock_in_house}</td>
-                            <td class="px-5 py-3 text-xs font-mono text-slate-500 font-bold">${isLow ? '🚨 คิวสั่งด่วน (BO)' : 'Rack-' + item.part_no.substring(0,2).toUpperCase()}</td>
-                        </tr>
-                    `;
-                }).join('');
-
-            } catch (err) { 
-                console.error("Stock Inventory UI Error:", err); 
-            }
-        }
+  try {
+    // คาถา SQL ขั้นสูง มัดรวมยอดรับเข้า หักลบยอดเบิกจ่ายแบบเรียลไทม์ แยกตาม Part No.
+    const queryText = `
+      SELECT 
+        i.part_main_no,
+        i.part_no,
+        i.part_name,
+        i.car_model,
+        COALESCE(SUM(i.qty), 0) - COALESCE((
+          SELECT SUM(o.qty) 
+          FROM rizenic_part_outbound o 
+          WHERE o.part_no = i.part_no AND o.branch_name = i.branch_name
+        ), 0) AS stock_in_house
+      FROM rizenic_part_inbound i
+      WHERE i.branch_name = $1
+      GROUP BY i.part_main_no, i.part_no, i.part_name, i.car_model, i.branch_name
+      ORDER BY i.part_name ASC;
+    `;
+    
+    const result = await pool.query(queryText, [branch]);
+    res.json(result.rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 module.exports = app;
