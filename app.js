@@ -297,7 +297,85 @@ app.put('/api/report/:id/station', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV !== 'production') {// ==========================================
+// 📦 API แผนกอะไหล่ (สั่งซื้อ / รับเข้า / เบิกจ่าย) - เชื่อมโยง Google Sheet ของท่าน BA
+// ==========================================
+
+// 🛒 1. สั่งอะไหล่ (Order Parts / Back Order)
+app.get('/api/part-orders', async (req, res) => {
+  try {
+    res.json((await pool.query('SELECT * FROM rizenic_part_orders ORDER BY order_id DESC')).rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/part-orders', async (req, res) => {
+  try {
+    const {
+      qt_no, so_no, epc_no, order_date, est_arrival_date, car_plate,
+      vin_no, car_model, part_main_no, part_no, part_name, qty_ordered, part_type, branch_name, notes
+    } = req.body;
+
+    const queryText = `
+      INSERT INTO rizenic_part_orders (
+        qt_no, so_no, epc_no, order_date, est_arrival_date, car_plate,
+        vin_no, car_model, part_main_no, part_no, part_name, qty_ordered, part_type, branch_name, notes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *;
+    `;
+    const values = [
+      qt_no || null, so_no || null, epc_no || null, order_date, est_arrival_date || null, car_plate || null,
+      vin_no || null, car_model || null, part_main_no || null, part_no, part_name, parseInt(qty_ordered) || 1,
+      part_type || 'อะไหล่แท้', branch_name, notes || null
+    ];
+    const result = await pool.query(queryText, values);
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 📥 2. รับเข้าอะไหล่ (Inbound)
+app.get('/api/part-inbound', async (req, res) => {
+  try {
+    res.json((await pool.query('SELECT * FROM rizenic_part_inbound ORDER BY inbound_id DESC')).rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/part-inbound', async (req, res) => {
+  try {
+    const { received_date, epc_no, part_main_no, part_no, part_name, car_model, qty, unit_price, branch_name } = req.body;
+    const queryText = `
+      INSERT INTO rizenic_part_inbound (received_date, epc_no, part_main_no, part_no, part_name, car_model, qty, unit_price, branch_name)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;
+    `;
+    const values = [
+      received_date, epc_no || null, part_main_no || null, part_no, part_name, car_model || null,
+      parseInt(qty) || 1, parseFloat(unit_price) || 0.00, branch_name
+    ];
+    const result = await pool.query(queryText, values);
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 📤 3. เบิกจ่ายอะไหล่ (Outbound)
+app.get('/api/part-outbound', async (req, res) => {
+  try {
+    res.json((await pool.query('SELECT * FROM rizenic_part_outbound ORDER BY outbound_id DESC')).rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/part-outbound', async (req, res) => {
+  try {
+    const { issue_date, part_no, part_main_no, part_name, qty, car_plate, qt_no, unit_price, part_type, car_model, job_status, branch_name } = req.body;
+    const queryText = `
+      INSERT INTO rizenic_part_outbound (issue_date, part_no, part_main_no, part_name, qty, car_plate, qt_no, unit_price, part_type, car_model, job_status, branch_name)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *;
+    `;
+    const values = [
+      issue_date, part_no, part_main_no || null, part_name, parseInt(qty) || 1, car_plate,
+      qt_no || null, parseFloat(unit_price) || 0.00, part_type || null, car_model || null, job_status || null, branch_name
+    ];
+    const result = await pool.query(queryText, values);
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
     app.listen(port, () => console.log(`🚀 พร้อมที่: http://localhost:${port}`));
 }
 
