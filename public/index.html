@@ -6,11 +6,11 @@
     <title>RIZENIC ERP - Premium Garage Management</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <style>
+    
+    <style type="text/tailwindcss">
         @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Kanit', sans-serif; background-color: #f4f6f9; }
         
-        /* 🟢 CI Colors - RIZENIC Green #00320D */
         .bg-rizenic-green { background-color: #00320D; }
         .text-rizenic-green { color: #00320D; }
         .border-rizenic-green { border-color: #00320D; }
@@ -24,13 +24,14 @@
         .admin-panel.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
         
-        
-        /* 🚀 ช่องกรอกข้อมูลสไตล์ Corporate พื้นหลังเขียวพาสเทล (ปรับให้สีเขียวชัดขึ้น มีมิติบุ๋มลึกน่ากรอก) */
+        /* 🚀 ช่องกรอกข้อมูลสไตล์ Corporate พื้นหลังเขียวพาสเทล ขอบเข้ม เงาลึก */
         .minimal-input {
-            @apply w-full px-3 py-2 bg-[#e8f6ed] border-2 border-[#00320D]/20 rounded-lg outline-none transition-all duration-200 text-sm font-semibold text-[#00320D] shadow-[inset_0_2px_4px_rgba(0,50,13,0.08)] hover:border-[#00320D]/50 focus:bg-white focus:border-[#00320D] focus:ring-2 focus:ring-[#00320D]/30 placeholder:text-[#00320D]/40;
+            @apply w-full px-3 py-2.5 bg-[#e8f6ed] border-2 border-[#00320D]/40 rounded-lg outline-none transition-all duration-200 text-sm font-bold text-[#00320D] shadow-[inset_0_2px_5px_rgba(0,50,13,0.1)] hover:border-[#00320D]/60 focus:bg-white focus:border-[#00320D] focus:ring-4 focus:ring-green-500/20 placeholder-[#00320D]/50;
+        }
+        .minimal-input:disabled, .minimal-input[readonly] {
+            @apply bg-slate-100 border-slate-300 text-slate-500 cursor-not-allowed border-dashed shadow-none;
         }
         
-        /* 🚀 ดีไซน์กล่องข้อมูลแบบมี Header สีเข้ม */
         .card-container {
             @apply bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden transition-all duration-300;
         }
@@ -39,7 +40,6 @@
             @apply flex items-center gap-1.5 text-[13px] font-bold text-slate-700 mb-1.5 tracking-wide;
         }
 
-        /* 🗓️ แถวตารางสลับสี (Zebra Striping) สำหรับไทม์ไลน์ */
         .timeline-row {
             @apply flex items-center justify-between gap-4 p-3 rounded-lg border border-slate-100;
         }
@@ -82,25 +82,28 @@
     <div id="main-app" class="hidden">
         
         <header class="bg-rizenic-green text-white shadow-md sticky top-0 z-50">
-            <div class="max-w-[1500px] mx-auto px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="max-w-[1500px] mx-auto px-4 py-3 flex flex-col lg:flex-row justify-between items-center gap-4">
                 <div class="flex items-center gap-3">
                     <i class="fa-solid fa-car text-white text-xl"></i>
                     <h1 class="text-lg font-bold tracking-wider">RIZENIC <span class="text-green-400 font-black">ERP</span></h1>
                 </div>
                 
-                <nav class="flex items-center gap-3">
-                    <div class="text-right hidden sm:block border-r border-green-700 pr-4">
+                <nav class="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto justify-end">
+                    <div class="text-center sm:text-right sm:border-r border-green-700 sm:pr-4">
                         <p class="text-xs font-bold text-white" id="display_emp_name">SA Name</p>
                         <p class="text-[10px] text-green-300">สาขา: <span id="display_branch" class="font-medium text-white">Branch</span></p>
                     </div>
-                    <div class="flex flex-wrap gap-1">
-                        <!-- เพิ่มปุ่มแดชบอร์ดตรงนี้ครับ -->
+                    <div class="flex flex-wrap justify-center gap-1">
                         <a href="dashboard.html" class="px-3.5 py-2 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs"><i class="fa-solid fa-chart-line mr-1"></i> แดชบอร์ด</a>
-                        
                         <button onclick="switchTab('sa-tab')" id="btn-sa-tab" class="px-3.5 py-2 rounded bg-white text-[#00320D] font-bold shadow-sm transition-all text-xs"><i class="fa-solid fa-file-invoice mr-1"></i> เปิดบิลซ่อม</button>
                         <a href="jobs.html" class="px-3.5 py-2 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs"><i class="fa-solid fa-table-list mr-1"></i> บอร์ดใบงาน</a>
                         <a href="repair.html" class="px-3.5 py-2 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs"><i class="fa-solid fa-screwdriver-wrench mr-1"></i> สถานีช่าง</a>
-                        <button onclick="switchTab('admin-tab')" id="btn-admin-tab" class="px-3.5 py-2 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs"><i class="fa-solid fa-sliders mr-1"></i> แอดมินตั้งค่า</button>
+                        
+                        <a href="parts.html" class="px-3.5 py-2 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs border border-white/10"><i class="fa-solid fa-boxes-stacked mr-1"></i> แผนกอะไหล่</a>
+                        
+                        <a href="finance.html" class="px-3.5 py-2 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs border border-white/10"><i class="fa-solid fa-file-invoice-dollar mr-1"></i> แผนกบัญชี</a>
+                        
+                        <button onclick="switchTab('admin-tab')" id="btn-admin-tab" class="px-3.5 py-2 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs"><i class="fa-solid fa-sliders mr-1"></i> แอดมิน</button>
                         <button onclick="logout()" class="px-2.5 py-2 text-white hover:text-red-400 transition-all text-xs"><i class="fa-solid fa-power-off"></i></button>
                     </div>
                 </nav>
@@ -133,11 +136,11 @@
                         <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-5 bg-white">
                             <div>
                                 <label class="label-text"><i class="fa-solid fa-id-badge text-xs text-rizenic-green"></i> พนักงานรับรถ (SA)</label>
-                                <input type="text" id="sa_owner" readonly class="minimal-input bg-slate-50 text-slate-500 cursor-not-allowed border-dashed">
+                                <input type="text" id="sa_owner" readonly class="minimal-input">
                             </div>
                             <div>
                                 <label class="label-text"><i class="fa-solid fa-building text-xs text-rizenic-green"></i> สาขาปฏิบัติงาน</label>
-                                <div class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold text-slate-500 border-dashed" id="display_branch_form">สำนักงานใหญ่</div>
+                                <div class="w-full px-3 py-2 bg-slate-50 border-2 border-slate-200 rounded-lg text-sm font-semibold text-slate-500 border-dashed" id="display_branch_form">สำนักงานใหญ่</div>
                             </div>
                             <div>
                                 <label class="label-text"><i class="fa-solid fa-address-card text-xs text-rizenic-green"></i> ประเภทกลุ่มลูกค้า</label>
@@ -163,7 +166,7 @@
                             </div>
                             <div>
                                 <label class="label-text"><i class="fa-solid fa-rectangle-ad text-xs text-rizenic-green"></i> เลขทะเบียนรถ</label>
-                                <input type="text" id="car_plate" class="minimal-input uppercase font-bold text-rizenic-green" placeholder="กข 1234">
+                                <input type="text" id="car_plate" class="minimal-input uppercase" placeholder="กข 1234">
                             </div>
                             <div>
                                 <label class="label-text"><i class="fa-solid fa-fingerprint text-xs text-rizenic-green"></i> เลขตัวถัง / VIN</label>
@@ -227,23 +230,23 @@
                             <div class="p-5 flex flex-col gap-2">
                                 <div class="timeline-row">
                                     <span class="text-xs font-bold text-slate-600 flex items-center gap-2"><i class="fa-solid fa-phone text-slate-400"></i> วันที่ติดต่อสอบถาม</span>
-                                    <input type="date" id="contact_date" class="minimal-input font-mono max-w-[200px] !py-1 !bg-white">
+                                    <input type="date" id="contact_date" class="minimal-input font-mono max-w-[200px] !bg-white">
                                 </div>
                                 <div class="timeline-row">
                                     <span class="text-xs font-bold text-slate-600 flex items-center gap-2"><i class="fa-solid fa-truck-ramp-box text-slate-400"></i> วันที่รถเข้าจอดอู่</span>
-                                    <input type="date" id="arrived_date" class="minimal-input font-mono max-w-[200px] !py-1 !bg-white">
+                                    <input type="date" id="arrived_date" class="minimal-input font-mono max-w-[200px] !bg-white">
                                 </div>
                                 <div class="timeline-row">
                                     <span class="text-xs font-bold text-slate-600 flex items-center gap-2"><i class="fa-solid fa-stopwatch text-slate-400"></i> กำหนดซ่อมเสร็จ</span>
-                                    <input type="date" id="target_finish_date" class="minimal-input font-mono max-w-[200px] !py-1 !bg-white">
+                                    <input type="date" id="target_finish_date" class="minimal-input font-mono max-w-[200px] !bg-white">
                                 </div>
                                 <div class="timeline-row">
                                     <span class="text-xs font-bold text-slate-600 flex items-center gap-2"><i class="fa-solid fa-check-circle text-slate-400"></i> วันที่ซ่อมเสร็จจริง</span>
-                                    <input type="date" id="actual_finish_date" class="minimal-input font-mono max-w-[200px] !py-1 !bg-white text-rizenic-green font-bold">
+                                    <input type="date" id="actual_finish_date" class="minimal-input font-mono max-w-[200px] !bg-white">
                                 </div>
                                 <div class="timeline-row">
                                     <span class="text-xs font-bold text-slate-600 flex items-center gap-2"><i class="fa-solid fa-key text-slate-400"></i> วันที่ส่งมอบรถลูกค้า</span>
-                                    <input type="date" id="delivery_date" class="minimal-input font-mono max-w-[200px] !py-1 !bg-white">
+                                    <input type="date" id="delivery_date" class="minimal-input font-mono max-w-[200px] !bg-white">
                                 </div>
                             </div>
                         </div>
@@ -255,13 +258,13 @@
                                 </div>
                                 <div class="p-5 space-y-5">
                                     <div class="grid grid-cols-3 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                                        <div><label class="text-[11px] font-bold text-slate-500 block mb-1">ค่าแรง (Labor)</label><input type="number" id="cost_labor" value="0" class="minimal-input text-right font-mono font-bold"></div>
-                                        <div><label class="text-[11px] font-bold text-slate-500 block mb-1">ค่าอะไหล่ (Parts)</label><input type="number" id="cost_part" value="0" class="minimal-input text-right font-mono font-bold"></div>
-                                        <div><label class="text-[11px] font-bold text-slate-500 block mb-1">งานนอก (External)</label><input type="number" id="cost_external" value="0" class="minimal-input text-right font-mono font-bold"></div>
+                                        <div><label class="text-[11px] font-bold text-slate-500 block mb-1">ค่าแรง (Labor)</label><input type="number" id="cost_labor" value="0" class="minimal-input text-right font-mono"></div>
+                                        <div><label class="text-[11px] font-bold text-slate-500 block mb-1">ค่าอะไหล่ (Parts)</label><input type="number" id="cost_part" value="0" class="minimal-input text-right font-mono"></div>
+                                        <div><label class="text-[11px] font-bold text-slate-500 block mb-1">งานนอก (External)</label><input type="number" id="cost_external" value="0" class="minimal-input text-right font-mono"></div>
                                     </div>
                                     <div>
                                         <label class="label-text"><i class="fa-solid fa-signal text-xs text-rizenic-green"></i> สเตตัสงานปัจจุบันในระบบ</label>
-                                        <select id="job_status" class="minimal-input font-bold text-rizenic-green py-2.5"></select>
+                                        <select id="job_status" class="minimal-input !bg-green-100"></select>
                                     </div>
                                     <div>
                                         <label class="label-text"><i class="fa-solid fa-pen-clip text-xs text-rizenic-green"></i> หมายเหตุบันทึกความต้องการลูกค้า</label>
@@ -391,7 +394,6 @@
         }
 
         function enterApp() {
-            // ระบบตรวจสอบและดึงข้อมูลสาขา
             const eName = sessionStorage.getItem('emp_name');
             const eBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
 
