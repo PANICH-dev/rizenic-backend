@@ -16,6 +16,64 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+// ==========================================
+// 🎯 API ระบบโควต้าสาขา (rizenic_quotas) - บันทึกและดึงข้อมูล
+// ==========================================
+app.get('/api/quotas', async (req, res) => {
+  try { 
+    res.json((await pool.query('SELECT * FROM rizenic_quotas ORDER BY quota_type ASC, quota_date DESC')).rows); 
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/quotas', async (req, res) => {
+  try {
+    const { quota_type, quota_date, branch_name, quota_arrived, quota_target, quota_delivery } = req.body;
+    const queryText = `
+      INSERT INTO rizenic_quotas (quota_type, quota_date, branch_name, quota_arrived, quota_target, quota_delivery) 
+      VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;
+    `;
+    const values = [
+      quota_type || 'default', 
+      quota_type === 'special' ? quota_date : null, 
+      branch_name, 
+      parseInt(quota_arrived) || 0, 
+      parseInt(quota_target) || 0, 
+      parseInt(quota_delivery) || 0
+    ];
+    const result = await pool.query(queryText, values);
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/quotas/:id', async (req, res) => {
+  try {
+    const { quota_type, quota_date, branch_name, quota_arrived, quota_target, quota_delivery } = req.body;
+    const queryText = `
+      UPDATE rizenic_quotas SET quota_type=$1, quota_date=$2, branch_name=$3, quota_arrived=$4, quota_target=$5, quota_delivery=$6 
+      WHERE id=$7;
+    `;
+    const values = [
+      quota_type || 'default', 
+      quota_type === 'special' ? quota_date : null, 
+      branch_name, 
+      parseInt(quota_arrived) || 0, 
+      parseInt(quota_target) || 0, 
+      parseInt(quota_delivery) || 0,
+      req.params.id
+    ];
+    await pool.query(queryText, values);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/quotas/:id', async (req, res) => {
+  try { 
+    await pool.query('DELETE FROM rizenic_quotas WHERE id = $1', [req.params.id]); 
+    res.json({ success: true }); 
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+
 // 🔒 API ล็อกอิน
 app.post('/api/login', async (req, res) => {
   try {
@@ -95,10 +153,20 @@ app.delete('/api/customer-types/:id', async (req, res) => {
   try { await pool.query('DELETE FROM rizeniccustomertypemaster WHERE customer_type_id = $1', [req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ⚙️ Masters อื่นๆ
+// ⚙️ Masters อะไหล่ และสเตตัส (อัปเดต POST/PUT/DELETE ครบวงจรสำหรับ rizenicpartsmaster)
 app.get('/api/parts', async (req, res) => {
-  try { res.json((await pool.query('SELECT part_name, part_category FROM rizenicpartsmaster ORDER BY part_name ASC')).rows); } catch (e) { res.status(500).json({ error: e.message }); }
+  try { res.json((await pool.query('SELECT part_id, part_name, part_category FROM rizenicpartsmaster ORDER BY part_name ASC')).rows); } catch (e) { res.status(500).json({ error: e.message }); }
 });
+app.post('/api/parts', async (req, res) => {
+  try { await pool.query('INSERT INTO rizenicpartsmaster (part_name, part_category) VALUES ($1, $2)', [req.body.part_name, req.body.part_category]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.put('/api/parts/:id', async (req, res) => {
+  try { await pool.query('UPDATE rizenicpartsmaster SET part_name=$1, part_category=$2 WHERE part_id=$3', [req.body.part_name, req.body.part_category, req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/api/parts/:id', async (req, res) => {
+  try { await pool.query('DELETE FROM rizenicpartsmaster WHERE part_id = $1', [req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/statuses', async (req, res) => {
   try { res.json((await pool.query('SELECT status_code, status_name FROM rizenicstatusmaster ORDER BY status_code ASC')).rows); } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -118,7 +186,6 @@ app.get('/api/report/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 🎯 บันทึกใบงานใหม่ (เพิ่ม car_plate ทะเบียนรถเข้าไปด้วยครับ)
 app.post('/api/report', async (req, res) => {
   try {
     const {
@@ -156,7 +223,6 @@ app.post('/api/report', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 🎯 บันทึกอัปเดตใบงานซ่อมเดิม (รองรับ 12 สถานีซ่อม และคอลัมน์ซ่อมสร้างครบถ้วน)
 app.put('/api/report/:id', async (req, res) => {
   try {
     const {
@@ -203,7 +269,6 @@ app.put('/api/report/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 🎯 API ตัวใหม่เฉพาะทางสำหรับช่างซ่อมแซม: อัปเดตสถานีและความเห็นช่างด่วนๆ
 app.put('/api/report/:id/station', async (req, res) => {
   try {
     const {
