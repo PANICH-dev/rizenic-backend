@@ -297,7 +297,8 @@ app.put('/api/report/:id/station', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-if (process.env.NODE_ENV !== 'production') {// ==========================================
+
+// ==========================================
 // 📦 API แผนกอะไหล่ (สั่งซื้อ / รับเข้า / เบิกจ่าย) - เชื่อมโยง Google Sheet ของท่าน BA
 // ==========================================
 
@@ -376,24 +377,17 @@ app.post('/api/part-outbound', async (req, res) => {
     res.status(201).json({ success: true, data: result.rows[0] });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
-    app.listen(port, () => console.log(`🚀 พร้อมที่: http://localhost:${port}`));
-}
+
 // 📊 4. คำนวณยอดสต๊อกคงเหลือจริง (Inbound - Outbound) แยกตามสาขาและอะไหล่
 app.get('/api/parts-inventory', async (req, res) => {
-  const { branch } = req.query; // รับค่าสาขาจากหน้าบ้านมาฟิลเตอร์
+  const { branch } = req.query; 
   if (!branch) return res.status(400).json({ error: 'กรุณาระบุสาขาครับนาย' });
-
   try {
-    // คาถา SQL ขั้นสูง มัดรวมยอดรับเข้า หักลบยอดเบิกจ่ายแบบเรียลไทม์ แยกตาม Part No.
     const queryText = `
       SELECT 
-        i.part_main_no,
-        i.part_no,
-        i.part_name,
-        i.car_model,
+        i.part_main_no, i.part_no, i.part_name, i.car_model,
         COALESCE(SUM(i.qty), 0) - COALESCE((
-          SELECT SUM(o.qty) 
-          FROM rizenic_part_outbound o 
+          SELECT SUM(o.qty) FROM rizenic_part_outbound o 
           WHERE o.part_no = i.part_no AND o.branch_name = i.branch_name
         ), 0) AS stock_in_house
       FROM rizenic_part_inbound i
@@ -401,10 +395,13 @@ app.get('/api/parts-inventory', async (req, res) => {
       GROUP BY i.part_main_no, i.part_no, i.part_name, i.car_model, i.branch_name
       ORDER BY i.part_name ASC;
     `;
-    
     const result = await pool.query(queryText, [branch]);
     res.json(result.rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(port, () => console.log(`🚀 พร้อมที่: http://localhost:${port}`));
+}
 
 module.exports = app;
