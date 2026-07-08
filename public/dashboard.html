@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIZENIC ERP - Dashboard & Analytics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Kanit', sans-serif; background-color: #f4f6f9; }
+        
+        /* 🟢 CI Colors - RIZENIC Green */
+        .bg-rizenic-green { background-color: #00320D; }
+        .text-rizenic-green { color: #00320D; }
+        
+        .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background-color: transparent; }
+        
+        .card-box {
+            @apply bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden transition-all duration-300;
+        }
+
+        /* 🗓️ สไตล์ปฏิทินและกราฟแท่งจิ๋ว */
+        .calendar-cell {
+            @apply bg-white border border-slate-200 rounded-xl p-2 min-h-[100px] flex flex-col justify-between hover:border-[#00320D] transition-all cursor-pointer hover:shadow-md;
+        }
+        .mini-bar-container { @apply w-full bg-slate-100 rounded-full h-4 mb-1 flex items-center relative overflow-hidden; }
+        .mini-bar { @apply h-full text-[9px] font-bold text-white flex items-center px-1.5 whitespace-nowrap; }
+        
+        /* Modal Animation */
+        .modal-fade { animation: fadeIn 0.2s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen selection:bg-[#00320D] selection:text-white">
+
+    <header class="bg-rizenic-green text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-[1500px] mx-auto px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-chart-line text-white text-xl"></i>
+                <h1 class="text-lg font-bold tracking-wider">RIZENIC <span class="text-green-400 font-black">DASHBOARD</span></h1>
+            </div>
+            
+            <nav class="flex items-center gap-3">
+                <div class="text-right hidden sm:block border-r border-green-700 pr-4">
+                    <p class="text-xs font-bold text-white" id="display_emp_name">SA Name</p>
+                    <p class="text-[10px] text-green-300">สาขา: <span id="display_branch">Branch</span></p>
+                </div>
+                <div class="flex flex-wrap gap-1">
+                    <a href="index.html" class="px-3.5 py-2 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs"><i class="fa-solid fa-file-invoice mr-1"></i> เปิดบิลซ่อม</a>
+                    <a href="jobs.html" class="px-3.5 py-2 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs"><i class="fa-solid fa-table-list mr-1"></i> บอร์ดใบงาน</a>
+                    <button class="px-3.5 py-2 rounded bg-white text-[#00320D] font-bold shadow-sm transition-all text-xs border border-transparent"><i class="fa-solid fa-chart-pie mr-1"></i> แดชบอร์ด</button>
+                    <button onclick="logout()" class="px-2.5 py-2 text-white hover:text-red-400 transition-all text-xs"><i class="fa-solid fa-power-off"></i></button>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main class="max-w-[1500px] mx-auto px-4 py-6 space-y-6">
+        
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <div class="card-box lg:col-span-2">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
+                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-chart-simple text-rizenic-green"></i> ภาพรวมสถานะงานในศูนย์บริการ</h3>
+                    <span class="text-xs bg-slate-100 text-slate-500 px-3 py-1 rounded-full font-semibold">อัปเดตล่าสุด</span>
+                </div>
+                <div class="w-full h-[300px]">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card-box">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
+                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-users text-rizenic-green"></i> ยอดงานรายบุคคล (SA)</h3>
+                </div>
+                <div class="overflow-y-auto h-[300px] custom-scrollbar pr-2 space-y-3" id="sa_list_container">
+                    </div>
+            </div>
+        </div>
+
+        <div class="card-box">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-slate-100 pb-4">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2"><i class="fa-regular fa-calendar-days text-rizenic-green"></i> แผนปฏิบัติงานรายเดือน (Monthly Workload)</h3>
+                
+                <div class="flex items-center gap-4 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
+                    <button onclick="changeMonth(-1)" class="px-3 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded shadow-sm text-sm"><i class="fa-solid fa-chevron-left"></i></button>
+                    <h2 id="calendar_month_title" class="text-sm font-black text-[#00320D] min-w-[120px] text-center">เดือน...</h2>
+                    <button onclick="changeMonth(1)" class="px-3 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded shadow-sm text-sm"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap gap-4 mb-4 text-xs font-bold">
+                <div class="flex items-center gap-1.5"><div class="w-3 h-3 bg-blue-500 rounded-sm"></div> <span class="text-slate-600">1. รถเข้าจอด (Arrived)</span></div>
+                <div class="flex items-center gap-1.5"><div class="w-3 h-3 bg-amber-500 rounded-sm"></div> <span class="text-slate-600">2. กำหนดเสร็จ (Target)</span></div>
+                <div class="flex items-center gap-1.5"><div class="w-3 h-3 bg-green-500 rounded-sm"></div> <span class="text-slate-600">3. วันส่งมอบ (Delivery)</span></div>
+            </div>
+
+            <div class="grid grid-cols-7 gap-2 text-center text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 bg-slate-50 rounded-lg py-2">
+                <div>อา.</div><div>จ.</div><div>อ.</div><div>พ.</div><div>พฤ.</div><div>ศ.</div><div>ส.</div>
+            </div>
+            
+            <div id="calendar_grid" class="grid grid-cols-7 gap-2 min-h-[600px]">
+                </div>
+        </div>
+
+    </main>
+
+    <div id="saStatusModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden modal-fade border border-[#00320D]">
+            <div class="bg-rizenic-green px-6 py-4 flex justify-between items-center text-white">
+                <h2 class="font-bold text-lg"><i class="fa-solid fa-user-tie mr-2"></i> สถานะงานของ SA: <span id="modal_sa_name" class="text-amber-300"></span></h2>
+                <button onclick="closeModal('saStatusModal')" class="hover:text-red-400 transition text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar bg-slate-50" id="sa_status_list">
+                </div>
+        </div>
+    </div>
+
+    <div id="jobListModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[120] flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden modal-fade border border-[#00320D]">
+            <div class="bg-slate-800 px-6 py-4 flex justify-between items-center text-white border-b-4 border-amber-500">
+                <h2 class="font-bold text-lg"><i class="fa-solid fa-list-ul mr-2"></i> รายการรถ | สถานะ: <span id="modal_status_name" class="text-amber-400 font-black"></span></h2>
+                <button onclick="closeModal('jobListModal')" class="hover:text-red-400 transition text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-0 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                <table class="w-full text-left border-collapse whitespace-nowrap">
+                    <thead class="bg-slate-100 text-slate-600 text-xs uppercase sticky top-0 shadow-sm">
+                        <tr><th class="px-5 py-3">ทะเบียนรถ</th><th class="px-5 py-3">ยี่ห้อ/รุ่น</th><th class="px-5 py-3">ลูกค้า</th><th class="px-5 py-3">ติดต่อ</th><th class="px-5 py-3">กำหนดเสร็จ</th></tr>
+                    </thead>
+                    <tbody id="modal_job_table" class="text-sm divide-y divide-slate-100">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = window.location.origin;
+        let allJobs = [];
+        let statusChartInstance = null;
+        let currentYear = new Date().getFullYear();
+        let currentMonth = new Date().getMonth(); 
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if(sessionStorage.getItem('isLoggedIn') !== 'true') {
+                alert('🚨 กรุณาเข้าสู่ระบบก่อนครับ!');
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name');
+            document.getElementById('display_branch').innerText = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+            
+            fetchDashboardData();
+        });
+
+        function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
+
+        async function fetchDashboardData() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/reports`);
+                allJobs = await res.json();
+                
+                renderStatusChart();
+                renderSASection();
+                renderCalendar();
+            } catch (err) {
+                console.error("โหลดข้อมูลแดชบอร์ดพัง:", err);
+            }
+        }
+
+        // ================= 📊 1. กราฟแท่งสถานะงานรวม =================
+        function renderStatusChart() {
+            const statusCounts = {};
+            allJobs.forEach(job => {
+                const st = job.job_status || "ไม่ระบุสถานะ";
+                statusCounts[st] = (statusCounts[st] || 0) + 1;
+            });
+
+            // เรียงลำดับตามชื่อสถานะ (01, 02, 03...)
+            const labels = Object.keys(statusCounts).sort();
+            const data = labels.map(l => statusCounts[l]);
+
+            if (statusChartInstance) statusChartInstance.destroy();
+            const ctx = document.getElementById('statusChart').getContext('2d');
+            
+            statusChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels.map(l => l.substring(3)), // ตัดตัวเลข 01. ออกเพื่อความสวยงาม
+                    datasets: [{
+                        label: 'จำนวนออเดอร์ (คัน)',
+                        data: data,
+                        backgroundColor: '#00320D',
+                        borderRadius: 6,
+                        barPercentage: 0.6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        // ================= 👥 2. ระบบ Drill-down ของ SA =================
+        function renderSASection() {
+            const saCounts = {};
+            allJobs.forEach(job => {
+                const sa = job.sa_owner || "ไม่ระบุ SA";
+                saCounts[sa] = (saCounts[sa] || 0) + 1;
+            });
+
+            // เรียงลำดับ SA ที่มีงานเยอะสุดขึ้นก่อน
+            const sortedSAs = Object.keys(saCounts).sort((a, b) => saCounts[b] - saCounts[a]);
+
+            const container = document.getElementById('sa_list_container');
+            container.innerHTML = sortedSAs.map(sa => `
+                <div onclick="openSAStatusModal('${sa}')" class="bg-white border border-slate-200 rounded-xl p-3 flex justify-between items-center cursor-pointer hover:border-[#00320D] hover:shadow-md transition-all">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-slate-100 text-[#00320D] flex items-center justify-center font-black"><i class="fa-solid fa-user-tie"></i></div>
+                        <div>
+                            <p class="text-sm font-bold text-slate-800">${sa}</p>
+                            <p class="text-[10px] text-slate-400">คลิกดูรายละเอียดสเตตัสงาน</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-lg font-black text-rizenic-green">${saCounts[sa]}</span> <span class="text-xs text-slate-500">คัน</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openSAStatusModal(saName) {
+            document.getElementById('modal_sa_name').innerText = saName;
+            const saJobs = allJobs.filter(j => (j.sa_owner || "ไม่ระบุ SA") === saName);
+            
+            const statusCounts = {};
+            saJobs.forEach(j => {
+                const st = j.job_status || "ไม่ระบุสถานะ";
+                statusCounts[st] = (statusCounts[st] || 0) + 1;
+            });
+
+            const sortedStatuses = Object.keys(statusCounts).sort();
+            
+            const listContainer = document.getElementById('sa_status_list');
+            listContainer.innerHTML = sortedStatuses.map(st => `
+                <div onclick="openJobListModal('${saName}', '${st}')" class="bg-white border border-slate-200 rounded-lg p-4 mb-3 flex justify-between items-center cursor-pointer hover:border-amber-500 hover:shadow transition-all group">
+                    <span class="text-sm font-bold text-slate-700 group-hover:text-amber-600 transition-colors"><i class="fa-solid fa-circle-dot text-[10px] mr-2 text-slate-300"></i> ${st}</span>
+                    <div class="flex items-center gap-3">
+                        <span class="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-black shadow-sm">${statusCounts[st]} คัน</span>
+                        <i class="fa-solid fa-chevron-right text-slate-300 group-hover:text-amber-500"></i>
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('saStatusModal').classList.remove('hidden');
+        }
+
+        function openJobListModal(saName, statusName) {
+            document.getElementById('modal_status_name').innerText = statusName;
+            
+            const filteredJobs = allJobs.filter(j => (j.sa_owner || "ไม่ระบุ SA") === saName && (j.job_status || "ไม่ระบุสถานะ") === statusName);
+            
+            const tbody = document.getElementById('modal_job_table');
+            tbody.innerHTML = filteredJobs.map(j => {
+                const targetDate = j.target_finish_date ? new Date(j.target_finish_date).toLocaleDateString('th-TH') : '-';
+                return `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="px-5 py-3 font-bold text-[#00320D]"><span class="bg-slate-100 border border-slate-200 px-2 py-0.5 rounded font-mono text-xs mr-1">${j.car_plate || '-'}</span></td>
+                        <td class="px-5 py-3 font-semibold text-slate-700">${j.car_brand} ${j.car_model || ''}</td>
+                        <td class="px-5 py-3 text-slate-600">${j.customer_name}</td>
+                        <td class="px-5 py-3 font-mono text-xs text-slate-500">${j.phone_number || '-'}</td>
+                        <td class="px-5 py-3 font-mono text-xs font-bold text-amber-600">${targetDate}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            document.getElementById('jobListModal').classList.remove('hidden');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        // ================= 🗓️ 3. ปฏิทินแสดงกราฟ 3 แท่งรายวัน =================
+        function renderCalendar() {
+            const grid = document.getElementById('calendar_grid');
+            grid.innerHTML = '';
+            
+            const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+            document.getElementById('calendar_month_title').innerText = `${monthNames[currentMonth]} ${currentYear}`;
+
+            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+            const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+            // หาค่าสูงสุดของวันที่มีรถเยอะสุด เพื่อคำนวณ % ความยาวของกราฟแท่ง
+            let maxCount = 1; 
+
+            // สร้าง Array เก็บข้อมูลแต่ละวันก่อนเพื่อหา Max
+            const daysData = [];
+            for(let day = 1; day <= totalDays; day++) {
+                const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                
+                const arrived = allJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length;
+                const target = allJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).length;
+                const delivery = allJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
+                
+                const dayMax = Math.max(arrived, target, delivery);
+                if (dayMax > maxCount) maxCount = dayMax;
+
+                daysData.push({ day, dateStr, arrived, target, delivery });
+            }
+
+            // เติมช่องว่างก่อนเริ่มวันที่ 1
+            for(let i = 0; i < firstDay; i++) { 
+                grid.innerHTML += `<div class="bg-transparent rounded-xl border border-transparent"></div>`; 
+            }
+
+            // วาดปฏิทินพร้อมกราฟ
+            daysData.forEach(d => {
+                // คำนวณความกว้าง % (ขั้นต่ำ 15% เพื่อให้เห็นสี)
+                const arrWidth = d.arrived > 0 ? Math.max((d.arrived / maxCount) * 100, 15) : 0;
+                const tarWidth = d.target > 0 ? Math.max((d.target / maxCount) * 100, 15) : 0;
+                const delWidth = d.delivery > 0 ? Math.max((d.delivery / maxCount) * 100, 15) : 0;
+
+                let barsHTML = '';
+                if(d.arrived > 0) barsHTML += `<div class="mini-bar-container"><div class="mini-bar bg-blue-500" style="width: ${arrWidth}%">${d.arrived}</div></div>`;
+                if(d.target > 0) barsHTML += `<div class="mini-bar-container"><div class="mini-bar bg-amber-500" style="width: ${tarWidth}%">${d.target}</div></div>`;
+                if(d.delivery > 0) barsHTML += `<div class="mini-bar-container"><div class="mini-bar bg-green-500" style="width: ${delWidth}%">${d.delivery}</div></div>`;
+
+                grid.innerHTML += `
+                    <div class="calendar-cell">
+                        <span class="text-xs font-black text-slate-400 font-mono mb-2">${d.day}</span>
+                        <div class="flex-1 flex flex-col justify-end w-full">
+                            ${barsHTML}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function changeMonth(direction) {
+            currentMonth += direction;
+            if(currentMonth > 11) { currentMonth = 0; currentYear++; }
+            if(currentMonth < 0) { currentMonth = 11; currentYear--; }
+            renderCalendar();
+        }
+
+    </script>
+</body>
+</html>
