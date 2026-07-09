@@ -153,16 +153,50 @@ app.delete('/api/customer-types/:id', async (req, res) => {
   try { await pool.query('DELETE FROM rizeniccustomertypemaster WHERE customer_type_id = $1', [req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ⚙️ Masters อะไหล่ และสเตตัส (อัปเดต POST/PUT/DELETE ครบวงจรสำหรับ rizenicpartsmaster)
+// ⚙️ Masters อะไหล่ และสเตตัส (อัปเกรด Full Option)
 app.get('/api/parts', async (req, res) => {
-  try { res.json((await pool.query('SELECT part_id, part_name, part_category FROM rizenicpartsmaster ORDER BY part_name ASC')).rows); } catch (e) { res.status(500).json({ error: e.message }); }
+  try { res.json((await pool.query('SELECT * FROM rizenicpartsmaster ORDER BY part_name ASC')).rows); } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
+// 🔍 API ใหม่! สำหรับให้ SA เช็คว่า "หมายเลขอะไหล่" นี้มีในระบบ Master หรือยัง?
+app.get('/api/parts/check/:part_no', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM rizenicpartsmaster WHERE part_no = $1 LIMIT 1', [req.params.part_no]);
+    res.json(result.rows[0] || null); // ถ้าไม่เจอจะส่ง null กลับไปให้หน้าบ้านแจ้งเตือน
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/parts', async (req, res) => {
-  try { await pool.query('INSERT INTO rizenicpartsmaster (part_name, part_category) VALUES ($1, $2)', [req.body.part_name, req.body.part_category]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
+  try {
+    const { part_main_no, part_no, part_name, car_model, part_category, unit_price, location, safety_stock } = req.body;
+    // ใช้ ON CONFLICT เพื่อว่าถ้าเลขอะไหล่ซ้ำ ให้ทำการอัปเดตข้อมูลแทนการแจ้ง Error (สมาร์ทขึ้น!)
+    const queryText = `
+      INSERT INTO rizenicpartsmaster (part_main_no, part_no, part_name, car_model, part_category, unit_price, location, safety_stock) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (part_no) DO UPDATE 
+      SET part_name = $3, car_model = $4, part_category = $5, unit_price = $6, location = $7, safety_stock = $8;
+    `;
+    await pool.query(queryText, [
+      part_main_no || null, part_no, part_name, car_model || null, part_category || 'อะไหล่รอง', 
+      parseFloat(unit_price) || 0.00, location || null, parseInt(safety_stock) || 0
+    ]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
 app.put('/api/parts/:id', async (req, res) => {
-  try { await pool.query('UPDATE rizenicpartsmaster SET part_name=$1, part_category=$2 WHERE part_id=$3', [req.body.part_name, req.body.part_category, req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
+  try {
+    const { part_main_no, part_no, part_name, car_model, part_category, unit_price, location, safety_stock } = req.body;
+    const queryText = `
+      UPDATE rizenicpartsmaster SET 
+      part_main_no=$1, part_no=$2, part_name=$3, car_model=$4, part_category=$5, unit_price=$6, location=$7, safety_stock=$8 
+      WHERE part_id=$9;
+    `;
+    await pool.query(queryText, [part_main_no || null, part_no, part_name, car_model || null, part_category, parseFloat(unit_price) || 0.00, location || null, parseInt(safety_stock) || 0, req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
 app.delete('/api/parts/:id', async (req, res) => {
   try { await pool.query('DELETE FROM rizenicpartsmaster WHERE part_id = $1', [req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
