@@ -183,16 +183,20 @@
                         </div>
                     </div>
 
-                    <!-- บล็อก 5: สเตตัสและกำหนดการ -->
-                    <div class="card-container grid grid-cols-1 md:grid-cols-4 gap-5 p-6 bg-white">
-                        <div class="md:col-span-4 border-b pb-2 mb-2"><h3 class="font-bold text-sm text-rizenic-green"><i class="fa-regular fa-calendar-check"></i> 5. สเตตัสงานซ่อมและกำหนดการ</h3></div>
-                        <div><label class="label-text">วันที่รถเข้าจอด (Arrived)</label><input type="date" id="arrived_date" class="minimal-input font-mono"></div>
-                        <div><label class="label-text">กำหนดซ่อมเสร็จ (Target)</label><input type="date" id="target_finish_date" class="minimal-input font-mono"></div>
-                        <div><label class="label-text">ระดับความเสียหาย</label>
-                            <select id="damage_level" class="minimal-input"><option value="เบา">เบา</option><option value="กลาง">กลาง</option><option value="หนัก">หนัก</option></select>
+                    <!-- บล็อก 3: สถานะสถานีซ่อม (Read-Only แสดงผลเฉยๆ) -->
+                    <div class="card-container bg-gray-50 border-gray-200 p-6">
+                        <div class="border-b border-gray-200 pb-2 mb-4">
+                            <h3 class="font-bold text-sm text-gray-600"><i class="fa-solid fa-eye"></i> 3. สถานะการซ่อมล่าสุดจากสถานีช่าง (View Only)</h3>
                         </div>
-                        <div><label class="label-text text-amber-600">สเตตัสงานปัจจุบัน *</label><select id="job_status" class="minimal-input bg-amber-50" required></select></div>
-                        <div class="md:col-span-4"><label class="label-text">หมายเหตุการซ่อม / อาการเพิ่มเติม</label><input type="text" id="notes" class="minimal-input" placeholder="ระบุอาการ..."></div>
+                        <div class="flex flex-wrap gap-2 sm:gap-3" id="station_badges_container">
+                            <span id="badge_st_kho" class="px-4 py-1.5 rounded-full text-xs font-bold bg-slate-200 text-slate-400 border border-slate-300">1. เคาะ</span>
+                            <span id="badge_st_pou" class="px-4 py-1.5 rounded-full text-xs font-bold bg-slate-200 text-slate-400 border border-slate-300">2. โป๊ว</span>
+                            <span id="badge_st_puan" class="px-4 py-1.5 rounded-full text-xs font-bold bg-slate-200 text-slate-400 border border-slate-300">3. พื้น</span>
+                            <span id="badge_st_pon" class="px-4 py-1.5 rounded-full text-xs font-bold bg-slate-200 text-slate-400 border border-slate-300">4. พ่นสี</span>
+                            <span id="badge_st_prak" class="px-4 py-1.5 rounded-full text-xs font-bold bg-slate-200 text-slate-400 border border-slate-300">5. ประกอบ</span>
+                            <span id="badge_st_qc" class="px-4 py-1.5 rounded-full text-xs font-bold bg-slate-200 text-slate-400 border border-slate-300">6. QC</span>
+                        </div>
+                        <p class="text-[10px] text-amber-600 mt-3 font-semibold">* สถานะจะสว่างขึ้นเป็นสีเขียวเมื่อช่างอัปเดตผ่านหน้าสถานีซ่อมแล้ว</p>
                     </div>
 
                     <div class="flex justify-end gap-3 mt-8">
@@ -495,6 +499,19 @@
                 selectedParts.main = job.main_part_name ? job.main_part_name.split(', ') : [];
                 selectedParts.sub = job.sub_part_name ? job.sub_part_name.split(', ') : [];
                 renderPartsUI();
+                // 💡 โค้ดสำหรับแสดงป้ายไฟสถานีซ่อม (ถ้าช่างทำแล้วให้เปลี่ยนเป็นสีเขียว)
+                const updateBadge = (id, isDone) => {
+                    const el = document.getElementById(id);
+                    if(el) el.className = isDone 
+                        ? "px-4 py-1.5 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-300 shadow-sm" 
+                        : "px-4 py-1.5 rounded-full text-xs font-bold bg-slate-200 text-slate-400 border border-slate-300";
+                };
+                updateBadge('badge_st_kho', job.station_kho);
+                updateBadge('badge_st_pou', job.station_pou);
+                updateBadge('badge_st_puan', job.station_puan);
+                updateBadge('badge_st_pon', job.station_pon);
+                updateBadge('badge_st_prak', job.station_prak);
+                updateBadge('badge_st_qc', job.station_qc);
                 
                 if(document.getElementById('cost_labor')) document.getElementById('cost_labor').value = job.cost_labor || 0;
                 if(document.getElementById('cost_part')) document.getElementById('cost_part').value = job.cost_part || 0;
@@ -549,13 +566,7 @@
                 payment_type: document.getElementById('payment_type').value,
                 damage_level: document.getElementById('damage_level') ? document.getElementById('damage_level').value : 'เบา',
                 
-                // สถานีซ่อม (ถ้าติ๊ก)
-                station_kho: document.getElementById('st_kho') ? document.getElementById('st_kho').checked : false,
-                station_pou: document.getElementById('st_pou') ? document.getElementById('st_pou').checked : false,
-                station_puan: document.getElementById('st_puan') ? document.getElementById('st_puan').checked : false,
-                station_pon: document.getElementById('st_pon') ? document.getElementById('st_pon').checked : false,
-                station_prak: document.getElementById('st_prak') ? document.getElementById('st_prak').checked : false,
-                station_qc: document.getElementById('st_qc') ? document.getElementById('st_qc').checked : false,
+            
 
                 target_finish_date: document.getElementById('target_finish_date').value || null,
                 notes: document.getElementById('notes').value,

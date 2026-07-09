@@ -389,6 +389,18 @@ app.post('/api/part-orders', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// 🔄 อัปเดตสถานะใบสั่งอะไหล่แบบ Manual (จากดรอปดาวน์แผนกอะไหล่) <-- ต้องอยู่นอกสุด ต่อท้ายหลังจากที่ข้างบนปิด }); แล้ว
+app.put('/api/part-orders/:id/status', async (req, res) => {
+  try {
+    const { order_status } = req.body;
+    await pool.query(
+      'UPDATE rizenic_part_orders SET order_status = $1 WHERE order_id = $2',
+      [order_status, req.params.id]
+    );
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // 📥 2. บันทึกรับเข้าคลังสินค้า (Inbound) + 🧠 สมองกลคำนวณปรับสเตตัสออเดอร์อัตโนมัติ!
 app.post('/api/part-inbound', async (req, res) => {
   try {
