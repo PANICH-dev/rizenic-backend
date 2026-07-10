@@ -28,7 +28,6 @@
         .timeline-row:nth-child(odd) { @apply bg-white; }
         .timeline-row:nth-child(even) { @apply bg-slate-50; }
 
-        /* ป้ายชิ้นส่วนซ่อมสี */
         .part-badge { @apply cursor-pointer px-3 py-1.5 border border-slate-200 rounded text-xs font-bold transition-all shadow-sm select-none inline-block; }
         .part-badge.unselected { @apply bg-white text-slate-500 hover:border-[#00320D] hover:text-[#00320D] hover:bg-slate-50; }
         .part-badge.selected-main { @apply bg-blue-600 border-blue-700 text-white shadow-inner; }
@@ -37,7 +36,6 @@
 </head>
 <body class="text-slate-800 min-h-screen relative selection:bg-[#00320D] selection:text-white">
 
-    <!-- 🔒 หน้า Login -->
     <div id="login-screen" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center">
         <div class="bg-white p-10 rounded-2xl shadow-2xl w-full max-w-md text-center border-t-4 border-t-[#00320D]">
             <div class="flex items-center justify-center gap-3 mb-4"><div class="bg-[#00320D] w-14 h-14 rounded-xl flex items-center justify-center shadow-md"><i class="fa-solid fa-car text-2xl text-white"></i></div></div>
@@ -51,7 +49,6 @@
         </div>
     </div>
 
-    <!-- 🚀 หน้าแอปหลัก -->
     <div id="main-app" class="hidden">
         <header class="bg-rizenic-green text-white shadow-md sticky top-0 z-50">
             <div class="max-w-[1500px] mx-auto px-4 py-3 flex flex-col lg:flex-row justify-between items-center gap-4">
@@ -79,11 +76,9 @@
                 </div>
             </div>
 
-            <!-- นำ onsubmit เดิมออก เพื่อดักจับ Validate ก่อนส่งผ่าน JavaScript ชัวร์ๆ -->
             <form id="saForm" onsubmit="submitSaForm(event)">
                 <input type="hidden" id="sa_report_id">
                 
-                <!-- 🚗 บล็อก 1: ข้อมูลรถและลูกค้า -->
                 <div class="card-container grid grid-cols-1 md:grid-cols-4 gap-5 p-6 bg-white">
                     <div class="md:col-span-4 border-b pb-2 mb-2"><h3 class="font-bold text-sm text-rizenic-green"><i class="fa-solid fa-car"></i> 1. ข้อมูลลูกค้าและรถยนต์</h3></div>
                     <div><label class="label-text text-red-600">ชื่อลูกค้า *</label><input type="text" id="customer_name" class="minimal-input" placeholder="ระบุชื่อลูกค้า"></div>
@@ -92,10 +87,9 @@
                     <div><label class="label-text">รูปแบบการชำระเงิน/ประกัน</label><select id="payment_type" class="minimal-input"><option value="">กำลังโหลด...</option></select></div>
                     <div><label class="label-text text-red-600">ทะเบียนรถ *</label><input type="text" id="car_plate" class="minimal-input uppercase text-lg" placeholder="กข 1234"></div>
                     
-                    <!-- ⭐️ เปลี่ยนยี่ห้อรถเป็น Datalist ให้พิมพ์ค้นหาได้ + ค่าเริ่มต้น Tesla -->
                     <div>
                         <label class="label-text text-red-600">ยี่ห้อรถ *</label>
-                        <input type="text" id="car_brand" list="brand_list" class="minimal-input" value="Tesla" placeholder="พิมพ์เพื่อค้นหา..." onchange="updateCarModels(this.value)">
+                        <input type="text" id="car_brand" list="brand_list" class="minimal-input font-bold" value="Tesla" placeholder="พิมพ์เพื่อค้นหา..." onchange="updateCarModels(this.value)">
                         <datalist id="brand_list"></datalist>
                     </div>
                     
@@ -103,7 +97,6 @@
                     <div><label class="label-text">หมายเลขตัวถัง (VIN)</label><input type="text" id="vin_no" class="minimal-input font-mono uppercase"></div>
                 </div>
 
-                <!-- 📄 บล็อก 2: เอกสารอ้างอิง Dynamic -->
                 <div class="card-container border-blue-200 shadow-md">
                     <div class="flex justify-between items-center border-b border-blue-200 pb-3 mb-4 p-6 pb-0 bg-blue-50/20">
                         <h3 class="font-bold text-sm text-blue-800"><i class="fa-solid fa-file-contract"></i> 2. เอกสารอ้างอิงเชื่อมโยงระบบ (QT / SO / BL)</h3>
@@ -119,7 +112,6 @@
                     </div>
                 </div>
 
-                <!-- 🎨 บล็อก 3: ประเมินชิ้นส่วนซ่อมสี (Body Parts) -->
                 <div class="card-container bg-white p-6 border-amber-200 shadow-md">
                     <div class="flex justify-between items-center border-b border-amber-200 pb-3 mb-4">
                         <h3 class="font-bold text-sm text-amber-700"><i class="fa-solid fa-spray-can"></i> 3. ประเมินรายการชิ้นส่วนตัวถังและการทำสี (Body & Paint Parts)</h3>
@@ -140,14 +132,12 @@
                     </div>
                 </div>
 
-                <!-- 📦 บล็อก 4: สั่งอะไหล่ (แคตตาล็อก & ตาราง PO) -->
                 <div class="card-container border-green-300 shadow-md p-6">
                     <div class="flex justify-between items-center border-b border-green-200 pb-3 mb-4">
                         <h3 class="font-bold text-sm text-rizenic-green"><i class="fa-solid fa-cogs"></i> 4. สร้างใบสั่งซื้ออะไหล่ส่งเข้าแผนกจัดซื้อ (Spare Parts PO)</h3>
                         <button type="button" onclick="addPartRow()" class="px-4 py-2 bg-[#00320D] text-white text-xs font-bold rounded-lg shadow hover:bg-black transition-all">+ เพิ่มรายการ (พิมพ์เอง)</button>
                     </div>
 
-                    <!-- แคตตาล็อกแบบคลิกเลือก (Click to Add) -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
                         <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 shadow-inner">
                             <p class="text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider"><i class="fa-solid fa-box text-blue-500 mr-1"></i> อะไหล่หลัก (คลิกเพื่อเพิ่มลงตาราง)</p>
@@ -159,13 +149,12 @@
                         </div>
                     </div>
 
-                    <!-- ตารางสั่งซื้อ (Dynamic Table) -->
                     <div class="overflow-x-auto border border-slate-200 rounded-lg">
                         <table class="w-full text-left border-collapse whitespace-nowrap">
                             <thead class="bg-[#00320D] text-white text-xs uppercase">
                                 <tr>
-                                    <th class="px-3 py-3 w-1/4">หมายเลขอะไหล่เฉพาะ *</th>
-                                    <th class="px-3 py-3 w-2/4">ชื่อรายการชิ้นส่วนอะไหล่</th>
+                                    <th class="px-3 py-3 w-1/4">รหัส Part No 2 (บาร์โค้ด) *</th>
+                                    <th class="px-3 py-3 w-2/4">ชื่อรายการชิ้นส่วนอะไหล่ (ดึงจาก Master)</th>
                                     <th class="px-3 py-3 w-1/6 text-center">จำนวน (ชิ้น)</th>
                                     <th class="px-3 py-3 w-1/12 text-center">ลบ</th>
                                 </tr>
@@ -175,7 +164,6 @@
                     </div>
                 </div>
 
-                <!-- 🔍 บล็อก 5: ข้อมูลติดตามสถานะอะไหล่รวม (View-Only สำหรับ SA) -->
                 <div class="card-container bg-purple-50/30 border-purple-200 p-6">
                     <div class="border-b border-purple-200 pb-2 mb-4">
                         <h3 class="font-bold text-sm text-purple-800"><i class="fa-solid fa-box-open"></i> 5. ข้อมูลติดตามสถานะอะไหล่ของบิลนี้ (ฝ่ายอะไหล่เป็นผู้อัปเดต)</h3>
@@ -204,7 +192,6 @@
                     </div>
                 </div>
 
-                <!-- 👁️ บล็อก 6: สถานะสถานีช่าง (Read-Only) -->
                 <div class="card-container bg-gray-50 border-gray-200 p-6">
                     <div class="border-b border-gray-200 pb-2 mb-4"><h3 class="font-bold text-sm text-gray-600"><i class="fa-solid fa-eye"></i> 6. สถานะความคืบหน้าล่าสุดจากสถานีช่าง (View Only)</h3></div>
                     <div class="flex flex-wrap gap-2 sm:gap-3" id="station_badges_container">
@@ -217,7 +204,6 @@
                     </div>
                 </div>
 
-                <!-- 🗓️ บล็อก 7: สเตตัสและไทม์ไลน์ 5 วัน -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                     <div class="card-container bg-white p-6 flex flex-col gap-3 !mb-0">
                         <div class="border-b pb-2 mb-2"><h3 class="font-bold text-sm text-rizenic-green"><i class="fa-regular fa-calendar-days"></i> 7. กำหนดการและเวลานัดหมาย</h3></div>
@@ -232,7 +218,6 @@
                         <div class="space-y-5">
                             <div class="border-b pb-2 mb-2"><h3 class="font-bold text-sm text-rizenic-green"><i class="fa-solid fa-signal"></i> 8. ระดับความเสียหาย & สเตตัสบิลซ่อม</h3></div>
                             <div class="grid grid-cols-2 gap-4">
-                                <!-- ⭐️ ใส่สีสันระดับความเสียหาย -->
                                 <div>
                                     <label class="label-text">ระดับความเสียหาย</label>
                                     <select id="damage_level" class="minimal-input font-bold transition-colors" onchange="updateDamageColor(this)">
@@ -241,7 +226,7 @@
                                         <option value="หนัก">หนัก</option>
                                     </select>
                                 </div>
-                                <div><label class="label-text text-amber-600">สถานะใบงานปัจจุบัน *</label><select id="job_status" class="minimal-input bg-amber-50 border-amber-300"></select></div>
+                                <div><label class="label-text text-amber-600">สถานะใบงานปัจจุบัน *</label><select id="job_status" class="minimal-input bg-amber-50 border-amber-300" required></select></div>
                             </div>
                             <div><label class="label-text">หมายเหตุประเมินอาการ / ความต้องการลูกค้า</label><textarea id="notes" rows="6" class="minimal-input resize-none" placeholder="ระบุรายละเอียดการชน รอยขูดขีด หรือความต้องการของลูกค้า..."></textarea></div>
                         </div>
@@ -322,7 +307,6 @@
         function logout() { sessionStorage.clear(); window.location.reload(); }
 
         async function loadInitialData() {
-            // โหลดประเภทลูกค้า
             fetch(`${API_BASE_URL}/api/customer-types`).then(async r => {
                 if(!r.ok) throw new Error('API Error'); const data = await r.json();
                 const select = document.getElementById('customer_type'); select.innerHTML = '<option value="">-- เลือก --</option>';
@@ -337,17 +321,15 @@
                 const brandList = document.getElementById('brand_list'); 
                 brandList.innerHTML = '';
                 uniqueBrands.forEach(brand => brandList.innerHTML += `<option value="${brand}">`);
-                updateCarModels('Tesla'); // ดึงรุ่นของ Tesla มารอไว้เลย
-            }).catch(() => { /* Silent error, datalist just won't load */ });
+                updateCarModels('Tesla'); 
+            }).catch(() => {});
 
-            // โหลดประกันภัย
             fetch(`${API_BASE_URL}/api/insurances`).then(async r => {
                 if(!r.ok) throw new Error('API Error'); const data = await r.json();
                 const select = document.getElementById('payment_type'); select.innerHTML = '<option value="">-- เลือก --</option>';
                 data.forEach(item => select.innerHTML += `<option value="${item.insurance_name}">${item.insurance_name}</option>`);
             }).catch(() => { document.getElementById('payment_type').innerHTML = '<option value="">⚠️ รอเชื่อมต่อฐานข้อมูล...</option>'; });
             
-            // 🎨 โหลด Master ชิ้นส่วนซ่อมสี 
             fetch(`${API_BASE_URL}/api/body-parts`).then(async r => {
                 if(!r.ok) throw new Error('API Error'); const data = await r.json();
                 repairBodyPartsList.main = data.filter(p => p.category === 'ชิ้นส่วนหลัก').map(p => p.part_name);
@@ -358,7 +340,6 @@
                 document.getElementById('body_parts_sub').innerHTML = '<span class="text-xs text-red-500">⚠️ รอเชื่อมต่อฐานข้อมูล...</span>';
             });
 
-            // 📦 โหลด Master อะไหล่แคตตาล็อก
             fetch(`${API_BASE_URL}/api/parts`).then(async r => {
                 if(!r.ok) throw new Error('API Error'); const data = await r.json();
                 masterSpareParts = data;
@@ -415,8 +396,8 @@
             const tbody = document.getElementById('order_parts_body'); if(!tbody) return;
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td class="px-2 py-2"><input type="text" class="minimal-input part-no-input font-mono" placeholder="เลขอะไหล่" value="${partNo}" onblur="checkMasterPart(this)"></td>
-                <td class="px-2 py-2"><input type="text" class="minimal-input part-name-input ${partName ? 'bg-green-50 border-green-300' : 'bg-slate-50'}" placeholder="ระบบจะดึงชื่อมาให้อัตโนมัติ" value="${partName}" ${partName ? 'readonly' : ''}></td>
+                <td class="px-2 py-2"><input type="text" class="minimal-input part-no-input font-mono" placeholder="สแกนบาร์โค้ด" value="${partNo}" onblur="checkMasterPart(this)"></td>
+                <td class="px-2 py-2"><input type="text" class="minimal-input part-name-input ${partName ? 'bg-green-50 border-green-300' : 'bg-slate-50'}" placeholder="ดึงจาก Master อัตโนมัติ" value="${partName}" ${partName ? 'readonly' : ''}></td>
                 <td class="px-2 py-2"><input type="number" class="minimal-input part-qty-input text-center font-bold" value="1" min="1"></td>
                 <td class="px-2 py-2 text-center"><button type="button" onclick="this.closest('tr').remove()" class="text-slate-400 hover:text-red-500 transition"><i class="fa-solid fa-trash"></i></button></td>
             `;
@@ -435,6 +416,7 @@
             }
         }
 
+        // 🧠 สมองกลเพิ่ม Master อะไหล่ จากหน้า SA
         async function checkMasterPart(inputElem) {
             const partNo = inputElem.value.trim(); if(!partNo) return;
             const tr = inputElem.closest('tr'); const nameInput = tr.querySelector('.part-name-input');
@@ -445,14 +427,24 @@
                     nameInput.value = data.part_name; 
                     nameInput.classList.replace('bg-slate-50', 'bg-green-50'); nameInput.readOnly = true;
                 } else {
-                    if (confirm(`⚠️ ไม่พบอะไหล่ "${partNo}" ในระบบ Master!\nต้องการเพิ่มมาสเตอร์ใหม่หรือไม่?`)) {
-                        const newName = prompt('ระบุชื่ออะไหล่:');
-                        if (newName) {
-                            await fetch(`${API_BASE_URL}/api/parts`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ part_no: partNo, part_name: newName, part_category: 'อะไหล่รอง' }) });
-                            nameInput.value = newName; nameInput.classList.replace('bg-slate-50', 'bg-green-50');
-                            loadInitialData(); 
-                        } else { inputElem.value = ''; }
-                    } else { nameInput.readOnly = false; nameInput.placeholder = "กรอกชื่อเอง (Manual)"; nameInput.classList.remove('bg-slate-50'); }
+                    if (confirm(`⚠️ ไม่พบอะไหล่บาร์โค้ด "${partNo}" ในระบบ Master!\nต้องการบันทึกเป็นรายการอะไหล่ใหม่หรือไม่?`)) {
+                        const newName = prompt('1. ระบุ "ชื่อชิ้นส่วนอะไหล่":');
+                        if (!newName) { inputElem.value = ''; return; }
+                        const newModel = prompt('2. ระบุ "รุ่นรถ" (ถ้ามี):', document.getElementById('car_model').value || 'ALL');
+                        const newPrice = prompt('3. ระบุ "ราคาจำหน่าย" (ถ้าไม่ทราบใส่ 0):', '0');
+                        const newLocation = prompt('4. ระบุ "Location" (ตำแหน่งจัดเก็บ):', 'ยังไม่ระบุ');
+
+                        await fetch(`${API_BASE_URL}/api/parts`, { 
+                            method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+                            body: JSON.stringify({ part_no: partNo, part_name: newName, car_model: newModel, unit_price: newPrice, location: newLocation, part_category: 'อะไหล่ทั่วไป' }) 
+                        });
+                        
+                        nameInput.value = newName; nameInput.classList.replace('bg-slate-50', 'bg-green-50'); nameInput.readOnly = true;
+                        alert('✅ บันทึก Master Data ใหม่เรียบร้อยแล้ว แผนกอะไหล่สามารถใช้งานได้ทันที!');
+                        loadInitialData(); // รีเฟรชแคตตาล็อก
+                    } else {
+                        nameInput.readOnly = false; nameInput.placeholder = "กรอกชื่อเองชั่วคราว"; nameInput.classList.remove('bg-slate-50');
+                    }
                 }
             } catch(e) { console.log(e); }
         }
@@ -492,6 +484,7 @@
                 selectedBodyParts.sub = job.sub_part_name ? job.sub_part_name.split(',').map(s=>s.trim()).filter(s=>s) : [];
                 setTimeout(() => renderBodyPartsUI(), 800);
 
+                // ข้อมูลติดตามอะไหล่ Read-Only
                 document.getElementById('track_epc_no').value = job.epc_no || '';
                 document.getElementById('track_part_status').value = job.part_status || 'รอฝ่ายอะไหล่อัปเดต';
                 document.getElementById('track_order_date').value = job.order_part_date ? job.order_part_date.split('T')[0] : '';
@@ -534,11 +527,11 @@
             });
         }
 
-        // ================= 🚀 ⭐️ บันทึกบิลซ่อม (พร้อมระบบดัก Error ขาดกรอกข้อมูล) =================
+        // ⭐️ บันทึกบิลซ่อม (พร้อมระบบดัก Error ขาดกรอกข้อมูล)
         async function submitSaForm(event) {
             event.preventDefault(); 
             
-            // ⭐️ 1. ดักจับช่องที่บังคับกรอก (ถ้าลืมกรอก จะโชว์แจ้งเตือนชัดเจน)
+            // 1. ดักจับช่องที่บังคับกรอก
             const requiredFields = [
                 { id: 'customer_name', name: 'ชื่อลูกค้า' },
                 { id: 'phone_number', name: 'เบอร์โทรศัพท์' },
@@ -555,7 +548,7 @@
 
             if (missingFields.length > 0) {
                 alert('⚠️ กรุณากรอกข้อมูลบังคับให้ครบถ้วน:\n\n- ' + missingFields.join('\n- '));
-                return; // หยุดการส่งข้อมูลทันทีถ้าไม่ครบ!
+                return; // หยุดการส่งข้อมูล
             }
 
             const editId = document.getElementById('sa_report_id').value;
@@ -576,7 +569,7 @@
                 main_part_name: selectedBodyParts.main.join(', '), main_part_qty: selectedBodyParts.main.length,
                 sub_part_name: selectedBodyParts.sub.join(', '), sub_part_qty: selectedBodyParts.sub.length,
                 
-                // สำหรับ SA ช่องสถานะอะไหล่จะเป็นค่าดึงดูเฉยๆ เราส่งค่าเดิมกลับไปเพื่อป้องกันการเซฟทับให้พัง
+                // Read-only สำหรับ SA ส่งค่าเดิมกลับไป
                 epc_no: document.getElementById('track_epc_no').value, 
                 part_status: document.getElementById('track_part_status').value !== 'รออัปเดตสถานะ' ? document.getElementById('track_part_status').value : null,
                 order_part_date: document.getElementById('track_order_date').value || null, 
@@ -593,7 +586,6 @@
             const method = editId ? 'PUT' : 'POST';
             
             try {
-                // เปลี่ยนปุ่มเป็นสถานะกำลังโหลด
                 const btnSubmit = document.getElementById('btn_submit_sa');
                 const oldBtnText = btnSubmit.innerHTML;
                 btnSubmit.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> กำลังบันทึกข้อมูล...';
@@ -601,7 +593,7 @@
 
                 const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
                 
-                // ⭐️ 2. ถ้าบันทึกไม่สำเร็จ แจ้งเตือน Error ให้เห็นว่าเกิดอะไรขึ้น (แทนการเงียบ)
+                // ดัก Error หลังบ้าน
                 if (!response.ok) {
                     const errData = await response.json();
                     alert('❌ บันทึกล้มเหลว (ระบบฐานข้อมูลตีกลับ):\n' + (errData.error || 'ข้อมูลบางอย่างอาจไม่ถูกต้อง โปรดตรวจสอบอีกครั้ง'));
@@ -609,7 +601,7 @@
                     return;
                 }
 
-                // 3. ถ้าสำเร็จ ค่อยทะลวงยิงสั่งอะไหล่เข้า PO
+                // สั่งอะไหล่เข้า PO
                 const partRows = document.querySelectorAll('#order_parts_body tr');
                 for (let tr of partRows) {
                     const pNo = tr.querySelector('.part-no-input')?.value; const pName = tr.querySelector('.part-name-input')?.value; const pQty = tr.querySelector('.part-qty-input')?.value || '1';
