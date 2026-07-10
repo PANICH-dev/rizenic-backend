@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RIZENIC ERP - Admin Master Settings</title>
+    <title>RIZENIC ERP - Admin Control Panel</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style type="text/tailwindcss">
@@ -11,173 +11,147 @@
         body { font-family: 'Kanit', sans-serif; background-color: #f4f6f9; }
         .bg-rizenic-green { background-color: #00320D; }
         .text-rizenic-green { color: #00320D; }
-        .card-container { @apply bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden; }
-        .admin-panel { display: none; animation: fadeIn 0.2s ease-in-out; } 
-        .admin-panel.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-        .minimal-input {
-            @apply w-full px-3 py-2 bg-[#e8f6ed] border-2 border-[#00320D]/40 rounded-lg outline-none transition-all duration-200 text-sm font-bold text-[#00320D] focus:bg-white focus:border-[#00320D] placeholder-[#00320D]/50;
-        }
-        .label-text { @apply flex items-center gap-1.5 text-[13px] font-bold text-slate-700 mb-1.5; }
         .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+        
+        .minimal-input { @apply w-full px-3 py-2 bg-white border border-slate-300 rounded outline-none text-sm font-bold text-[#00320D] focus:border-[#00320D] shadow-sm; }
+        .admin-panel { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .admin-panel.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .label-text { @apply flex items-center gap-1 text-[12px] font-bold text-slate-500 mb-1 tracking-wide uppercase; }
+        
+        .nav-btn { @apply w-full text-left px-4 py-3 rounded-lg font-bold text-sm text-slate-400 hover:bg-[#004a1f] hover:text-white transition-all mb-1 flex items-center gap-3; }
+        .nav-btn.active { @apply bg-[#004a1f] text-white shadow-inner; }
     </style>
 </head>
-<body class="text-slate-800 min-h-screen selection:bg-[#00320D] selection:text-white">
-    <header class="bg-rizenic-green text-white shadow-md sticky top-0 z-50">
-        <div class="max-w-[1500px] mx-auto px-4 py-3 flex justify-between items-center">
-            <div class="flex items-center gap-3"><i class="fa-solid fa-sliders text-xl"></i><h1 class="text-lg font-bold tracking-wider">RIZENIC <span class="text-amber-400 font-black">ADMIN</span></h1></div>
-            <nav class="flex items-center gap-3">
-                <div class="text-right border-r border-green-700 pr-4">
-                    <p class="text-xs font-bold text-white" id="display_emp_name">Admin Name</p>
-                    <p class="text-[10px] text-green-300">สิทธิ์: <span id="display_role" class="font-medium text-white">Role</span></p>
-                </div>
-                <div class="flex flex-wrap gap-1">
-                    <a href="dashboard.html" class="px-3.5 py-2 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium text-xs transition">แดชบอร์ด</a>
-                    <a href="index.html" class="px-3.5 py-2 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium text-xs transition">เปิดบิลซ่อม</a>
-                    <button class="px-3.5 py-2 rounded bg-white text-[#00320D] font-bold shadow-sm text-xs border border-transparent">แอดมิน (Master)</button>
-                    <button onclick="logout()" class="px-2.5 py-2 text-white hover:text-red-400 text-xs transition"><i class="fa-solid fa-power-off"></i></button>
-                </div>
-            </nav>
+<body class="text-slate-800 flex h-screen overflow-hidden selection:bg-[#00320D] selection:text-white">
+
+    <!-- 🗄️ Sidebar Navigation -->
+    <aside class="w-64 bg-[#00320D] text-white flex flex-col h-full shrink-0 shadow-xl z-20">
+        <div class="p-6 border-b border-green-800 mb-4 text-center">
+            <div class="w-16 h-16 mx-auto bg-white rounded-xl flex items-center justify-center mb-3 shadow-lg"><i class="fa-solid fa-sliders text-3xl text-[#00320D]"></i></div>
+            <h1 class="text-xl font-black tracking-wider text-white">ADMIN <span class="text-green-400">PANEL</span></h1>
+            <p class="text-[10px] text-green-300 mt-1">RIZENIC ERP Control Center</p>
         </div>
-    </header>
+        <div class="px-3 flex-1 overflow-y-auto custom-scrollbar">
+            <button onclick="switchPanel('emp-panel')" id="btn-emp-panel" class="nav-btn active"><i class="fa-solid fa-users w-5 text-center"></i> จัดการพนักงาน</button>
+            <button onclick="switchPanel('car-panel')" id="btn-car-panel" class="nav-btn"><i class="fa-solid fa-car w-5 text-center"></i> รุ่นรถยนต์</button>
+            <button onclick="switchPanel('ins-panel')" id="btn-ins-panel" class="nav-btn"><i class="fa-solid fa-shield-halved w-5 text-center"></i> ประกันภัย</button>
+            <button onclick="switchPanel('ctype-panel')" id="btn-ctype-panel" class="nav-btn"><i class="fa-solid fa-user-tag w-5 text-center"></i> ประเภทลูกค้า</button>
+            <button onclick="switchPanel('status-panel')" id="btn-status-panel" class="nav-btn"><i class="fa-solid fa-tags w-5 text-center"></i> สเตตัสอะไหล่ (PO)</button>
+            <button onclick="switchPanel('quota-panel')" id="btn-quota-panel" class="nav-btn"><i class="fa-solid fa-chart-pie w-5 text-center"></i> โควต้าสาขา</button>
+        </div>
+        <div class="p-4 border-t border-green-800">
+            <a href="index.html" class="w-full block text-center py-2.5 bg-white text-[#00320D] font-bold text-sm rounded-lg hover:bg-slate-200 transition mb-2">กลับหน้า SA</a>
+            <button onclick="logout()" class="w-full text-center py-2 text-red-400 text-xs hover:text-white transition">ออกจากระบบ</button>
+        </div>
+    </aside>
 
-    <main class="max-w-[1500px] mx-auto px-4 py-6">
-        <div class="card-container flex flex-col md:flex-row min-h-[750px]">
-            <!-- 📁 Sidebar เมนู -->
-            <div class="w-full md:w-64 bg-slate-50 border-r border-slate-200 p-5 flex flex-col gap-2">
-                <h3 class="text-slate-400 text-[11px] font-black uppercase tracking-widest mb-2 px-2">Master Settings</h3>
-                <button onclick="showAdminPanel('quota-panel')" id="btn-quota-panel" class="text-left px-4 py-3 rounded-lg bg-white text-rizenic-green font-bold text-sm flex items-center gap-3 border border-[#00320D] shadow-sm"><i class="fa-solid fa-calendar-check w-5 text-center"></i> โควต้ารายวัน</button>
-                <button onclick="showAdminPanel('bodypart-panel')" id="btn-bodypart-panel" class="text-left px-4 py-3 rounded-lg text-slate-600 hover:bg-white border border-transparent text-sm flex items-center gap-3 font-bold"><i class="fa-solid fa-spray-can w-5 text-center"></i> ชิ้นส่วนซ่อมสี</button>
-                <button onclick="showAdminPanel('part-panel')" id="btn-part-panel" class="text-left px-4 py-3 rounded-lg text-slate-600 hover:bg-white border border-transparent text-sm flex items-center gap-3 font-bold"><i class="fa-solid fa-cogs w-5 text-center"></i> คลังอะไหล่ตั้งต้น</button>
-                <button onclick="showAdminPanel('emp-panel')" id="btn-emp-panel" class="text-left px-4 py-3 rounded-lg text-slate-600 hover:bg-white border border-transparent text-sm flex items-center gap-3 font-bold"><i class="fa-solid fa-users-gear w-5 text-center"></i> พนักงาน</button>
-                <button onclick="showAdminPanel('car-panel')" id="btn-car-panel" class="text-left px-4 py-3 rounded-lg text-slate-600 hover:bg-white border border-transparent text-sm flex items-center gap-3 font-bold"><i class="fa-solid fa-car w-5 text-center"></i> รุ่นรถยนต์</button>
-                <button onclick="showAdminPanel('ins-panel')" id="btn-ins-panel" class="text-left px-4 py-3 rounded-lg text-slate-600 hover:bg-white border border-transparent text-sm flex items-center gap-3 font-bold"><i class="fa-solid fa-shield-halved w-5 text-center"></i> ประกันภัย</button>
-                <button onclick="showAdminPanel('custype-panel')" id="btn-custype-panel" class="text-left px-4 py-3 rounded-lg text-slate-600 hover:bg-white border border-transparent text-sm flex items-center gap-3 font-bold"><i class="fa-solid fa-address-card w-5 text-center"></i> ประเภทลูกค้า</button>
-            </div>
+    <!-- 💻 Main Content -->
+    <main class="flex-1 overflow-y-auto custom-scrollbar bg-slate-100 p-6 md:p-10">
+        <div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-8 min-h-[80vh]">
             
-            <!-- 🖥️ แผงเนื้อหา -->
-            <div class="flex-1 p-6 bg-white overflow-y-auto custom-scrollbar max-h-[85vh]">
-                
-                <!-- 🎯 1. แผงโควต้า -->
-                <div id="quota-panel" class="admin-panel active">
-                    <h2 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2"><i class="fa-solid fa-calendar-check text-rizenic-green mr-2"></i> จัดการโควต้าประจำวันสาขา</h2>
-                    <div class="bg-slate-50 p-5 rounded-xl border mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-4 items-end shadow-sm">
-                        <input type="hidden" id="edit_quota_id">
-                        <div class="md:col-span-2"><label class="label-text">รูปแบบโควต้า</label><select id="quota_type" class="minimal-input" onchange="toggleQuotaDate()"><option value="default">⭐ ค่ามาตรฐาน (ใช้ทุกวัน)</option><option value="special">📅 กรณีพิเศษ</option></select></div>
-                        <div id="quota_date_wrapper" class="hidden md:col-span-2"><label class="label-text">ประจำวันที่</label><input type="date" id="quota_date" class="minimal-input font-mono"></div>
-                        <div class="md:col-span-2"><label class="label-text">เลือกสาขา</label><select id="quota_branch" class="minimal-input"></select></div>
-                        <div class="md:col-span-2"><label class="label-text text-blue-700">เข้าจอดอู่ (คัน)</label><input type="number" id="quota_arrived" class="minimal-input font-bold text-center" value="0"></div>
-                        <div class="md:col-span-2"><label class="label-text text-amber-600">กำหนดซ่อมเสร็จ (คัน)</label><input type="number" id="quota_target" class="minimal-input font-bold text-center" value="0"></div>
-                        <div class="md:col-span-2"><label class="label-text text-green-700">ส่งมอบรถ (คัน)</label><input type="number" id="quota_delivery" class="minimal-input font-bold text-center" value="0"></div>
-                        <div class="md:col-span-6 flex gap-2 mt-2">
-                            <button onclick="saveQuota()" id="btn_save_quota" class="px-6 py-2.5 bg-[#00320D] text-white font-bold rounded-lg text-sm shadow hover:bg-black transition"><i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกโควต้า</button>
-                            <button onclick="resetQuotaForm()" class="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50 transition">ล้างฟอร์ม</button>
-                        </div>
+            <!-- 👥 1. จัดการพนักงาน -->
+            <div id="emp-panel" class="admin-panel active">
+                <h2 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2"><i class="fa-solid fa-users text-rizenic-green mr-2"></i> จัดการข้อมูลพนักงานและสิทธิ์</h2>
+                <div class="bg-slate-50 p-5 rounded-xl border mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 items-end shadow-sm">
+                    <input type="hidden" id="edit_emp_id">
+                    <div><label class="label-text">รหัสพนักงาน</label><input type="text" id="emp_code_input" class="minimal-input uppercase"></div>
+                    <div><label class="label-text">ชื่อ - นามสกุล</label><input type="text" id="emp_name_input" class="minimal-input"></div>
+                    <div>
+                        <label class="label-text">ตำแหน่ง (Role)</label>
+                        <select id="emp_role_input" class="minimal-input">
+                            <option value="SA">Service Advisor (SA)</option><option value="Parts">Parts (แผนกอะไหล่)</option>
+                            <option value="Technician">ช่างซ่อม</option><option value="Manager">ผู้จัดการสาขา</option><option value="Admin">แอดมินระบบ</option>
+                        </select>
                     </div>
-                    <div class="overflow-x-auto border rounded-lg shadow-sm">
-                        <table class="w-full text-left text-sm border-collapse whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3">รูปแบบ</th><th class="p-3">วันที่</th><th class="p-3">สาขา</th><th class="p-3 text-center text-blue-700">เข้าจอด</th><th class="p-3 text-center text-amber-600">เสร็จ</th><th class="p-3 text-center text-green-700">ส่งมอบ</th><th class="p-3 text-center">จัดการ</th></tr></thead><tbody id="quota_table_body" class="divide-y divide-slate-100"></tbody></table>
-                    </div>
-                </div>
-
-                <!-- 🎨 2. แผงชิ้นส่วนซ่อมสี (Body Parts) - ของใหม่! -->
-                <div id="bodypart-panel" class="admin-panel">
-                    <h2 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2"><i class="fa-solid fa-spray-can text-amber-600 mr-2"></i> ฐานข้อมูลชิ้นส่วนตัวถัง/ซ่อมสี (Body Parts Master)</h2>
-                    <div class="bg-slate-50 p-5 rounded-xl border mb-6 flex gap-4 items-end flex-wrap shadow-sm">
-                        <input type="hidden" id="edit_bodypart_id">
-                        <div><label class="label-text">หมวดหมู่</label><select id="bodypart_category_input" class="minimal-input w-48"><option value="ชิ้นส่วนหลัก">ชิ้นส่วนหลัก</option><option value="ชิ้นส่วนรอง">ชิ้นส่วนรอง</option></select></div>
-                        <div><label class="label-text">ชื่อชิ้นส่วน</label><input type="text" id="bodypart_name_input" class="minimal-input w-64" placeholder="เช่น กันชนหน้า, ประตู..."></div>
-                        <button onclick="saveBodyPart()" id="btn_save_bodypart" class="px-6 py-2.5 bg-[#00320D] text-white font-bold rounded-lg text-sm shadow hover:bg-black transition"><i class="fa-solid fa-plus mr-1"></i> เพิ่ม Master</button>
-                        <button onclick="resetBodyPartForm()" class="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50 transition">ล้างฟอร์ม</button>
-                    </div>
-                    <div class="overflow-x-auto border rounded-lg shadow-sm">
-                        <table class="w-full text-left text-sm border-collapse whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3">ID</th><th class="p-3">หมวดหมู่</th><th class="p-3">ชื่อชิ้นส่วนตัวถัง</th><th class="p-3 text-center">จัดการ</th></tr></thead><tbody id="bodypart_table_body" class="divide-y divide-slate-100"></tbody></table>
+                    <div><label class="label-text">สาขา</label><select id="emp_branch_input" class="minimal-input"><option value="สำนักงานใหญ่">สำนักงานใหญ่</option><option value="สาขารามอินทรา">สาขารามอินทรา</option><option value="สาขาบางนา">สาขาบางนา</option></select></div>
+                    <div><label class="label-text">Username (สำหรับ Login)</label><input type="text" id="emp_user_input" class="minimal-input font-mono"></div>
+                    <div><label class="label-text">Password</label><input type="password" id="emp_pass_input" class="minimal-input font-mono"></div>
+                    <div class="md:col-span-3 flex gap-2 mt-2">
+                        <button onclick="saveEmp()" id="btn_save_emp" class="px-6 py-2.5 bg-[#00320D] text-white font-bold rounded-lg text-sm shadow hover:bg-black transition"><i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกพนักงาน</button>
+                        <button onclick="resetEmpForm()" class="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50 transition">ล้างฟอร์ม</button>
                     </div>
                 </div>
-
-                <!-- ⚙️ 3. แผงอะไหล่ตั้งต้น (Spare Parts) -->
-                <div id="part-panel" class="admin-panel">
-                    <h2 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2"><i class="fa-solid fa-cogs text-rizenic-green mr-2"></i> ฐานข้อมูลอะไหล่ Master (สำหรับงานจัดซื้อ)</h2>
-                    <div class="bg-slate-50 p-5 rounded-xl border mb-6 flex gap-4 items-end flex-wrap shadow-sm">
-                        <input type="hidden" id="edit_part_id">
-                        <div><label class="label-text">หมวดหมู่</label><select id="part_category_input" class="minimal-input w-48"><option value="ชิ้นส่วนหลัก">ชิ้นส่วนหลัก</option><option value="ชิ้นส่วนรอง">ชิ้นส่วนรอง</option></select></div>
-                        <div><label class="label-text">หมายเลขอะไหล่ (Part No.)</label><input type="text" id="part_no_input" class="minimal-input w-48 font-mono"></div>
-                        <div><label class="label-text">ชื่ออะไหล่</label><input type="text" id="part_name_input" class="minimal-input w-64"></div>
-                        <button onclick="savePart()" id="btn_save_part" class="px-6 py-2.5 bg-[#00320D] text-white font-bold rounded-lg text-sm shadow hover:bg-black transition"><i class="fa-solid fa-plus mr-1"></i> เพิ่ม Master</button>
-                        <button onclick="resetPartForm()" class="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50 transition">ล้างฟอร์ม</button>
-                    </div>
-                    <div class="overflow-x-auto border rounded-lg shadow-sm">
-                        <table class="w-full text-left text-sm border-collapse whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3">Part No.</th><th class="p-3">หมวดหมู่</th><th class="p-3">ชื่ออะไหล่</th><th class="p-3 text-center">จัดการ</th></tr></thead><tbody id="part_table_body" class="divide-y divide-slate-100"></tbody></table>
-                    </div>
-                </div>
-
-                <!-- 👥 4. แผงพนักงาน -->
-                <div id="emp-panel" class="admin-panel">
-                    <h2 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2"><i class="fa-solid fa-users-gear text-slate-600 mr-2"></i> จัดการบัญชีรายชื่อพนักงาน</h2>
-                    <div class="bg-slate-50 p-5 rounded-xl border mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 items-end shadow-sm">
-                        <input type="hidden" id="edit_emp_id">
-                        <div><label class="label-text">รหัส</label><input type="text" id="emp_code" class="minimal-input"></div>
-                        <div><label class="label-text">ชื่อ-นามสกุล</label><input type="text" id="emp_name" class="minimal-input"></div>
-                        <div><label class="label-text">ตำแหน่ง</label><input list="role_list" id="emp_role" class="minimal-input"><datalist id="role_list"></datalist></div>
-                        <div><label class="label-text">สาขา</label><input list="branch_list" id="emp_branch" class="minimal-input"><datalist id="branch_list"></datalist></div>
-                        <div><label class="label-text">Username</label><input type="text" id="emp_user" class="minimal-input font-mono"></div>
-                        <div><label class="label-text">Password</label><input type="text" id="emp_pass" class="minimal-input font-mono"></div>
-                        <div class="md:col-span-3 flex gap-2 mt-2">
-                            <button onclick="saveEmployee()" id="btn_save_emp" class="px-6 py-2.5 bg-[#00320D] text-white font-bold rounded-lg text-sm shadow hover:bg-black transition"><i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกพนักงาน</button>
-                            <button onclick="resetEmpForm()" class="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50 transition">ล้างฟอร์ม</button>
-                        </div>
-                    </div>
-                    <div class="overflow-x-auto border rounded-lg shadow-sm">
-                        <table class="w-full text-left text-sm border-collapse whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3">สาขา</th><th class="p-3">ชื่อ</th><th class="p-3">ตำแหน่ง</th><th class="p-3">Username</th><th class="p-3 text-center">จัดการ</th></tr></thead><tbody id="emp_table_body" class="divide-y divide-slate-100"></tbody></table>
-                    </div>
-                </div>
-
-                <!-- 🚗 5. แผงรุ่นรถ -->
-                <div id="car-panel" class="admin-panel">
-                    <h2 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2"><i class="fa-solid fa-car text-slate-600 mr-2"></i> จัดการรุ่นรถยนต์</h2>
-                    <div class="bg-slate-50 p-5 rounded-xl border mb-6 flex gap-4 items-end shadow-sm">
-                        <input type="hidden" id="edit_car_id">
-                        <div><label class="label-text">ยี่ห้อ (Brand)</label><input type="text" id="car_brand_input" class="minimal-input"></div>
-                        <div><label class="label-text">รุ่นรถ (Model)</label><input type="text" id="car_model_input" class="minimal-input"></div>
-                        <button onclick="saveCarModel()" id="btn_save_car" class="px-6 py-2.5 bg-[#00320D] text-white font-bold rounded-lg text-sm shadow hover:bg-black transition"><i class="fa-solid fa-floppy-disk mr-1"></i> บันทึก</button>
-                        <button onclick="resetCarForm()" class="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50 transition">ล้างฟอร์ม</button>
-                    </div>
-                    <div class="overflow-x-auto border rounded-lg shadow-sm">
-                        <table class="w-full text-left text-sm border-collapse whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3">ยี่ห้อ</th><th class="p-3">รุ่นรถ</th><th class="p-3 text-center">จัดการ</th></tr></thead><tbody id="car_table_body" class="divide-y divide-slate-100"></tbody></table>
-                    </div>
-                </div>
-
-                <!-- 🛡️ 6. ประกันภัย -->
-                <div id="ins-panel" class="admin-panel">
-                    <h2 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2"><i class="fa-solid fa-shield-halved text-slate-600 mr-2"></i> จัดการบริษัทประกันภัย</h2>
-                    <div class="bg-slate-50 p-5 rounded-xl border mb-6 flex gap-4 items-end shadow-sm">
-                        <input type="hidden" id="edit_ins_id">
-                        <div><label class="label-text">รหัส</label><input type="text" id="ins_code" class="minimal-input w-24 font-mono"></div>
-                        <div><label class="label-text">ชื่อประกัน</label><input type="text" id="ins_name" class="minimal-input w-64"></div>
-                        <div><label class="label-text">ประเภท</label><input type="text" id="ins_type" class="minimal-input"></div>
-                        <button onclick="saveInsurance()" id="btn_save_ins" class="px-6 py-2.5 bg-[#00320D] text-white font-bold rounded-lg text-sm shadow hover:bg-black transition"><i class="fa-solid fa-floppy-disk mr-1"></i> บันทึก</button>
-                        <button onclick="resetInsForm()" class="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50 transition">ล้างฟอร์ม</button>
-                    </div>
-                    <div class="overflow-x-auto border rounded-lg shadow-sm">
-                        <table class="w-full text-left text-sm border-collapse whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3">รหัส</th><th class="p-3">ชื่อประกัน</th><th class="p-3">ประเภท</th><th class="p-3 text-center">จัดการ</th></tr></thead><tbody id="ins_table_body" class="divide-y divide-slate-100"></tbody></table>
-                    </div>
-                </div>
-
-                <!-- 👥 7. ประเภทลูกค้า -->
-                <div id="custype-panel" class="admin-panel">
-                    <h2 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2"><i class="fa-solid fa-address-card text-slate-600 mr-2"></i> จัดการประเภทลูกค้า</h2>
-                    <div class="bg-slate-50 p-5 rounded-xl border mb-6 flex gap-4 items-end shadow-sm">
-                        <input type="hidden" id="edit_custype_id">
-                        <div><label class="label-text">ชื่อประเภทลูกค้า</label><input type="text" id="custype_name" class="minimal-input w-64"></div>
-                        <button onclick="saveCustomerType()" id="btn_save_custype" class="px-6 py-2.5 bg-[#00320D] text-white font-bold rounded-lg text-sm shadow hover:bg-black transition"><i class="fa-solid fa-floppy-disk mr-1"></i> บันทึก</button>
-                        <button onclick="resetCustypeForm()" class="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50 transition">ล้างฟอร์ม</button>
-                    </div>
-                    <div class="overflow-x-auto border rounded-lg shadow-sm">
-                        <table class="w-full text-left text-sm border-collapse whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3">รหัส Database</th><th class="p-3">ชื่อประเภทลูกค้า</th><th class="p-3 text-center">จัดการ</th></tr></thead><tbody id="custype_table_body" class="divide-y divide-slate-100"></tbody></table>
-                    </div>
-                </div>
-
+                <div class="overflow-x-auto border rounded-lg shadow-sm"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3">รหัสพนักงาน</th><th class="p-3">ชื่อ-นามสกุล</th><th class="p-3">ตำแหน่ง</th><th class="p-3">สาขา</th><th class="p-3">Username</th><th class="p-3 text-center">จัดการ</th></tr></thead><tbody id="emp_table_body" class="divide-y divide-slate-100"></tbody></table></div>
             </div>
+
+            <!-- 🚗 2. รุ่นรถยนต์ -->
+            <div id="car-panel" class="admin-panel">
+                <h2 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2"><i class="fa-solid fa-car text-rizenic-green mr-2"></i> ฐานข้อมูลยี่ห้อและรุ่นรถยนต์</h2>
+                <div class="bg-slate-50 p-5 rounded-xl border mb-6 grid grid-cols-1 md:grid-cols-2 gap-4 items-end shadow-sm">
+                    <input type="hidden" id="edit_car_id">
+                    <div><label class="label-text">ยี่ห้อรถ (Brand)</label><input type="text" id="car_brand_input" class="minimal-input" placeholder="เช่น Tesla"></div>
+                    <div><label class="label-text">รุ่นรถ (Model)</label><input type="text" id="car_model_input" class="minimal-input" placeholder="เช่น Model 3"></div>
+                    <div class="md:col-span-2 flex gap-2 mt-2">
+                        <button onclick="saveCar()" id="btn_save_car" class="px-6 py-2.5 bg-[#00320D] text-white font-bold rounded-lg text-sm shadow hover:bg-black"><i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกรุ่นรถ</button>
+                        <button onclick="resetCarForm()" class="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50">ล้างฟอร์ม</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto border rounded-lg shadow-sm"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3">ยี่ห้อรถ</th><th class="p-3">รุ่นรถ</th><th class="p-3 text-center">จัดการ</th></tr></thead><tbody id="car_table_body" class="divide-y divide-slate-100"></tbody></table></div>
+            </div>
+
+            <!-- 🛡️ 3. ประกันภัย -->
+            <div id="ins-panel" class="admin-panel">
+                <h2 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2"><i class="fa-solid fa-shield-halved text-rizenic-green mr-2"></i> ฐานข้อมูลบริษัทประกันภัย</h2>
+                <div class="bg-slate-50 p-5 rounded-xl border mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 items-end shadow-sm">
+                    <input type="hidden" id="edit_ins_id">
+                    <div><label class="label-text">รหัสประกัน</label><input type="text" id="ins_code_input" class="minimal-input uppercase font-mono" placeholder="INS-01"></div>
+                    <div><label class="label-text">ชื่อบริษัทประกัน</label><input type="text" id="ins_name_input" class="minimal-input"></div>
+                    <div><label class="label-text">ประเภทประกัน</label><input type="text" id="ins_type_input" class="minimal-input" placeholder="เช่น ซ่อมห้าง / ซ่อมอู่"></div>
+                    <div class="md:col-span-3 flex gap-2 mt-2">
+                        <button onclick="saveIns()" id="btn_save_ins" class="px-6 py-2.5 bg-[#00320D] text-white font-bold rounded-lg text-sm shadow hover:bg-black"><i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกประกันภัย</button>
+                        <button onclick="resetInsForm()" class="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50">ล้างฟอร์ม</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto border rounded-lg shadow-sm"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3 font-mono">รหัส</th><th class="p-3">บริษัทประกันภัย</th><th class="p-3">ประเภท</th><th class="p-3 text-center">จัดการ</th></tr></thead><tbody id="ins_table_body" class="divide-y divide-slate-100"></tbody></table></div>
+            </div>
+
+            <!-- 👥 4. ประเภทลูกค้า -->
+            <div id="ctype-panel" class="admin-panel">
+                <h2 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2"><i class="fa-solid fa-user-tag text-rizenic-green mr-2"></i> ฐานข้อมูลประเภทลูกค้า</h2>
+                <div class="bg-slate-50 p-5 rounded-xl border mb-6 flex flex-col md:flex-row gap-4 items-end shadow-sm">
+                    <input type="hidden" id="edit_ctype_id">
+                    <div class="flex-1 w-full"><label class="label-text">ชื่อประเภทลูกค้า (เช่น Walk-in, Fleet, VIP)</label><input type="text" id="ctype_name_input" class="minimal-input"></div>
+                    <div class="flex gap-2 w-full md:w-auto mt-2">
+                        <button onclick="saveCtype()" id="btn_save_ctype" class="px-6 py-2.5 bg-[#00320D] text-white font-bold rounded-lg text-sm shadow hover:bg-black"><i class="fa-solid fa-floppy-disk mr-1"></i> บันทึก</button>
+                        <button onclick="resetCtypeForm()" class="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50">ล้างฟอร์ม</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto border rounded-lg shadow-sm"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3 font-mono w-32">รหัส</th><th class="p-3">ชื่อประเภทลูกค้า</th><th class="p-3 text-center w-32">จัดการ</th></tr></thead><tbody id="ctype_table_body" class="divide-y divide-slate-100"></tbody></table></div>
+            </div>
+
+            <!-- 🏷️ 5. สเตตัสอะไหล่ (สำหรับแผนกอะไหล่เอาไปใช้ดรอปดาวน์) -->
+            <div id="status-panel" class="admin-panel">
+                <h2 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2"><i class="fa-solid fa-tags text-rizenic-green mr-2"></i> ตั้งค่าสเตตัสออเดอร์อะไหล่ (PO Status)</h2>
+                <div class="bg-slate-50 p-5 rounded-xl border mb-6 flex flex-col md:flex-row gap-4 items-end shadow-sm">
+                    <div class="flex-1 w-full"><label class="label-text">ข้อความสถานะ (เช่น รอสั่งซื้อ, อะไหล่มาครบแล้ว)</label><input type="text" id="part_status_name_input" class="minimal-input"></div>
+                    <div class="flex gap-2 w-full md:w-auto mt-2">
+                        <button onclick="savePartStatus()" class="px-6 py-2.5 bg-[#00320D] text-white font-bold rounded-lg text-sm shadow hover:bg-black"><i class="fa-solid fa-plus mr-1"></i> เพิ่มสถานะ</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto border rounded-lg shadow-sm"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3 w-16 text-center">ID</th><th class="p-3">ข้อความสถานะที่นำไปแสดงในดรอปดาวน์แผนกอะไหล่</th><th class="p-3 text-center w-32">ลบ</th></tr></thead><tbody id="status_table_body" class="divide-y divide-slate-100"></tbody></table></div>
+            </div>
+
+            <!-- 📈 6. โควต้าสาขา -->
+            <div id="quota-panel" class="admin-panel">
+                <h2 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2"><i class="fa-solid fa-chart-pie text-rizenic-green mr-2"></i> ตั้งเป้าหมาย/โควต้า (Quota)</h2>
+                <div class="bg-slate-50 p-5 rounded-xl border mb-6 grid grid-cols-1 md:grid-cols-4 gap-4 items-end shadow-sm">
+                    <input type="hidden" id="edit_quota_id">
+                    <div><label class="label-text">ประเภทเป้าหมาย</label><select id="quota_type_input" class="minimal-input" onchange="toggleQuotaDate()"><option value="default">เป้าหมายประจำวัน (ตั้งต้น)</option><option value="special">เป้าหมายวันพิเศษ (ระบุวันที่)</option></select></div>
+                    <div><label class="label-text">วันที่ (เฉพาะวันพิเศษ)</label><input type="date" id="quota_date_input" class="minimal-input font-mono bg-slate-100" disabled></div>
+                    <div><label class="label-text">สาขา</label><select id="quota_branch_input" class="minimal-input"><option value="สำนักงานใหญ่">สำนักงานใหญ่</option><option value="สาขารามอินทรา">สาขารามอินทรา</option><option value="สาขาบางนา">สาขาบางนา</option></select></div>
+                    <div><label class="label-text text-blue-600">เป้ารถเข้าซ่อม (คัน)</label><input type="number" id="quota_arrived_input" class="minimal-input font-bold" value="0"></div>
+                    <div><label class="label-text text-amber-600">เป้าซ่อมเสร็จ (คัน)</label><input type="number" id="quota_target_input" class="minimal-input font-bold" value="0"></div>
+                    <div><label class="label-text text-green-600">เป้าส่งมอบลูกค้า (คัน)</label><input type="number" id="quota_delivery_input" class="minimal-input font-bold" value="0"></div>
+                    <div class="md:col-span-2 flex justify-end gap-2 mt-2">
+                        <button onclick="saveQuota()" id="btn_save_quota" class="px-6 py-2.5 bg-[#00320D] text-white font-bold rounded-lg text-sm shadow hover:bg-black w-full"><i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกโควต้า</button>
+                        <button onclick="resetQuotaForm()" class="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50 w-1/3">ล้างฟอร์ม</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto border rounded-lg shadow-sm"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3">ประเภท</th><th class="p-3">สาขา</th><th class="p-3">วันที่ (ถ้ามี)</th><th class="p-3 text-center text-blue-600">รถเข้า</th><th class="p-3 text-center text-amber-600">ซ่อมเสร็จ</th><th class="p-3 text-center text-green-600">ส่งมอบ</th><th class="p-3 text-center">จัดการ</th></tr></thead><tbody id="quota_table_body" class="divide-y divide-slate-100"></tbody></table></div>
+            </div>
+
         </div>
     </main>
 
@@ -185,158 +159,98 @@
         const API_BASE_URL = window.location.origin;
 
         document.addEventListener('DOMContentLoaded', () => {
-            const role = sessionStorage.getItem('emp_role');
-            if(sessionStorage.getItem('isLoggedIn') !== 'true' || !['BA','Manager','Admin','แอดมิน'].includes(role)) {
-                alert('🚨 สิทธิ์เข้าถึงเฉพาะผู้ดูแลระบบ!'); window.location.href = 'index.html'; return;
-            }
-            document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name');
-            document.getElementById('display_role').innerText = role;
-
-            loadAdminQuotas();
-            loadAdminBodyParts(); // โหลด Master Body Parts
-            loadAdminParts();
-            loadAdminEmployees();
-            loadAdminCarModels();
-            loadAdminInsurances();
-            loadAdminCustomerTypes();
+            if(sessionStorage.getItem('isLoggedIn') !== 'true' || !['BA','Manager','Admin','แอดมิน'].includes(sessionStorage.getItem('emp_role'))) { alert('ไม่มีสิทธิ์เข้าถึงหน้า Admin!'); window.location.href = 'index.html'; return; }
+            loadAllData();
         });
 
         function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
 
-        function showAdminPanel(panelId) {
-            document.querySelectorAll('.admin-panel').forEach(el => el.classList.remove('active')); 
+        function switchPanel(panelId) {
+            document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('active'));
             document.getElementById(panelId).classList.add('active');
-            
-            ['btn-quota-panel', 'btn-bodypart-panel', 'btn-part-panel', 'btn-emp-panel', 'btn-car-panel', 'btn-ins-panel', 'btn-custype-panel'].forEach(id => {
-                if(document.getElementById(id)) document.getElementById(id).className = "text-left px-4 py-3 rounded-lg text-slate-600 hover:bg-white border border-transparent text-sm flex items-center gap-3 font-bold";
-            });
-            document.getElementById('btn-' + panelId).className = "text-left px-4 py-3 rounded-lg bg-white text-rizenic-green font-bold border border-[#00320D] shadow-sm text-sm flex items-center gap-3";
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('btn-' + panelId).classList.add('active');
         }
 
-        async function deleteData(url, reloadCallback) { 
-            if(confirm('🚨 ยืนยันการลบข้อมูลถาวร?')){ await fetch(`${API_BASE_URL}${url}`, {method: 'DELETE'}); reloadCallback(); } 
+        async function deleteData(url, reloadFunction) { if(confirm('🚨 ยืนยันการลบข้อมูลถาวร?')) { await fetch(API_BASE_URL + url, {method: 'DELETE'}); reloadFunction(); } }
+
+        async function loadAllData() { loadEmp(); loadCar(); loadIns(); loadCtype(); loadPartStatus(); loadQuota(); }
+
+        // ================= 1. พนักงาน =================
+        async function loadEmp() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/employees`); const data = await res.json();
+                document.getElementById('emp_table_body').innerHTML = data.map(e => `<tr><td class="p-3 font-mono">${e.employee_code||'-'}</td><td class="p-3 font-bold">${e.employee_name}</td><td class="p-3 text-slate-500">${e.employee_role}</td><td class="p-3 text-slate-500">${e.branch_name||'-'}</td><td class="p-3 font-mono text-blue-600">${e.username}</td><td class="p-3 text-center"><button onclick="editEmp('${e.employee_id}','${e.employee_code||''}','${e.employee_name}','${e.employee_role}','${e.branch_name}','${e.username}','${e.password}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteData('/api/employees/${e.employee_id}', loadEmp)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
+            } catch(e){}
+        }
+        function editEmp(id, code, name, role, branch, user, pass) {
+            document.getElementById('edit_emp_id').value = id; document.getElementById('emp_code_input').value = code; document.getElementById('emp_name_input').value = name; document.getElementById('emp_role_input').value = role; document.getElementById('emp_branch_input').value = branch; document.getElementById('emp_user_input').value = user; document.getElementById('emp_pass_input').value = pass;
+            document.getElementById('btn_save_emp').innerHTML = '<i class="fa-solid fa-pen-to-square mr-1"></i> อัปเดตพนักงาน'; document.getElementById('btn_save_emp').classList.replace('bg-[#00320D]', 'bg-blue-600');
+        }
+        function resetEmpForm() { document.getElementById('edit_emp_id').value = ''; document.getElementById('emp_code_input').value = ''; document.getElementById('emp_name_input').value = ''; document.getElementById('emp_user_input').value = ''; document.getElementById('emp_pass_input').value = ''; document.getElementById('btn_save_emp').innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกพนักงาน'; document.getElementById('btn_save_emp').classList.replace('bg-blue-600', 'bg-[#00320D]'); }
+        async function saveEmp() {
+            const id = document.getElementById('edit_emp_id').value;
+            const payload = { employee_code: document.getElementById('emp_code_input').value, employee_name: document.getElementById('emp_name_input').value, employee_role: document.getElementById('emp_role_input').value, branch_name: document.getElementById('emp_branch_input').value, username: document.getElementById('emp_user_input').value, password: document.getElementById('emp_pass_input').value };
+            await fetch(`${API_BASE_URL}${id ? '/api/employees/'+id : '/api/employees'}`, { method: id ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }); resetEmpForm(); loadEmp();
         }
 
-        // ================= 🎯 1. โควต้า =================
-        function toggleQuotaDate() {
-            const type = document.getElementById('quota_type').value; const wrapper = document.getElementById('quota_date_wrapper');
-            if(type === 'special') wrapper.classList.remove('hidden'); else { wrapper.classList.add('hidden'); document.getElementById('quota_date').value = ''; }
+        // ================= 2. รุ่นรถยนต์ =================
+        async function loadCar() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/car-models`); const data = await res.json();
+                document.getElementById('car_table_body').innerHTML = data.map(c => `<tr><td class="p-3 font-bold">${c.car_brand}</td><td class="p-3">${c.car_model}</td><td class="p-3 text-center"><button onclick="editCar('${c.model_id}', '${c.car_brand}', '${c.car_model}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteData('/api/car-models/${c.model_id}', loadCar)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
+            } catch(e){}
         }
-        async function loadAdminQuotas() {
+        function editCar(id, brand, model) { document.getElementById('edit_car_id').value = id; document.getElementById('car_brand_input').value = brand; document.getElementById('car_model_input').value = model; document.getElementById('btn_save_car').innerHTML = '<i class="fa-solid fa-pen-to-square mr-1"></i> อัปเดต'; document.getElementById('btn_save_car').classList.replace('bg-[#00320D]', 'bg-blue-600'); }
+        function resetCarForm() { document.getElementById('edit_car_id').value = ''; document.getElementById('car_brand_input').value = ''; document.getElementById('car_model_input').value = ''; document.getElementById('btn_save_car').innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกรุ่นรถ'; document.getElementById('btn_save_car').classList.replace('bg-blue-600', 'bg-[#00320D]'); }
+        async function saveCar() { const id = document.getElementById('edit_car_id').value; await fetch(`${API_BASE_URL}${id ? '/api/car-models/'+id : '/api/car-models'}`, { method: id ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ car_brand: document.getElementById('car_brand_input').value, car_model: document.getElementById('car_model_input').value }) }); resetCarForm(); loadCar(); }
+
+        // ================= 3. ประกันภัย =================
+        async function loadIns() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/insurances`); const data = await res.json();
+                document.getElementById('ins_table_body').innerHTML = data.map(i => `<tr><td class="p-3 font-mono text-slate-500">${i.insurance_code||'-'}</td><td class="p-3 font-bold">${i.insurance_name}</td><td class="p-3">${i.insurance_type||'-'}</td><td class="p-3 text-center"><button onclick="editIns('${i.insurance_code}', '${i.insurance_name}', '${i.insurance_type||''}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteData('/api/insurances/${i.insurance_code}', loadIns)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
+            } catch(e){}
+        }
+        function editIns(code, name, type) { document.getElementById('edit_ins_id').value = code; document.getElementById('ins_code_input').value = code; document.getElementById('ins_code_input').readOnly = true; document.getElementById('ins_name_input').value = name; document.getElementById('ins_type_input').value = type; document.getElementById('btn_save_ins').innerHTML = '<i class="fa-solid fa-pen-to-square mr-1"></i> อัปเดต'; document.getElementById('btn_save_ins').classList.replace('bg-[#00320D]', 'bg-blue-600'); }
+        function resetInsForm() { document.getElementById('edit_ins_id').value = ''; document.getElementById('ins_code_input').value = ''; document.getElementById('ins_code_input').readOnly = false; document.getElementById('ins_name_input').value = ''; document.getElementById('ins_type_input').value = ''; document.getElementById('btn_save_ins').innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกประกันภัย'; document.getElementById('btn_save_ins').classList.replace('bg-blue-600', 'bg-[#00320D]'); }
+        async function saveIns() { const id = document.getElementById('edit_ins_id').value; await fetch(`${API_BASE_URL}${id ? '/api/insurances/'+id : '/api/insurances'}`, { method: id ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ insurance_code: document.getElementById('ins_code_input').value, insurance_name: document.getElementById('ins_name_input').value, insurance_type: document.getElementById('ins_type_input').value }) }); resetInsForm(); loadIns(); }
+
+        // ================= 4. ประเภทลูกค้า =================
+        async function loadCtype() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/customer-types`); const data = await res.json();
+                document.getElementById('ctype_table_body').innerHTML = data.map(c => `<tr><td class="p-3 font-mono text-slate-500">${c.type_code||'-'}</td><td class="p-3 font-bold">${c.type_name}</td><td class="p-3 text-center"><button onclick="editCtype('${c.customer_type_id}', '${c.type_name}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteData('/api/customer-types/${c.customer_type_id}', loadCtype)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
+            } catch(e){}
+        }
+        function editCtype(id, name) { document.getElementById('edit_ctype_id').value = id; document.getElementById('ctype_name_input').value = name; document.getElementById('btn_save_ctype').innerHTML = '<i class="fa-solid fa-pen-to-square mr-1"></i> อัปเดต'; document.getElementById('btn_save_ctype').classList.replace('bg-[#00320D]', 'bg-blue-600'); }
+        function resetCtypeForm() { document.getElementById('edit_ctype_id').value = ''; document.getElementById('ctype_name_input').value = ''; document.getElementById('btn_save_ctype').innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> บันทึก'; document.getElementById('btn_save_ctype').classList.replace('bg-blue-600', 'bg-[#00320D]'); }
+        async function saveCtype() { const id = document.getElementById('edit_ctype_id').value; await fetch(`${API_BASE_URL}${id ? '/api/customer-types/'+id : '/api/customer-types'}`, { method: id ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ type_name: document.getElementById('ctype_name_input').value }) }); resetCtypeForm(); loadCtype(); }
+
+        // ================= 5. สเตตัสอะไหล่ =================
+        async function loadPartStatus() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/part-statuses`); const data = await res.json();
+                document.getElementById('status_table_body').innerHTML = data.map(s => `<tr><td class="p-3 text-center font-mono text-slate-500">${s.status_id}</td><td class="p-3 font-bold text-amber-700">${s.status_name}</td><td class="p-3 text-center"><button onclick="deleteData('/api/part-statuses/${s.status_id}', loadPartStatus)" class="text-red-400 hover:text-red-600 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
+            } catch(e){}
+        }
+        async function savePartStatus() {
+            const name = document.getElementById('part_status_name_input').value; if(!name) return;
+            await fetch(`${API_BASE_URL}/api/part-statuses`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ status_name: name }) });
+            document.getElementById('part_status_name_input').value = ''; loadPartStatus();
+        }
+
+        // ================= 6. โควต้า =================
+        function toggleQuotaDate() { const t = document.getElementById('quota_type_input').value; const d = document.getElementById('quota_date_input'); if(t==='special'){ d.disabled=false; d.classList.remove('bg-slate-100'); } else { d.disabled=true; d.classList.add('bg-slate-100'); d.value=''; } }
+        async function loadQuota() {
             try {
                 const res = await fetch(`${API_BASE_URL}/api/quotas`); const data = await res.json();
-                document.getElementById('quota_table_body').innerHTML = data.map(q => `<tr class="hover:bg-slate-50 transition"><td class="p-3">${q.quota_type==='special'?'<span class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs font-bold">กรณีพิเศษ</span>':'<span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold">มาตรฐาน</span>'}</td><td class="p-3 font-mono">${q.quota_date?q.quota_date.split('T')[0]:'ใช้ทุกวัน'}</td><td class="p-3 font-bold">${q.branch_name}</td><td class="p-3 text-center text-blue-600 font-bold">${q.quota_arrived}</td><td class="p-3 text-center text-amber-500 font-bold">${q.quota_target}</td><td class="p-3 text-center text-green-600 font-bold">${q.quota_delivery}</td><td class="p-3 text-center"><button onclick="editQuota('${q.id}', '${q.quota_type}', '${q.quota_date}', '${q.branch_name}', '${q.quota_arrived}', '${q.quota_target}', '${q.quota_delivery}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteData('/api/quotas/${q.id}', loadAdminQuotas)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
-            } catch (err) { console.error(err); }
+                document.getElementById('quota_table_body').innerHTML = data.map(q => `<tr><td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-bold ${q.quota_type==='default'?'bg-slate-200 text-slate-700':'bg-blue-100 text-blue-700'}">${q.quota_type==='default'?'ประจำวัน':'วันพิเศษ'}</span></td><td class="p-3 font-bold">${q.branch_name}</td><td class="p-3 font-mono">${q.quota_date?q.quota_date.split('T')[0]:'-'}</td><td class="p-3 text-center font-bold text-blue-600">${q.quota_arrived}</td><td class="p-3 text-center font-bold text-amber-600">${q.quota_target}</td><td class="p-3 text-center font-bold text-green-600">${q.quota_delivery}</td><td class="p-3 text-center"><button onclick="editQuota('${q.id}','${q.quota_type}','${q.quota_date?q.quota_date.split('T')[0]:''}','${q.branch_name}','${q.quota_arrived}','${q.quota_target}','${q.quota_delivery}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteData('/api/quotas/${q.id}', loadQuota)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
+            } catch(e){}
         }
-        function editQuota(id, type, date, branch, arr, tar, del) {
-            document.getElementById('edit_quota_id').value = id; document.getElementById('quota_type').value = type; toggleQuotaDate();
-            if(date && date!=='null') document.getElementById('quota_date').value = date.split('T')[0]; document.getElementById('quota_branch').value = branch;
-            document.getElementById('quota_arrived').value = arr; document.getElementById('quota_target').value = tar; document.getElementById('quota_delivery').value = del;
-            document.getElementById('btn_save_quota').innerHTML = '<i class="fa-solid fa-pen-to-square mr-1"></i> บันทึกอัปเดต'; document.getElementById('btn_save_quota').classList.replace('bg-[#00320D]', 'bg-blue-600');
-        }
-        function resetQuotaForm() {
-            document.getElementById('edit_quota_id').value = ''; document.getElementById('quota_type').value = 'default'; toggleQuotaDate();
-            document.getElementById('quota_arrived').value = '0'; document.getElementById('quota_target').value = '0'; document.getElementById('quota_delivery').value = '0';
-            document.getElementById('btn_save_quota').innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกโควต้า'; document.getElementById('btn_save_quota').classList.replace('bg-blue-600', 'bg-[#00320D]');
-        }
-        async function saveQuota() {
-            const id = document.getElementById('edit_quota_id').value;
-            const payload = { quota_type: document.getElementById('quota_type').value, quota_date: document.getElementById('quota_type').value === 'special' ? document.getElementById('quota_date').value : null, branch_name: document.getElementById('quota_branch').value, quota_arrived: parseInt(document.getElementById('quota_arrived').value)||0, quota_target: parseInt(document.getElementById('quota_target').value)||0, quota_delivery: parseInt(document.getElementById('quota_delivery').value)||0 };
-            const m = id ? 'PUT' : 'POST'; const u = id ? `/api/quotas/${id}` : '/api/quotas';
-            await fetch(`${API_BASE_URL}${u}`, { method: m, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-            resetQuotaForm(); loadAdminQuotas();
-        }
-
-        // ================= 🎨 2. ชิ้นส่วนซ่อมสี (Body Parts) =================
-        async function loadAdminBodyParts() {
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/body-parts`); const data = await res.json();
-                document.getElementById('bodypart_table_body').innerHTML = data.map(p => `<tr class="hover:bg-slate-50 transition"><td class="p-3 text-slate-500 font-mono">${p.id}</td><td class="p-3 font-bold ${p.category==='ชิ้นส่วนหลัก'?'text-blue-600':'text-amber-600'}">${p.category}</td><td class="p-3 font-bold">${p.part_name}</td><td class="p-3 text-center"><button onclick="editBodyPart('${p.id}', '${p.category}', '${p.part_name}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteData('/api/body-parts/${p.id}', loadAdminBodyParts)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
-            } catch(e) { console.log("Body Parts Table Error (Needs Backend API)"); }
-        }
-        function editBodyPart(id, cat, name) {
-            document.getElementById('edit_bodypart_id').value = id; document.getElementById('bodypart_category_input').value = cat; document.getElementById('bodypart_name_input').value = name;
-            document.getElementById('btn_save_bodypart').innerHTML = '<i class="fa-solid fa-pen-to-square mr-1"></i> อัปเดต'; document.getElementById('btn_save_bodypart').classList.replace('bg-[#00320D]', 'bg-blue-600');
-        }
-        function resetBodyPartForm() {
-            document.getElementById('edit_bodypart_id').value = ''; document.getElementById('bodypart_name_input').value = '';
-            document.getElementById('btn_save_bodypart').innerHTML = '<i class="fa-solid fa-plus mr-1"></i> เพิ่ม Master'; document.getElementById('btn_save_bodypart').classList.replace('bg-blue-600', 'bg-[#00320D]');
-        }
-        async function saveBodyPart() {
-            const id = document.getElementById('edit_bodypart_id').value;
-            const payload = { category: document.getElementById('bodypart_category_input').value, part_name: document.getElementById('bodypart_name_input').value };
-            if(!payload.part_name) return alert('⚠️ กรุณากรอกชื่อชิ้นส่วน');
-            const m = id ? 'PUT' : 'POST'; const u = id ? `/api/body-parts/${id}` : '/api/body-parts';
-            await fetch(`${API_BASE_URL}${u}`, { method: m, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-            resetBodyPartForm(); loadAdminBodyParts();
-        }
-
-        // ================= ⚙️ 3. อะไหล่ตั้งต้น (Spare Parts) =================
-        async function loadAdminParts() {
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/parts`); const data = await res.json();
-                document.getElementById('part_table_body').innerHTML = data.map(p => `<tr class="hover:bg-slate-50 transition"><td class="p-3 text-blue-600 font-mono font-bold">${p.part_no||'-'}</td><td class="p-3 font-medium">${p.part_category}</td><td class="p-3 font-bold">${p.part_name}</td><td class="p-3 text-center"><button onclick="editPart('${p.part_id}', '${p.part_no||''}', '${p.part_category}', '${p.part_name}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteData('/api/parts/${p.part_id}', loadAdminParts)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
-            } catch(e) {}
-        }
-        function editPart(id, no, cat, name) {
-            document.getElementById('edit_part_id').value = id; document.getElementById('part_no_input').value = no; document.getElementById('part_category_input').value = cat; document.getElementById('part_name_input').value = name;
-            document.getElementById('btn_save_part').innerHTML = '<i class="fa-solid fa-pen-to-square mr-1"></i> อัปเดต'; document.getElementById('btn_save_part').classList.replace('bg-[#00320D]', 'bg-blue-600');
-        }
-        function resetPartForm() {
-            document.getElementById('edit_part_id').value = ''; document.getElementById('part_no_input').value = ''; document.getElementById('part_name_input').value = '';
-            document.getElementById('btn_save_part').innerHTML = '<i class="fa-solid fa-plus mr-1"></i> เพิ่ม Master'; document.getElementById('btn_save_part').classList.replace('bg-blue-600', 'bg-[#00320D]');
-        }
-        async function savePart() {
-            const id = document.getElementById('edit_part_id').value;
-            const payload = { part_no: document.getElementById('part_no_input').value, part_category: document.getElementById('part_category_input').value, part_name: document.getElementById('part_name_input').value };
-            const m = id ? 'PUT' : 'POST'; const u = id ? `/api/parts/${id}` : '/api/parts';
-            await fetch(`${API_BASE_URL}${u}`, { method: m, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-            resetPartForm(); loadAdminParts();
-        }
-
-        // ================= 👥 4. พนักงาน =================
-        async function loadAdminEmployees() {
-            const res = await fetch(`${API_BASE_URL}/api/employees`); const data = await res.json();
-            document.getElementById('emp_table_body').innerHTML = data.map(e => `<tr class="hover:bg-slate-50 transition"><td class="p-3 font-bold">${e.branch_name}</td><td class="p-3 text-rizenic-green font-bold">${e.employee_name} <span class="text-slate-400 font-normal text-[10px]">(${e.employee_code})</span></td><td class="p-3 font-medium">${e.employee_role}</td><td class="p-3 font-mono text-slate-500">${e.username}</td><td class="p-3 text-center"><button onclick="editEmployee('${e.employee_id}','${e.employee_code}','${e.employee_name}','${e.employee_role}','${e.branch_name}','${e.username}','${e.password}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteData('/api/employees/${e.employee_id}', loadAdminEmployees)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
-            const branches = [...new Set(data.map(e => e.branch_name))];
-            document.getElementById('quota_branch').innerHTML = '<option value="">-- เลือกสาขา --</option>' + branches.map(b => `<option value="${b}">${b}</option>`).join('');
-            document.getElementById('branch_list').innerHTML = branches.map(b => `<option value="${b}">`).join('');
-            document.getElementById('role_list').innerHTML = [...new Set(data.map(e => e.employee_role))].map(r => `<option value="${r}">`).join('');
-        }
-        function editEmployee(id, code, name, role, branch, user, pass) {
-            document.getElementById('edit_emp_id').value=id; document.getElementById('emp_code').value=code; document.getElementById('emp_name').value=name; document.getElementById('emp_role').value=role!=='null'?role:''; document.getElementById('emp_branch').value=branch!=='null'?branch:''; document.getElementById('emp_user').value=user!=='null'?user:''; document.getElementById('emp_pass').value=pass!=='null'?pass:'';
-            document.getElementById('btn_save_emp').innerHTML = '<i class="fa-solid fa-pen-to-square mr-1"></i> อัปเดต'; document.getElementById('btn_save_emp').classList.replace('bg-[#00320D]', 'bg-blue-600');
-        }
-        function resetEmpForm() {
-            document.getElementById('edit_emp_id').value=''; document.getElementById('emp_code').value=''; document.getElementById('emp_name').value=''; document.getElementById('emp_role').value=''; document.getElementById('emp_branch').value=''; document.getElementById('emp_user').value=''; document.getElementById('emp_pass').value='';
-            document.getElementById('btn_save_emp').innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกพนักงาน'; document.getElementById('btn_save_emp').classList.replace('bg-blue-600', 'bg-[#00320D]');
-        }
-        async function saveEmployee() {
-            const id = document.getElementById('edit_emp_id').value;
-            const payload = { employee_code: document.getElementById('emp_code').value, employee_name: document.getElementById('emp_name').value, employee_role: document.getElementById('emp_role').value, branch_name: document.getElementById('emp_branch').value, username: document.getElementById('emp_user').value, password: document.getElementById('emp_pass').value };
-            if(!payload.employee_name || !payload.username) return alert('กรอกชื่อและรหัสเข้าสู่ระบบให้ครบ');
-            const m = id ? 'PUT' : 'POST'; const u = id ? `/api/employees/${id}` : '/api/employees';
-            await fetch(`${API_BASE_URL}${u}`, { method: m, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-            resetEmpForm(); loadAdminEmployees();
-        }
-
-        // ================= 🚗 5. รุ่นรถ =================
-        async function loadAdminCarModels() { const data = await (await fetch(`${API_BASE_URL}/api/car-models`)).json(); document.getElementById('car_table_body').innerHTML = data.map(c => `<tr class="hover:bg-slate-50 transition"><td class="p-3 font-bold">${c.car_brand}</td><td class="p-3 font-medium">${c.car_model}</td><td class="p-3 text-center"><button onclick="editCarModel('${c.model_id}', '${c.car_brand}', '${c.car_model}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteData('/api/car-models/${c.model_id}', loadAdminCarModels)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`).join(''); }
-        function editCarModel(id, b, m) { document.getElementById('edit_car_id').value=id; document.getElementById('car_brand_input').value=b; document.getElementById('car_model_input').value=m; document.getElementById('btn_save_car').innerHTML='<i class="fa-solid fa-pen-to-square mr-1"></i> อัปเดต'; document.getElementById('btn_save_car').classList.replace('bg-[#00320D]', 'bg-blue-600'); }
-        function resetCarForm() { document.getElementById('edit_car_id').value=''; document.getElementById('car_brand_input').value=''; document.getElementById('car_model_input').value=''; document.getElementById('btn_save_car').innerHTML='<i class="fa-solid fa-floppy-disk mr-1"></i> บันทึก'; document.getElementById('btn_save_car').classList.replace('bg-blue-600', 'bg-[#00320D]'); }
-        async function saveCarModel() { const id = document.getElementById('edit_car_id').value; const m = id ? 'PUT' : 'POST'; const u = id ? `/api/car-models/${id}` : '/api/car-models'; await fetch(`${API_BASE_URL}${u}`, {method:m, headers:{'Content-Type':'application/json'}, body:JSON.stringify({ car_brand: document.getElementById('car_brand_input').value, car_model: document.getElementById('car_model_input').value })}); resetCarForm(); loadAdminCarModels(); }
-        
-        // ================= 🛡️ 6. ประกันภัย =================
-        async function loadAdminInsurances() { const data = await (await fetch(`${API_BASE_URL}/api/insurances`)).json(); document.getElementById('ins_table_body').innerHTML = data.map(i => `<tr class="hover:bg-slate-50 transition"><td class="p-3 font-mono text-slate-500 font-bold">${i.insurance_code}</td><td class="p-3 font-bold">${i.insurance_name}</td><td class="p-3">${i.insurance_type}</td><td class="p-3 text-center"><button onclick="editInsurance('${i.insurance_code}', '${i.insurance_name}', '${i.insurance_type}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteData('/api/insurances/${i.insurance_code}', loadAdminInsurances)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`).join(''); }
-        function editInsurance(c, n, t) { document.getElementById('edit_ins_id').value=c; document.getElementById('ins_code').value=c; document.getElementById('ins_code').disabled=true; document.getElementById('ins_name').value=n; document.getElementById('ins_type').value=t; document.getElementById('btn_save_ins').innerHTML='<i class="fa-solid fa-pen-to-square mr-1"></i> อัปเดต'; document.getElementById('btn_save_ins').classList.replace('bg-[#00320D]', 'bg-blue-600'); }
-        function resetInsForm() { document.getElementById('edit_ins_id').value=''; document.getElementById('ins_code').value=''; document.getElementById('ins_code').disabled=false; document.getElementById('ins_name').value=''; document.getElementById('ins_type').value=''; document.getElementById('btn_save_ins').innerHTML='<i class="fa-solid fa-floppy-disk mr-1"></i> บันทึก'; document.getElementById('btn_save_ins').classList.replace('bg-blue-600', 'bg-[#00320D]'); }
-        async function saveInsurance() { const id = document.getElementById('edit_ins_id').value; const c = document.getElementById('ins_code').value; const m = id ? 'PUT' : 'POST'; const u = id ? `/api/insurances/${c}` : '/api/insurances'; await fetch(`${API_BASE_URL}${u}`, {method:m, headers:{'Content-Type':'application/json'}, body:JSON.stringify({ insurance_code: c, insurance_name: document.getElementById('ins_name').value, insurance_type: document.getElementById('ins_type').value })}); resetInsForm(); loadAdminInsurances(); }
-        
-        // ================= 👥 7. ประเภทลูกค้า =================
-        async function loadAdminCustomerTypes() { const data = await (await fetch(`${API_BASE_URL}/api/customer-types`)).json(); document.getElementById('custype_table_body').innerHTML = data.map(i => `<tr class="hover:bg-slate-50 transition"><td class="p-3 text-slate-500 font-mono">${i.customer_type_id}</td><td class="p-3 font-bold">${i.type_name}</td><td class="p-3 text-center"><button onclick="editCustType('${i.customer_type_id}', '${i.type_name}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteData('/api/customer-types/${i.customer_type_id}', loadAdminCustomerTypes)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`).join(''); }
-        function editCustType(id, n) { document.getElementById('edit_custype_id').value=id; document.getElementById('custype_name').value=n; document.getElementById('btn_save_custype').innerHTML='<i class="fa-solid fa-pen-to-square mr-1"></i> อัปเดต'; document.getElementById('btn_save_custype').classList.replace('bg-[#00320D]', 'bg-blue-600'); }
-        function resetCustypeForm() { document.getElementById('edit_custype_id').value=''; document.getElementById('custype_name').value=''; document.getElementById('btn_save_custype').innerHTML='<i class="fa-solid fa-floppy-disk mr-1"></i> บันทึก'; document.getElementById('btn_save_custype').classList.replace('bg-blue-600', 'bg-[#00320D]'); }
-        async function saveCustomerType() { const id = document.getElementById('edit_custype_id').value; const m = id ? 'PUT' : 'POST'; const u = id ? `/api/customer-types/${id}` : '/api/customer-types'; await fetch(`${API_BASE_URL}${u}`, {method:m, headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type_name: document.getElementById('custype_name').value })}); resetCustypeForm(); loadAdminCustomerTypes(); }
+        function editQuota(id, type, date, branch, arr, tgt, del) { document.getElementById('edit_quota_id').value = id; document.getElementById('quota_type_input').value = type; toggleQuotaDate(); if(type==='special') document.getElementById('quota_date_input').value = date; document.getElementById('quota_branch_input').value = branch; document.getElementById('quota_arrived_input').value = arr; document.getElementById('quota_target_input').value = tgt; document.getElementById('quota_delivery_input').value = del; document.getElementById('btn_save_quota').innerHTML = '<i class="fa-solid fa-pen-to-square mr-1"></i> อัปเดต'; document.getElementById('btn_save_quota').classList.replace('bg-[#00320D]', 'bg-blue-600'); }
+        function resetQuotaForm() { document.getElementById('edit_quota_id').value = ''; document.getElementById('quota_type_input').value = 'default'; toggleQuotaDate(); document.getElementById('quota_arrived_input').value = 0; document.getElementById('quota_target_input').value = 0; document.getElementById('quota_delivery_input').value = 0; document.getElementById('btn_save_quota').innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกโควต้า'; document.getElementById('btn_save_quota').classList.replace('bg-blue-600', 'bg-[#00320D]'); }
+        async function saveQuota() { const id = document.getElementById('edit_quota_id').value; await fetch(`${API_BASE_URL}${id ? '/api/quotas/'+id : '/api/quotas'}`, { method: id ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ quota_type: document.getElementById('quota_type_input').value, quota_date: document.getElementById('quota_date_input').value, branch_name: document.getElementById('quota_branch_input').value, quota_arrived: document.getElementById('quota_arrived_input').value, quota_target: document.getElementById('quota_target_input').value, quota_delivery: document.getElementById('quota_delivery_input').value }) }); resetQuotaForm(); loadQuota(); }
     </script>
 </body>
 </html>
