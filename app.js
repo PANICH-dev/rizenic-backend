@@ -536,3 +536,23 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 module.exports = app;
+// 🛠️ ลบออเดอร์ PO (ลบแบบถาวร)
+app.delete('/api/part-orders/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM rizenic_part_orders WHERE order_id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 🛠️ แก้ไขบาร์โค้ด ชื่อ และยอดสั่ง ในออเดอร์ PO
+app.put('/api/part-orders/:id', async (req, res) => {
+  try {
+    const { part_no, part_main_no, part_name, qty_ordered } = req.body;
+    await pool.query(`
+      UPDATE rizenic_part_orders 
+      SET part_no=$1, part_main_no=$2, part_name=$3, qty_ordered=$4 
+      WHERE order_id=$5
+    `, [part_no, part_main_no || null, part_name, qty_ordered, req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
