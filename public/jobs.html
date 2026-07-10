@@ -3,208 +3,303 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RIZENIC ERP - Job Tracking Dashboard</title>
+    <title>RIZENIC ERP - Job Tracking Board (Excel View)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Noto Sans Thai', sans-serif; }
+    
+    <style type="text/tailwindcss">
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Kanit', sans-serif; background-color: #f4f6f9; overflow: hidden; }
+        
+        .bg-rizenic-green { background-color: #00320D; }
+        .text-rizenic-green { color: #00320D; }
+        
+        /* สไตล์ Scrollbar สำหรับตารางใหญ่ */
+        .custom-scrollbar::-webkit-scrollbar { height: 10px; width: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* สไตล์ตาราง Excel */
+        .excel-table { @apply w-full text-left border-collapse whitespace-nowrap text-[12px]; }
+        .excel-table th { @apply px-3 py-2 bg-[#00320D] text-white border border-slate-400 font-bold sticky top-0 z-10 shadow-sm align-middle; }
+        .excel-table td { @apply px-3 py-1.5 border border-slate-300 text-slate-700 align-middle; }
+        .excel-table tr:nth-child(even) { @apply bg-slate-50; }
+        .excel-table tr:hover { @apply bg-green-50; }
+        
+        .minimal-input { @apply px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none text-sm font-bold text-[#00320D] focus:border-[#00320D] focus:ring-2 focus:ring-green-500/20 shadow-sm; }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen">
+<body class="text-slate-800 h-screen flex flex-col selection:bg-[#00320D] selection:text-white">
 
-    <div class="max-w-7xl mx-auto px-4 py-8">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 border-b border-gray-700 pb-4">
+    <header class="bg-rizenic-green text-white shadow-md z-50 shrink-0">
+        <div class="px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-3">
-                <i class="fa-solid fa-table-list text-3xl text-green-500"></i>
-                <div>
-                    <h1 class="text-3xl font-bold tracking-wider text-white">ระบบติดตามสถานะงานซ่อม</h1>
-                    <p class="text-xs text-gray-400 mt-1">สิทธิ์เข้าถึง: <span id="user_role_display" class="text-amber-400 font-bold">-</span> | พนักงาน: <span id="user_name_display" class="text-cyan-400">-</span></p>
+                <i class="fa-solid fa-table-list text-white text-xl"></i>
+                <h1 class="text-lg font-bold tracking-wider">RIZENIC <span class="text-amber-400 font-black">TRACKING</span></h1>
+            </div>
+            
+            <nav class="flex flex-col sm:flex-row items-center gap-3">
+                <div class="text-right border-r border-green-700 pr-4">
+                    <p class="text-xs font-bold text-white" id="display_emp_name">Staff Name</p>
+                    <p class="text-[10px] text-green-300">สาขา: <span id="display_branch">Branch</span></p>
                 </div>
-            </div>
-            <a href="index.html" class="px-5 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-xl font-semibold border border-gray-700 transition flex items-center gap-2">
-                <i class="fa-solid fa-file-invoice"></i> กลับหน้าเปิดบิล
-            </a>
+                <div class="flex flex-wrap gap-1" id="nav-buttons">
+                    <a href="dashboard.html" class="px-3 py-1.5 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium text-xs transition">แดชบอร์ด</a>
+                    <a href="index.html" class="px-3 py-1.5 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium text-xs transition">เปิดบิลซ่อม</a>
+                    <button class="px-3 py-1.5 rounded bg-white text-[#00320D] font-bold shadow-sm text-xs transition">บอร์ดใบงาน</button>
+                    <a href="repair.html" class="px-3 py-1.5 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium text-xs transition">สถานีช่าง</a>
+                    <a href="parts.html" class="px-3 py-1.5 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium text-xs transition">แผนกอะไหล่</a>
+                    <button onclick="logout()" class="px-2 py-1.5 text-white hover:text-red-400 text-xs transition"><i class="fa-solid fa-power-off"></i></button>
+                </div>
+            </nav>
         </div>
+    </header>
 
-        <div class="bg-gray-800 p-6 rounded-2xl border border-gray-700 mb-8 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-            <div>
-                <label class="text-xs text-gray-400 block mb-1">ค้นหาด่วน (ชื่อลูกค้า/รุ่นรถ/VIN)</label>
-                <input type="text" id="search_input" oninput="filterJobs()" class="w-full p-2.5 bg-gray-900 border border-gray-600 rounded-xl text-white text-sm outline-none focus:border-green-500" placeholder="พิมพ์เพื่อค้นหา...">
+    <div class="bg-white border-b border-slate-200 p-3 shrink-0 shadow-sm z-40 flex flex-wrap gap-3 items-center justify-between">
+        <div class="flex flex-wrap gap-3 items-center w-full lg:w-auto">
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-filter"></i> ค้นหา:</span>
+                <input type="text" id="search_input" onkeyup="applyFilters()" class="minimal-input w-48" placeholder="ทะเบียน, ชื่อลูกค้า, EPC...">
             </div>
-            <div>
-                <label class="text-xs text-gray-400 block mb-1">กรองตามสถานะงาน (12 สเตป)</label>
-                <select id="status_filter" onchange="filterJobs()" class="w-full p-2.5 bg-gray-900 border border-gray-600 rounded-xl text-white text-sm outline-none focus:border-green-500">
-                    <option value="">-- ทุกสถานะ --</option>
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-slate-500 uppercase">สาขา:</span>
+                <select id="filter_branch" onchange="applyFilters()" class="minimal-input w-40">
+                    <option value="ALL">-- ทุกสาขา --</option>
                 </select>
             </div>
-            <div>
-                <label class="text-xs text-gray-400 block mb-1">กรองตามสาขา</label>
-                <select id="branch_filter" onchange="filterJobs()" class="w-full p-2.5 bg-gray-900 border border-gray-600 rounded-xl text-white text-sm outline-none focus:border-green-500">
-                    <option value="">-- ทุกสาขา --</option>
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-slate-500 uppercase">สถานะงานซ่อม:</span>
+                <select id="filter_status" onchange="applyFilters()" class="minimal-input w-48">
+                    <option value="ALL">-- ทุกสถานะ --</option>
+                    <option value="01.ติดต่อสอบถาม">01.ติดต่อสอบถาม</option>
+                    <option value="02.รอเสนอประกัน">02.รอเสนอประกัน</option>
+                    <option value="03.รอประกันอนุมัติ">03.รอประกันอนุมัติ</option>
+                    <option value="04.รอลูกค้าอนุมัติ (เงินสด)">04.รอลูกค้าอนุมัติ (เงินสด)</option>
+                    <option value="05.อนุมัติแล้ว">05.อนุมัติแล้ว</option>
+                    <option value="06.สั่งอะไหล่">06.สั่งอะไหล่</option>
+                    <option value="07.รอนัดหมายเข้าซ่อม">07.รอนัดหมายเข้าซ่อม</option>
+                    <option value="08.นัดหมายแล้วรอเข้าซ่อม">08.นัดหมายแล้วรอเข้าซ่อม</option>
+                    <option value="09.จอดรอเข้าซ่อม">09.จอดรอเข้าซ่อม</option>
+                    <option value="10.กำลังซ่อม">10.กำลังซ่อม</option>
+                    <option value="11.รถซ่อมเสร็จรอส่งมอบ">11.รถซ่อมเสร็จรอส่งมอบ</option>
+                    <option value="12.ส่งมอบแล้ว">12.ส่งมอบแล้ว</option>
                 </select>
             </div>
-            <div>
-                <button onclick="fetchJobList()" class="w-full py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl shadow-lg transition duration-200 flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-rotate"></i> รีเฟรชรายการ
-                </button>
-            </div>
         </div>
-
-        <div class="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden shadow-2xl">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse whitespace-nowrap">
-                    <thead class="bg-black/40 text-gray-400 text-xs uppercase tracking-wider">
-                        <tr class="border-b border-gray-700">
-                            <th class="p-4">สาขา</th>
-                            <th class="p-4">สถานะปัจจุบัน</th>
-                            <th class="p-4">ข้อมูลตัวรถ / VIN</th>
-                            <th class="p-4">ชื่อลูกค้า / เบอร์โทร</th>
-                            <th class="p-4">ประกันภัย / ลูกค้า</th>
-                            <th class="p-4">ความเสียหาย</th>
-                            <th class="p-4">พนักงานรับรถ</th>
-                            <th class="p-4 text-center">ปฏิบัติการ</th>
-                        </tr>
-                    </thead>
-                    <tbody id="job_table_body" class="text-sm text-gray-300 divide-y divide-gray-800">
-                        <tr>
-                            <td colspan="8" class="p-8 text-center text-gray-500">กำลังประมวลผลสิทธิ์พนักงานและโหลดข้อมูล...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+        <div class="flex items-center gap-3">
+            <span class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg border">พบข้อมูล: <span id="row_count" class="text-blue-600 font-black text-sm">0</span> รายการ</span>
+            <button onclick="loadJobsData()" class="px-4 py-2 bg-[#00320D] text-white font-bold rounded-lg text-xs shadow hover:bg-black transition"><i class="fa-solid fa-rotate-right mr-1"></i> รีเฟรช</button>
         </div>
     </div>
 
+    <main class="flex-1 overflow-auto custom-scrollbar bg-slate-100 p-2 relative">
+        <table class="excel-table" id="jobsTable">
+            <thead>
+                <tr>
+                    <th class="text-center bg-blue-900"><i class="fa-solid fa-pen-to-square"></i></th>
+                    <th>สาขา (Branch)</th>
+                    <th>สถานะงาน (Job Status)</th>
+                    <th class="bg-amber-600">ทะเบียนรถ</th>
+                    <th>วันที่ติดต่อ</th>
+                    <th>วันที่นัดหมาย/เข้าจอด</th>
+                    <th>กำหนดซ่อมเสร็จ</th>
+                    <th>ชื่อลูกค้า</th>
+                    <th>เบอร์โทร</th>
+                    <th>ประเภทลูกค้า</th>
+                    <th>ประกันภัย / เงินสด</th>
+                    <th>ยี่ห้อ</th>
+                    <th>รุ่นรถ</th>
+                    <th>เลขตัวถัง (VIN)</th>
+                    <th>ระดับความเสียหาย</th>
+                    <th>สถานะอะไหล่รวม</th>
+                    <th>EPC No.</th>
+                    <th>รายการอะไหล่ที่สั่ง</th>
+                    <th>วันที่สั่งอะไหล่</th>
+                    <th>คาดการณ์อะไหล่เข้า</th>
+                    <th>ชิ้นส่วนอะไหล่ (หลัก)</th>
+                    <th>จำนวน (หลัก)</th>
+                    <th>ชิ้นส่วนอะไหล่ (รอง)</th>
+                    <th>จำนวน (รอง)</th>
+                    <th class="text-right">ค่าแรง</th>
+                    <th class="text-right">ค่าอะไหล่</th>
+                    <th class="text-right">งานนอก</th>
+                    <th>วันที่เสร็จจริง</th>
+                    <th>วันที่ส่งมอบ</th>
+                    <th>หมายเหตุ (Notes)</th>
+                    <th>เลขที่ใบเสนอราคา (QT)</th>
+                    <th>เลขที่ใบสั่งซ่อม (SO)</th>
+                    <th>เลข IVN. / วางบิล (BL)</th>
+                    <th>SA ที่รับผิดชอบ</th>
+                </tr>
+            </thead>
+            <tbody id="jobs_table_body">
+                <tr><td colspan="34" class="text-center py-10 text-slate-400 font-mono text-sm">กำลังโหลดข้อมูล...</td></tr>
+            </tbody>
+        </table>
+    </main>
+
     <script>
         const API_BASE_URL = window.location.origin;
-        let allJobsData = []; 
-
-        // รายการสถานะซ่อมแซม 12 สเตปตามที่คุณ BA ลิสต์มาเป๊ะๆ
-        const rizenicStatuses = [
-            "01.ติดต่อสอบถาม", "02.รอเสนอประกัน", "03.รอประกันอนุมัติ", 
-            "04.รอลูกค้าอนุมัติ (เงินสด)", "05.อนุมัติแล้ว", "06.สั่งอะไหล่", 
-            "07.รอนัดหมายเข้าซ่อม", "08.นัดหมายแล้วรอเข้าซ่อม", "09.จอดรอเข้าซ่อม", 
-            "10.กำลังซ่อม", "11.รถซ่อมเสร็จรอส่งมอบ", "12.ส่งมอบแล้ว"
-        ];
+        let allJobsData = [];
+        let userRole = '';
+        let userBranch = '';
 
         document.addEventListener('DOMContentLoaded', () => {
-            // เช็กระบบล็อกอินความปลอดภัยหน้าบ้าน
-            if(sessionStorage.getItem('isLoggedIn') !== 'true') {
-                alert('🚨 กรุณาเข้าสู่ระบบก่อนครับ!');
-                window.location.href = 'index.html';
-                return;
+            if(sessionStorage.getItem('isLoggedIn') !== 'true') { window.location.href = 'index.html'; return; }
+            
+            document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name');
+            userRole = sessionStorage.getItem('emp_role');
+            userBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+            document.getElementById('display_branch').innerText = userBranch;
+
+            if (['BA','Manager','Admin','แอดมิน'].includes(userRole)) {
+                const nav = document.getElementById('nav-buttons');
+                const adminBtn = document.createElement('a'); adminBtn.href = "admin.html";
+                adminBtn.className = "px-3 py-1.5 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium text-xs transition";
+                adminBtn.innerHTML = '<i class="fa-solid fa-sliders mr-1"></i> แอดมิน';
+                nav.insertBefore(adminBtn, nav.lastElementChild);
             }
 
-            document.getElementById('user_role_display').innerText = sessionStorage.getItem('emp_role');
-            document.getElementById('user_name_display').innerText = sessionStorage.getItem('emp_name');
-
-            setupFilterDropdowns();
-            fetchJobList();
+            loadBranchesForFilter();
+            loadJobsData();
         });
 
-        // ยัดสเตปสถานะ 12 สเตปเข้าดร็อปดาวน์ตัวกรอง
-        function setupFilterDropdowns() {
-            const statusSelect = document.getElementById('status_filter');
-            rizenicStatuses.forEach(s => statusSelect.innerHTML += `<option value="${s}">${s}</option>`);
-        }
+        function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
 
-        async function fetchJobList() {
+        async function loadBranchesForFilter() {
             try {
-                const res = await fetch(`${API_BASE_URL}/api/reports`);
+                const res = await fetch(`${API_BASE_URL}/api/employees`);
                 const data = await res.json();
+                const branches = [...new Set(data.map(e => e.branch_name))];
+                const select = document.getElementById('filter_branch');
                 
-                const role = sessionStorage.getItem('emp_role');
-                const empName = sessionStorage.getItem('emp_name');
-                const empBranch = sessionStorage.getItem('emp_branch');
-
-                // 🔐 ระบบคัดกรองจัดสรรข้อมูลตามสิทธิ์พนักงาน (Data Isolation)
-                if (role === 'BA' || role === 'Manager' || role === 'Admin' || role === 'แอดมิน') {
-                    // สิทธิ์ผู้บริหารระดับสูง: โหลดขึ้นทั้งหมด ไม่มีค่าฟิลเตอร์เริ่มต้น
-                    allJobsData = data;
-                    buildBranchFilter(data, false);
+                if (['BA','Manager','Admin','แอดมิน'].includes(userRole)) {
+                    branches.forEach(b => select.innerHTML += `<option value="${b}">${b}</option>`);
                 } else {
-                    // สิทธิ์พนักงาน SA: ดึงเฉพาะข้อมูลสาขาตัวเอง และล็อกกรองเฉพาะชื่อตัวเองตั้งแต่เริ่มรันหน้าจอ!
-                    allJobsData = data.filter(job => job.branch_name === empBranch && job.sa_owner === empName);
-                    buildBranchFilter(allJobsData, true);
+                    select.innerHTML = `<option value="${userBranch}">${userBranch}</option>`;
+                    select.value = userBranch;
+                    select.disabled = true; // พนักงานทั่วไปดูกรองสาขาอื่นไม่ได้
                 }
+            } catch (e) { console.error(e); }
+        }
 
-                renderTable(allJobsData);
-            } catch (err) {
-                document.getElementById('job_table_body').innerHTML = `<tr><td colspan="8" class="p-8 text-center text-red-400">❌ ไม่สามารถดึงข้อมูลรายการได้</td></tr>`;
+        async function loadJobsData() {
+            try {
+                document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="34" class="text-center py-10 text-slate-400 font-mono">กำลังดึงข้อมูลฐานข้อมูล...</td></tr>`;
+                const res = await fetch(`${API_BASE_URL}/api/reports`);
+                allJobsData = await res.json();
+                applyFilters(); // เรียกฟิลเตอร์เพื่อเรนเดอร์ลงตาราง
+            } catch (error) {
+                document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="34" class="text-center py-10 text-red-500 font-bold">⚠️ ไม่สามารถเชื่อมต่อฐานข้อมูลได้</td></tr>`;
             }
         }
 
-        function buildBranchFilter(data, isLocked) {
-            const branchSelect = document.getElementById('branch_filter');
-            const uniqueBranches = [...new Set(data.map(j => j.branch_name).filter(Boolean))];
-            
-            if(isLocked) {
-                branchSelect.innerHTML = `<option value="${sessionStorage.getItem('emp_branch')}">${sessionStorage.getItem('emp_branch')}</option>`;
-                branchSelect.disabled = true;
-            } else {
-                branchSelect.innerHTML = '<option value="">-- ทุกสาขา --</option>';
-                uniqueBranches.forEach(b => branchSelect.innerHTML += `<option value="${b}">${b}</option>`);
-            }
+        function applyFilters() {
+            const searchTxt = document.getElementById('search_input').value.toLowerCase();
+            const branchFilter = document.getElementById('filter_branch').value;
+            const statusFilter = document.getElementById('filter_status').value;
+
+            const filteredData = allJobsData.filter(job => {
+                // กรองสาขา
+                if (branchFilter !== 'ALL' && job.branch_name !== branchFilter) return false;
+                
+                // กรองสถานะ
+                if (statusFilter !== 'ALL' && job.job_status !== statusFilter) return false;
+
+                // กรองข้อความค้นหา (ทะเบียน, ชื่อ, EPC)
+                if (searchTxt) {
+                    const matchPlate = (job.car_plate || '').toLowerCase().includes(searchTxt);
+                    const matchName = (job.customer_name || '').toLowerCase().includes(searchTxt);
+                    const matchEPC = (job.epc_no || '').toLowerCase().includes(searchTxt);
+                    if (!matchPlate && !matchName && !matchEPC) return false;
+                }
+                return true;
+            });
+
+            renderTable(filteredData);
+            document.getElementById('row_count').innerText = filteredData.length;
+        }
+
+        function formatDate(isoString) {
+            if (!isoString) return '-';
+            const d = new Date(isoString);
+            return d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        }
+
+        function formatCurrency(val) {
+            if (!val || val == 0) return '-';
+            return parseFloat(val).toLocaleString('th-TH', { minimumFractionDigits: 2 });
+        }
+
+        function goToEditJob(jobId) {
+            sessionStorage.setItem('edit_job_id', jobId);
+            window.location.href = 'index.html'; // โยนรหัสกลับไปหน้า SA
         }
 
         function renderTable(data) {
-            const tbody = document.getElementById('job_table_body');
-            if (!data || data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-gray-500">📭 ไม่พบรายการใบงานซ่อมตามสิทธิ์หรือตัวกรองที่เลือก</td></tr>`;
+            const tbody = document.getElementById('jobs_table_body');
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="34" class="text-center py-10 text-slate-400 font-mono">ไม่พบข้อมูลที่ตรงกับเงื่อนไขการค้นหา</td></tr>`;
                 return;
             }
 
             tbody.innerHTML = data.map(job => {
-                // สีสัญญาณไฟจราจรระดับความเสียหาย 🟢🟡🔴 ตามสั่ง
-                let damageBadge = '';
-                if(job.damage_level === 'เบา') damageBadge = '<span class="px-2.5 py-1 bg-green-900/40 text-green-400 border border-green-800 rounded-lg font-bold text-xs">🟢 เบา</span>';
-                else if(job.damage_level === 'กลาง') damageBadge = '<span class="px-2.5 py-1 bg-yellow-900/40 text-yellow-400 border border-yellow-800 rounded-lg font-bold text-xs">🟡 กลาง</span>';
-                else damageBadge = '<span class="px-2.5 py-1 bg-red-900/40 text-red-400 border border-red-800 rounded-lg font-bold text-xs">🔴 หนัก</span>';
+                // จัดสไตล์สีสถานะงาน
+                let statusBadge = 'bg-slate-100 text-slate-700 border-slate-300';
+                if (job.job_status === '12.ส่งมอบแล้ว') statusBadge = 'bg-emerald-100 text-emerald-800 border-emerald-400 font-black';
+                else if (job.job_status === '10.กำลังซ่อม') statusBadge = 'bg-amber-100 text-amber-800 border-amber-400 font-bold';
+                else if (job.job_status === '11.รถซ่อมเสร็จรอส่งมอบ') statusBadge = 'bg-blue-100 text-blue-800 border-blue-400 font-bold';
+
+                // จัดสไตล์สีระดับความเสียหาย
+                let dmgColor = 'text-green-600';
+                if (job.damage_level === 'กลาง') dmgColor = 'text-amber-500 font-bold';
+                if (job.damage_level === 'หนัก') dmgColor = 'text-red-600 font-black';
 
                 return `
-                    <tr class="hover:bg-gray-800/40 transition">
-                        <td class="p-4 font-bold text-amber-500">${job.branch_name}</td>
-                        <td class="p-4"><span class="px-2.5 py-1 bg-gray-900 border border-gray-700 rounded text-cyan-400 font-mono text-xs font-bold">${job.job_status || '-'}</span></td>
-                        <td class="p-4 font-semibold text-white">${job.car_brand || 'Tesla'} - <span class="text-gray-400 font-normal">${job.car_model || ''}</span><br><span class="text-xs font-mono text-gray-500">${job.vin_no || '-'}</span></td>
-                        <td class="p-4">${job.customer_name}<br><span class="text-xs text-gray-400 font-mono">${job.phone_number || '-'}</span></td>
-                        <td class="p-4 text-xs">${job.payment_type || '-'}<br><span class="text-gray-400">ประเภท: ${job.customer_type || '-'}</span></td>
-                        <td class="p-4">${damageBadge}</td>
-                        <td class="p-4 text-gray-400 font-medium">${job.sa_owner}</td>
-                        <td class="p-4 text-center">
-                            <button onclick="goToEditJob('${job.id}')" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition shadow-md flex items-center gap-1 mx-auto">
-                                <i class="fa-solid fa-folder-open"></i> แก้ไขใบงาน
-                            </button>
-                        </td>
-                    </tr>
+                <tr>
+                    <td class="text-center"><button onclick="goToEditJob('${job.id}')" class="bg-blue-600 text-white px-2 py-1 rounded shadow-sm hover:bg-blue-800 transition"><i class="fa-solid fa-pen-to-square"></i></button></td>
+                    <td class="font-bold text-[#00320D]">${job.branch_name || '-'}</td>
+                    <td><span class="px-2 py-0.5 rounded border text-[10px] ${statusBadge}">${job.job_status || '-'}</span></td>
+                    <td class="font-black text-amber-700 bg-amber-50 text-center">${job.car_plate || '-'}</td>
+                    <td class="font-mono">${formatDate(job.contact_date)}</td>
+                    <td class="font-mono text-blue-700">${formatDate(job.arrived_date)}</td>
+                    <td class="font-mono text-amber-600 font-bold">${formatDate(job.target_finish_date)}</td>
+                    <td class="font-medium max-w-[150px] truncate" title="${job.customer_name}">${job.customer_name || '-'}</td>
+                    <td class="font-mono">${job.phone_number || '-'}</td>
+                    <td>${job.customer_type || '-'}</td>
+                    <td>${job.payment_type || '-'}</td>
+                    <td class="font-bold">${job.car_brand || '-'}</td>
+                    <td>${job.car_model || '-'}</td>
+                    <td class="font-mono text-[10px] text-slate-500">${job.vin_no || '-'}</td>
+                    <td class="${dmgColor}">${job.damage_level || 'เบา'}</td>
+                    
+                    <td class="font-bold text-purple-700">${job.part_status || '-'}</td>
+                    <td class="font-mono text-[10px]">${job.epc_no || '-'}</td>
+                    <td class="truncate max-w-[200px] text-[10px]" title="${job.ordered_part_names}">${job.ordered_part_names || '-'}</td>
+                    <td class="font-mono text-[10px]">${formatDate(job.order_part_date)}</td>
+                    <td class="font-mono text-[10px]">${formatDate(job.est_part_date)}</td>
+                    
+                    <td class="truncate max-w-[150px] text-[10px]" title="${job.main_part_name}">${job.main_part_name || '-'}</td>
+                    <td class="text-center font-bold">${job.main_part_qty || 0}</td>
+                    <td class="truncate max-w-[150px] text-[10px]" title="${job.sub_part_name}">${job.sub_part_name || '-'}</td>
+                    <td class="text-center font-bold">${job.sub_part_qty || 0}</td>
+                    
+                    <td class="text-right font-mono text-slate-500">${formatCurrency(job.cost_labor)}</td>
+                    <td class="text-right font-mono text-slate-500">${formatCurrency(job.cost_part)}</td>
+                    <td class="text-right font-mono text-slate-500">${formatCurrency(job.cost_external)}</td>
+                    
+                    <td class="font-mono text-green-600">${formatDate(job.actual_finish_date)}</td>
+                    <td class="font-mono font-bold text-emerald-700">${formatDate(job.delivery_date)}</td>
+                    
+                    <td class="truncate max-w-[150px] text-[10px] text-slate-400" title="${job.notes}">${job.notes || '-'}</td>
+                    <td class="font-mono text-[10px]">${job.qt_no || '-'}</td>
+                    <td class="font-mono text-[10px]">${job.so_no || '-'}</td>
+                    <td class="font-mono text-[10px]">${job.bl_no || '-'}</td>
+                    <td class="text-xs font-bold text-slate-500">${job.sa_owner || '-'}</td>
+                </tr>
                 `;
             }).join('');
-        }
-
-        function filterJobs() {
-            const search = document.getElementById('search_input').value.toLowerCase();
-            const status = document.getElementById('status_filter').value;
-            const branch = document.getElementById('branch_filter').value;
-
-            const filtered = allJobsData.filter(job => {
-                const matchesSearch = !search || 
-                    (job.customer_name && job.customer_name.toLowerCase().includes(search)) ||
-                    (job.car_model && job.car_model.toLowerCase().includes(search)) ||
-                    (job.vin_no && job.vin_no.toLowerCase().includes(search));
-                
-                const matchesStatus = !status || job.job_status === status;
-                const matchesBranch = !branch || job.branch_name === branch;
-
-                return matchesSearch && matchesStatus && matchesBranch;
-            });
-
-            renderTable(filtered);
-        }
-
-        // 🎯 ฟังก์ชันเด็ดสลับหน้าจอข้ามไปหน้าบิล: บันทึก ID ลง Session แล้วย้ายหน้าจอ
-        function goToEditJob(jobId) {
-            sessionStorage.setItem('edit_job_id', jobId);
-            window.location.href = 'index.html';
         }
     </script>
 </body>
