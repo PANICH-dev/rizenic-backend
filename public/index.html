@@ -10,13 +10,16 @@
     <style type="text/tailwindcss">
         @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Kanit', sans-serif; background-color: #f4f6f9; }
+        
         .bg-rizenic-green { background-color: #00320D; }
         .text-rizenic-green { color: #00320D; }
         
         .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
         
-        .minimal-input { @apply w-full px-3 py-2.5 bg-[#e8f6ed] border-2 border-[#00320D]/40 rounded-lg outline-none transition-all duration-200 text-sm font-bold text-[#00320D] shadow-[inset_0_2px_5px_rgba(0,50,13,0.1)] hover:border-[#00320D]/60 focus:bg-white focus:border-[#00320D]; }
+        .minimal-input {
+            @apply w-full px-3 py-2.5 bg-[#e8f6ed] border-2 border-[#00320D]/40 rounded-lg outline-none transition-all duration-200 text-sm font-bold text-[#00320D] shadow-[inset_0_2px_5px_rgba(0,50,13,0.1)] hover:border-[#00320D]/60 focus:bg-white focus:border-[#00320D];
+        }
         .minimal-input:disabled, .minimal-input[readonly] { @apply bg-slate-100 border-slate-300 text-slate-500 cursor-not-allowed shadow-none border-dashed; }
         
         .card-container { @apply bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6 transition-all duration-300; }
@@ -25,6 +28,7 @@
         .timeline-row:nth-child(odd) { @apply bg-white; }
         .timeline-row:nth-child(even) { @apply bg-slate-50; }
 
+        /* ป้ายชิ้นส่วนซ่อมสี */
         .part-badge { @apply cursor-pointer px-3 py-1.5 border border-slate-200 rounded text-xs font-bold transition-all shadow-sm select-none inline-block; }
         .part-badge.unselected { @apply bg-white text-slate-500 hover:border-[#00320D] hover:text-[#00320D] hover:bg-slate-50; }
         .part-badge.selected-main { @apply bg-blue-600 border-blue-700 text-white shadow-inner; }
@@ -69,7 +73,7 @@
                 <div><h2 class="text-xl font-bold text-slate-800 tracking-tight">เปิดบิลและสั่งอะไหล่ (SA Portal)</h2><p class="text-slate-400 text-xs mt-0.5">บันทึกประวัติ ประเมินชิ้นส่วนซ่อมสี เชื่อมเอกสาร และแคตตาล็อกอะไหล่</p></div>
                 <div id="edit_mode_badge" class="hidden flex items-center gap-2">
                     <span class="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1.5 rounded border border-amber-300 shadow-sm animate-pulse"><i class="fa-solid fa-pen-to-square mr-1"></i> โหมดแก้ไขใบงาน ID: <span id="current_editing_id">-</span></span>
-                    <button type="button" onclick="cancelEditMode()" id="btn_cancel_edit" class="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-bold rounded hover:bg-slate-50 transition shadow-sm">ยกเลิกแก้ไข</button>
+                    <button type="button" onclick="cancelEditMode()" id="btn_cancel_edit" class="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-bold rounded hover:bg-slate-50 transition shadow-sm">เปิดบิลใหม่</button>
                 </div>
             </div>
 
@@ -83,6 +87,7 @@
                     <div><label class="label-text">ประเภทลูกค้า</label><select id="customer_type" class="minimal-input"><option value="">กำลังโหลด...</option></select></div>
                     <div><label class="label-text">รูปแบบการชำระเงิน/ประกัน</label><select id="payment_type" class="minimal-input"><option value="">กำลังโหลด...</option></select></div>
                     <div><label class="label-text text-red-600">ทะเบียนรถ *</label><input type="text" id="car_plate" class="minimal-input uppercase text-lg" placeholder="กข 1234"></div>
+                    
                     <div>
                         <label class="label-text text-red-600">ยี่ห้อรถ *</label>
                         <input type="text" id="car_brand" list="brand_list" class="minimal-input font-bold" value="Tesla" placeholder="พิมพ์เพื่อค้นหา..." onchange="updateCarModels(this.value)">
@@ -111,8 +116,8 @@
                     <div class="flex justify-between items-center border-b border-amber-200 pb-3 mb-4">
                         <h3 class="font-bold text-sm text-amber-700"><i class="fa-solid fa-spray-can"></i> 3. ประเมินรายการชิ้นส่วนตัวถังและการทำสี (Body & Paint Parts)</h3>
                         <div class="flex gap-4">
-                            <span class="text-xs font-bold text-blue-700"><i class="fa-solid fa-circle text-[10px]"></i> ชิ้นส่วนหลัก: <span id="count_main" class="text-lg">0</span></span>
-                            <span class="text-xs font-bold text-amber-600"><i class="fa-solid fa-circle text-[10px]"></i> ชิ้นส่วนรอง: <span id="count_sub" class="text-lg">0</span></span>
+                            <span class="text-xs font-bold text-blue-700"><i class="fa-solid fa-circle text-[10px]"></i> ชิ้นส่วนหลักที่ประเมิน: <span id="count_main" class="text-lg">0</span></span>
+                            <span class="text-xs font-bold text-amber-600"><i class="fa-solid fa-circle text-[10px]"></i> ชิ้นส่วนรองที่ประเมิน: <span id="count_sub" class="text-lg">0</span></span>
                         </div>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -130,7 +135,7 @@
                 <div class="card-container border-green-300 shadow-md p-6">
                     <div class="flex justify-between items-center border-b border-green-200 pb-3 mb-4">
                         <h3 class="font-bold text-sm text-rizenic-green"><i class="fa-solid fa-cart-plus"></i> 4. สร้างใบสั่งซื้ออะไหล่ (ยิงเข้าแผนกจัดซื้อ)</h3>
-                        <button type="button" onclick="addPartRow()" class="px-4 py-2 bg-[#00320D] text-white text-xs font-bold rounded-lg shadow hover:bg-black transition-all">+ เพิ่มรายการที่ต้องการสั่ง</button>
+                        <button type="button" onclick="addPartRow()" class="px-4 py-2 bg-[#00320D] text-white text-xs font-bold rounded-lg shadow hover:bg-black transition-all">+ เพิ่มรายการ</button>
                     </div>
 
                     <div class="overflow-x-auto border border-slate-200 rounded-lg">
@@ -141,12 +146,12 @@
                                     <th class="px-2 py-3">MAIN No.</th>
                                     <th class="px-2 py-3">ชื่อชิ้นส่วน</th>
                                     <th class="px-2 py-3">รุ่นรถ</th>
-                                    <th class="px-2 py-3">ประเภท</th>
+                                    <th class="px-2 py-3">ประเภทอะไหล่</th>
                                     <th class="px-2 py-3">ราคา</th>
                                     <th class="px-2 py-3">Location</th>
                                     <th class="px-2 py-3 text-center">Safety Stock</th>
                                     <th class="px-2 py-3 text-center">จำนวนสั่ง</th>
-                                    <th class="px-2 py-3 text-center">ดำเนินการ</th>
+                                    <th class="px-2 py-3 text-center">ลบ</th>
                                 </tr>
                             </thead>
                             <tbody id="order_parts_body" class="text-sm divide-y divide-slate-100 bg-white"></tbody>
@@ -156,7 +161,7 @@
 
                 <div class="card-container bg-purple-50/30 border-purple-200 p-6">
                     <div class="border-b border-purple-200 pb-2 mb-4 flex justify-between items-center">
-                        <h3 class="font-bold text-sm text-purple-800"><i class="fa-solid fa-table-list"></i> 5. ข้อมูลติดตามสถานะอะไหล่ของบิลนี้ (อัปเดตจากแผนกอะไหล่)</h3>
+                        <h3 class="font-bold text-sm text-purple-800"><i class="fa-solid fa-table-list"></i> 5. ติดตามสถานะและอัปเดตออเดอร์อะไหล่ (PO Tracking)</h3>
                         <button type="button" onclick="checkCrossPageEditMode()" class="px-3 py-1.5 bg-white text-purple-700 text-xs font-bold border border-purple-300 rounded shadow-sm hover:bg-purple-100"><i class="fa-solid fa-rotate-right"></i> รีเฟรชตาราง</button>
                     </div>
                     
@@ -169,7 +174,7 @@
                                     <th class="px-2 py-2">รายการอะไหล่ที่สั่ง</th>
                                     <th class="px-2 py-2 text-center">ยอดสั่ง</th>
                                     <th class="px-2 py-2 text-center">รับเข้าแล้ว</th>
-                                    <th class="px-2 py-2">สถานะอะไหล่</th>
+                                    <th class="px-2 py-2">สถานะล่าสุด (จากคลัง)</th>
                                     <th class="px-2 py-2">วันที่สั่งอะไหล่</th>
                                     <th class="px-2 py-2">คาดการณ์เข้า (ETA)</th>
                                     <th class="px-2 py-2">เข้าครบแล้ว (Actual)</th>
@@ -178,7 +183,7 @@
                                 </tr>
                             </thead>
                             <tbody id="track_parts_body" class="text-[12px] divide-y divide-purple-100 bg-white">
-                                <tr><td colspan="11" class="text-center py-6 text-slate-500 font-mono text-xs">ยังไม่มีรายการสั่งซื้อ (หรือระบุทะเบียนรถเพื่อค้นหา)</td></tr>
+                                <tr><td colspan="11" class="text-center py-6 text-slate-500 font-mono text-xs">กรุณาบันทึกใบงานเพื่อติดตามสถานะอะไหล่</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -256,7 +261,6 @@
             if(sessionStorage.getItem('isLoggedIn') === 'true') { enterApp(); }
         });
 
-        // ⭐️ สีสันระดับความเสียหาย (เขียว-เหลือง-แดง)
         function updateDamageColor(el) {
             el.className = 'minimal-input font-bold transition-colors ';
             if(el.value === 'เบา') el.classList.add('bg-green-100', 'text-green-700', 'border-green-400');
@@ -372,7 +376,6 @@
             tbody.appendChild(tr);
         }
 
-        // ⭐️ บล็อก 4: สร้างแถวสั่งอะไหล่ (เพิ่มปุ่ม ยิงเข้า PO ทันที)
         function addPartRow(partNo = '', partMain = '', partName = '', model = '', type = 'อะไหล่แท้', price = '0', loc = '', safe = '0') {
             const tbody = document.getElementById('order_parts_body'); if(!tbody) return;
             const tr = document.createElement('tr');
@@ -394,7 +397,6 @@
             tbody.appendChild(tr);
         }
 
-        // 🧠 สมองกลดึงข้อมูล Master
         async function checkMasterPart(inputElem) {
             const partNo = inputElem.value.trim(); if(!partNo) return;
             const tr = inputElem.closest('tr'); 
@@ -427,7 +429,6 @@
             } catch(e) { console.log(e); }
         }
 
-        // ⭐️ ฟังก์ชันใหม่: ยิงเข้าแผนกอะไหล่ทีละชิ้นทันที (ปุ่ม Add)
         async function sendSinglePO(btnElem) {
             const carPlate = document.getElementById('car_plate').value.trim();
             if(!carPlate) { alert('⚠️ กรุณากรอก "ทะเบียนรถ" ด้านบนก่อนยิงออเดอร์ครับ!'); return; }
@@ -441,7 +442,6 @@
             
             if(!pNo || !pName) { alert('⚠️ กรุณาระบุบาร์โค้ดและชื่ออะไหล่ให้ครบถ้วน'); return; }
 
-            // หาเลขเอกสารอ้างอิง
             let qtArr = [], soArr = [];
             document.querySelectorAll('#docs_body tr').forEach(row => {
                 const type = row.querySelector('.doc-type').value; const val = row.querySelector('.doc-no').value.trim();
@@ -460,8 +460,8 @@
                     })
                 });
                 
-                tr.remove(); // ลบออกจากตารางสั่งซื้อชั่วคราว
-                loadPartsTrackingTable(carPlate); // โหลดเข้าตาราง Tracking อัตโนมัติ
+                tr.remove(); 
+                loadPartsTrackingTable(carPlate); 
                 
             } catch(e) { alert('❌ เกิดข้อผิดพลาดในการยิงออเดอร์'); btnElem.innerHTML = '<i class="fa-solid fa-paper-plane"></i> แอด'; }
         }
@@ -512,13 +512,11 @@
                 document.getElementById('actual_finish_date').value = job.actual_finish_date ? job.actual_finish_date.split('T')[0] : '';
                 document.getElementById('delivery_date').value = job.delivery_date ? job.delivery_date.split('T')[0] : '';
                 
-                // ⭐️ โหลดตารางสถานะอะไหล่ Tracking
                 loadPartsTrackingTable(job.car_plate);
 
             } catch(e) { console.error(e); }
         }
 
-        // ⭐️ บล็อก 5: ฟังก์ชันตาราง Tracking (โหลด/ลบ/แก้ไข)
         async function loadPartsTrackingTable(carPlate) {
             try {
                 if(!carPlate) return;
@@ -561,7 +559,6 @@
             } catch(e) {}
         }
 
-        // ⭐️ ฟังก์ชันลบ PO ที่แก้บัคแล้ว
         async function deletePO(orderId) {
             if(confirm('🚨 ยืนยันการลบออเดอร์นี้ถาวร?')) {
                 try {
@@ -571,7 +568,6 @@
             }
         }
 
-        // ⭐️ ฟังก์ชันแก้ไข PO (แก้เลขอะไหล่ + จำนวน)
         async function editPO(orderId, oldPartNo, oldQty) {
             const newPartNo = prompt('1. ระบุ "บาร์โค้ด (Part 2)" ที่ต้องการแก้ไข:', oldPartNo);
             if(!newPartNo) return;
@@ -695,12 +691,22 @@
                     }
                 }
                 
-                alert(editId ? `🎉 อัปเดตใบงานและส่งต่อแผนกสำเร็จ!` : `🎉 เปิดบิลเรียบร้อย!`); 
-                cancelEditMode();
+                // ⭐️ อัปเดตเสร็จแล้ว ให้อยู่หน้าเดิมตามที่นายขอ!
+                if (editId) {
+                    alert(`🎉 อัปเดตใบงานและส่งต่อแผนกสำเร็จ!`);
+                    loadPartsTrackingTable(formData.car_plate);
+                    btnSubmit.innerHTML = '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม';
+                    btnSubmit.disabled = false;
+                } else {
+                    alert(`🎉 เปิดบิลเรียบร้อย!`);
+                    cancelEditMode();
+                }
                 
             } catch (e) { 
                 alert('❌ เครือข่ายขัดข้อง\n' + e.message); 
-                document.getElementById('btn_submit_sa').disabled = false;
+                const btnSubmit = document.getElementById('btn_submit_sa');
+                btnSubmit.innerHTML = '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูล & ดำเนินการ'; 
+                btnSubmit.disabled = false;
             }
         }
     </script>
