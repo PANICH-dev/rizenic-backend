@@ -319,15 +319,32 @@
             btn.classList.replace('hover:bg-blue-700', 'hover:bg-amber-700');
         }
 
-        async function saveMainStatus() {
+    async function saveMainStatus() {
             const code = document.getElementById('main_status_code_input').value; 
             const name = document.getElementById('main_status_name_input').value; 
             const dept = document.getElementById('main_status_dept_input').value; 
             const route = document.getElementById('main_status_route_input').value; 
+            
             if(!code || !name) return alert('กรอกข้อมูลให้ครบถ้วน');
-            await fetch(`${API_BASE_URL}/api/statuses`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ status_code: code, status_name: name, department: dept, route_page: route }) });
-            resetMainStatusForm();
-            loadMainStatus();
+            
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/statuses`, { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({ status_code: code, status_name: name, department: dept, route_page: route }) 
+                });
+                
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert('❌ ระบบขัดข้อง: ' + err.error);
+                    return;
+                }
+                
+                resetMainStatusForm();
+                loadMainStatus();
+            } catch (e) {
+                alert('❌ ติดต่อเซิร์ฟเวอร์ไม่ได้: ' + e.message);
+            }
         }
 
         // ================= 5. สเตตัสอะไหล่ (PO Status) =================
