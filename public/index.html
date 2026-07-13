@@ -239,12 +239,15 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="label-text text-blue-600">ระบบส่งต่อแผนก (Auto Routing)</label>
-                                    <input type="text" id="department_routing" class="minimal-input bg-blue-50 border-blue-300 font-bold text-blue-700" readonly placeholder="จะส่งต่ออัตโนมัติตามสเตตัส">
-                                    <input type="hidden" id="hidden_department">
+                                    <label class="label-text text-blue-600">สถานะส่งต่อแผนก (Routing) *</label>
+                                    <select id="department_routing" class="minimal-input bg-blue-50 border-blue-300 font-bold text-blue-700" required>
+                                        <option value="รอดำเนินการ">รอดำเนินการ (ยังไม่ส่งต่อ)</option>
+                                        <option value="บริการ">แผนกบริการ (SA)</option>
+                                        <option value="อะไหล่">แผนกอะไหล่ (Parts)</option>
+                                        <option value="ซ่อม">สถานีช่าง (Repair)</option>
+                                        <option value="บัญชี">แผนกบัญชี (Finance)</option>
+                                    </select>
                                 </div>
-                            </div>
-
                             <div><label class="label-text">หมายเหตุประเมินอาการ / ความต้องการลูกค้า</label><textarea id="notes" rows="4" class="minimal-input resize-none" placeholder="ระบุรายละเอียดการชน รอยขูดขีด..."></textarea></div>
                         </div>
                         <div class="pt-4"><button type="submit" id="btn_submit_sa" class="w-full py-4 rounded-xl bg-[#00320D] text-white font-black hover:bg-black shadow-lg transition-all transform hover:-translate-y-0.5"><i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูล & ดำเนินการ</button></div>
@@ -308,19 +311,16 @@
 
         function logout() { sessionStorage.clear(); window.location.reload(); }
 
-        // ⭐️ Auto Routing Function (โยนสเตตัสแผนกตามที่ Admin ตั้งไว้)
+        // ⭐️ Auto Routing Function (เปลี่ยน Dropdown ให้อัตโนมัติ แต่ SA แก้ไขเองได้)
         function autoMapRouting() {
             const selectedStatus = document.getElementById('job_status').value;
             const mapping = globalStatuses.find(s => s.status_name === selectedStatus);
-            const routeInput = document.getElementById('department_routing');
-            const hiddenDept = document.getElementById('hidden_department');
+            const routeSelect = document.getElementById('department_routing');
             
             if(mapping && mapping.department) {
-                routeInput.value = `ส่งต่อ: แผนก${mapping.department}`;
-                hiddenDept.value = mapping.department;
+                routeSelect.value = mapping.department; // วิ่งไปหา option ที่ตรงกับแผนกหลังบ้าน
             } else {
-                routeInput.value = 'รอดำเนินการ (ยังไม่ส่งต่อ)';
-                hiddenDept.value = 'รอดำเนินการ';
+                routeSelect.value = 'รอดำเนินการ';
             }
         }
 
@@ -527,10 +527,15 @@
                 document.getElementById('damage_level').value = job.damage_level || 'เบา';
                 updateDamageColor(document.getElementById('damage_level'));
                 
-                setTimeout(() => {
+               setTimeout(() => {
                     if(job.job_status) {
                         document.getElementById('job_status').value = job.job_status;
-                        autoMapRouting(); // อัปเดตช่อง Routing ตามสเตตัสทันที
+                        // ถ้าเคยมีข้อมูล Routing บันทึกไว้ ให้ดึงมาแสดง ถ้าไม่มีให้ระบบ Auto เลือกให้
+                        if (job.department_routing) {
+                            document.getElementById('department_routing').value = job.department_routing;
+                        } else {
+                            autoMapRouting();
+                        }
                     }
                 }, 800);
                 
@@ -670,8 +675,8 @@
                 if(val) { if(type === 'QT') qtArr.push(val); if(type === 'SO') soArr.push(val); if(type === 'BL') blArr.push(val); }
             });
 
-            // ⭐️ ดึงแผนกปลายทาง (Routing) จาก Hidden input ที่ Auto Map เอาไว้
-            const routingDept = document.getElementById('hidden_department').value || 'รอดำเนินการ';
+            /// ⭐️ ดึงค่าจาก Dropdown โดยตรง (เพราะ SA อาจจะแก้เอง)
+            const routingDept = document.getElementById('department_routing').value || 'รอดำเนินการ';
 
             const formData = {
                 sa_owner: sessionStorage.getItem('emp_name'), branch_name: sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่',
