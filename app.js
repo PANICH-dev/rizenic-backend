@@ -230,29 +230,6 @@ app.delete('/api/parts/:id', async (req, res) => {
 });
 
 // ==========================================
-// 📌 API จัดการสถานะหลัก (21 สเตป) (rizenicstatusmaster)
-// ==========================================
-app.get('/api/statuses', async (req, res) => {
-  try { res.json((await pool.query('SELECT status_code, status_name FROM rizenicstatusmaster ORDER BY status_code ASC')).rows); } 
-  catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/api/statuses', async (req, res) => {
-  try {
-    const { status_code, status_name } = req.body;
-    await pool.query('INSERT INTO rizenicstatusmaster (status_code, status_name) VALUES ($1, $2)', [status_code, status_name]);
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.delete('/api/statuses/:id', async (req, res) => {
-  try {
-    await pool.query('DELETE FROM rizenicstatusmaster WHERE status_code = $1', [req.params.id]);
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// ==========================================
 // 📌 API จัดการสถานะหลักและ Routing (rizenicstatusmaster)
 // ==========================================
 app.get('/api/statuses', async (req, res) => {
