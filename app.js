@@ -252,7 +252,7 @@ app.delete('/api/statuses/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-/// ==========================================
+// ==========================================
 // 📌 API จัดการสถานะหลักและ Routing (rizenicstatusmaster)
 // ==========================================
 app.get('/api/statuses', async (req, res) => {
@@ -263,13 +263,17 @@ app.get('/api/statuses', async (req, res) => {
 app.post('/api/statuses', async (req, res) => {
   try {
     const { status_code, status_name, department, route_page } = req.body;
+    
+    // โลจิกสมองกล: ถ้าไม่มีให้ INSERT, ถ้ามีรหัสนี้อยู่แล้วให้ UPDATE ทับไปเลย
     const queryText = `
       INSERT INTO rizenicstatusmaster (status_code, status_name, department, route_page) 
       VALUES ($1, $2, $3, $4) 
       ON CONFLICT (status_code) DO UPDATE 
-      SET status_name = $2, department = $3, route_page = $4;
+      SET status_name = EXCLUDED.status_name, 
+          department = EXCLUDED.department, 
+          route_page = EXCLUDED.route_page;
     `;
-    // ถ้าไม่มีการส่งค่ามา ให้ตั้งค่าเริ่มต้นเป็น บริการ และ jobs
+    
     await pool.query(queryText, [status_code, status_name, department || 'บริการ', route_page || 'jobs']);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -279,7 +283,6 @@ app.delete('/api/statuses/:id', async (req, res) => {
   try { await pool.query('DELETE FROM rizenicstatusmaster WHERE status_code = $1', [req.params.id]); res.json({ success: true }); } 
   catch (e) { res.status(500).json({ error: e.message }); }
 });
-
 // ==========================================
 // 🎨 API Master: ชิ้นส่วนซ่อมสี (rizenic_body_parts)
 // ==========================================
