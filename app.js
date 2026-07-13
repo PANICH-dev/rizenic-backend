@@ -263,8 +263,6 @@ app.get('/api/statuses', async (req, res) => {
 app.post('/api/statuses', async (req, res) => {
   try {
     const { status_code, status_name, department, route_page } = req.body;
-    
-    // โลจิกสมองกล: ถ้าไม่มีให้ INSERT, ถ้ามีรหัสนี้อยู่แล้วให้ UPDATE ทับไปเลย
     const queryText = `
       INSERT INTO rizenicstatusmaster (status_code, status_name, department, route_page) 
       VALUES ($1, $2, $3, $4) 
@@ -273,7 +271,6 @@ app.post('/api/statuses', async (req, res) => {
           department = EXCLUDED.department, 
           route_page = EXCLUDED.route_page;
     `;
-    
     await pool.query(queryText, [status_code, status_name, department || 'บริการ', route_page || 'jobs']);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
