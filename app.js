@@ -252,26 +252,31 @@ app.delete('/api/statuses/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+/// ==========================================
+// 📌 API จัดการสถานะหลักและ Routing (rizenicstatusmaster)
 // ==========================================
-// 📌 API จัดการส่งต่อแผนก (Routing) (rizenic_routing_master)
-// ==========================================
-app.get('/api/routings', async (req, res) => {
-  try { res.json((await pool.query('SELECT * FROM rizenic_routing_master ORDER BY routing_id ASC')).rows); } 
+app.get('/api/statuses', async (req, res) => {
+  try { res.json((await pool.query('SELECT * FROM rizenicstatusmaster ORDER BY status_code ASC')).rows); } 
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/routings', async (req, res) => {
+app.post('/api/statuses', async (req, res) => {
   try {
-    await pool.query('INSERT INTO rizenic_routing_master (routing_name) VALUES ($1)', [req.body.routing_name]);
+    const { status_code, status_name, department, route_page } = req.body;
+    await pool.query(
+      `INSERT INTO rizenicstatusmaster (status_code, status_name, department, route_page) 
+       VALUES ($1, $2, $3, $4) 
+       ON CONFLICT (status_code) DO UPDATE 
+       SET status_name = $2, department = $3, route_page = $4`, 
+      [status_code, status_name, department, route_page]
+    );
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/routings/:id', async (req, res) => {
-  try {
-    await pool.query('DELETE FROM rizenic_routing_master WHERE routing_id = $1', [req.params.id]);
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+app.delete('/api/statuses/:id', async (req, res) => {
+  try { await pool.query('DELETE FROM rizenicstatusmaster WHERE status_code = $1', [req.params.id]); res.json({ success: true }); } 
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ==========================================
