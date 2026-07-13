@@ -178,8 +178,8 @@ app.delete('/api/customer-types/:id', async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ==========================================
-// ⚙️ API Masters อะไหล่ และสเตตัส (rizenicpartsmaster)
+/// ==========================================
+// ⚙️ API Masters อะไหล่ (rizenicpartsmaster)
 // ==========================================
 app.get('/api/parts', async (req, res) => {
   try { res.json((await pool.query('SELECT * FROM rizenicpartsmaster ORDER BY part_name ASC')).rows); } 
@@ -229,9 +229,49 @@ app.delete('/api/parts/:id', async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ==========================================
+// 📌 API จัดการสถานะหลัก (21 สเตป) (rizenicstatusmaster)
+// ==========================================
 app.get('/api/statuses', async (req, res) => {
   try { res.json((await pool.query('SELECT status_code, status_name FROM rizenicstatusmaster ORDER BY status_code ASC')).rows); } 
   catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/statuses', async (req, res) => {
+  try {
+    const { status_code, status_name } = req.body;
+    await pool.query('INSERT INTO rizenicstatusmaster (status_code, status_name) VALUES ($1, $2)', [status_code, status_name]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/statuses/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM rizenicstatusmaster WHERE status_code = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==========================================
+// 📌 API จัดการส่งต่อแผนก (Routing) (rizenic_routing_master)
+// ==========================================
+app.get('/api/routings', async (req, res) => {
+  try { res.json((await pool.query('SELECT * FROM rizenic_routing_master ORDER BY routing_id ASC')).rows); } 
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/routings', async (req, res) => {
+  try {
+    await pool.query('INSERT INTO rizenic_routing_master (routing_name) VALUES ($1)', [req.body.routing_name]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/routings/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM rizenic_routing_master WHERE routing_id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ==========================================

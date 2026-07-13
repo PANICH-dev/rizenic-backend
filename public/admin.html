@@ -20,7 +20,7 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         .label-text { @apply flex items-center gap-1 text-[12px] font-bold text-slate-500 mb-1 tracking-wide uppercase; }
         
-        .nav-btn { @apply w-full text-left px-4 py-3 rounded-lg font-bold text-sm text-slate-400 hover:bg-[#004a1f] hover:text-white transition-all mb-1 flex items-center gap-3; }
+        .nav-btn { @apply w-full text-left px-4 py-2.5 rounded-lg font-bold text-sm text-slate-400 hover:bg-[#004a1f] hover:text-white transition-all mb-1 flex items-center gap-3; }
         .nav-btn.active { @apply bg-[#004a1f] text-white shadow-inner; }
     </style>
 </head>
@@ -38,7 +38,15 @@
             <button onclick="switchPanel('car-panel')" id="btn-car-panel" class="nav-btn"><i class="fa-solid fa-car w-5 text-center"></i> รุ่นรถยนต์</button>
             <button onclick="switchPanel('ins-panel')" id="btn-ins-panel" class="nav-btn"><i class="fa-solid fa-shield-halved w-5 text-center"></i> ประกันภัย</button>
             <button onclick="switchPanel('ctype-panel')" id="btn-ctype-panel" class="nav-btn"><i class="fa-solid fa-user-tag w-5 text-center"></i> ประเภทลูกค้า</button>
-            <button onclick="switchPanel('status-panel')" id="btn-status-panel" class="nav-btn"><i class="fa-solid fa-tags w-5 text-center"></i> สเตตัสอะไหล่ (PO)</button>
+            
+            <div class="my-2 border-t border-green-800/50"></div>
+            
+            <button onclick="switchPanel('main-status-panel')" id="btn-main-status-panel" class="nav-btn text-amber-300 hover:text-amber-100"><i class="fa-solid fa-bars-progress w-5 text-center"></i> สถานะหลัก (21 สเตป)</button>
+            <button onclick="switchPanel('routing-panel')" id="btn-routing-panel" class="nav-btn text-blue-300 hover:text-blue-100"><i class="fa-solid fa-route w-5 text-center"></i> ส่งต่อแผนก (Routing)</button>
+            <button onclick="switchPanel('status-panel')" id="btn-status-panel" class="nav-btn text-purple-300 hover:text-purple-100"><i class="fa-solid fa-tags w-5 text-center"></i> สเตตัสอะไหล่ (PO)</button>
+            
+            <div class="my-2 border-t border-green-800/50"></div>
+            
             <button onclick="switchPanel('quota-panel')" id="btn-quota-panel" class="nav-btn"><i class="fa-solid fa-chart-pie w-5 text-center"></i> โควต้าสาขา</button>
         </div>
         <div class="p-4 border-t border-green-800">
@@ -121,16 +129,41 @@
                 <div class="overflow-x-auto border rounded-lg shadow-sm"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3 font-mono w-32">รหัส</th><th class="p-3">ชื่อประเภทลูกค้า</th><th class="p-3 text-center w-32">จัดการ</th></tr></thead><tbody id="ctype_table_body" class="divide-y divide-slate-100"></tbody></table></div>
             </div>
 
-            <!-- 🏷️ 5. สเตตัสอะไหล่ (สำหรับแผนกอะไหล่เอาไปใช้ดรอปดาวน์) -->
-            <div id="status-panel" class="admin-panel">
-                <h2 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2"><i class="fa-solid fa-tags text-rizenic-green mr-2"></i> ตั้งค่าสเตตัสออเดอร์อะไหล่ (PO Status)</h2>
-                <div class="bg-slate-50 p-5 rounded-xl border mb-6 flex flex-col md:flex-row gap-4 items-end shadow-sm">
-                    <div class="flex-1 w-full"><label class="label-text">ข้อความสถานะ (เช่น รอสั่งซื้อ, อะไหล่มาครบแล้ว)</label><input type="text" id="part_status_name_input" class="minimal-input"></div>
+            <!-- 🟢 NEW: สถานะหลัก (21 สเตป) -->
+            <div id="main-status-panel" class="admin-panel">
+                <h2 class="text-xl font-bold text-amber-600 mb-4 border-b pb-2"><i class="fa-solid fa-bars-progress mr-2"></i> จัดการสถานะใบงานหลัก (แสดงให้ลูกค้า/SA เห็น)</h2>
+                <div class="bg-amber-50 p-5 rounded-xl border border-amber-200 mb-6 flex flex-col md:flex-row gap-4 items-end shadow-sm">
+                    <div class="w-32"><label class="label-text">รหัส (เช่น 01)</label><input type="text" id="main_status_code_input" class="minimal-input font-mono"></div>
+                    <div class="flex-1 w-full"><label class="label-text">ชื่อสถานะ (เช่น 01.ติดต่อสอบถาม)</label><input type="text" id="main_status_name_input" class="minimal-input"></div>
                     <div class="flex gap-2 w-full md:w-auto mt-2">
-                        <button onclick="savePartStatus()" class="px-6 py-2.5 bg-[#00320D] text-white font-bold rounded-lg text-sm shadow hover:bg-black"><i class="fa-solid fa-plus mr-1"></i> เพิ่มสถานะ</button>
+                        <button onclick="saveMainStatus()" class="px-6 py-2.5 bg-amber-600 text-white font-bold rounded-lg text-sm shadow hover:bg-amber-700"><i class="fa-solid fa-plus mr-1"></i> เพิ่มสถานะ</button>
                     </div>
                 </div>
-                <div class="overflow-x-auto border rounded-lg shadow-sm"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3 w-16 text-center">ID</th><th class="p-3">ข้อความสถานะที่นำไปแสดงในดรอปดาวน์แผนกอะไหล่</th><th class="p-3 text-center w-32">ลบ</th></tr></thead><tbody id="status_table_body" class="divide-y divide-slate-100"></tbody></table></div>
+                <div class="overflow-x-auto border rounded-lg shadow-sm"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3 w-32 font-mono">รหัส Code</th><th class="p-3 font-bold text-amber-700">ชื่อสถานะใบงานหลัก</th><th class="p-3 text-center w-32">ลบ</th></tr></thead><tbody id="main_status_table_body" class="divide-y divide-slate-100 bg-white"></tbody></table></div>
+            </div>
+
+            <!-- 🔵 NEW: ส่งต่อแผนก (Routing) -->
+            <div id="routing-panel" class="admin-panel">
+                <h2 class="text-xl font-bold text-blue-600 mb-4 border-b pb-2"><i class="fa-solid fa-route mr-2"></i> จัดการสถานะส่งต่อแผนก (Routing)</h2>
+                <div class="bg-blue-50 p-5 rounded-xl border border-blue-200 mb-6 flex flex-col md:flex-row gap-4 items-end shadow-sm">
+                    <div class="flex-1 w-full"><label class="label-text">เงื่อนไขการส่งต่อ (เช่น ส่งแผนกอะไหล่, ส่งสถานีช่าง)</label><input type="text" id="routing_name_input" class="minimal-input"></div>
+                    <div class="flex gap-2 w-full md:w-auto mt-2">
+                        <button onclick="saveRouting()" class="px-6 py-2.5 bg-blue-600 text-white font-bold rounded-lg text-sm shadow hover:bg-blue-700"><i class="fa-solid fa-plus mr-1"></i> เพิ่ม Routing</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto border rounded-lg shadow-sm"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3 w-20 text-center">ID</th><th class="p-3 font-bold text-blue-700">จุดหมายการส่งต่อแผนก</th><th class="p-3 text-center w-32">ลบ</th></tr></thead><tbody id="routing_table_body" class="divide-y divide-slate-100 bg-white"></tbody></table></div>
+            </div>
+
+            <!-- 🏷️ 5. สเตตัสอะไหล่ (สำหรับแผนกอะไหล่เอาไปใช้ดรอปดาวน์) -->
+            <div id="status-panel" class="admin-panel">
+                <h2 class="text-xl font-bold text-purple-600 mb-4 border-b pb-2"><i class="fa-solid fa-tags mr-2"></i> ตั้งค่าสเตตัสออเดอร์อะไหล่ (PO Status)</h2>
+                <div class="bg-purple-50 p-5 rounded-xl border border-purple-200 mb-6 flex flex-col md:flex-row gap-4 items-end shadow-sm">
+                    <div class="flex-1 w-full"><label class="label-text">ข้อความสถานะอะไหล่ (เช่น รอสั่งซื้อ, อะไหล่มาครบแล้ว)</label><input type="text" id="part_status_name_input" class="minimal-input"></div>
+                    <div class="flex gap-2 w-full md:w-auto mt-2">
+                        <button onclick="savePartStatus()" class="px-6 py-2.5 bg-purple-600 text-white font-bold rounded-lg text-sm shadow hover:bg-purple-700"><i class="fa-solid fa-plus mr-1"></i> เพิ่มสถานะ PO</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto border rounded-lg shadow-sm"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3 w-16 text-center">ID</th><th class="p-3 font-bold text-purple-700">ข้อความสถานะที่นำไปแสดงในแผนกอะไหล่</th><th class="p-3 text-center w-32">ลบ</th></tr></thead><tbody id="status_table_body" class="divide-y divide-slate-100 bg-white"></tbody></table></div>
             </div>
 
             <!-- 📈 6. โควต้าสาขา -->
@@ -149,7 +182,7 @@
                         <button onclick="resetQuotaForm()" class="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50 w-1/3">ล้างฟอร์ม</button>
                     </div>
                 </div>
-                <div class="overflow-x-auto border rounded-lg shadow-sm"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3">ประเภท</th><th class="p-3">สาขา</th><th class="p-3">วันที่ (ถ้ามี)</th><th class="p-3 text-center text-blue-600">รถเข้า</th><th class="p-3 text-center text-amber-600">ซ่อมเสร็จ</th><th class="p-3 text-center text-green-600">ส่งมอบ</th><th class="p-3 text-center">จัดการ</th></tr></thead><tbody id="quota_table_body" class="divide-y divide-slate-100"></tbody></table></div>
+                <div class="overflow-x-auto border rounded-lg shadow-sm"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3">ประเภท</th><th class="p-3">สาขา</th><th class="p-3">วันที่ (ถ้ามี)</th><th class="p-3 text-center text-blue-600">รถเข้า</th><th class="p-3 text-center text-amber-600">ซ่อมเสร็จ</th><th class="p-3 text-center text-green-600">ส่งมอบ</th><th class="p-3 text-center">จัดการ</th></tr></thead><tbody id="quota_table_body" class="divide-y divide-slate-100 bg-white"></tbody></table></div>
             </div>
 
         </div>
@@ -168,13 +201,18 @@
         function switchPanel(panelId) {
             document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('active'));
             document.getElementById(panelId).classList.add('active');
-            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById('btn-' + panelId).classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active', 'bg-[#004a1f]', 'text-white'));
+            const btn = document.getElementById('btn-' + panelId);
+            btn.classList.add('active', 'bg-[#004a1f]', 'text-white');
         }
 
         async function deleteData(url, reloadFunction) { if(confirm('🚨 ยืนยันการลบข้อมูลถาวร?')) { await fetch(API_BASE_URL + url, {method: 'DELETE'}); reloadFunction(); } }
 
-        async function loadAllData() { loadEmp(); loadCar(); loadIns(); loadCtype(); loadPartStatus(); loadQuota(); }
+        async function loadAllData() { 
+            loadEmp(); loadCar(); loadIns(); loadCtype(); 
+            loadMainStatus(); loadRouting(); loadPartStatus(); 
+            loadQuota(); 
+        }
 
         // ================= 1. พนักงาน =================
         async function loadEmp() {
@@ -227,11 +265,39 @@
         function resetCtypeForm() { document.getElementById('edit_ctype_id').value = ''; document.getElementById('ctype_name_input').value = ''; document.getElementById('btn_save_ctype').innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> บันทึก'; document.getElementById('btn_save_ctype').classList.replace('bg-blue-600', 'bg-[#00320D]'); }
         async function saveCtype() { const id = document.getElementById('edit_ctype_id').value; await fetch(`${API_BASE_URL}${id ? '/api/customer-types/'+id : '/api/customer-types'}`, { method: id ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ type_name: document.getElementById('ctype_name_input').value }) }); resetCtypeForm(); loadCtype(); }
 
-        // ================= 5. สเตตัสอะไหล่ =================
+        // ================= 🟢 จัดการสถานะหลัก (21 สเตป) =================
+        async function loadMainStatus() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/statuses`); const data = await res.json();
+                document.getElementById('main_status_table_body').innerHTML = data.map(s => `<tr><td class="p-3 font-mono">${s.status_code}</td><td class="p-3 font-bold text-amber-700">${s.status_name}</td><td class="p-3 text-center"><button onclick="deleteData('/api/statuses/${s.status_code}', loadMainStatus)" class="text-red-400 hover:text-red-600 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
+            } catch(e){}
+        }
+        async function saveMainStatus() {
+            const code = document.getElementById('main_status_code_input').value; 
+            const name = document.getElementById('main_status_name_input').value; 
+            if(!code || !name) return alert('กรอกข้อมูลให้ครบถ้วน');
+            await fetch(`${API_BASE_URL}/api/statuses`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ status_code: code, status_name: name }) });
+            document.getElementById('main_status_code_input').value = ''; document.getElementById('main_status_name_input').value = ''; loadMainStatus();
+        }
+
+        // ================= 🔵 จัดการส่งต่อแผนก (Routing) =================
+        async function loadRouting() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/routings`); const data = await res.json();
+                document.getElementById('routing_table_body').innerHTML = data.map(r => `<tr><td class="p-3 text-center font-mono">${r.routing_id}</td><td class="p-3 font-bold text-blue-700">${r.routing_name}</td><td class="p-3 text-center"><button onclick="deleteData('/api/routings/${r.routing_id}', loadRouting)" class="text-red-400 hover:text-red-600 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
+            } catch(e){}
+        }
+        async function saveRouting() {
+            const name = document.getElementById('routing_name_input').value; if(!name) return;
+            await fetch(`${API_BASE_URL}/api/routings`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ routing_name: name }) });
+            document.getElementById('routing_name_input').value = ''; loadRouting();
+        }
+
+        // ================= 5. สเตตัสอะไหล่ (PO Status) =================
         async function loadPartStatus() {
             try {
                 const res = await fetch(`${API_BASE_URL}/api/part-statuses`); const data = await res.json();
-                document.getElementById('status_table_body').innerHTML = data.map(s => `<tr><td class="p-3 text-center font-mono text-slate-500">${s.status_id}</td><td class="p-3 font-bold text-amber-700">${s.status_name}</td><td class="p-3 text-center"><button onclick="deleteData('/api/part-statuses/${s.status_id}', loadPartStatus)" class="text-red-400 hover:text-red-600 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
+                document.getElementById('status_table_body').innerHTML = data.map(s => `<tr><td class="p-3 text-center font-mono text-slate-500">${s.status_id}</td><td class="p-3 font-bold text-purple-700">${s.status_name}</td><td class="p-3 text-center"><button onclick="deleteData('/api/part-statuses/${s.status_id}', loadPartStatus)" class="text-red-400 hover:text-red-600 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
             } catch(e){}
         }
         async function savePartStatus() {
