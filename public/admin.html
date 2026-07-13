@@ -147,10 +147,18 @@
                         </select>
                     </div>
                     <div class="md:col-span-5 flex gap-2 mt-2">
-                        <button onclick="saveMainStatus()" class="px-6 py-2.5 bg-amber-600 text-white font-bold rounded-lg text-sm shadow hover:bg-amber-700 w-full md:w-auto"><i class="fa-solid fa-save mr-1"></i> บันทึกข้อมูล</button>
+                        <button onclick="saveMainStatus()" id="btn_save_main_status" class="px-6 py-2.5 bg-amber-600 text-white font-bold rounded-lg text-sm shadow hover:bg-amber-700 w-full md:w-auto transition-all"><i class="fa-solid fa-save mr-1"></i> บันทึกข้อมูล</button>
+                        <button onclick="resetMainStatusForm()" class="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 font-bold rounded-lg text-sm shadow-sm hover:bg-slate-50 w-full md:w-auto transition-all">ล้างฟอร์ม</button>
                     </div>
                 </div>
-                <div class="overflow-x-auto border rounded-lg shadow-sm"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3 w-20 font-mono">Code</th><th class="p-3 font-bold text-amber-700">ชื่อสถานะใบงาน</th><th class="p-3">แผนกที่รับผิดชอบ</th><th class="p-3 font-mono">Route Page</th><th class="p-3 text-center w-20">ลบ</th></tr></thead><tbody id="main_status_table_body" class="divide-y divide-slate-100 bg-white"></tbody></table></div>
+                <div class="overflow-x-auto border rounded-lg shadow-sm">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-slate-100 border-b">
+                            <tr><th class="p-3 w-20 font-mono">Code</th><th class="p-3 font-bold text-amber-700">ชื่อสถานะใบงาน</th><th class="p-3">แผนกที่รับผิดชอบ</th><th class="p-3 font-mono">Route Page</th><th class="p-3 text-center w-24">จัดการ</th></tr>
+                        </thead>
+                        <tbody id="main_status_table_body" class="divide-y divide-slate-100 bg-white"></tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- 🏷️ 5. สเตตัสอะไหล่ (สำหรับแผนกอะไหล่เอาไปใช้ดรอปดาวน์) -->
@@ -268,9 +276,49 @@
         async function loadMainStatus() {
             try {
                 const res = await fetch(`${API_BASE_URL}/api/statuses`); const data = await res.json();
-                document.getElementById('main_status_table_body').innerHTML = data.map(s => `<tr><td class="p-3 font-mono">${s.status_code}</td><td class="p-3 font-bold text-amber-700">${s.status_name}</td><td class="p-3"><span class="px-2 py-1 bg-slate-100 rounded text-xs font-bold border shadow-sm">${s.department||'-'}</span></td><td class="p-3 font-mono text-blue-600">${s.route_page||'-'}</td><td class="p-3 text-center"><button onclick="deleteData('/api/statuses/${s.status_code}', loadMainStatus)" class="text-red-400 hover:text-red-600 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
+                document.getElementById('main_status_table_body').innerHTML = data.map(s => `
+                    <tr>
+                        <td class="p-3 font-mono">${s.status_code}</td>
+                        <td class="p-3 font-bold text-amber-700">${s.status_name}</td>
+                        <td class="p-3"><span class="px-2 py-1 bg-slate-100 rounded text-xs font-bold border shadow-sm">${s.department||'-'}</span></td>
+                        <td class="p-3 font-mono text-blue-600">${s.route_page||'-'}</td>
+                        <td class="p-3 text-center">
+                            <button onclick="editMainStatus('${s.status_code}', '${s.status_name}', '${s.department}', '${s.route_page}')" class="text-blue-500 hover:text-blue-700 px-2 transition-all"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="deleteData('/api/statuses/${s.status_code}', loadMainStatus)" class="text-red-400 hover:text-red-600 px-2 transition-all"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `).join('');
             } catch(e){}
         }
+
+        function editMainStatus(code, name, dept, route) {
+            document.getElementById('main_status_code_input').value = code;
+            document.getElementById('main_status_code_input').readOnly = true; // ล็อกไม่ให้แก้รหัสหลัก
+            document.getElementById('main_status_code_input').classList.add('bg-slate-100', 'text-slate-500');
+            document.getElementById('main_status_name_input').value = name;
+            document.getElementById('main_status_dept_input').value = dept || 'บริการ';
+            document.getElementById('main_status_route_input').value = route || 'jobs';
+            
+            const btn = document.getElementById('btn_save_main_status');
+            btn.innerHTML = '<i class="fa-solid fa-pen-to-square mr-1"></i> อัปเดตข้อมูล';
+            btn.classList.replace('bg-amber-600', 'bg-blue-600');
+            btn.classList.replace('hover:bg-amber-700', 'hover:bg-blue-700');
+        }
+
+        function resetMainStatusForm() {
+            document.getElementById('main_status_code_input').value = '';
+            document.getElementById('main_status_code_input').readOnly = false;
+            document.getElementById('main_status_code_input').classList.remove('bg-slate-100', 'text-slate-500');
+            document.getElementById('main_status_name_input').value = '';
+            document.getElementById('main_status_dept_input').value = 'บริการ';
+            document.getElementById('main_status_route_input').value = 'jobs';
+            
+            const btn = document.getElementById('btn_save_main_status');
+            btn.innerHTML = '<i class="fa-solid fa-save mr-1"></i> บันทึกข้อมูล';
+            btn.classList.replace('bg-blue-600', 'bg-amber-600');
+            btn.classList.replace('hover:bg-blue-700', 'hover:bg-amber-700');
+        }
+
         async function saveMainStatus() {
             const code = document.getElementById('main_status_code_input').value; 
             const name = document.getElementById('main_status_name_input').value; 
@@ -278,7 +326,8 @@
             const route = document.getElementById('main_status_route_input').value; 
             if(!code || !name) return alert('กรอกข้อมูลให้ครบถ้วน');
             await fetch(`${API_BASE_URL}/api/statuses`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ status_code: code, status_name: name, department: dept, route_page: route }) });
-            document.getElementById('main_status_code_input').value = ''; document.getElementById('main_status_name_input').value = ''; loadMainStatus();
+            resetMainStatusForm();
+            loadMainStatus();
         }
 
         // ================= 5. สเตตัสอะไหล่ (PO Status) =================
