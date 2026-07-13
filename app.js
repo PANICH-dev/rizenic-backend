@@ -263,13 +263,14 @@ app.get('/api/statuses', async (req, res) => {
 app.post('/api/statuses', async (req, res) => {
   try {
     const { status_code, status_name, department, route_page } = req.body;
-    await pool.query(
-      `INSERT INTO rizenicstatusmaster (status_code, status_name, department, route_page) 
-       VALUES ($1, $2, $3, $4) 
-       ON CONFLICT (status_code) DO UPDATE 
-       SET status_name = $2, department = $3, route_page = $4`, 
-      [status_code, status_name, department, route_page]
-    );
+    const queryText = `
+      INSERT INTO rizenicstatusmaster (status_code, status_name, department, route_page) 
+      VALUES ($1, $2, $3, $4) 
+      ON CONFLICT (status_code) DO UPDATE 
+      SET status_name = $2, department = $3, route_page = $4;
+    `;
+    // ถ้าไม่มีการส่งค่ามา ให้ตั้งค่าเริ่มต้นเป็น บริการ และ jobs
+    await pool.query(queryText, [status_code, status_name, department || 'บริการ', route_page || 'jobs']);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
