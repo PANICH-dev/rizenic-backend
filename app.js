@@ -396,25 +396,42 @@ app.put('/api/report/:id/station', async (req, res) => {
     const {
       station_kho, station_pou, station_puan, station_pon, station_prak, station_kat,
       station_qc, station_mag, station_kraj, station_film, station_pak, station_ready,
-      repair_notes, repair_finish_date, job_status, department_routing
+      repair_notes, repair_finish_date, job_status, department_routing,
+      target_finish_date, delivery_date // รับค่าวันที่มาด้วย
     } = req.body;
 
     const queryText = `
       UPDATE rizenicreport SET 
         station_kho=$1, station_pou=$2, station_puan=$3, station_pon=$4, station_prak=$5, station_kat=$6,
         station_qc=$7, station_mag=$8, station_kraj=$9, station_film=$10, station_pak=$11, station_ready=$12,
-        repair_notes=$13, repair_finish_date=$14, job_status=$15, department_routing=$16
-      WHERE id=$17;
+        repair_notes=$13, repair_finish_date=$14, job_status=$15, department_routing=$16,
+        target_finish_date=$17, delivery_date=$18
+      WHERE id=$19;
     `;
 
     const values = [
       station_kho || false, station_pou || false, station_puan || false, station_pon || false, station_prak || false, station_kat || false,
       station_qc || false, station_mag || false, station_kraj || false, station_film || false, station_pak || false, station_ready || false,
       repair_notes || null, repair_finish_date || null, job_status || null, department_routing || 'ซ่อม',
+      target_finish_date || null, delivery_date || null,
       req.params.id
     ];
 
     await pool.query(queryText, values);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ⚡ API สำหรับอัปเดตวันที่ด่วนจากตารางโดยตรง (Inline Edit)
+app.put('/api/report/:id/fast-date', async (req, res) => {
+  try {
+    const { field, value } = req.body;
+    // ป้องกัน SQL Injection โดยล็อกฟิลด์ที่อนุญาตให้แก้ได้
+    const validFields = ['target_finish_date', 'repair_finish_date', 'delivery_date'];
+    if (!validFields.includes(field)) return res.status(400).json({ error: 'ไม่อนุญาตให้แก้ฟิลด์นี้' });
+    
+    const queryText = `UPDATE rizenicreport SET ${field} = $1 WHERE id = $2`;
+    await pool.query(queryText, [value || null, req.params.id]);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
