@@ -293,7 +293,7 @@ app.get('/api/report/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 📄 เพิ่ม qt_no, so_no, bl_no และระบบ Tracking อะไหล่ลงตาราง rizenicreport
+// 📄 สร้างใบงานใหม่
 app.post('/api/report', async (req, res) => {
   try {
     const {
@@ -303,7 +303,8 @@ app.post('/api/report', async (req, res) => {
       cost_part, cost_external, notes, job_status,
       target_finish_date, actual_finish_date, delivery_date,
       contact_date, arrived_date, car_plate,
-      epc_no, part_status, order_part_date, est_part_date, ordered_part_names
+      epc_no, part_status, order_part_date, est_part_date, ordered_part_names,
+      department_routing // 🟢 รับค่า Routing จากหน้าบ้าน
     } = req.body;
 
     const queryText = `
@@ -314,8 +315,8 @@ app.post('/api/report', async (req, res) => {
         cost_part, cost_external, notes, job_status,
         target_finish_date, actual_finish_date, delivery_date,
         contact_date, arrived_date, car_plate,
-        epc_no, part_status, order_part_date, est_part_date, ordered_part_names
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)
+        epc_no, part_status, order_part_date, est_part_date, ordered_part_names, department_routing
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34)
       RETURNING id;
     `;
 
@@ -326,7 +327,8 @@ app.post('/api/report', async (req, res) => {
       cost_labor || 0, cost_part || 0, cost_external || 0,
       notes || null, job_status || null, target_finish_date || null, actual_finish_date || null, delivery_date || null,
       contact_date || null, arrived_date || null, car_plate || null,
-      epc_no || null, part_status || null, order_part_date || null, est_part_date || null, ordered_part_names || null
+      epc_no || null, part_status || null, order_part_date || null, est_part_date || null, ordered_part_names || null,
+      department_routing || 'รอดำเนินการ' // 🟢 บันทึกลง DB
     ];
 
     const result = await pool.query(queryText, values);
@@ -334,6 +336,7 @@ app.post('/api/report', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// 📄 อัปเดตใบงาน
 app.put('/api/report/:id', async (req, res) => {
   try {
     const {
@@ -346,7 +349,8 @@ app.put('/api/report/:id', async (req, res) => {
       station_kho, station_pou, station_puan, station_pon, station_prak, station_kat,
       station_qc, station_mag, station_kraj, station_film, station_pak, station_ready,
       repair_notes, repair_finish_date,
-      epc_no, part_status, order_part_date, est_part_date, ordered_part_names
+      epc_no, part_status, order_part_date, est_part_date, ordered_part_names,
+      department_routing // 🟢 รับค่า Routing
     } = req.body;
 
     const queryText = `
@@ -360,8 +364,9 @@ app.put('/api/report/:id', async (req, res) => {
         station_kho=$29, station_pou=$30, station_puan=$31, station_pon=$32, station_prak=$33, station_kat=$34,
         station_qc=$35, station_mag=$36, station_kraj=$37, station_film=$38, station_pak=$39, station_ready=$40,
         repair_notes=$41, repair_finish_date=$42,
-        epc_no=$43, part_status=$44, order_part_date=$45, est_part_date=$46, ordered_part_names=$47
-      WHERE id=$48;
+        epc_no=$43, part_status=$44, order_part_date=$45, est_part_date=$46, ordered_part_names=$47,
+        department_routing=$48 -- 🟢 บันทึกลง DB
+      WHERE id=$49;
     `;
 
     const values = [
@@ -375,34 +380,7 @@ app.put('/api/report/:id', async (req, res) => {
       station_qc || false, station_mag || false, station_kraj || false, station_film || false, station_pak || false, station_ready || false,
       repair_notes || null, repair_finish_date || null,
       epc_no || null, part_status || null, order_part_date || null, est_part_date || null, ordered_part_names || null,
-      req.params.id
-    ];
-
-    await pool.query(queryText, values);
-    res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.put('/api/report/:id/station', async (req, res) => {
-  try {
-    const {
-      station_kho, station_pou, station_puan, station_pon, station_prak, station_kat,
-      station_qc, station_mag, station_kraj, station_film, station_pak, station_ready,
-      repair_notes, repair_finish_date, job_status
-    } = req.body;
-
-    const queryText = `
-      UPDATE rizenicreport SET 
-        station_kho=$1, station_pou=$2, station_puan=$3, station_pon=$4, station_prak=$5, station_kat=$6,
-        station_qc=$7, station_mag=$8, station_kraj=$9, station_film=$10, station_pak=$11, station_ready=$12,
-        repair_notes=$13, repair_finish_date=$14, job_status=$15
-      WHERE id=$16;
-    `;
-
-    const values = [
-      station_kho || false, station_pou || false, station_puan || false, station_pon || false, station_prak || false, station_kat || false,
-      station_qc || false, station_mag || false, station_kraj || false, station_film || false, station_pak || false, station_ready || false,
-      repair_notes || null, repair_finish_date || null, job_status || null,
+      department_routing || 'รอดำเนินการ', // 🟢 อัปเดต DB
       req.params.id
     ];
 
