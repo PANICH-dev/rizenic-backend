@@ -16,6 +16,23 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #475569; border-radius: 4px; border: 2px solid #1e293b; }
         .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
         input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; filter: invert(0.8); }
+        
+        /* 🔥 เอฟเฟกต์ไฟลุกสำหรับรถที่ Overdue */
+        @keyframes fire-glow {
+            0% { box-shadow: 0 0 5px #ef4444, inset 0 0 5px #ef4444; border-color: #ef4444; }
+            50% { box-shadow: 0 0 15px #f97316, inset 0 0 10px #f97316; border-color: #f97316; }
+            100% { box-shadow: 0 0 5px #ef4444, inset 0 0 5px #ef4444; border-color: #ef4444; }
+        }
+        .overdue-fire {
+            animation: fire-glow 1.5s infinite alternate;
+            color: #fca5a5 !important;
+            background-color: rgba(239, 68, 68, 0.1) !important;
+        }
+        .overdue-text {
+            color: #ef4444 !important;
+            font-weight: 900 !important;
+            text-shadow: 0 0 5px rgba(239, 68, 68, 0.5);
+        }
     </style>
 </head>
 <body class="text-gray-100 min-h-screen">
@@ -216,20 +233,20 @@
                 <label class="flex items-center gap-2 text-sm cursor-pointer hover:text-amber-300 transition"><input type="checkbox" id="chk_ready" class="w-4 h-4 accent-amber-500"> 12. รอส่งมอบ</label>
             </div>
 
-            <!-- ส่วนที่ 2: อัปเดตข้อมูลตารางนัดหมาย -->
+            <!-- ส่วนที่ 2: อัปเดตข้อมูลตารางนัดหมาย (แก้ไขเฉพาะวันที่เสร็จจริง) -->
             <label class="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-3"><i class="fa-regular fa-calendar-check text-amber-500"></i> 2. อัปเดตกำหนดการซ่อม</label>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 bg-slate-900/50 p-4 rounded-xl border border-slate-700 shadow-inner">
                 <div>
                     <label class="block text-xs text-blue-400 font-bold mb-1">เป้าซ่อมเสร็จ (Target)</label>
-                    <input type="date" id="m_target_date" class="w-full p-2.5 bg-slate-800 border border-slate-600 rounded-lg text-blue-300 outline-none focus:border-blue-500 text-sm">
+                    <input type="date" id="m_target_date" readonly class="w-full p-2.5 bg-slate-800/50 border border-slate-700 rounded-lg text-slate-500 outline-none cursor-not-allowed text-sm">
                 </div>
                 <div>
-                    <label class="block text-xs text-emerald-400 font-bold mb-1">วันที่ซ่อมเสร็จจริง (Actual)</label>
-                    <input type="date" id="m_repair_date" class="w-full p-2.5 bg-slate-800 border border-slate-600 rounded-lg text-emerald-300 outline-none focus:border-emerald-500 text-sm">
+                    <label class="block text-xs text-emerald-400 font-bold mb-1">วันที่ซ่อมเสร็จจริง (Actual) *</label>
+                    <input type="date" id="m_repair_date" onchange="validateRepairDate(this)" class="w-full p-2.5 bg-slate-800 border border-slate-600 rounded-lg text-emerald-300 outline-none focus:border-emerald-500 text-sm cursor-pointer">
                 </div>
                 <div>
                     <label class="block text-xs text-purple-400 font-bold mb-1">กำหนดส่งมอบลูกค้า (Delivery)</label>
-                    <input type="date" id="m_delivery_date" class="w-full p-2.5 bg-slate-800 border border-slate-600 rounded-lg text-purple-300 outline-none focus:border-purple-500 text-sm">
+                    <input type="date" id="m_delivery_date" readonly class="w-full p-2.5 bg-slate-800/50 border border-slate-700 rounded-lg text-slate-500 outline-none cursor-not-allowed text-sm">
                 </div>
             </div>
 
@@ -279,14 +296,52 @@
         let currentMonth = 6; 
         let chartInstance = null;
 
+        // 🌟 ตั้งค่าให้ใส่วันที่ย้อนหลังไม่ได้
+        function getTodayString() {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             if(sessionStorage.getItem('isLoggedIn') !== 'true') {
                 alert('🚨 กรุณาเข้าสู่ระบบก่อนครับนาย!');
                 window.location.href = 'index.html';
                 return;
             }
+            
+            // จำกัดให้ใส่วันที่ซ่อมเสร็จจริงย้อนหลังไม่ได้ (ใน Modal)
+            document.getElementById('m_repair_date').setAttribute('min', getTodayString());
+
             fetchJobList();
         });
+
+        // ตรวจสอบการเลือกวันที่ใน Inline Edit ให้ไม่ย้อนหลัง
+        function validateRepairDate(inputEl) {
+            const selectedDate = inputEl.value;
+            const today = getTodayString();
+            if (selectedDate && selectedDate < today) {
+                alert('❌ ไม่สามารถใส่วันที่เสร็จจริงย้อนหลังได้ครับ!');
+                inputEl.value = today; // เซ็ตให้เป็นวันนี้แทน
+            }
+        }
+
+        // ตรวจสอบรถ Overdue (เกินเป้าซ่อมเสร็จ แต่ยังไม่เสร็จจริง)
+        function checkOverdue(job) {
+            if (!job.target_finish_date) return false; // ถ้าไม่มีเป้า ไม่ถือว่า overdue
+            if (job.repair_finish_date) return false; // ถ้าซ่อมเสร็จแล้ว ไม่ overdue
+
+            const targetDate = new Date(job.target_finish_date);
+            const today = new Date();
+            
+            // เคลียร์เวลาออก ให้เทียบแค่วันที่
+            targetDate.setHours(0,0,0,0);
+            today.setHours(0,0,0,0);
+
+            return targetDate < today; // ถ้าเป้าหมายน้อยกว่าวันนี้ แสดงว่าเลยกำหนด (Overdue)
+        }
 
         function switchRepairSubTab(tabId) {
             document.querySelectorAll('.repair-sub-tab').forEach(el => el.classList.add('hidden'));
@@ -331,8 +386,17 @@
             return "ยังไม่ระบุสถานี";
         }
 
-        // 🌟 อัปเดตวันที่ด่วนแบบ Inline Edit
+        // 🌟 อัปเดตวันที่ด่วนแบบ Inline Edit (เฉพาะเสร็จจริง)
         async function fastUpdateDate(id, field, value) {
+            // ป้องกันการย้อนหลัง
+            const today = getTodayString();
+            if (value && value < today) {
+                alert('❌ ไม่สามารถใส่วันที่ย้อนหลังได้ครับ!');
+                // รีโหลดตารางกลับค่าเดิม
+                filterRepairTable(); 
+                return;
+            }
+
             try {
                 const res = await fetch(`${API_BASE_URL}/api/report/${id}/fast-date`, {
                     method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -343,13 +407,14 @@
                     if(jobIndex > -1) {
                         originalRepairJobs[jobIndex][field] = value ? value + 'T00:00:00.000Z' : null;
                         renderCalendar(); // รีเฟรชปฏิทินกราฟ
+                        filterRepairTable(); // รีเฟรชตารางเพื่ออัปเดตสถานะไฟลุก
                     }
                 }
             } catch(e) { console.log('Fast update fail', e); }
         }
 
         // ===============================================
-        // 📋 1. ตารางกระดานรถซ่อม (มี Filter วันที่)
+        // 📋 1. ตารางกระดานรถซ่อม 
         // ===============================================
         function renderRepairListTable(data) {
             const tbody = document.getElementById('repair_list_body');
@@ -364,20 +429,34 @@
                 const finishDateStr = j.repair_finish_date ? j.repair_finish_date.split('T')[0] : '';
                 const deliveryDateStr = j.delivery_date ? j.delivery_date.split('T')[0] : '';
                 
+                const isOverdue = checkOverdue(j);
+                const plateClass = isOverdue ? 'overdue-fire' : '';
+                const textClass = isOverdue ? 'overdue-text' : 'text-amber-400';
+                const overdueWarning = isOverdue ? `<div class="text-[10px] text-red-500 font-bold mt-1 animate-pulse"><i class="fa-solid fa-fire"></i> ดีเลย์! เร่งด่วน!</div>` : '';
+                
                 return `
-                    <tr class="hover:bg-slate-800/80 transition-colors group">
-                        <td class="p-4 border-b border-slate-800 text-white"><span class="bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-md text-amber-400 mr-3 font-mono text-sm shadow-inner">${j.car_plate || 'ไม่มีป้าย'}</span> <span class="font-semibold tracking-wide">${j.car_brand} ${j.car_model || ''}</span></td>
+                    <tr class="hover:bg-slate-800/80 transition-colors group ${isOverdue ? 'bg-red-900/10' : ''}">
+                        <td class="p-4 border-b border-slate-800 text-white">
+                            <span class="bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-md mr-3 font-mono text-sm shadow-inner transition-all ${textClass} ${plateClass}">
+                                ${isOverdue ? '<i class="fa-solid fa-fire text-red-500 mr-1"></i>' : ''}${j.car_plate || 'ไม่มีป้าย'}
+                            </span> 
+                            <span class="font-semibold tracking-wide">${j.car_brand} ${j.car_model || ''}</span>
+                        </td>
                         <td class="p-4 border-b border-slate-800"><span class="px-3 py-1 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-400 text-xs font-bold inline-flex items-center gap-1"><i class="fa-solid fa-wrench"></i> ${calculatedStation}</span></td>
                         <td class="p-4 border-b border-slate-800 text-xs font-semibold text-slate-300"><i class="fa-solid fa-tag text-slate-500"></i> ${j.job_status}</td>
                         
                         <td class="p-2 border-b border-slate-800 text-center">
-                            <input type="date" value="${targetDateStr}" onchange="fastUpdateDate('${j.id}', 'target_finish_date', this.value)" class="bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-xs text-blue-400 outline-none focus:border-blue-500 hover:bg-slate-800 transition cursor-pointer w-[120px]">
+                            <!-- 🌟 ป้องกันช่างแก้เป้าซ่อม (Readonly) -->
+                            <div class="text-xs font-mono font-bold ${isOverdue ? 'text-red-500' : 'text-blue-400'}">${targetDateStr || '-'}</div>
+                            ${overdueWarning}
                         </td>
                         <td class="p-2 border-b border-slate-800 text-center">
-                            <input type="date" value="${finishDateStr}" onchange="fastUpdateDate('${j.id}', 'repair_finish_date', this.value)" class="bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-xs text-emerald-400 outline-none focus:border-emerald-500 hover:bg-slate-800 transition cursor-pointer w-[120px]">
+                            <!-- 🌟 ใส่ได้เฉพาะเสร็จจริง -->
+                            <input type="date" min="${getTodayString()}" value="${finishDateStr}" onchange="fastUpdateDate('${j.id}', 'repair_finish_date', this.value)" class="bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-xs text-emerald-400 outline-none focus:border-emerald-500 hover:bg-slate-800 transition cursor-pointer w-[120px]">
                         </td>
                         <td class="p-2 border-b border-slate-800 text-center">
-                            <input type="date" value="${deliveryDateStr}" onchange="fastUpdateDate('${j.id}', 'delivery_date', this.value)" class="bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-xs text-purple-400 outline-none focus:border-purple-500 hover:bg-slate-800 transition cursor-pointer w-[120px]">
+                            <!-- 🌟 ป้องกันช่างแก้นัดส่งมอบ (Readonly) -->
+                            <div class="text-xs font-mono font-bold text-purple-400">${deliveryDateStr || '-'}</div>
                         </td>
                         
                         <td class="p-4 border-b border-slate-800 text-slate-400 italic text-xs max-w-[200px] truncate" title="${j.repair_notes || ''}">${j.repair_notes || '-'}</td>
@@ -405,7 +484,6 @@
                 const matchStation = fStation === "" || calcStation.includes(fStation);
                 const matchStatus = fStatus === "" || (j.job_status || '').includes(fStatus);
                 
-                // เช็คตัวกรองวันที่ (ถ้าไม่เลือกก็ผ่าน ถ้าเลือกต้องตรงกัน)
                 const matchTarget = !fTarget || (j.target_finish_date && j.target_finish_date.startsWith(fTarget));
                 const matchActual = !fActual || (j.repair_finish_date && j.repair_finish_date.startsWith(fActual));
                 const matchDelivery = !fDelivery || (j.delivery_date && j.delivery_date.startsWith(fDelivery));
@@ -416,7 +494,7 @@
         }
 
         // ===============================================
-        // 📅 2. ปฏิทินแสดง 3 แท่ง (Vertical Bar Chart)
+        // 📅 2. ปฏิทินแสดง 3 แท่ง (Vertical Bar Chart - Dynamic Scale)
         // ===============================================
         function renderCalendar() {
             const grid = document.getElementById('calendar_grid'); grid.innerHTML = '';
@@ -428,8 +506,18 @@
 
             for(let i = 0; i < firstDay; i++) { grid.innerHTML += `<div class="bg-slate-900/20 p-3 rounded-2xl border border-transparent"></div>`; }
 
-            const maxBarValue = 15; // 🌟 เพดานสำหรับความสูงกราฟ 100%
+            // 🌟 1. หาค่าสูงสุดของจำนวนรถในเดือนนี้ (Dynamic Scale)
+            let monthMaxQty = 1; // ตั้งขั้นต่ำไว้กัน error หารศูนย์
+            for(let day = 1; day <= totalDays; day++) {
+                const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                const tQty = originalRepairJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).length;
+                const aQty = originalRepairJobs.filter(j => j.repair_finish_date && j.repair_finish_date.split('T')[0] === dateStr).length;
+                const dQty = originalRepairJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
+                const maxInDay = Math.max(tQty, aQty, dQty);
+                if (maxInDay > monthMaxQty) monthMaxQty = maxInDay;
+            }
 
+            // 🌟 2. วาดกราฟ
             for(let day = 1; day <= totalDays; day++) {
                 const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
                 
@@ -437,38 +525,44 @@
                 const actualQty = originalRepairJobs.filter(j => j.repair_finish_date && j.repair_finish_date.split('T')[0] === dateStr).length;
                 const deliveryQty = originalRepairJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
 
+                // ตรวจสอบว่ามีรถ Overdue ในวันนี้ไหม
+                const overdueJobsInDay = originalRepairJobs.filter(j => 
+                    (j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr) && checkOverdue(j)
+                );
+                const hasOverdue = overdueJobsInDay.length > 0;
+
                 let barBlock = '';
                 
                 if(targetQty > 0 || actualQty > 0 || deliveryQty > 0) {
-                    barBlock = `<div class="flex items-end justify-center gap-1.5 w-full h-[60px] mt-2">`;
+                    barBlock = `<div class="flex items-end justify-center gap-2 w-full h-[60px] mt-2">`;
                     
                     // 🔹 แท่งกราฟ เป้าซ่อม (สีฟ้า)
                     if(targetQty > 0) {
-                        const h = Math.max(10, Math.min((targetQty/maxBarValue)*100, 100));
+                        const h = Math.max(15, (targetQty / monthMaxQty) * 100);
                         barBlock += `
                         <div class="flex flex-col items-center group/bar cursor-pointer" title="เป้าซ่อมเสร็จ: ${targetQty} คัน">
-                            <span class="text-[9px] font-bold text-blue-400 mb-0.5 opacity-0 group-hover/bar:opacity-100 transition-opacity">${targetQty}</span>
-                            <div class="w-2.5 bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-sm shadow-[0_0_8px_rgba(59,130,246,0.5)] transition-all group-hover/bar:w-3" style="height: ${h}%;"></div>
+                            <span class="text-[10px] font-bold text-blue-400 mb-0.5 opacity-0 group-hover/bar:opacity-100 transition-opacity">${targetQty}</span>
+                            <div class="w-3.5 bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-sm shadow-[0_0_8px_rgba(59,130,246,0.5)] transition-all group-hover/bar:w-4" style="height: ${h}%;"></div>
                         </div>`;
                     }
                     
                     // 🔹 แท่งกราฟ เสร็จจริง (สีเขียว)
                     if(actualQty > 0) {
-                        const h = Math.max(10, Math.min((actualQty/maxBarValue)*100, 100));
+                        const h = Math.max(15, (actualQty / monthMaxQty) * 100);
                         barBlock += `
                         <div class="flex flex-col items-center group/bar cursor-pointer" title="เสร็จจริง: ${actualQty} คัน">
-                            <span class="text-[9px] font-bold text-emerald-400 mb-0.5 opacity-0 group-hover/bar:opacity-100 transition-opacity">${actualQty}</span>
-                            <div class="w-2.5 bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-t-sm shadow-[0_0_8px_rgba(16,185,129,0.5)] transition-all group-hover/bar:w-3" style="height: ${h}%;"></div>
+                            <span class="text-[10px] font-bold text-emerald-400 mb-0.5 opacity-0 group-hover/bar:opacity-100 transition-opacity">${actualQty}</span>
+                            <div class="w-3.5 bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-t-sm shadow-[0_0_8px_rgba(16,185,129,0.5)] transition-all group-hover/bar:w-4" style="height: ${h}%;"></div>
                         </div>`;
                     }
                     
                     // 🔹 แท่งกราฟ ส่งมอบ (สีม่วง)
                     if(deliveryQty > 0) {
-                        const h = Math.max(10, Math.min((deliveryQty/maxBarValue)*100, 100));
+                        const h = Math.max(15, (deliveryQty / monthMaxQty) * 100);
                         barBlock += `
                         <div class="flex flex-col items-center group/bar cursor-pointer" title="นัดส่งมอบ: ${deliveryQty} คัน">
-                            <span class="text-[9px] font-bold text-purple-400 mb-0.5 opacity-0 group-hover/bar:opacity-100 transition-opacity">${deliveryQty}</span>
-                            <div class="w-2.5 bg-gradient-to-t from-purple-600 to-purple-400 rounded-t-sm shadow-[0_0_8px_rgba(168,85,247,0.5)] transition-all group-hover/bar:w-3" style="height: ${h}%;"></div>
+                            <span class="text-[10px] font-bold text-purple-400 mb-0.5 opacity-0 group-hover/bar:opacity-100 transition-opacity">${deliveryQty}</span>
+                            <div class="w-3.5 bg-gradient-to-t from-purple-600 to-purple-400 rounded-t-sm shadow-[0_0_8px_rgba(168,85,247,0.5)] transition-all group-hover/bar:w-4" style="height: ${h}%;"></div>
                         </div>`;
                     }
                     barBlock += `</div>`;
@@ -476,12 +570,15 @@
                     barBlock = `<div class="flex items-center justify-center h-[60px] w-full mt-2"><span class="text-[10px] font-semibold text-slate-600">ว่าง</span></div>`;
                 }
 
+                // 🌟 ถ้ามีรถ Overdue ให้กรอบวันที่ไฟลุก
+                const dayClass = hasOverdue ? 'overdue-fire border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'border-transparent shadow-lg hover:shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:-translate-y-1 hover:border-amber-500';
+
                 grid.innerHTML += `
-                    <div onclick="clickCalendarDate('${dateStr}')" class="glass-panel p-3 rounded-2xl hover:border-amber-500 cursor-pointer transition flex flex-col justify-between min-h-[110px] relative overflow-hidden group shadow-lg hover:shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:-translate-y-1">
+                    <div onclick="clickCalendarDate('${dateStr}')" class="glass-panel p-3 rounded-2xl cursor-pointer transition-all flex flex-col justify-between min-h-[110px] relative overflow-hidden group ${dayClass}">
                         <div class="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <div class="flex justify-between items-start z-10">
-                            <span class="text-sm font-black ${day === new Date().getDate() && currentMonth === new Date().getMonth() ? 'text-slate-900 bg-amber-400 px-2 py-0.5 rounded shadow-sm' : 'text-slate-400 group-hover:text-amber-300 transition-colors'} font-mono">${day}</span>
-                            ${(targetQty>0||actualQty>0||deliveryQty>0) ? `<i class="fa-solid fa-fire text-amber-500/50 text-[10px]"></i>` : ''}
+                            <span class="text-sm font-black ${day === new Date().getDate() && currentMonth === new Date().getMonth() ? 'text-slate-900 bg-amber-400 px-2 py-0.5 rounded shadow-sm' : (hasOverdue ? 'text-red-500' : 'text-slate-400 group-hover:text-amber-300')} transition-colors font-mono">${day}</span>
+                            ${hasOverdue ? `<i class="fa-solid fa-fire text-red-500 animate-pulse text-sm" title="มีรถดีเลย์ ${overdueJobsInDay.length} คัน!"></i>` : ''}
                         </div>
                         <div class="w-full z-10">${barBlock}</div>
                     </div>
@@ -509,6 +606,7 @@
             const listContent = document.getElementById('dayListContent');
             listContent.innerHTML = dayJobs.map(j => {
                 const station = computeHighestStationIFS(j);
+                const isOverdue = checkOverdue(j);
                 
                 let tags = '';
                 if(j.target_finish_date && j.target_finish_date.split('T')[0] === dateString) tags += `<span class="bg-blue-500/20 text-blue-400 text-[10px] px-2 py-0.5 rounded border border-blue-500/30"><i class="fa-solid fa-bullseye"></i> เป้าซ่อม</span> `;
@@ -516,11 +614,13 @@
                 if(j.delivery_date && j.delivery_date.split('T')[0] === dateString) tags += `<span class="bg-purple-500/20 text-purple-400 text-[10px] px-2 py-0.5 rounded border border-purple-500/30"><i class="fa-solid fa-car-side"></i> นัดส่งมอบ</span> `;
 
                 return `
-                    <div class="bg-slate-800/80 border border-slate-600 rounded-xl p-4 hover:border-amber-500 transition flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-md">
+                    <div class="bg-slate-800/80 border ${isOverdue ? 'border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'border-slate-600'} rounded-xl p-4 hover:border-amber-500 transition flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-md">
                         <div class="w-full">
                             <div class="flex justify-between items-start mb-2">
-                                <div class="font-bold text-white">
-                                    <span class="text-amber-400 bg-slate-900 border border-slate-700 px-2 py-0.5 rounded font-mono mr-2 shadow-inner">${j.car_plate || '-'}</span> 
+                                <div class="font-bold ${isOverdue ? 'text-red-400' : 'text-white'}">
+                                    <span class="${isOverdue ? 'bg-red-500 text-white' : 'text-amber-400 bg-slate-900 border border-slate-700'} px-2 py-0.5 rounded font-mono mr-2 shadow-inner">
+                                        ${isOverdue ? '<i class="fa-solid fa-fire animate-pulse mr-1"></i>' : ''}${j.car_plate || '-'}
+                                    </span> 
                                     ${j.car_brand} ${j.car_model || ''}
                                 </div>
                                 <div>${tags}</div>
@@ -588,7 +688,6 @@
                     responsive: true, maintainAspectRatio: false, 
                     plugins: { 
                         legend: { position: 'right', labels: { color: '#e2e8f0', font: { family: 'Noto Sans Thai', size: 12 } } },
-                        // 🌟 โชว์เลขและสถานะบนก้อนเค้กเลย!
                         datalabels: {
                             color: '#ffffff',
                             font: { family: 'Noto Sans Thai', weight: 'bold', size: 12 },
@@ -599,16 +698,11 @@
                         }
                     }, 
                     cutout: '55%',
-                    // 🌟 คลิกก้อนเค้กแล้วพาวิ่งไปหน้าแรกพร้อมกรองสถานีให้เลย!
                     onClick: (event, elements) => {
                         if (elements.length > 0) {
                             const index = elements[0].index;
                             const labelName = chartInstance.data.labels[index];
-                            
-                            // สลับไปแท็บ 1
                             switchRepairSubTab('menu-list');
-                            
-                            // หาค่า dropdown ที่ตรงกับที่คลิก
                             const selectEl = document.getElementById('filter_station');
                             for(let i=0; i<selectEl.options.length; i++) {
                                 if(selectEl.options[i].value.includes(labelName)) {
@@ -616,7 +710,6 @@
                                     break;
                                 }
                             }
-                            // สั่งกรอง
                             filterRepairTable();
                         }
                     }
@@ -641,21 +734,24 @@
                     stationJobs[stationKey].forEach(j => {
                         const target = j.target_finish_date ? j.target_finish_date.split('T')[0] : 'ยังไม่ระบุ';
                         const actual = j.repair_finish_date ? j.repair_finish_date.split('T')[0] : '';
+                        const isOverdue = checkOverdue(j);
                         
                         listHTML += `
-                            <div class="px-4 py-3 flex flex-col lg:flex-row justify-between items-start lg:items-center hover:bg-slate-800 transition gap-3">
+                            <div class="px-4 py-3 flex flex-col lg:flex-row justify-between items-start lg:items-center hover:bg-slate-800 transition gap-3 ${isOverdue ? 'bg-red-900/10' : ''}">
                                 <div>
-                                    <span class="text-white font-mono font-bold bg-slate-900 px-1.5 py-0.5 rounded text-xs mr-2 shadow-inner">${j.car_plate || '-'}</span>
+                                    <span class="text-white font-mono font-bold px-1.5 py-0.5 rounded text-xs mr-2 shadow-inner ${isOverdue ? 'overdue-fire' : 'bg-slate-900'}">
+                                        ${isOverdue ? '<i class="fa-solid fa-fire text-red-500 mr-1"></i>' : ''}${j.car_plate || '-'}
+                                    </span>
                                     <span class="text-slate-300 text-xs font-semibold">${j.car_brand} ${j.car_model || ''}</span>
                                 </div>
                                 <div class="flex items-center gap-4 w-full lg:w-auto justify-between lg:justify-end">
                                     <div class="text-right">
                                         <div class="text-[10px] text-slate-400 mb-0.5">เป้าซ่อมเสร็จ</div>
-                                        <div class="text-xs font-mono font-bold ${target === 'ยังไม่ระบุ' ? 'text-slate-500' : 'text-blue-400'}">${target}</div>
+                                        <div class="text-xs font-mono font-bold ${isOverdue ? 'text-red-500' : (target === 'ยังไม่ระบุ' ? 'text-slate-500' : 'text-blue-400')}">${target}</div>
                                     </div>
                                     <div class="text-right">
                                         <div class="text-[10px] text-emerald-400 mb-0.5 font-bold"><i class="fa-solid fa-pen text-[9px]"></i> เสร็จจริง (กรอกได้)</div>
-                                        <input type="date" value="${actual}" onchange="fastUpdateDate('${j.id}', 'repair_finish_date', this.value); setTimeout(renderPieChartAndList, 800);" class="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-emerald-400 outline-none focus:border-emerald-500 hover:bg-slate-800 transition cursor-pointer w-[120px]">
+                                        <input type="date" min="${getTodayString()}" value="${actual}" onchange="fastUpdateDate('${j.id}', 'repair_finish_date', this.value); setTimeout(renderPieChartAndList, 800);" class="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-emerald-400 outline-none focus:border-emerald-500 hover:bg-slate-800 transition cursor-pointer w-[120px]">
                                     </div>
                                 </div>
                             </div>
@@ -692,6 +788,7 @@
                 document.getElementById('chk_pak').checked = job.station_pak;
                 document.getElementById('chk_ready').checked = job.station_ready;
 
+                // 🌟 ให้ Modal ล็อกช่องเป้าซ่อมกับวันส่งมอบ (ให้ SA เป็นคนแก้)
                 document.getElementById('m_target_date').value = job.target_finish_date ? job.target_finish_date.split('T')[0] : '';
                 document.getElementById('m_repair_date').value = job.repair_finish_date ? job.repair_finish_date.split('T')[0] : '';
                 document.getElementById('m_delivery_date').value = job.delivery_date ? job.delivery_date.split('T')[0] : '';
@@ -709,6 +806,15 @@
 
         async function submitRepairStation() {
             const id = document.getElementById('m_job_id').value;
+            
+            // ป้องกันการบันทึกวันที่ย้อนหลัง
+            const repairDateInput = document.getElementById('m_repair_date').value;
+            const today = getTodayString();
+            if (repairDateInput && repairDateInput < today) {
+                alert('❌ ไม่สามารถใส่วันที่เสร็จจริงย้อนหลังได้ครับ!');
+                return;
+            }
+
             const payload = {
                 station_kho: document.getElementById('chk_kho').checked,
                 station_pou: document.getElementById('chk_pou').checked,
@@ -723,9 +829,8 @@
                 station_pak: document.getElementById('chk_pak').checked,
                 station_ready: document.getElementById('chk_ready').checked,
                 
-                target_finish_date: document.getElementById('m_target_date').value || null,
-                repair_finish_date: document.getElementById('m_repair_date').value || null,
-                delivery_date: document.getElementById('m_delivery_date').value || null,
+                // ไม่ส่ง target กับ delivery ไปอัปเดต เพราะถูก Readonly ไว้
+                repair_finish_date: repairDateInput || null,
                 
                 job_status: document.getElementById('m_job_status').value,
                 department_routing: document.getElementById('m_dept_routing').value,
@@ -733,13 +838,14 @@
             };
 
             try {
+                // อัปเดตเฉพาะสถานีช่าง
                 const res = await fetch(`${API_BASE_URL}/api/report/${id}/station`, {
                     method: 'PUT',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(payload)
                 });
                 if(res.ok) {
-                    alert('🎉 อัปเดตงานช่างและข้อมูลกำหนดการ เรียบร้อยแล้ว!');
+                    alert('🎉 อัปเดตงานช่าง เรียบร้อยแล้ว!');
                     closeModal();
                     fetchJobList(); 
                 }
