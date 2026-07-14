@@ -146,23 +146,28 @@
         let userBranch = '';
 
         document.addEventListener('DOMContentLoaded', () => {
-            if(sessionStorage.getItem('isLoggedIn') !== 'true') { window.location.href = 'index.html'; return; }
-            
-            document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name');
-            userRole = sessionStorage.getItem('emp_role');
-            userBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
-            document.getElementById('display_branch').innerText = userBranch;
-
-            if (['BA','Manager','Admin','แอดมิน'].includes(userRole)) {
-                const nav = document.getElementById('nav-buttons');
-                const adminBtn = document.createElement('a'); adminBtn.href = "admin.html";
-                adminBtn.className = "px-3 py-1.5 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium text-xs transition";
-                adminBtn.innerHTML = '<i class="fa-solid fa-sliders mr-1"></i> แอดมิน';
-                nav.insertBefore(adminBtn, nav.lastElementChild);
+            if(sessionStorage.getItem('isLoggedIn') !== 'true') {
+                alert('🚨 กรุณาเข้าสู่ระบบก่อนครับ!'); window.location.href = 'index.html'; return;
             }
 
-            loadBranchesForFilter();
-            loadJobsData();
+            // 🛡️ ยามเฝ้าประตู (แดชบอร์ด)
+            const allowedPages = (sessionStorage.getItem('accessible_pages') || '').split(',');
+            if (!allowedPages.includes('dashboard')) { 
+                alert('⛔ คุณไม่มีสิทธิ์เข้าถึงหน้านี้ครับ!');
+                window.location.href = allowedPages.length > 0 ? allowedPages[0] + '.html' : 'index.html';
+                return;
+            }
+            
+            const empName = sessionStorage.getItem('emp_name');
+            const empBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+            const empRole = sessionStorage.getItem('emp_role');
+
+            document.getElementById('display_emp_name').innerText = empName;
+            document.getElementById('display_branch').innerText = empBranch;
+            document.getElementById('current_date_display').innerText = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+            
+            setupBranchDropdown(empRole, empBranch);
+            fetchDashboardData();
         });
 
         function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }

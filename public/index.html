@@ -276,35 +276,64 @@
 
         async function handleLogin(e) {
             e.preventDefault();
-            const user = document.getElementById('login_user').value; const pass = document.getElementById('login_pass').value;
+            const user = document.getElementById('login_user').value; 
+            const pass = document.getElementById('login_pass').value;
             try {
                 const res = await fetch(`${API_BASE_URL}/api/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: user, password: pass }) });
                 const data = await res.json();
                 if (data.success) {
-                    sessionStorage.setItem('isLoggedIn', 'true'); sessionStorage.setItem('emp_name', data.employee.employee_name);
-                    sessionStorage.setItem('emp_role', data.employee.employee_role); sessionStorage.setItem('emp_branch', data.employee.branch_name || 'สำนักงานใหญ่');
-                    enterApp();
-                } else alert('❌ Login ล้มเหลว');
+                    sessionStorage.setItem('isLoggedIn', 'true'); 
+                    sessionStorage.setItem('emp_name', data.employee.employee_name);
+                    sessionStorage.setItem('emp_role', data.employee.employee_role); 
+                    sessionStorage.setItem('emp_branch', data.employee.branch_name || 'สำนักงานใหญ่');
+                    
+                    // 🌟 เก็บรายชื่อหน้าเว็บที่มีสิทธิ์เข้าถึงลงในเครื่อง
+                    const accessiblePages = data.employee.accessible_pages || '';
+                    sessionStorage.setItem('accessible_pages', accessiblePages);
+
+                    const pagesArray = accessiblePages.split(',').filter(Boolean);
+
+                    // 🔀 Smart Routing: ถ้าไม่มีสิทธิ์เลยให้เตะออก
+                    if (pagesArray.length === 0) {
+                        alert('⛔ ไอดีของคุณยังไม่มีสิทธิ์เข้าหน้าใดเลย กรุณาติดต่อแอดมินครับ!');
+                        sessionStorage.clear();
+                        return;
+                    }
+
+                    // ถ้ามีสิทธิ์เข้าหน้า index (เปิดบิล) ให้เข้าปกติ
+                    if (pagesArray.includes('index')) {
+                        enterApp();
+                    } else {
+                        // ถ้าไม่มีสิทธิ์หน้า index ให้เด้งไปหน้าแรกที่เขามีสิทธิ์ (เช่น ช่างก็เด้งไป repair.html เลย)
+                        window.location.href = pagesArray[0] + '.html';
+                    }
+                } else alert('❌ ' + data.error);
             } catch (err) { alert('❌ ระบบขัดข้อง'); }
         }
 
         function enterApp() {
+            // 🛡️ ยามเฝ้าประตูหน้า SA (index.html)
+            const pagesArray = (sessionStorage.getItem('accessible_pages') || '').split(',');
+            if (!pagesArray.includes('index')) {
+                alert('⛔ คุณไม่มีสิทธิ์เข้าถึงหน้าเปิดบิลครับ!');
+                window.location.href = pagesArray[0] + '.html'; return;
+            }
+
             document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name');
             document.getElementById('display_branch').innerText = sessionStorage.getItem('emp_branch');
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('main-app').classList.remove('hidden');
             
-            const role = sessionStorage.getItem('emp_role');
-            if (['BA','Manager','Admin','แอดมิน'].includes(role)) {
+            // ซ่อนปุ่มแอดมินถ้าไม่มีสิทธิ์
+            if (pagesArray.includes('admin')) {
                 const nav = document.getElementById('nav-buttons');
                 const adminBtn = document.createElement('a'); adminBtn.href = "admin.html";
-                adminBtn.className = "px-3.5 py-2 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs";
+                adminBtn.className = "px-3.5 py-2 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs shadow-sm";
                 adminBtn.innerHTML = '<i class="fa-solid fa-sliders mr-1"></i> แอดมิน';
                 nav.insertBefore(adminBtn, nav.lastElementChild);
             }
 
             document.getElementById('contact_date').value = new Date().toISOString().split('T')[0];
-            
             updateDamageColor(document.getElementById('damage_level'));
             loadInitialData(); addDocRow(); addPartRow(); checkCrossPageEditMode();
         }

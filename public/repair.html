@@ -313,12 +313,17 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             if(sessionStorage.getItem('isLoggedIn') !== 'true') {
-                alert('🚨 กรุณาเข้าสู่ระบบก่อนครับนาย!');
-                window.location.href = 'index.html';
+                alert('🚨 กรุณาเข้าสู่ระบบก่อนครับนาย!'); window.location.href = 'index.html'; return;
+            }
+
+            // 🛡️ ยามเฝ้าประตู (สถานีช่าง)
+            const allowedPages = (sessionStorage.getItem('accessible_pages') || '').split(',');
+            if (!allowedPages.includes('repair')) { 
+                alert('⛔ คุณไม่มีสิทธิ์เข้าถึงหน้านี้ครับ!');
+                window.location.href = allowedPages.length > 0 ? allowedPages[0] + '.html' : 'index.html';
                 return;
             }
             
-            // 🌟 เซ็ตข้อมูลสาขาและพนักงานให้โชว์มุมขวาบน
             currentBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
             const empName = sessionStorage.getItem('emp_name') || 'ช่างซ่อม (ไม่ระบุชื่อ)';
             
@@ -327,8 +332,8 @@
             const displayBr = document.getElementById('display_branch');
             if(displayBr) displayBr.innerText = currentBranch;
             
-            // จำกัดให้ใส่วันที่ซ่อมเสร็จจริงย้อนหลังไม่ได้ (ใน Modal)
-            document.getElementById('m_repair_date').setAttribute('min', getTodayString());
+            const mRepairDate = document.getElementById('m_repair_date');
+            if(mRepairDate) mRepairDate.setAttribute('min', getTodayString());
 
             fetchJobList();
         });

@@ -10,10 +10,10 @@
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;900&display=swap');
     
     :root {
-      --green-main: #f59e0b; /* เปลี่ยนธีมเป็นโทน Amber ของช่าง */
+      --green-main: #f59e0b; 
       --green-dark: #d97706;
       --green-soft: #fef3c7;
-      --bg: #0f172a; /* พื้นหลัง Dark Mode */
+      --bg: #0f172a; 
       --station: rgba(30, 41, 59, 0.7);
       --card: #1e293b;
       --text: #f8fafc;
@@ -36,7 +36,6 @@
     .toggle-btn.off { opacity: 0.4; text-decoration: line-through; background: #0f172a; border-style: dashed;}
     
     #scrollArea { flex: 1; overflow: auto; }
-    /* แต่ง Scrollbar */
     #scrollArea::-webkit-scrollbar { width: 10px; height: 10px; }
     #scrollArea::-webkit-scrollbar-track { background: #0f172a; }
     #scrollArea::-webkit-scrollbar-thumb { background-color: #475569; border-radius: 5px; }
@@ -61,11 +60,9 @@
     
     .card-worker { font-size: 0.85rem; font-weight: 600; color: var(--muted); margin-top: 12px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 8px;}
     
-    /* แจ้งเตือนเสียง */
     #voiceToggle { position: absolute; top: 20px; right: 20px; background: #1e293b; color: white; border: 1px solid #334155; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.85rem; display: flex; items-center; gap: 8px;}
     #voiceToggle.on { color: #f59e0b; border-color: #f59e0b; }
 
-    /* Modal ป๊อปอัป */
     #modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; z-index: 999; }
     #modalContent { background: #1e293b; max-width: 500px; width: 90%; max-height: 90%; overflow: auto; border-radius: 16px; padding: 24px; position: relative; border: 1px solid #334155; box-shadow: 0 20px 50px rgba(0,0,0,0.5); color: white;}
     #closeModal { position: absolute; top: 12px; right: 16px; font-size: 1.5rem; cursor: pointer; color: #94a3b8; transition: color 0.2s;}
@@ -107,7 +104,7 @@
 <script>
 const API_BASE_URL = window.location.origin;
 let hiddenStations = new Set();
-let oldData = null; // สำหรับเปรียบเทียบข้อมูลเก่า-ใหม่ เพื่อแจ้งเตือนเสียง
+let oldData = null; 
 let voiceEnabled = true;
 
 // ลำดับสถานีที่ต้องการให้โชว์
@@ -117,7 +114,28 @@ const stationOrder = [
     "11. พักซ่อม", "12. รอส่งมอบ", "ยังไม่ระบุสถานี"
 ];
 
-/* ===== [NEW] ระบบเสียงพูด ===== */
+// 🌟 ยามเฝ้าประตู (Bouncer) จะเริ่มทำงานเมื่อโหลดหน้าเสร็จ
+document.addEventListener('DOMContentLoaded', () => {
+    if(sessionStorage.getItem('isLoggedIn') !== 'true') {
+        alert('🚨 กรุณาเข้าสู่ระบบก่อนครับ!');
+        window.location.href = 'index.html';
+        return;
+    }
+
+    // 🛡️ เช็คสิทธิ์ตามหน้า repair_board
+    const allowedPages = (sessionStorage.getItem('accessible_pages') || '').split(',');
+    if (!allowedPages.includes('repair_board')) {
+        alert('⛔ คุณไม่มีสิทธิ์เข้าถึงหน้านี้ครับ!');
+        window.location.href = allowedPages.length > 0 ? allowedPages[0] + '.html' : 'index.html';
+        return;
+    }
+
+    // เริ่มต้นโหลดข้อมูลถ้ามีสิทธิ์
+    loadData();
+    // รีเฟรชทุกๆ 30 วินาที
+    setInterval(loadData, 30000);
+});
+
 function toggleVoice() {
     voiceEnabled = !voiceEnabled;
     const btn = document.getElementById('voiceToggle');
@@ -143,7 +161,7 @@ function speakTransition(plate, stationName) {
       text = `ประกาศครับ รถทะเบียน ${plate} ซ่อมเสร็จเรียบร้อยแล้ว อยู่ในสถานะ รอส่งมอบ ครับ`;
       rate = 0.85; 
     } else {
-      text = `รถทะเบียน ${plate} เคลื่อนย้ายเข้าสู่ ${stationName.replace(/[0-9.]/g, '')}`; // ลบตัวเลขข้างหน้าเวลาพูด
+      text = `รถทะเบียน ${plate} เคลื่อนย้ายเข้าสู่ ${stationName.replace(/[0-9.]/g, '')}`; 
       rate = 1.0;
     }
 
@@ -154,7 +172,6 @@ function speakTransition(plate, stationName) {
   }
 }
 
-/* ===== [NEW] ตรวจสอบการเคลื่อนย้ายสเตชั่น ===== */
 function checkForChanges(newData) {
   if (!oldData) {
     oldData = newData; 
@@ -175,14 +192,12 @@ function checkForChanges(newData) {
   oldData = newData; 
 }
 
-/* ===== Zoom ===== */
 function setZoom(scale, el) {
   document.getElementById('zoomWrap').style.transform = `scale(${scale})`;
   document.querySelectorAll('.menu-btn').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
 }
 
-/* ===== Modal ===== */
 function showModal(html) {
   document.getElementById('modalBody').innerHTML = html;
   document.getElementById('modal').style.display = 'flex';
@@ -190,7 +205,6 @@ function showModal(html) {
 function hideModal() { document.getElementById('modal').style.display = 'none'; }
 function closeModal(e){ if(e.target.id === 'modal') hideModal(); }
 
-/* ===== Load & Format Data ===== */
 function computeHighestStationIFS(j) {
     if(j.station_ready) return "12. รอส่งมอบ";
     if(j.station_pak) return "11. พักซ่อม";
@@ -212,15 +226,18 @@ async function loadData() {
         const res = await fetch(`${API_BASE_URL}/api/reports`);
         const allJobs = await res.json();
         
-        // 1. กรองเฉพาะงานซ่อม
+        // กรองเฉพาะงานซ่อม และเฉพาะ "สาขาของคนที่ล็อกอิน"
+        const currentBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+
         const repairJobs = allJobs.filter(j => 
-            j.department_routing === 'ซ่อม' || 
+            j.branch_name === currentBranch &&
+            (j.department_routing === 'ซ่อม' || 
             j.job_status === '09.จอดรอเข้าซ่อม' || 
             j.job_status === '10.กำลังซ่อม' || 
-            j.job_status === '11.รถซ่อมเสร็จรอส่งมอบ'
+            j.job_status === '11.รถซ่อมเสร็จรอส่งมอบ')
         );
 
-        // 2. จัดกลุ่มตามสถานี
+        // จัดกลุ่มตามสถานี
         const groupedData = {};
         stationOrder.forEach(st => groupedData[st] = []);
 
@@ -254,13 +271,11 @@ function getDamageHTML(damage) {
 }
 
 function render(groupedData) {
-  // ตรวจเช็คเพื่อส่งเสียง
   checkForChanges(groupedData);
 
   const board = document.getElementById('board');
   const toggleBar = document.getElementById('toggleBar');
   
-  // สร้างปุ่ม Toggle แค่ครั้งแรก
   if(toggleBar.innerHTML === '') {
       stationOrder.forEach(station => {
         const btn = document.createElement('div');
@@ -268,7 +283,7 @@ function render(groupedData) {
         btn.textContent = station;
         btn.onclick = () => {
           hiddenStations.has(station) ? hiddenStations.delete(station) : hiddenStations.add(station);
-          render(groupedData); // Re-render เมื่อกดปุ่ม
+          render(groupedData); 
         };
         toggleBar.appendChild(btn);
       });
@@ -276,9 +291,8 @@ function render(groupedData) {
 
   board.innerHTML = '';
 
-  // วาดกระดาน
   stationOrder.forEach(station => {
-    if (hiddenStations.has(station)) return; // ถ้าโดนซ่อน ให้ข้ามไป
+    if (hiddenStations.has(station)) return; 
 
     const wrap = document.createElement('div');
     wrap.className = 'station';
@@ -313,11 +327,6 @@ function render(groupedData) {
     board.appendChild(wrap);
   });
 }
-
-// เริ่มต้นโหลดข้อมูล
-loadData();
-// รีเฟรชทุกๆ 30 วินาที
-setInterval(loadData, 30000);
 </script>
 
 </body>

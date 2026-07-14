@@ -26,7 +26,6 @@
 </head>
 <body class="text-slate-800 flex h-screen overflow-hidden selection:bg-[#00320D] selection:text-white">
 
-    <!-- 🗄️ Sidebar Navigation -->
     <aside class="w-64 bg-[#00320D] text-white flex flex-col h-full shrink-0 shadow-xl z-20">
         <div class="p-6 border-b border-green-800 mb-4 text-center">
             <div class="w-16 h-16 mx-auto bg-white rounded-xl flex items-center justify-center mb-3 shadow-lg"><i class="fa-solid fa-sliders text-3xl text-[#00320D]"></i></div>
@@ -38,14 +37,10 @@
             <button onclick="switchPanel('car-panel')" id="btn-car-panel" class="nav-btn"><i class="fa-solid fa-car w-5 text-center"></i> รุ่นรถยนต์</button>
             <button onclick="switchPanel('ins-panel')" id="btn-ins-panel" class="nav-btn"><i class="fa-solid fa-shield-halved w-5 text-center"></i> ประกันภัย</button>
             <button onclick="switchPanel('ctype-panel')" id="btn-ctype-panel" class="nav-btn"><i class="fa-solid fa-user-tag w-5 text-center"></i> ประเภทลูกค้า</button>
-            
             <div class="my-2 border-t border-green-800/50"></div>
-            
             <button onclick="switchPanel('main-status-panel')" id="btn-main-status-panel" class="nav-btn text-amber-300 hover:text-amber-100"><i class="fa-solid fa-bars-progress w-5 text-center"></i> สถานะหลัก (Routing)</button>
             <button onclick="switchPanel('status-panel')" id="btn-status-panel" class="nav-btn text-purple-300 hover:text-purple-100"><i class="fa-solid fa-tags w-5 text-center"></i> สเตตัสอะไหล่ (PO)</button>
-            
             <div class="my-2 border-t border-green-800/50"></div>
-            
             <button onclick="switchPanel('quota-panel')" id="btn-quota-panel" class="nav-btn"><i class="fa-solid fa-chart-pie w-5 text-center"></i> โควต้าสาขา</button>
         </div>
         <div class="p-4 border-t border-green-800">
@@ -54,7 +49,6 @@
         </div>
     </aside>
 
-    <!-- 💻 Main Content -->
     <main class="flex-1 overflow-y-auto custom-scrollbar bg-slate-100 p-6 md:p-10">
         <div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-8 min-h-[80vh]">
             
@@ -65,20 +59,37 @@
                     <input type="hidden" id="edit_emp_id">
                     <div><label class="label-text">รหัสพนักงาน</label><input type="text" id="emp_code_input" class="minimal-input uppercase"></div>
                     <div><label class="label-text">ชื่อ - นามสกุล</label><input type="text" id="emp_name_input" class="minimal-input"></div>
+                    
+                    <!-- 🌟 เปลี่ยนตำแหน่งให้เป็น Datalist (พิมพ์เองได้) -->
                     <div>
                         <label class="label-text">ตำแหน่ง (Role)</label>
-                        <select id="emp_role_input" class="minimal-input">
-                            <option value="SA">Service Advisor (SA)</option><option value="Parts">Parts (แผนกอะไหล่)</option>
-                            <option value="Technician">ช่างซ่อม</option><option value="Finance">บัญชี (Finance)</option><option value="Manager">ผู้จัดการสาขา</option><option value="Admin">แอดมินระบบ</option>
-                        </select>
+                        <input type="text" id="emp_role_input" list="role_list" class="minimal-input" placeholder="เลือกหรือพิมพ์ตำแหน่งใหม่...">
+                        <datalist id="role_list">
+                            <option value="SA">
+                            <option value="Parts">
+                            <option value="Technician">
+                            <option value="Finance">
+                            <option value="Manager">
+                            <option value="Admin">
+                        </datalist>
                     </div>
-                    <div><label class="label-text">สาขา</label><select id="emp_branch_input" class="minimal-input"><option value="สำนักงานใหญ่">สำนักงานใหญ่</option><option value="สาขารามอินทรา">สาขารามอินทรา</option><option value="สาขาบางนา">สาขาบางนา</option></select></div>
+
+                    <!-- 🌟 เปลี่ยนสาขาให้เป็น Datalist (พิมพ์เองได้) -->
+                    <div>
+                        <label class="label-text">สาขา (Branch)</label>
+                        <input type="text" id="emp_branch_input" list="branch_list" class="minimal-input" placeholder="เลือกหรือพิมพ์สาขาใหม่...">
+                        <datalist id="branch_list">
+                            <option value="สำนักงานใหญ่">
+                            <option value="สาขารามอินทรา">
+                            <option value="สาขาบางนา">
+                        </datalist>
+                    </div>
+
                     <div><label class="label-text">Username (สำหรับ Login)</label><input type="text" id="emp_user_input" class="minimal-input font-mono"></div>
                     <div><label class="label-text">Password</label><input type="password" id="emp_pass_input" class="minimal-input font-mono"></div>
                     
-                    <!-- 🌟 ส่วนใหม่: ติ๊กเลือกสิทธิ์เข้าถึงหน้าเว็บ -->
                     <div class="md:col-span-3 mt-2">
-                        <label class="label-text text-blue-700"><i class="fa-solid fa-key"></i> สิทธิ์อนุญาตเข้าถึงแผนก / หน้าจอ</label>
+                        <label class="label-text text-blue-700"><i class="fa-solid fa-key"></i> สิทธิ์อนุญาตเข้าถึงแผนก / หน้าจอ (Access Control)</label>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white p-4 rounded-lg border border-slate-200 mt-1 shadow-inner">
                             <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-blue-600"><input type="checkbox" class="w-4 h-4 accent-blue-600 page-chk" value="index"> 📝 เปิดบิลซ่อม (SA)</label>
                             <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-blue-600"><input type="checkbox" class="w-4 h-4 accent-blue-600 page-chk" value="jobs"> 📋 บอร์ดใบงาน</label>
@@ -149,7 +160,7 @@
                 <div class="overflow-x-auto border rounded-lg shadow-sm"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3 font-mono w-32">รหัส</th><th class="p-3">ชื่อประเภทลูกค้า</th><th class="p-3 text-center w-32">จัดการ</th></tr></thead><tbody id="ctype_table_body" class="divide-y divide-slate-100"></tbody></table></div>
             </div>
 
-            <!-- 🟢 5. สถานะหลัก & การส่งต่อ (Routing Bound) -->
+            <!-- 🟢 5. สถานะหลัก & การส่งต่อ -->
             <div id="main-status-panel" class="admin-panel">
                 <h2 class="text-xl font-bold text-amber-600 mb-4 border-b pb-2"><i class="fa-solid fa-bars-progress mr-2"></i> จัดการสถานะและระบบส่งต่อแผนก (Dynamic Routing)</h2>
                 <div class="bg-amber-50 p-5 rounded-xl border border-amber-200 mb-6 grid grid-cols-1 md:grid-cols-5 gap-4 items-end shadow-sm">
@@ -182,7 +193,7 @@
                 </div>
             </div>
 
-            <!-- 🏷️ 6. สเตตัสอะไหล่ (สำหรับแผนกอะไหล่เอาไปใช้ดรอปดาวน์) -->
+            <!-- 🏷️ 6. สเตตัสอะไหล่ (PO Status) -->
             <div id="status-panel" class="admin-panel">
                 <h2 class="text-xl font-bold text-purple-600 mb-4 border-b pb-2"><i class="fa-solid fa-tags mr-2"></i> ตั้งค่าสเตตัสออเดอร์อะไหล่ (PO Status)</h2>
                 <div class="bg-purple-50 p-5 rounded-xl border border-purple-200 mb-6 flex flex-col md:flex-row gap-4 items-end shadow-sm">
@@ -201,7 +212,18 @@
                     <input type="hidden" id="edit_quota_id">
                     <div><label class="label-text">ประเภทเป้าหมาย</label><select id="quota_type_input" class="minimal-input" onchange="toggleQuotaDate()"><option value="default">เป้าหมายประจำวัน (ตั้งต้น)</option><option value="special">เป้าหมายวันพิเศษ (ระบุวันที่)</option></select></div>
                     <div><label class="label-text">วันที่ (เฉพาะวันพิเศษ)</label><input type="date" id="quota_date_input" class="minimal-input font-mono bg-slate-100" disabled></div>
-                    <div><label class="label-text">สาขา</label><select id="quota_branch_input" class="minimal-input"><option value="สำนักงานใหญ่">สำนักงานใหญ่</option><option value="สาขารามอินทรา">สาขารามอินทรา</option><option value="สาขาบางนา">สาขาบางนา</option></select></div>
+                    
+                    <!-- 🌟 เปลี่ยนโควต้าสาขาให้เป็น Datalist พิมพ์เองได้ -->
+                    <div>
+                        <label class="label-text">สาขา (Branch)</label>
+                        <input type="text" id="quota_branch_input" list="branch_list_quota" class="minimal-input" placeholder="เลือกหรือพิมพ์สาขา...">
+                        <datalist id="branch_list_quota">
+                            <option value="สำนักงานใหญ่">
+                            <option value="สาขารามอินทรา">
+                            <option value="สาขาบางนา">
+                        </datalist>
+                    </div>
+
                     <div><label class="label-text text-blue-600">เป้ารถเข้าซ่อม (คัน)</label><input type="number" id="quota_arrived_input" class="minimal-input font-bold" value="0"></div>
                     <div><label class="label-text text-amber-600">เป้าซ่อมเสร็จ (คัน)</label><input type="number" id="quota_target_input" class="minimal-input font-bold" value="0"></div>
                     <div><label class="label-text text-green-600">เป้าส่งมอบลูกค้า (คัน)</label><input type="number" id="quota_delivery_input" class="minimal-input font-bold" value="0"></div>
@@ -220,9 +242,18 @@
         const API_BASE_URL = window.location.origin;
 
         document.addEventListener('DOMContentLoaded', () => {
-            if(sessionStorage.getItem('isLoggedIn') !== 'true' || !['BA','Manager','Admin','แอดมิน'].includes(sessionStorage.getItem('emp_role'))) { 
-                alert('ไม่มีสิทธิ์เข้าถึงหน้า Admin!'); window.location.href = 'index.html'; return; 
+            if(sessionStorage.getItem('isLoggedIn') !== 'true') { 
+                alert('กรุณาเข้าสู่ระบบ!'); window.location.href = 'index.html'; return; 
             }
+
+            // 🛡️ ยามเฝ้าประตู (หน้าแอดมิน)
+            const allowedPages = (sessionStorage.getItem('accessible_pages') || '').split(',');
+            if (!allowedPages.includes('admin')) { 
+                alert('⛔ คุณไม่มีสิทธิ์เข้าถึงหน้า Admin!');
+                window.location.href = allowedPages.length > 0 ? allowedPages[0] + '.html' : 'index.html';
+                return;
+            }
+
             loadAllData();
         });
 
@@ -300,6 +331,8 @@
             document.getElementById('edit_emp_id').value = ''; 
             document.getElementById('emp_code_input').value = ''; 
             document.getElementById('emp_name_input').value = ''; 
+            document.getElementById('emp_role_input').value = ''; 
+            document.getElementById('emp_branch_input').value = ''; 
             document.getElementById('emp_user_input').value = ''; 
             document.getElementById('emp_pass_input').value = ''; 
             document.querySelectorAll('.page-chk').forEach(c => c.checked = false);
