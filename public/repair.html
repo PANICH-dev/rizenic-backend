@@ -49,7 +49,12 @@
                     <p class="text-sm text-amber-400/80 font-semibold">RIZENIC ERP : Smart Repair Dashboard</p>
                 </div>
             </div>
-            <div class="flex gap-3">
+            <div class="flex items-center gap-3">
+                <!-- 🌟 แสดงชื่อพนักงานและสาขาที่มุมขวาบน -->
+                <div class="text-right border-r border-slate-600 pr-4 mr-2 hidden sm:block">
+                    <p class="text-xs font-bold text-white flex items-center justify-end gap-2"><i class="fa-solid fa-circle-user text-amber-400"></i> <span id="display_emp_name">ช่างซ่อม</span></p>
+                    <p class="text-[10px] text-amber-400/80">สาขา: <span id="display_branch" class="font-bold">Branch</span></p>
+                </div>
                 <a href="repair_board.html" target="_blank" class="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-bold transition flex items-center gap-2 shadow-[0_0_15px_rgba(245,158,11,0.4)]">
                     <i class="fa-solid fa-chalkboard"></i> เปิดกระดาน Kanban
                 </a>
@@ -233,7 +238,7 @@
                 <label class="flex items-center gap-2 text-sm cursor-pointer hover:text-amber-300 transition"><input type="checkbox" id="chk_ready" class="w-4 h-4 accent-amber-500"> 12. รอส่งมอบ</label>
             </div>
 
-            <!-- ส่วนที่ 2: อัปเดตข้อมูลตารางนัดหมาย (ล็อกเป้าหมายกับส่งมอบ) -->
+            <!-- ส่วนที่ 2: อัปเดตข้อมูลตารางนัดหมาย (แก้ไขเฉพาะวันที่เสร็จจริง) -->
             <label class="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-3"><i class="fa-regular fa-calendar-check text-amber-500"></i> 2. อัปเดตกำหนดการซ่อม (แก้ได้เฉพาะเสร็จจริง)</label>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 bg-slate-900/50 p-4 rounded-xl border border-slate-700 shadow-inner">
                 <div>
@@ -295,6 +300,7 @@
         let currentYear = 2026;
         let currentMonth = 6; 
         let chartInstance = null;
+        let currentBranch = 'สำนักงานใหญ่';
 
         // 🌟 ดึงวันที่ปัจจุบันรูปแบบ YYYY-MM-DD สำหรับบล็อกไม่ให้เลือกวันย้อนหลัง
         function getTodayString() {
@@ -311,6 +317,15 @@
                 window.location.href = 'index.html';
                 return;
             }
+            
+            // 🌟 เซ็ตข้อมูลสาขาและพนักงานให้โชว์มุมขวาบน
+            currentBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+            const empName = sessionStorage.getItem('emp_name') || 'ช่างซ่อม (ไม่ระบุชื่อ)';
+            
+            const displayEmp = document.getElementById('display_emp_name');
+            if(displayEmp) displayEmp.innerText = empName;
+            const displayBr = document.getElementById('display_branch');
+            if(displayBr) displayBr.innerText = currentBranch;
             
             // จำกัดให้ใส่วันที่ซ่อมเสร็จจริงย้อนหลังไม่ได้ (ใน Modal)
             document.getElementById('m_repair_date').setAttribute('min', getTodayString());
@@ -336,7 +351,6 @@
             const targetDate = new Date(job.target_finish_date);
             const today = new Date();
             
-            // เคลียร์เวลาออก ให้เทียบแค่วันที่
             targetDate.setHours(0,0,0,0);
             today.setHours(0,0,0,0);
 
@@ -358,11 +372,13 @@
                 const res = await fetch(`${API_BASE_URL}/api/reports`);
                 const data = await res.json();
                 
+                // 🌟 กรองเฉพาะสาขาของตัวเอง และ งานช่าง
                 originalRepairJobs = data.filter(j => 
-                    j.department_routing === 'ซ่อม' || 
-                    j.job_status === '09.จอดรอเข้าซ่อม' || 
-                    j.job_status === '10.กำลังซ่อม' || 
-                    j.job_status === '11.รถซ่อมเสร็จรอส่งมอบ'
+                    j.branch_name === currentBranch &&
+                    (j.department_routing === 'ซ่อม' || 
+                     j.job_status === '09.จอดรอเข้าซ่อม' || 
+                     j.job_status === '10.กำลังซ่อม' || 
+                     j.job_status === '11.รถซ่อมเสร็จรอส่งมอบ')
                 );
 
                 renderCalendar();
@@ -504,8 +520,8 @@
 
             for(let i = 0; i < firstDay; i++) { grid.innerHTML += `<div class="bg-slate-900/20 p-3 rounded-2xl border border-transparent"></div>`; }
 
-            // 🌟 1. หาค่าสูงสุดของจำนวนรถในเดือนนี้ เพื่อตั้งเพดานกราฟไม่ให้พุ่งเกินไปถ้ารถน้อย
-            let monthMaxQty = 5; // กำหนดสเกลเริ่มต้นที่ 5 คัน (1 คันจะสูง 20%)
+            // 🌟 1. หาค่าสูงสุดของจำนวนรถในเดือนนี้ (ตั้งขั้นต่ำไว้ที่ 5 คัน จะได้ไม่พุ่งเกินไปถ้ารถแค่ 1-2 คัน)
+            let monthMaxQty = 5; 
             for(let day = 1; day <= totalDays; day++) {
                 const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
                 const aQty = originalRepairJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length;
@@ -524,7 +540,6 @@
                 const targetQty = originalRepairJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).length;
                 const deliveryQty = originalRepairJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
 
-                // ตรวจสอบว่ามีรถ Overdue ในวันนี้ไหม
                 const overdueJobsInDay = originalRepairJobs.filter(j => 
                     (j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr) && checkOverdue(j)
                 );
@@ -533,40 +548,41 @@
                 let barBlock = '';
                 
                 if(arrivedQty > 0 || targetQty > 0 || deliveryQty > 0) {
-                    barBlock = `<div class="flex items-end justify-center gap-2 w-full h-[60px] mt-2">`;
+                    // ใช้ h-full และ items-end (Flex) เป็นตัวดันแท่งให้โผล่จากด้านล่าง
+                    barBlock = `<div class="flex items-end justify-center gap-2 w-full h-[60px] mt-auto pb-1">`;
                     
                     // 🔹 แท่งกราฟ นัดเข้าซ่อม/รถจอด (สีส้ม)
                     if(arrivedQty > 0) {
-                        const h = Math.max(15, (arrivedQty / monthMaxQty) * 100);
+                        const h = Math.max(25, (arrivedQty / monthMaxQty) * 100);
                         barBlock += `
-                        <div class="flex flex-col items-center group/bar cursor-pointer" title="รถเข้าจอด: ${arrivedQty} คัน">
-                            <span class="text-[10px] font-bold text-orange-400 mb-0.5">${arrivedQty}</span>
+                        <div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-4" title="รถเข้าจอด: ${arrivedQty} คัน">
+                            <span class="text-[10px] font-bold text-orange-400 mb-0.5 z-10 drop-shadow-md">${arrivedQty}</span>
                             <div class="w-3.5 bg-gradient-to-t from-orange-600 to-amber-400 rounded-t-sm shadow-[0_0_8px_rgba(245,158,11,0.5)] transition-all group-hover/bar:w-4" style="height: ${h}%;"></div>
                         </div>`;
                     }
 
                     // 🔹 แท่งกราฟ เป้าซ่อม (สีฟ้า)
                     if(targetQty > 0) {
-                        const h = Math.max(15, (targetQty / monthMaxQty) * 100);
+                        const h = Math.max(25, (targetQty / monthMaxQty) * 100);
                         barBlock += `
-                        <div class="flex flex-col items-center group/bar cursor-pointer" title="เป้าซ่อมเสร็จ: ${targetQty} คัน">
-                            <span class="text-[10px] font-bold text-blue-400 mb-0.5">${targetQty}</span>
+                        <div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-4" title="เป้าซ่อมเสร็จ: ${targetQty} คัน">
+                            <span class="text-[10px] font-bold text-blue-400 mb-0.5 z-10 drop-shadow-md">${targetQty}</span>
                             <div class="w-3.5 bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-sm shadow-[0_0_8px_rgba(59,130,246,0.5)] transition-all group-hover/bar:w-4" style="height: ${h}%;"></div>
                         </div>`;
                     }
                     
                     // 🔹 แท่งกราฟ ส่งมอบ (สีม่วง)
                     if(deliveryQty > 0) {
-                        const h = Math.max(15, (deliveryQty / monthMaxQty) * 100);
+                        const h = Math.max(25, (deliveryQty / monthMaxQty) * 100);
                         barBlock += `
-                        <div class="flex flex-col items-center group/bar cursor-pointer" title="นัดส่งมอบ: ${deliveryQty} คัน">
-                            <span class="text-[10px] font-bold text-purple-400 mb-0.5">${deliveryQty}</span>
+                        <div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-4" title="นัดส่งมอบ: ${deliveryQty} คัน">
+                            <span class="text-[10px] font-bold text-purple-400 mb-0.5 z-10 drop-shadow-md">${deliveryQty}</span>
                             <div class="w-3.5 bg-gradient-to-t from-purple-600 to-purple-400 rounded-t-sm shadow-[0_0_8px_rgba(168,85,247,0.5)] transition-all group-hover/bar:w-4" style="height: ${h}%;"></div>
                         </div>`;
                     }
                     barBlock += `</div>`;
                 } else {
-                    barBlock = `<div class="flex items-center justify-center h-[60px] w-full mt-2"><span class="text-[10px] font-semibold text-slate-600">ว่าง</span></div>`;
+                    barBlock = `<div class="flex items-center justify-center h-[60px] w-full mt-auto"><span class="text-[10px] font-semibold text-slate-600">ว่าง</span></div>`;
                 }
 
                 // 🌟 ถ้ามีรถ Overdue ให้กรอบวันที่ไฟลุก
@@ -575,11 +591,11 @@
                 grid.innerHTML += `
                     <div onclick="clickCalendarDate('${dateStr}')" class="glass-panel p-3 rounded-2xl cursor-pointer transition-all flex flex-col justify-between min-h-[110px] relative overflow-hidden group ${dayClass}">
                         <div class="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        <div class="flex justify-between items-start z-10">
+                        <div class="flex justify-between items-start z-10 shrink-0">
                             <span class="text-sm font-black ${day === new Date().getDate() && currentMonth === new Date().getMonth() ? 'text-slate-900 bg-amber-400 px-2 py-0.5 rounded shadow-sm' : (hasOverdue ? 'text-red-500' : 'text-slate-400 group-hover:text-amber-300')} transition-colors font-mono">${day}</span>
                             ${hasOverdue ? `<i class="fa-solid fa-fire text-red-500 animate-pulse text-sm" title="มีรถดีเลย์ ${overdueJobsInDay.length} คัน!"></i>` : ''}
                         </div>
-                        <div class="w-full z-10">${barBlock}</div>
+                        <div class="w-full z-10 flex-1 flex flex-col justify-end">${barBlock}</div>
                     </div>
                 `;
             }
