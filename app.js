@@ -94,17 +94,22 @@ app.get('/api/employees', async (req, res) => {
 });
 app.post('/api/employees', async (req, res) => {
   try {
-    const { employee_code, employee_name, employee_role, branch_name, username, password } = req.body;
+    const { employee_code, employee_name, employee_role, branch_name, username, password, accessible_pages } = req.body;
     const checkDup = await pool.query('SELECT username FROM rizenicemployeemaster WHERE username = $1', [username]);
     if (checkDup.rows.length > 0) return res.status(400).json({ error: 'Username นี้ถูกใช้งานแล้วครับนาย!' });
-    await pool.query('INSERT INTO rizenicemployeemaster (employee_code, employee_name, employee_role, branch_name, username, password, is_active) VALUES ($1, $2, $3, $4, $5, $6, true)', [employee_code, employee_name, employee_role, branch_name, username, password]); 
+    
+    // บันทึก accessible_pages ลงไปเพิ่ม
+    await pool.query('INSERT INTO rizenicemployeemaster (employee_code, employee_name, employee_role, branch_name, username, password, accessible_pages, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7, true)', [employee_code, employee_name, employee_role, branch_name, username, password, accessible_pages]); 
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
 app.put('/api/employees/:id', async (req, res) => {
   try {
-    const { employee_code, employee_name, employee_role, branch_name, username, password } = req.body;
-    await pool.query('UPDATE rizenicemployeemaster SET employee_code=$1, employee_name=$2, employee_role=$3, branch_name=$4, username=$5, password=$6 WHERE employee_id=$7', [employee_code, employee_name, employee_role, branch_name, username, password, req.params.id]); 
+    const { employee_code, employee_name, employee_role, branch_name, username, password, accessible_pages } = req.body;
+    
+    // อัปเดต accessible_pages ลงไปเพิ่ม
+    await pool.query('UPDATE rizenicemployeemaster SET employee_code=$1, employee_name=$2, employee_role=$3, branch_name=$4, username=$5, password=$6, accessible_pages=$7 WHERE employee_id=$8', [employee_code, employee_name, employee_role, branch_name, username, password, accessible_pages, req.params.id]); 
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

@@ -69,18 +69,39 @@
                         <label class="label-text">ตำแหน่ง (Role)</label>
                         <select id="emp_role_input" class="minimal-input">
                             <option value="SA">Service Advisor (SA)</option><option value="Parts">Parts (แผนกอะไหล่)</option>
-                            <option value="Technician">ช่างซ่อม</option><option value="Manager">ผู้จัดการสาขา</option><option value="Admin">แอดมินระบบ</option>
+                            <option value="Technician">ช่างซ่อม</option><option value="Finance">บัญชี (Finance)</option><option value="Manager">ผู้จัดการสาขา</option><option value="Admin">แอดมินระบบ</option>
                         </select>
                     </div>
                     <div><label class="label-text">สาขา</label><select id="emp_branch_input" class="minimal-input"><option value="สำนักงานใหญ่">สำนักงานใหญ่</option><option value="สาขารามอินทรา">สาขารามอินทรา</option><option value="สาขาบางนา">สาขาบางนา</option></select></div>
                     <div><label class="label-text">Username (สำหรับ Login)</label><input type="text" id="emp_user_input" class="minimal-input font-mono"></div>
                     <div><label class="label-text">Password</label><input type="password" id="emp_pass_input" class="minimal-input font-mono"></div>
+                    
+                    <!-- 🌟 ส่วนใหม่: ติ๊กเลือกสิทธิ์เข้าถึงหน้าเว็บ -->
+                    <div class="md:col-span-3 mt-2">
+                        <label class="label-text text-blue-700"><i class="fa-solid fa-key"></i> สิทธิ์อนุญาตเข้าถึงแผนก / หน้าจอ</label>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white p-4 rounded-lg border border-slate-200 mt-1 shadow-inner">
+                            <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-blue-600"><input type="checkbox" class="w-4 h-4 accent-blue-600 page-chk" value="index"> 📝 เปิดบิลซ่อม (SA)</label>
+                            <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-blue-600"><input type="checkbox" class="w-4 h-4 accent-blue-600 page-chk" value="jobs"> 📋 บอร์ดใบงาน</label>
+                            <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-blue-600"><input type="checkbox" class="w-4 h-4 accent-blue-600 page-chk" value="parts"> 📦 แผนกอะไหล่</label>
+                            <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-blue-600"><input type="checkbox" class="w-4 h-4 accent-blue-600 page-chk" value="repair"> 🛠️ สถานีช่าง</label>
+                            <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-blue-600"><input type="checkbox" class="w-4 h-4 accent-blue-600 page-chk" value="repair_board"> 📺 Kanban ช่าง</label>
+                            <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-blue-600"><input type="checkbox" class="w-4 h-4 accent-blue-600 page-chk" value="finance"> 💰 แผนกบัญชี</label>
+                            <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-blue-600"><input type="checkbox" class="w-4 h-4 accent-blue-600 page-chk" value="dashboard"> 📊 แดชบอร์ดบริหาร</label>
+                            <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-red-600 text-red-700"><input type="checkbox" class="w-4 h-4 accent-red-600 page-chk" value="admin"> ⚙️ ตั้งค่าแอดมิน</label>
+                        </div>
+                    </div>
+
                     <div class="md:col-span-3 flex gap-2 mt-2">
                         <button onclick="saveEmp()" id="btn_save_emp" class="px-6 py-2.5 bg-[#00320D] text-white font-bold rounded-lg text-sm shadow hover:bg-black transition"><i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกพนักงาน</button>
                         <button onclick="resetEmpForm()" class="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50 transition">ล้างฟอร์ม</button>
                     </div>
                 </div>
-                <div class="overflow-x-auto border rounded-lg shadow-sm"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3">รหัสพนักงาน</th><th class="p-3">ชื่อ-นามสกุล</th><th class="p-3">ตำแหน่ง</th><th class="p-3">สาขา</th><th class="p-3">Username</th><th class="p-3 text-center">จัดการ</th></tr></thead><tbody id="emp_table_body" class="divide-y divide-slate-100"></tbody></table></div>
+                <div class="overflow-x-auto border rounded-lg shadow-sm">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-slate-100 border-b"><tr><th class="p-3">รหัสพนักงาน</th><th class="p-3">ชื่อ-นามสกุล</th><th class="p-3">ตำแหน่ง</th><th class="p-3">สาขา</th><th class="p-3">หน้าจอที่เข้าได้</th><th class="p-3 text-center">จัดการ</th></tr></thead>
+                        <tbody id="emp_table_body" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- 🚗 2. รุ่นรถยนต์ -->
@@ -128,7 +149,7 @@
                 <div class="overflow-x-auto border rounded-lg shadow-sm"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3 font-mono w-32">รหัส</th><th class="p-3">ชื่อประเภทลูกค้า</th><th class="p-3 text-center w-32">จัดการ</th></tr></thead><tbody id="ctype_table_body" class="divide-y divide-slate-100"></tbody></table></div>
             </div>
 
-            <!-- 🟢 NEW: สถานะหลัก & การส่งต่อ (Routing Bound) -->
+            <!-- 🟢 5. สถานะหลัก & การส่งต่อ (Routing Bound) -->
             <div id="main-status-panel" class="admin-panel">
                 <h2 class="text-xl font-bold text-amber-600 mb-4 border-b pb-2"><i class="fa-solid fa-bars-progress mr-2"></i> จัดการสถานะและระบบส่งต่อแผนก (Dynamic Routing)</h2>
                 <div class="bg-amber-50 p-5 rounded-xl border border-amber-200 mb-6 grid grid-cols-1 md:grid-cols-5 gap-4 items-end shadow-sm">
@@ -161,7 +182,7 @@
                 </div>
             </div>
 
-            <!-- 🏷️ 5. สเตตัสอะไหล่ (สำหรับแผนกอะไหล่เอาไปใช้ดรอปดาวน์) -->
+            <!-- 🏷️ 6. สเตตัสอะไหล่ (สำหรับแผนกอะไหล่เอาไปใช้ดรอปดาวน์) -->
             <div id="status-panel" class="admin-panel">
                 <h2 class="text-xl font-bold text-purple-600 mb-4 border-b pb-2"><i class="fa-solid fa-tags mr-2"></i> ตั้งค่าสเตตัสออเดอร์อะไหล่ (PO Status)</h2>
                 <div class="bg-purple-50 p-5 rounded-xl border border-purple-200 mb-6 flex flex-col md:flex-row gap-4 items-end shadow-sm">
@@ -173,7 +194,7 @@
                 <div class="overflow-x-auto border rounded-lg shadow-sm"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3 w-16 text-center">ID</th><th class="p-3 font-bold text-purple-700">ข้อความสถานะที่นำไปแสดงในแผนกอะไหล่</th><th class="p-3 text-center w-32">ลบ</th></tr></thead><tbody id="status_table_body" class="divide-y divide-slate-100 bg-white"></tbody></table></div>
             </div>
 
-            <!-- 📈 6. โควต้าสาขา -->
+            <!-- 📈 7. โควต้าสาขา -->
             <div id="quota-panel" class="admin-panel">
                 <h2 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2"><i class="fa-solid fa-chart-pie text-rizenic-green mr-2"></i> ตั้งเป้าหมาย/โควต้า (Quota)</h2>
                 <div class="bg-slate-50 p-5 rounded-xl border mb-6 grid grid-cols-1 md:grid-cols-4 gap-4 items-end shadow-sm">
@@ -199,7 +220,9 @@
         const API_BASE_URL = window.location.origin;
 
         document.addEventListener('DOMContentLoaded', () => {
-            if(sessionStorage.getItem('isLoggedIn') !== 'true' || !['BA','Manager','Admin','แอดมิน'].includes(sessionStorage.getItem('emp_role'))) { alert('ไม่มีสิทธิ์เข้าถึงหน้า Admin!'); window.location.href = 'index.html'; return; }
+            if(sessionStorage.getItem('isLoggedIn') !== 'true' || !['BA','Manager','Admin','แอดมิน'].includes(sessionStorage.getItem('emp_role'))) { 
+                alert('ไม่มีสิทธิ์เข้าถึงหน้า Admin!'); window.location.href = 'index.html'; return; 
+            }
             loadAllData();
         });
 
@@ -213,11 +236,19 @@
             if(btn) btn.classList.add('active', 'bg-[#004a1f]', 'text-white');
         }
 
-        async function deleteData(url, reloadFunction) { if(confirm('🚨 ยืนยันการลบข้อมูลถาวร?')) { await fetch(API_BASE_URL + url, {method: 'DELETE'}); reloadFunction(); } }
+        async function deleteData(url, reloadFunction) { 
+            if(confirm('🚨 ยืนยันการลบข้อมูลถาวร?')) { 
+                await fetch(API_BASE_URL + url, {method: 'DELETE'}); reloadFunction(); 
+            } 
+        }
 
         async function loadAllData() { 
-            loadEmp(); loadCar(); loadIns(); loadCtype(); 
-            loadMainStatus(); loadPartStatus(); 
+            loadEmp(); 
+            loadCar(); 
+            loadIns(); 
+            loadCtype(); 
+            loadMainStatus(); 
+            loadPartStatus(); 
             loadQuota(); 
         }
 
@@ -225,18 +256,80 @@
         async function loadEmp() {
             try {
                 const res = await fetch(`${API_BASE_URL}/api/employees`); const data = await res.json();
-                document.getElementById('emp_table_body').innerHTML = data.map(e => `<tr><td class="p-3 font-mono">${e.employee_code||'-'}</td><td class="p-3 font-bold">${e.employee_name}</td><td class="p-3 text-slate-500">${e.employee_role}</td><td class="p-3 text-slate-500">${e.branch_name||'-'}</td><td class="p-3 font-mono text-blue-600">${e.username}</td><td class="p-3 text-center"><button onclick="editEmp('${e.employee_id}','${e.employee_code||''}','${e.employee_name}','${e.employee_role}','${e.branch_name}','${e.username}','${e.password}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteData('/api/employees/${e.employee_id}', loadEmp)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
+                document.getElementById('emp_table_body').innerHTML = data.map(e => {
+                    const pagesArr = (e.accessible_pages || '').split(',').filter(Boolean);
+                    const pagesHTML = pagesArr.length > 0 ? pagesArr.map(p => `<span class="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[10px] font-bold border border-blue-200 mr-1 mb-1 shadow-sm inline-block">${p}</span>`).join('') : '<span class="text-xs text-red-500">ไม่มีสิทธิ์</span>';
+                    
+                    return `<tr>
+                        <td class="p-3 font-mono">${e.employee_code||'-'}</td>
+                        <td class="p-3 font-bold">${e.employee_name}</td>
+                        <td class="p-3 text-slate-500">${e.employee_role}</td>
+                        <td class="p-3 text-slate-500">${e.branch_name||'-'}</td>
+                        <td class="p-3 max-w-[200px] whitespace-normal leading-tight">${pagesHTML}</td>
+                        <td class="p-3 text-center">
+                            <button onclick="editEmp('${e.employee_id}','${e.employee_code||''}','${e.employee_name}','${e.employee_role}','${e.branch_name}','${e.username}','${e.password}','${e.accessible_pages||''}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="deleteData('/api/employees/${e.employee_id}', loadEmp)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>`;
+                }).join('');
             } catch(e){}
         }
-        function editEmp(id, code, name, role, branch, user, pass) {
-            document.getElementById('edit_emp_id').value = id; document.getElementById('emp_code_input').value = code; document.getElementById('emp_name_input').value = name; document.getElementById('emp_role_input').value = role; document.getElementById('emp_branch_input').value = branch; document.getElementById('emp_user_input').value = user; document.getElementById('emp_pass_input').value = pass;
-            document.getElementById('btn_save_emp').innerHTML = '<i class="fa-solid fa-pen-to-square mr-1"></i> อัปเดตพนักงาน'; document.getElementById('btn_save_emp').classList.replace('bg-[#00320D]', 'bg-blue-600');
+
+        function editEmp(id, code, name, role, branch, user, pass, pages) {
+            document.getElementById('edit_emp_id').value = id; 
+            document.getElementById('emp_code_input').value = code; 
+            document.getElementById('emp_name_input').value = name; 
+            document.getElementById('emp_role_input').value = role; 
+            document.getElementById('emp_branch_input').value = branch; 
+            document.getElementById('emp_user_input').value = user; 
+            document.getElementById('emp_pass_input').value = pass;
+            
+            document.querySelectorAll('.page-chk').forEach(c => c.checked = false);
+            if(pages) {
+                const pageArr = pages.split(',');
+                document.querySelectorAll('.page-chk').forEach(c => {
+                    if(pageArr.includes(c.value)) c.checked = true;
+                });
+            }
+
+            document.getElementById('btn_save_emp').innerHTML = '<i class="fa-solid fa-pen-to-square mr-1"></i> อัปเดตพนักงาน'; 
+            document.getElementById('btn_save_emp').classList.replace('bg-[#00320D]', 'bg-blue-600');
         }
-        function resetEmpForm() { document.getElementById('edit_emp_id').value = ''; document.getElementById('emp_code_input').value = ''; document.getElementById('emp_name_input').value = ''; document.getElementById('emp_user_input').value = ''; document.getElementById('emp_pass_input').value = ''; document.getElementById('btn_save_emp').innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกพนักงาน'; document.getElementById('btn_save_emp').classList.replace('bg-blue-600', 'bg-[#00320D]'); }
+
+        function resetEmpForm() { 
+            document.getElementById('edit_emp_id').value = ''; 
+            document.getElementById('emp_code_input').value = ''; 
+            document.getElementById('emp_name_input').value = ''; 
+            document.getElementById('emp_user_input').value = ''; 
+            document.getElementById('emp_pass_input').value = ''; 
+            document.querySelectorAll('.page-chk').forEach(c => c.checked = false);
+
+            document.getElementById('btn_save_emp').innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกพนักงาน'; 
+            document.getElementById('btn_save_emp').classList.replace('bg-blue-600', 'bg-[#00320D]'); 
+        }
+
         async function saveEmp() {
             const id = document.getElementById('edit_emp_id').value;
-            const payload = { employee_code: document.getElementById('emp_code_input').value, employee_name: document.getElementById('emp_name_input').value, employee_role: document.getElementById('emp_role_input').value, branch_name: document.getElementById('emp_branch_input').value, username: document.getElementById('emp_user_input').value, password: document.getElementById('emp_pass_input').value };
-            await fetch(`${API_BASE_URL}${id ? '/api/employees/'+id : '/api/employees'}`, { method: id ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }); resetEmpForm(); loadEmp();
+            const selectedPages = Array.from(document.querySelectorAll('.page-chk:checked')).map(c => c.value).join(',');
+
+            const payload = { 
+                employee_code: document.getElementById('emp_code_input').value, 
+                employee_name: document.getElementById('emp_name_input').value, 
+                employee_role: document.getElementById('emp_role_input').value, 
+                branch_name: document.getElementById('emp_branch_input').value, 
+                username: document.getElementById('emp_user_input').value, 
+                password: document.getElementById('emp_pass_input').value,
+                accessible_pages: selectedPages 
+            };
+
+            try {
+                await fetch(`${API_BASE_URL}${id ? '/api/employees/'+id : '/api/employees'}`, { 
+                    method: id ? 'PUT' : 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify(payload) 
+                }); 
+                resetEmpForm(); loadEmp();
+            } catch(e) { alert('❌ เซฟข้อมูลไม่ได้'); }
         }
 
         // ================= 2. รุ่นรถยนต์ =================
@@ -272,7 +365,7 @@
         function resetCtypeForm() { document.getElementById('edit_ctype_id').value = ''; document.getElementById('ctype_name_input').value = ''; document.getElementById('btn_save_ctype').innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> บันทึก'; document.getElementById('btn_save_ctype').classList.replace('bg-blue-600', 'bg-[#00320D]'); }
         async function saveCtype() { const id = document.getElementById('edit_ctype_id').value; await fetch(`${API_BASE_URL}${id ? '/api/customer-types/'+id : '/api/customer-types'}`, { method: id ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ type_name: document.getElementById('ctype_name_input').value }) }); resetCtypeForm(); loadCtype(); }
 
-        // ================= 🟢 จัดการสถานะหลัก (Dynamic Routing) =================
+        // ================= 🟢 5. จัดการสถานะหลัก (Dynamic Routing) =================
         async function loadMainStatus() {
             try {
                 const res = await fetch(`${API_BASE_URL}/api/statuses`); const data = await res.json();
@@ -293,7 +386,7 @@
 
         function editMainStatus(code, name, dept, route) {
             document.getElementById('main_status_code_input').value = code;
-            document.getElementById('main_status_code_input').readOnly = true; // ล็อกไม่ให้แก้รหัสหลัก
+            document.getElementById('main_status_code_input').readOnly = true; 
             document.getElementById('main_status_code_input').classList.add('bg-slate-100', 'text-slate-500');
             document.getElementById('main_status_name_input').value = name;
             document.getElementById('main_status_dept_input').value = dept || 'บริการ';
@@ -319,7 +412,7 @@
             btn.classList.replace('hover:bg-blue-700', 'hover:bg-amber-700');
         }
 
-    async function saveMainStatus() {
+        async function saveMainStatus() {
             const code = document.getElementById('main_status_code_input').value; 
             const name = document.getElementById('main_status_name_input').value; 
             const dept = document.getElementById('main_status_dept_input').value; 
@@ -333,13 +426,11 @@
                     headers: {'Content-Type': 'application/json'}, 
                     body: JSON.stringify({ status_code: code, status_name: name, department: dept, route_page: route }) 
                 });
-                
                 if (!res.ok) {
                     const err = await res.json();
                     alert('❌ ระบบขัดข้อง: ' + err.error);
                     return;
                 }
-                
                 resetMainStatusForm();
                 loadMainStatus();
             } catch (e) {
@@ -347,7 +438,7 @@
             }
         }
 
-        // ================= 5. สเตตัสอะไหล่ (PO Status) =================
+        // ================= 6. สเตตัสอะไหล่ (PO Status) =================
         async function loadPartStatus() {
             try {
                 const res = await fetch(`${API_BASE_URL}/api/part-statuses`); const data = await res.json();
@@ -360,7 +451,7 @@
             document.getElementById('part_status_name_input').value = ''; loadPartStatus();
         }
 
-        // ================= 6. โควต้า =================
+        // ================= 7. โควต้า =================
         function toggleQuotaDate() { const t = document.getElementById('quota_type_input').value; const d = document.getElementById('quota_date_input'); if(t==='special'){ d.disabled=false; d.classList.remove('bg-slate-100'); } else { d.disabled=true; d.classList.add('bg-slate-100'); d.value=''; } }
         async function loadQuota() {
             try {
