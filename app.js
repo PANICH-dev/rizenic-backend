@@ -419,6 +419,14 @@ app.put('/api/report/:id/station', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// 🗑️ ลบใบงาน (ลบถาวร)
+app.delete('/api/report/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM rizenicreport WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ==========================================
 // 📦 API แผนกอะไหล่ (สั่งซื้อ / รับเข้า / เบิกจ่าย) (rizenic_part_orders)
 // ==========================================

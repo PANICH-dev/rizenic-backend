@@ -9,70 +9,54 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Noto Sans Thai', sans-serif; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #4b5563; border-radius: 10px; }
+        body { font-family: 'Noto Sans Thai', sans-serif; background-color: #0f172a; }
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #475569; border-radius: 4px; border: 2px solid #1e293b; }
+        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen">
+<body class="text-gray-100 min-h-screen">
 
-    <div class="max-w-7xl mx-auto px-4 py-8">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 border-b border-gray-700 pb-4">
-            <div class="flex items-center gap-3">
-                <i class="fa-solid fa-screwdriver-wrench text-3xl text-amber-500"></i>
-                <h1 class="text-3xl font-bold tracking-wider text-white">แผงควบคุมสถานีซ่อมและงานช่าง</h1>
+    <div class="max-w-[1400px] mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-amber-500/20 rounded-2xl flex items-center justify-center border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                    <i class="fa-solid fa-screwdriver-wrench text-2xl text-amber-400"></i>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-bold text-white tracking-wide">สถานีซ่อมและงานช่าง</h1>
+                    <p class="text-sm text-gray-400">RIZENIC ERP : Smart Repair Dashboard</p>
+                </div>
             </div>
-            <a href="index.html" class="px-5 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-xl font-semibold border border-gray-700 transition flex items-center gap-2">
-                <i class="fa-solid fa-arrow-left"></i> กลับหน้าเปิดบิล
+            <a href="index.html" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl font-semibold border border-slate-600 transition flex items-center gap-2 shadow-lg group">
+                <i class="fa-solid fa-arrow-left group-hover:-translate-x-1 transition-transform"></i> กลับหน้าแรก
             </a>
         </div>
 
-        <div class="flex border-b border-gray-700 mb-8 gap-2 overflow-x-auto">
-            <button onclick="switchRepairSubTab('menu-calendar')" id="btn-menu-calendar" class="px-5 py-3 border-b-2 border-amber-500 text-amber-400 font-bold flex items-center gap-2 transition whitespace-nowrap"><i class="fa-solid fa-calendar-days"></i> 1. ปฏิทินและแผนกำหนดเสร็จ</button>
-            <button onclick="switchRepairSubTab('menu-cake')" id="btn-menu-cake" class="px-5 py-3 border-b-2 border-transparent text-gray-400 hover:text-white font-semibold flex items-center gap-2 transition whitespace-nowrap"><i class="fa-solid fa-chart-pie"></i> 2. สรุปก้อนเค้กยอดสถานี</button>
-            <button onclick="switchRepairSubTab('menu-list')" id="btn-menu-list" class="px-5 py-3 border-b-2 border-transparent text-gray-400 hover:text-white font-semibold flex items-center gap-2 transition whitespace-nowrap"><i class="fa-solid fa-rectangle-list"></i> 3. รายการรถในกระบวนการซ่อม</button>
+        <!-- Tabs -->
+        <div class="flex gap-3 mb-6 overflow-x-auto pb-2 custom-scrollbar">
+            <button onclick="switchRepairSubTab('menu-list')" id="btn-menu-list" class="px-6 py-3 bg-amber-500 text-slate-900 rounded-xl font-bold flex items-center gap-2 transition whitespace-nowrap shadow-[0_0_15px_rgba(245,158,11,0.3)]"><i class="fa-solid fa-rectangle-list"></i> 1. กระดานคิวรถซ่อม</button>
+            <button onclick="switchRepairSubTab('menu-calendar')" id="btn-menu-calendar" class="px-6 py-3 bg-slate-800 text-gray-300 hover:text-white rounded-xl font-semibold flex items-center gap-2 transition whitespace-nowrap border border-slate-700"><i class="fa-solid fa-calendar-days"></i> 2. ปฏิทินกำหนดเสร็จ</button>
+            <button onclick="switchRepairSubTab('menu-cake')" id="btn-menu-cake" class="px-6 py-3 bg-slate-800 text-gray-300 hover:text-white rounded-xl font-semibold flex items-center gap-2 transition whitespace-nowrap border border-slate-700"><i class="fa-solid fa-chart-pie"></i> 3. สรุปสถานี</button>
         </div>
 
-        <!-- แท็บ 1: ปฏิทิน -->
-        <div id="menu-calendar" class="repair-sub-tab block">
-            <div class="bg-gray-800 p-6 rounded-2xl border border-gray-700 mb-6 flex justify-between items-center">
-                <button onclick="changeMonth(-1)" class="px-4 py-2 bg-gray-900 border border-gray-600 rounded-xl hover:bg-gray-700 font-bold font-mono text-sm"><i class="fa-solid fa-chevron-left"></i> เดือนก่อนหน้า</button>
-                <h2 id="calendar_month_title" class="text-xl font-black text-white tracking-wide">เดือน...</h2>
-                <button onclick="changeMonth(1)" class="px-4 py-2 bg-gray-900 border border-gray-600 rounded-xl hover:bg-gray-700 font-bold font-mono text-sm">เดือนถัดไป <i class="fa-solid fa-chevron-right"></i></button>
-            </div>
-            <div class="grid grid-cols-7 gap-2 text-center text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                <div class="p-2">อา.</div><div class="p-2">จ.</div><div class="p-2">อ.</div><div class="p-2">พ.</div><div class="p-2">พฤ.</div><div class="p-2">ศ.</div><div class="p-2">ส.</div>
-            </div>
-            <div id="calendar_grid" class="grid grid-cols-7 gap-2 min-h-[500px]"></div>
-        </div>
-
-        <!-- แท็บ 2: กราฟ -->
-        <div id="menu-cake" class="repair-sub-tab hidden">
-            <div class="bg-gray-800 p-8 rounded-2xl border border-gray-700 flex flex-col items-center justify-center max-w-xl mx-auto shadow-2xl">
-                <h2 class="text-lg font-bold text-white mb-6 flex items-center gap-2"><i class="fa-solid fa-chart-pie text-amber-500"></i> สัดส่วนปริมาณรถค้างในแต่ละสถานี</h2>
-                <div class="w-full h-80 relative flex justify-center">
-                    <canvas id="stationPieChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- แท็บ 3: รายการรถ (ตารางซ่อมแซม) -->
-        <div id="menu-list" class="repair-sub-tab hidden">
-            <div class="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden shadow-2xl h-[70vh] flex flex-col relative">
-                <div class="overflow-y-auto custom-scrollbar flex-1">
-                    <table class="w-full text-left border-collapse whitespace-nowrap">
-                        
-                        <!-- 🌟 หัวตารางพร้อมตัวกรองแบบ Modern Excel -->
-                        <thead class="sticky top-0 z-10 shadow-lg">
-                            <tr class="bg-gray-800 text-xs uppercase tracking-wider text-gray-300">
-                                <th class="p-3 border-b border-gray-700 bg-gray-800/95 backdrop-blur w-64">
-                                    <div class="mb-2 text-white font-bold">🚗 ทะเบียนรถ / รุ่นรถ</div>
-                                    <input type="text" id="filter_plate" onkeyup="filterRepairTable()" placeholder="🔍 พิมพ์ค้นหา..." class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-xs text-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition-all placeholder-gray-500 shadow-inner">
+        <!-- แท็บ 1: รายการรถ (ตารางซ่อมแซม Modern UI) -->
+        <div id="menu-list" class="repair-sub-tab block">
+            <div class="glass-panel rounded-2xl overflow-hidden shadow-2xl h-[75vh] flex flex-col">
+                <div class="overflow-auto custom-scrollbar flex-1 relative">
+                    <table class="w-full text-left border-collapse whitespace-nowrap min-w-[1000px]">
+                        <thead class="sticky top-0 z-20">
+                            <tr class="bg-slate-800/95 backdrop-blur-md shadow-md text-xs uppercase tracking-wider text-slate-300">
+                                <th class="p-4 border-b border-slate-700">
+                                    <div class="mb-2 text-white font-bold flex items-center gap-2"><i class="fa-solid fa-car text-blue-400"></i> ทะเบียน / รุ่นรถ</div>
+                                    <input type="text" id="filter_plate" onkeyup="filterRepairTable()" placeholder="🔍 พิมพ์ทะเบียนรถ..." class="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-3 py-2 text-xs text-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition-all placeholder-slate-500">
                                 </th>
-                                <th class="p-3 border-b border-gray-700 bg-gray-800/95 backdrop-blur text-center w-48">
-                                    <div class="mb-2 text-white font-bold">📍 สถานีซ่อมสูงสุด</div>
-                                    <select id="filter_station" onchange="filterRepairTable()" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-2 py-2 text-xs text-amber-400 font-bold focus:border-amber-500 outline-none cursor-pointer shadow-inner">
-                                        <option value="">-- กรองสถานีทั้งหมด --</option>
+                                <th class="p-4 border-b border-slate-700 w-48">
+                                    <div class="mb-2 text-white font-bold flex items-center gap-2"><i class="fa-solid fa-location-dot text-red-400"></i> สถานีล่าสุด</div>
+                                    <select id="filter_station" onchange="filterRepairTable()" class="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-2 py-2 text-xs text-amber-400 font-bold focus:border-amber-500 outline-none cursor-pointer">
+                                        <option value="">-- ทุกสถานี --</option>
                                         <option value="13.รอส่งมอบ">13.รอส่งมอบ</option>
                                         <option value="12.พักซ่อม">12.พักซ่อม</option>
                                         <option value="11.ฟิล์ม">11.ฟิล์ม</option>
@@ -88,106 +72,140 @@
                                         <option value="ยังไม่ระบุสถานี">ยังไม่ระบุสถานี</option>
                                     </select>
                                 </th>
-                                <th class="p-3 border-b border-gray-700 bg-gray-800/95 backdrop-blur text-center w-48">
-                                    <div class="mb-2 text-white font-bold">⚙️ สเตตัส ERP</div>
-                                    <select id="filter_status" onchange="filterRepairTable()" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-2 py-2 text-xs text-gray-300 focus:border-amber-500 outline-none cursor-pointer shadow-inner">
-                                        <option value="">-- กรองสเตตัสทั้งหมด --</option>
+                                <th class="p-4 border-b border-slate-700 w-48">
+                                    <div class="mb-2 text-white font-bold flex items-center gap-2"><i class="fa-solid fa-tags text-green-400"></i> สเตตัส (ERP)</div>
+                                    <select id="filter_status" onchange="filterRepairTable()" class="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-2 py-2 text-xs text-slate-300 focus:border-amber-500 outline-none cursor-pointer">
+                                        <option value="">-- ทุกสเตตัส --</option>
                                         <option value="09.จอดรอเข้าซ่อม">09.จอดรอเข้าซ่อม</option>
                                         <option value="10.กำลังซ่อม">10.กำลังซ่อม</option>
                                         <option value="11.รถซ่อมเสร็จรอส่งมอบ">11.รถซ่อมเสร็จรอส่งมอบ</option>
                                     </select>
                                 </th>
-                                <th class="p-3 border-b border-gray-700 bg-gray-800/95 backdrop-blur text-center align-top">
-                                    <div class="mt-2 text-blue-400 font-bold">📅 ซ่อมเสร็จ(เป้า)</div>
+                                <th class="p-4 border-b border-slate-700 text-center align-top w-32">
+                                    <div class="mt-3 text-blue-400 font-bold">📅 ซ่อมเสร็จ (เป้า)</div>
                                 </th>
-                                <th class="p-3 border-b border-gray-700 bg-gray-800/95 backdrop-blur text-center align-top">
-                                    <div class="mt-2 text-green-400 font-bold">✅ เสร็จจริง</div>
+                                <th class="p-4 border-b border-slate-700 text-center align-top w-32">
+                                    <div class="mt-3 text-emerald-400 font-bold">✅ เสร็จจริง</div>
                                 </th>
-                                <th class="p-3 border-b border-gray-700 bg-gray-800/95 backdrop-blur text-center align-top">
-                                    <div class="mt-2 text-white font-bold">📝 หมายเหตุช่าง</div>
+                                <th class="p-4 border-b border-slate-700 text-center align-top min-w-[150px]">
+                                    <div class="mt-3 text-white font-bold">📝 หมายเหตุ</div>
                                 </th>
-                                <th class="p-3 border-b border-gray-700 bg-gray-800/95 backdrop-blur text-center align-top w-28">
-                                    <div class="mt-2 text-white font-bold">⚙️ จัดการ</div>
+                                <th class="p-4 border-b border-slate-700 text-center align-top w-36">
+                                    <div class="mt-3 text-white font-bold"><i class="fa-solid fa-bolt text-yellow-400"></i> จัดการ</div>
                                 </th>
                             </tr>
                         </thead>
-
-                        <tbody id="repair_list_body" class="text-sm divide-y divide-gray-800"></tbody>
+                        <tbody id="repair_list_body" class="text-sm divide-y divide-slate-800"></tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- แท็บ 2: ปฏิทิน -->
+        <div id="menu-calendar" class="repair-sub-tab hidden">
+            <div class="glass-panel p-6 rounded-2xl mb-6 flex justify-between items-center">
+                <button onclick="changeMonth(-1)" class="px-4 py-2 bg-slate-800 border border-slate-600 rounded-xl hover:bg-slate-700 font-bold font-mono text-sm transition"><i class="fa-solid fa-chevron-left"></i> เดือนก่อนหน้า</button>
+                <h2 id="calendar_month_title" class="text-xl font-black text-amber-400 tracking-wide">เดือน...</h2>
+                <button onclick="changeMonth(1)" class="px-4 py-2 bg-slate-800 border border-slate-600 rounded-xl hover:bg-slate-700 font-bold font-mono text-sm transition">เดือนถัดไป <i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+            <div class="grid grid-cols-7 gap-2 text-center text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
+                <div class="p-2">อา.</div><div class="p-2">จ.</div><div class="p-2">อ.</div><div class="p-2">พ.</div><div class="p-2">พฤ.</div><div class="p-2">ศ.</div><div class="p-2">ส.</div>
+            </div>
+            <div id="calendar_grid" class="grid grid-cols-7 gap-2 min-h-[500px]"></div>
+        </div>
+
+        <!-- แท็บ 3: กราฟ -->
+        <div id="menu-cake" class="repair-sub-tab hidden">
+            <div class="glass-panel p-8 rounded-2xl flex flex-col items-center justify-center max-w-xl mx-auto shadow-2xl">
+                <h2 class="text-lg font-bold text-white mb-6 flex items-center gap-2"><i class="fa-solid fa-chart-pie text-amber-500"></i> สัดส่วนปริมาณรถค้างในแต่ละสถานี</h2>
+                <div class="w-full h-80 relative flex justify-center">
+                    <canvas id="stationPieChart"></canvas>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Pop-up รายการรถประจำวัน -->
-    <div id="dayListModal" class="fixed inset-0 bg-black/80 z-[105] flex items-center justify-center hidden p-4">
-        <div class="bg-gray-800 rounded-2xl border border-gray-700 max-w-2xl w-full p-6 relative shadow-2xl flex flex-col max-h-[85vh]">
-            <button onclick="closeDayListModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
-            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2"><i class="fa-solid fa-list-check text-amber-500"></i> รายการรถประจำวันที่: <span id="dayListDateTitle" class="text-amber-400"></span></h2>
-            
-            <div class="overflow-y-auto custom-scrollbar pr-2 flex-1" id="dayListContent"></div>
+    <div id="dayListModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[105] flex items-center justify-center hidden p-4">
+        <div class="glass-panel rounded-2xl max-w-2xl w-full p-6 relative shadow-2xl flex flex-col max-h-[85vh]">
+            <button onclick="closeDayListModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl transition"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2"><i class="fa-solid fa-calendar-check text-amber-500"></i> รายการรถประจำวันที่: <span id="dayListDateTitle" class="text-amber-400"></span></h2>
+            <div class="overflow-y-auto custom-scrollbar pr-2 flex-1 space-y-3" id="dayListContent"></div>
         </div>
     </div>
 
     <!-- Pop-up อัปเดตช่าง -->
-    <div id="stationModal" class="fixed inset-0 bg-black/90 z-[110] flex items-center justify-center hidden p-4">
-        <div class="bg-gray-800 rounded-2xl border border-gray-700 max-w-3xl w-full p-6 relative shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
-            <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
-            <h2 class="text-xl font-bold text-white mb-2 flex items-center gap-2 text-amber-400"><i class="fa-solid fa-circle-check"></i> อัปเดตสถานีซ่อมและรายงานผลช่าง</h2>
-            <p class="text-xs text-gray-400 mb-6 border-b border-gray-700 pb-2">ทะเบียนรถ: <span id="m_plate" class="text-white font-bold font-mono bg-gray-900 px-2 py-0.5 rounded border border-gray-600"></span> | รุ่นรถ: <span id="m_car" class="text-white font-semibold"></span> | ลูกค้า: <span id="m_cust" class="text-white"></span></p>
+    <div id="stationModal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[110] flex items-center justify-center hidden p-4">
+        <div class="glass-panel rounded-2xl max-w-3xl w-full p-6 relative shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar border-amber-500/20">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl transition"><i class="fa-solid fa-xmark"></i></button>
+            
+            <div class="flex items-center gap-3 mb-6 border-b border-slate-700 pb-4">
+                <div class="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center border border-amber-500/30">
+                    <i class="fa-solid fa-clipboard-check text-amber-400 text-lg"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-white tracking-wide">รายงานผลการปฏิบัติงานช่าง</h2>
+                    <p class="text-xs text-slate-400 mt-1">ทะเบียน: <span id="m_plate" class="text-amber-400 font-mono font-bold bg-slate-900 px-1.5 py-0.5 rounded border border-slate-700"></span> | รุ่นรถ: <span id="m_car" class="text-white"></span></p>
+                </div>
+            </div>
             
             <input type="hidden" id="m_job_id">
             
-            <label class="block text-xs font-bold uppercase tracking-wider text-amber-500 mb-3">📍 ติ๊กเลือกสถานีที่รถคันนี้ผ่านกระบวนการทำงานแล้ว</label>
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 bg-gray-900/60 p-4 rounded-xl border border-gray-700">
-                <label class="flex items-center gap-2 text-sm cursor-pointer p-1"><input type="checkbox" id="chk_kho" class="w-4 h-4 accent-amber-500"> 01. เคาะ</label>
-                <label class="flex items-center gap-2 text-sm cursor-pointer p-1"><input type="checkbox" id="chk_pou" class="w-4 h-4 accent-amber-500"> 02. โป๊ว</label>
-                <label class="flex items-center gap-2 text-sm cursor-pointer p-1"><input type="checkbox" id="chk_puan" class="w-4 h-4 accent-amber-500"> 03. เตรียมพื้น</label>
-                <label class="flex items-center gap-2 text-sm cursor-pointer p-1"><input type="checkbox" id="chk_pon" class="w-4 h-4 accent-amber-500"> 04. พ่นสี</label>
-                <label class="flex items-center gap-2 text-sm cursor-pointer p-1"><input type="checkbox" id="chk_prak" class="w-4 h-4 accent-amber-500"> 05. ประกอบ</label>
-                <label class="flex items-center gap-2 text-sm cursor-pointer p-1"><input type="checkbox" id="chk_kat" class="w-4 h-4 accent-amber-500"> 06. ขัดสี</label>
-                <label class="flex items-center gap-2 text-sm cursor-pointer p-1"><input type="checkbox" id="chk_qc" class="w-4 h-4 accent-amber-500"> 07. เก็บงาน/QC</label>
-                <label class="flex items-center gap-2 text-sm cursor-pointer p-1"><input type="checkbox" id="chk_mag" class="w-4 h-4 accent-amber-500"> 08. ซ่อมแม็ก</label>
-                <label class="flex items-center gap-2 text-sm cursor-pointer p-1"><input type="checkbox" id="chk_kraj" class="w-4 h-4 accent-amber-500"> 09. กระจก</label>
-                <label class="flex items-center gap-2 text-sm cursor-pointer p-1"><input type="checkbox" id="chk_film" class="w-4 h-4 accent-amber-500"> 10. ฟิล์ม</label>
-                <label class="flex items-center gap-2 text-sm cursor-pointer p-1"><input type="checkbox" id="chk_pak" class="w-4 h-4 accent-amber-500"> 11. พักซ่อม</label>
-                <label class="flex items-center gap-2 text-sm cursor-pointer p-1"><input type="checkbox" id="chk_ready" class="w-4 h-4 accent-amber-500"> 12. รอส่งมอบ</label>
+            <label class="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-3"><i class="fa-solid fa-location-crosshairs text-amber-500"></i> 1. เลือกสถานีที่ผ่านกระบวนการแล้ว</label>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 bg-slate-900/50 p-4 rounded-xl border border-slate-700 shadow-inner">
+                <label class="flex items-center gap-2 text-sm cursor-pointer p-1.5 hover:bg-slate-800 rounded-lg transition"><input type="checkbox" id="chk_kho" class="w-4 h-4 accent-amber-500"> 01. เคาะ</label>
+                <label class="flex items-center gap-2 text-sm cursor-pointer p-1.5 hover:bg-slate-800 rounded-lg transition"><input type="checkbox" id="chk_pou" class="w-4 h-4 accent-amber-500"> 02. โป๊ว</label>
+                <label class="flex items-center gap-2 text-sm cursor-pointer p-1.5 hover:bg-slate-800 rounded-lg transition"><input type="checkbox" id="chk_puan" class="w-4 h-4 accent-amber-500"> 03. เตรียมพื้น</label>
+                <label class="flex items-center gap-2 text-sm cursor-pointer p-1.5 hover:bg-slate-800 rounded-lg transition"><input type="checkbox" id="chk_pon" class="w-4 h-4 accent-amber-500"> 04. พ่นสี</label>
+                <label class="flex items-center gap-2 text-sm cursor-pointer p-1.5 hover:bg-slate-800 rounded-lg transition"><input type="checkbox" id="chk_prak" class="w-4 h-4 accent-amber-500"> 05. ประกอบ</label>
+                <label class="flex items-center gap-2 text-sm cursor-pointer p-1.5 hover:bg-slate-800 rounded-lg transition"><input type="checkbox" id="chk_kat" class="w-4 h-4 accent-amber-500"> 06. ขัดสี</label>
+                <label class="flex items-center gap-2 text-sm cursor-pointer p-1.5 hover:bg-slate-800 rounded-lg transition"><input type="checkbox" id="chk_qc" class="w-4 h-4 accent-amber-500"> 07. เก็บงาน/QC</label>
+                <label class="flex items-center gap-2 text-sm cursor-pointer p-1.5 hover:bg-slate-800 rounded-lg transition"><input type="checkbox" id="chk_mag" class="w-4 h-4 accent-amber-500"> 08. ซ่อมแม็ก</label>
+                <label class="flex items-center gap-2 text-sm cursor-pointer p-1.5 hover:bg-slate-800 rounded-lg transition"><input type="checkbox" id="chk_kraj" class="w-4 h-4 accent-amber-500"> 09. กระจก</label>
+                <label class="flex items-center gap-2 text-sm cursor-pointer p-1.5 hover:bg-slate-800 rounded-lg transition"><input type="checkbox" id="chk_film" class="w-4 h-4 accent-amber-500"> 10. ฟิล์ม</label>
+                <label class="flex items-center gap-2 text-sm cursor-pointer p-1.5 hover:bg-slate-800 rounded-lg transition"><input type="checkbox" id="chk_pak" class="w-4 h-4 accent-amber-500"> 11. พักซ่อม</label>
+                <label class="flex items-center gap-2 text-sm cursor-pointer p-1.5 hover:bg-slate-800 rounded-lg transition"><input type="checkbox" id="chk_ready" class="w-4 h-4 accent-amber-500"> 12. รอส่งมอบ</label>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+            <label class="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-3"><i class="fa-solid fa-sliders text-amber-500"></i> 2. อัปเดตข้อมูลระบบ (ERP)</label>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                 <div>
-                    <label class="block text-xs text-gray-400 font-bold mb-1">📅 วันที่ช่างซ่อมเสร็จจริง</label>
-                    <input type="date" id="m_repair_date" class="w-full p-2.5 bg-gray-900 border border-gray-600 rounded-xl text-white outline-none focus:border-amber-500 text-sm">
+                    <label class="block text-xs text-slate-400 font-bold mb-1">📅 วันที่ช่างซ่อมเสร็จจริง</label>
+                    <input type="date" id="m_repair_date" class="w-full p-2.5 bg-slate-900 border border-slate-600 rounded-xl text-white outline-none focus:border-amber-500 text-sm">
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-400 font-bold mb-1">⚙️ ปรับสเตตัสหลัก (ERP)</label>
-                    <select id="m_job_status" class="w-full p-2.5 bg-gray-900 border border-gray-600 rounded-xl text-amber-400 font-bold outline-none focus:border-amber-500 text-sm">
+                    <label class="block text-xs text-slate-400 font-bold mb-1">⚙️ สเตตัสหลัก</label>
+                    <select id="m_job_status" class="w-full p-2.5 bg-slate-900 border border-slate-600 rounded-xl text-white outline-none focus:border-amber-500 text-sm">
                         <option value="09.จอดรอเข้าซ่อม">09.จอดรอเข้าซ่อม</option>
                         <option value="10.กำลังซ่อม">10.กำลังซ่อม</option>
                         <option value="11.รถซ่อมเสร็จรอส่งมอบ">11.รถซ่อมเสร็จรอส่งมอบ</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-400 font-bold mb-1 text-blue-400">🔀 ส่งต่อแผนก (Routing)</label>
-                    <select id="m_dept_routing" class="w-full p-2.5 bg-blue-900/30 border border-blue-800 rounded-xl text-blue-400 font-bold outline-none focus:border-blue-500 text-sm">
-                        <option value="ซ่อม">สถานีช่าง (Repair)</option>
-                        <option value="อะไหล่">ส่งไปแผนกอะไหล่ (Parts)</option>
+                    <label class="block text-xs font-bold mb-1 text-blue-400">🔀 ส่งต่อแผนก (Routing)</label>
+                    <select id="m_dept_routing" class="w-full p-2.5 bg-blue-900/20 border border-blue-500/50 rounded-xl text-blue-300 font-bold outline-none focus:border-blue-400 text-sm">
+                        <option value="ซ่อม">ช่างซ่อมต่อ (Repair)</option>
+                        <option value="อะไหล่">เบิกของแผนกอะไหล่ (Parts)</option>
                         <option value="บริการ">ส่งกลับแผนกบริการ (SA)</option>
                         <option value="บัญชี">ส่งแผนกบัญชี (Finance)</option>
                     </select>
                 </div>
             </div>
 
-            <div class="mb-6">
-                <label class="block text-xs text-gray-400 font-bold mb-1">✍️ หมายเหตุการซ่อมแซม / ปัญหาที่พบ / ขอเบิกอะไหล่เพิ่ม</label>
-                <textarea id="m_repair_notes" rows="3" class="w-full p-3 bg-gray-900 border border-gray-600 rounded-xl text-white outline-none focus:border-amber-500 text-sm resize-none" placeholder="เช่น รื้อกันชนแล้วพบขายึดหัก ขอส่งเรื่องให้แผนกอะไหล่สั่งของเพิ่ม..."></textarea>
+            <div class="mb-8">
+                <label class="block text-xs text-slate-400 font-bold mb-1"><i class="fa-solid fa-comment-dots text-amber-500"></i> 3. หมายเหตุถึงแผนกอื่น (ปัญหา/ขอเบิกอะไหล่)</label>
+                <textarea id="m_repair_notes" rows="3" class="w-full p-3 bg-slate-900 border border-slate-600 rounded-xl text-white outline-none focus:border-amber-500 text-sm resize-none" placeholder="พิมพ์รายละเอียดที่นี่..."></textarea>
             </div>
 
-            <div class="flex justify-between items-center pt-4 border-t border-gray-700">
-                <button onclick="editFullJobFromModal()" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-sm transition shadow-lg"><i class="fa-solid fa-pen-to-square"></i> เปิดแก้ไขบิลเต็มรูปแบบ</button>
-                <div class="flex gap-2">
-                    <button onclick="closeModal()" class="px-5 py-2.5 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-xl text-sm transition">ยกเลิก</button>
-                    <button onclick="submitRepairStation()" class="px-6 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl text-sm transition shadow-lg"><i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลช่าง</button>
+            <div class="flex flex-col sm:flex-row justify-between items-center gap-4 pt-5 border-t border-slate-700">
+                <button onclick="editFullJobFromModal()" class="w-full sm:w-auto px-5 py-2.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white border border-blue-500/50 font-bold rounded-xl text-sm transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-pen-to-square"></i> เปิดหน้าแก้ไขบิลเต็ม
+                </button>
+                <div class="flex gap-3 w-full sm:w-auto">
+                    <button onclick="closeModal()" class="flex-1 sm:flex-none px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl border border-slate-600 text-sm transition">ยกเลิก</button>
+                    <button onclick="submitRepairStation()" class="flex-1 sm:flex-none px-8 py-2.5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold rounded-xl text-sm transition shadow-[0_0_15px_rgba(245,158,11,0.4)] flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูล
+                    </button>
                 </div>
             </div>
         </div>
@@ -209,22 +227,13 @@
             fetchJobList();
         });
 
-        function editFullJob(jobId) {
-            sessionStorage.setItem('edit_job_id', jobId);
-            window.location.href = 'index.html';
-        }
-        function editFullJobFromModal() {
-            const id = document.getElementById('m_job_id').value;
-            if(id) editFullJob(id);
-        }
-
         function switchRepairSubTab(tabId) {
             document.querySelectorAll('.repair-sub-tab').forEach(el => el.classList.add('hidden'));
             document.getElementById(tabId).classList.remove('hidden');
-            ['btn-menu-calendar', 'btn-menu-cake', 'btn-menu-list'].forEach(id => {
-                document.getElementById(id).className = "px-5 py-3 border-b-2 border-transparent text-gray-400 hover:text-white font-semibold flex items-center gap-2 transition whitespace-nowrap";
+            ['btn-menu-list', 'btn-menu-calendar', 'btn-menu-cake'].forEach(id => {
+                document.getElementById(id).className = "px-6 py-3 bg-slate-800 text-gray-300 hover:text-white rounded-xl font-semibold flex items-center gap-2 transition whitespace-nowrap border border-slate-700";
             });
-            document.getElementById('btn-' + tabId).className = "px-5 py-3 border-b-2 border-amber-500 text-amber-400 font-bold flex items-center gap-2 transition whitespace-nowrap";
+            document.getElementById('btn-' + tabId).className = "px-6 py-3 bg-amber-500 text-slate-900 rounded-xl font-bold flex items-center gap-2 transition whitespace-nowrap shadow-[0_0_15px_rgba(245,158,11,0.3)]";
             if(tabId === 'menu-cake') renderPieChart();
         }
 
@@ -242,7 +251,7 @@
 
                 renderCalendar();
                 renderRepairListTable(originalRepairJobs);
-            } catch (err) { console.error("โหลดข้อมูลบอร์ดช่างพัง:", err); }
+            } catch (err) { console.error("โหลดข้อมูลพัง:", err); }
         }
 
         function computeHighestStationIFS(j) {
@@ -261,11 +270,11 @@
             return "ยังไม่ระบุสถานี";
         }
 
-        // 🌟 อัปเดตตารางให้มีเส้นขอบและดีไซน์เข้ากับ Excel-like Filter
+        // 🌟 ตารางดีไซน์ใหม่หมดจด + ปุ่ม Action แบบ Glassmorphism
         function renderRepairListTable(data) {
             const tbody = document.getElementById('repair_list_body');
             if(!data || data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-500 border border-gray-700">📭 ไม่พบรถในกระบวนการผลิตซ่อมแซม</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="p-12 text-center text-slate-500 font-bold bg-slate-800/30">📭 ไม่พบรถในกระบวนการซ่อมแซม</td></tr>`;
                 return;
             }
 
@@ -275,17 +284,18 @@
                 const finishDateStr = j.repair_finish_date ? new Date(j.repair_finish_date).toLocaleDateString('th-TH') : '-';
                 
                 return `
-                    <tr class="hover:bg-gray-800/80 transition-colors">
-                        <td class="p-3 border border-gray-700 text-white"><span class="bg-gray-900 border border-gray-600 px-2 py-1 rounded text-amber-400 mr-2 font-mono text-xs shadow-sm">${j.car_plate || 'ไม่มีทะเบียน'}</span> <span class="text-xs font-semibold">${j.car_brand} ${j.car_model || ''}</span></td>
-                        <td class="p-3 border border-gray-700 text-center"><span class="px-2 py-1 bg-amber-950 border border-amber-800 rounded text-amber-300 text-[11px] font-bold shadow-sm">${calculatedStation}</span></td>
-                        <td class="p-3 border border-gray-700 text-center text-[11px] font-semibold text-gray-400">${j.job_status}</td>
-                        <td class="p-3 border border-gray-700 text-center font-mono text-xs text-blue-400">${targetDateStr}</td>
-                        <td class="p-3 border border-gray-700 text-center font-mono text-xs text-green-400">${finishDateStr}</td>
-                        <td class="p-3 border border-gray-700 text-gray-400 italic text-xs max-w-[150px] truncate" title="${j.repair_notes || ''}">${j.repair_notes || '-'}</td>
-                        <td class="p-3 border border-gray-700 text-center">
-                            <div class="flex flex-col gap-1.5 px-2">
-                                <button onclick="openModal('${j.id}')" class="px-2 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold text-[10px] rounded transition shadow" title="อัปเดตงานช่าง"><i class="fa-solid fa-bars-progress"></i> อัปเดตช่าง</button>
-                                <button onclick="editFullJob('${j.id}')" class="px-2 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-[10px] rounded transition shadow" title="แก้ไขใบงาน"><i class="fa-solid fa-pen-to-square"></i> แก้ไข</button>
+                    <tr class="hover:bg-slate-800/80 transition-colors group">
+                        <td class="p-4 border-b border-slate-800 text-white"><span class="bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-md text-amber-400 mr-3 font-mono text-sm shadow-inner">${j.car_plate || 'ไม่มีป้าย'}</span> <span class="font-semibold tracking-wide">${j.car_brand} ${j.car_model || ''}</span></td>
+                        <td class="p-4 border-b border-slate-800"><span class="px-3 py-1 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-400 text-xs font-bold inline-flex items-center gap-1"><i class="fa-solid fa-wrench"></i> ${calculatedStation}</span></td>
+                        <td class="p-4 border-b border-slate-800 text-xs font-semibold text-slate-300 inline-flex items-center gap-1 mt-3"><i class="fa-solid fa-tag text-slate-500"></i> ${j.job_status}</td>
+                        <td class="p-4 border-b border-slate-800 text-center font-mono text-xs text-blue-400">${targetDateStr}</td>
+                        <td class="p-4 border-b border-slate-800 text-center font-mono text-xs text-emerald-400">${finishDateStr}</td>
+                        <td class="p-4 border-b border-slate-800 text-slate-400 italic text-xs max-w-[200px] truncate" title="${j.repair_notes || ''}">${j.repair_notes || '-'}</td>
+                        <td class="p-4 border-b border-slate-800 text-center">
+                            <div class="flex items-center justify-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                                <button onclick="openModal('${j.id}')" class="w-8 h-8 flex items-center justify-center bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white border border-amber-500/30 rounded-lg transition" title="อัปเดตงานช่าง"><i class="fa-solid fa-sliders"></i></button>
+                                <button onclick="editFullJob('${j.id}')" class="w-8 h-8 flex items-center justify-center bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white border border-blue-500/30 rounded-lg transition" title="แก้ไขบิลเต็ม"><i class="fa-solid fa-pen"></i></button>
+                                <button onclick="deleteJob('${j.id}')" class="w-8 h-8 flex items-center justify-center bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white border border-red-500/30 rounded-lg transition" title="ลบใบงานนี้"><i class="fa-solid fa-trash-can"></i></button>
                             </div>
                         </td>
                     </tr>
@@ -293,30 +303,122 @@
             }).join('');
         }
 
-        // ==========================================
-        // 🔍 ระบบกรองข้อมูลตารางแบบ Real-time (Excel-like)
-        // ==========================================
+        // 🔍 ระบบกรองข้อมูลตาราง
         function filterRepairTable() {
             const fPlate = document.getElementById('filter_plate').value.toLowerCase();
             const fStation = document.getElementById('filter_station').value;
             const fStatus = document.getElementById('filter_status').value;
 
             const filteredData = originalRepairJobs.filter(j => {
-                const matchPlate = (j.car_plate || '').toLowerCase().includes(fPlate) || 
-                                   (j.car_brand || '').toLowerCase().includes(fPlate) || 
-                                   (j.car_model || '').toLowerCase().includes(fPlate);
-                
+                const matchPlate = (j.car_plate || '').toLowerCase().includes(fPlate) || (j.car_brand || '').toLowerCase().includes(fPlate) || (j.car_model || '').toLowerCase().includes(fPlate);
                 const calcStation = computeHighestStationIFS(j);
                 const matchStation = fStation === "" || calcStation.includes(fStation);
-                
                 const matchStatus = fStatus === "" || (j.job_status || '').includes(fStatus);
-
                 return matchPlate && matchStation && matchStatus;
             });
-
             renderRepairListTable(filteredData);
         }
 
+        // 🗑️ ฟังก์ชันลบใบงาน (มี Alert ยืนยัน)
+        async function deleteJob(jobId) {
+            if(!confirm('🚨 คำเตือนขั้นเด็ดขาด!\n\nคุณแน่ใจหรือไม่ที่จะ "ลบใบงานนี้" ?\nข้อมูลทั้งหมดที่เกี่ยวกับรถคันนี้จะหายไปจากระบบอย่างถาวร!')) return;
+            
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/report/${jobId}`, { method: 'DELETE' });
+                if(res.ok) {
+                    alert('🗑️ ลบใบงานออกจากระบบเรียบร้อยแล้ว');
+                    fetchJobList(); // รีเฟรชตาราง
+                } else {
+                    const err = await res.json();
+                    alert('❌ เกิดข้อผิดพลาดในการลบ: ' + err.error);
+                }
+            } catch (e) {
+                alert('❌ ติดต่อเซิร์ฟเวอร์ไม่ได้ครับนาย');
+            }
+        }
+
+        function editFullJob(jobId) {
+            sessionStorage.setItem('edit_job_id', jobId);
+            window.location.href = 'index.html';
+        }
+        
+        function editFullJobFromModal() {
+            const id = document.getElementById('m_job_id').value;
+            if(id) editFullJob(id);
+        }
+
+        async function openModal(jobId) {
+            try {
+                const job = originalRepairJobs.find(j => String(j.id) === String(jobId));
+                if (!job) return alert('❌ ไม่พบข้อมูลรถคันนี้ในระบบ');
+
+                document.getElementById('m_job_id').value = job.id;
+                document.getElementById('m_plate').innerText = job.car_plate || 'ไม่มีป้าย';
+                document.getElementById('m_car').innerText = `${job.car_brand} ${job.car_model || ''}`;
+                
+                document.getElementById('chk_kho').checked = job.station_kho;
+                document.getElementById('chk_pou').checked = job.station_pou;
+                document.getElementById('chk_puan').checked = job.station_puan;
+                document.getElementById('chk_pon').checked = job.station_pon;
+                document.getElementById('chk_prak').checked = job.station_prak;
+                document.getElementById('chk_kat').checked = job.station_kat;
+                document.getElementById('chk_qc').checked = job.station_qc;
+                document.getElementById('chk_mag').checked = job.station_mag;
+                document.getElementById('chk_kraj').checked = job.station_kraj;
+                document.getElementById('chk_film').checked = job.station_film;
+                document.getElementById('chk_pak').checked = job.station_pak;
+                document.getElementById('chk_ready').checked = job.station_ready;
+
+                document.getElementById('m_repair_notes').value = job.repair_notes || '';
+                document.getElementById('m_job_status').value = job.job_status || '10.กำลังซ่อม';
+                document.getElementById('m_dept_routing').value = job.department_routing || 'ซ่อม';
+
+                if(job.repair_finish_date) document.getElementById('m_repair_date').value = job.repair_finish_date.split('T')[0];
+                else document.getElementById('m_repair_date').value = '';
+
+                closeDayListModal();
+                document.getElementById('stationModal').classList.remove('hidden');
+            } catch(e) { alert('❌ เปิดหน้าต่างไม่สำเร็จ'); }
+        }
+
+        function closeModal() { document.getElementById('stationModal').classList.add('hidden'); }
+
+        async function submitRepairStation() {
+            const id = document.getElementById('m_job_id').value;
+            const payload = {
+                station_kho: document.getElementById('chk_kho').checked,
+                station_pou: document.getElementById('chk_pou').checked,
+                station_puan: document.getElementById('chk_puan').checked,
+                station_pon: document.getElementById('chk_pon').checked,
+                station_prak: document.getElementById('chk_prak').checked,
+                station_kat: document.getElementById('chk_kat').checked,
+                station_qc: document.getElementById('chk_qc').checked,
+                station_mag: document.getElementById('chk_mag').checked,
+                station_kraj: document.getElementById('chk_kraj').checked,
+                station_film: document.getElementById('chk_film').checked,
+                station_pak: document.getElementById('chk_pak').checked,
+                station_ready: document.getElementById('chk_ready').checked,
+                repair_notes: document.getElementById('m_repair_notes').value,
+                repair_finish_date: document.getElementById('m_repair_date').value || null,
+                job_status: document.getElementById('m_job_status').value,
+                department_routing: document.getElementById('m_dept_routing').value 
+            };
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/report/${id}/station`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                if(res.ok) {
+                    alert('🎉 อัปเดตงานช่างเรียบร้อยแล้ว!');
+                    closeModal();
+                    fetchJobList(); 
+                }
+            } catch(e) { alert('❌ บันทึกข้อมูลล้มเหลว'); }
+        }
+
+        // ====== ฟังก์ชันปฏิทินและกราฟ (คงเดิม) ======
         function renderCalendar() {
             const grid = document.getElementById('calendar_grid'); grid.innerHTML = '';
             const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
@@ -325,7 +427,7 @@
             const firstDay = new Date(currentYear, currentMonth, 1).getDay();
             const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
 
-            for(let i = 0; i < firstDay; i++) { grid.innerHTML += `<div class="bg-gray-900/20 p-2 rounded-xl border border-transparent"></div>`; }
+            for(let i = 0; i < firstDay; i++) { grid.innerHTML += `<div class="bg-slate-900/20 p-2 rounded-xl border border-transparent"></div>`; }
 
             for(let day = 1; day <= totalDays; day++) {
                 const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
@@ -334,11 +436,11 @@
 
                 let badgeBlock = '';
                 if(targetQty > 0) badgeBlock += `<div class="text-[10px] bg-blue-900/50 text-blue-300 font-bold border border-blue-800 rounded px-1 mt-1 flex justify-between"><span>📋 ซ่อมเสร็จ:</span><span>${targetQty}</span></div>`;
-                if(actualQty > 0) badgeBlock += `<div class="text-[10px] bg-green-900/50 text-green-300 font-bold border border-green-800 rounded px-1 mt-1 flex justify-between"><span>✅ เสร็จจริง:</span><span>${actualQty}</span></div>`;
+                if(actualQty > 0) badgeBlock += `<div class="text-[10px] bg-emerald-900/50 text-emerald-300 font-bold border border-emerald-800 rounded px-1 mt-1 flex justify-between"><span>✅ เสร็จจริง:</span><span>${actualQty}</span></div>`;
 
                 grid.innerHTML += `
-                    <div onclick="clickCalendarDate('${dateStr}')" class="bg-gray-800 p-2 rounded-xl border border-gray-700 hover:border-amber-500 cursor-pointer transition flex flex-col justify-between min-h-[85px]">
-                        <span class="text-xs font-black text-gray-400 font-mono">${day}</span>
+                    <div onclick="clickCalendarDate('${dateStr}')" class="glass-panel p-2 rounded-xl hover:border-amber-500 cursor-pointer transition flex flex-col justify-between min-h-[85px]">
+                        <span class="text-xs font-black text-slate-400 font-mono">${day}</span>
                         <div class="flex-1 flex flex-col justify-end">${badgeBlock}</div>
                     </div>
                 `;
@@ -366,17 +468,16 @@
             listContent.innerHTML = dayJobs.map(j => {
                 const station = computeHighestStationIFS(j);
                 return `
-                    <div class="bg-gray-900 border border-gray-700 rounded-xl p-4 mb-3 hover:border-amber-500 transition flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div class="bg-slate-800/80 border border-slate-600 rounded-xl p-4 hover:border-amber-500 transition flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                         <div>
                             <div class="font-bold text-white mb-1">
-                                <span class="text-amber-400 bg-gray-800 border border-gray-600 px-2 py-0.5 rounded font-mono mr-2">${j.car_plate || '-'}</span> 
+                                <span class="text-amber-400 bg-slate-900 border border-slate-700 px-2 py-0.5 rounded font-mono mr-2">${j.car_plate || '-'}</span> 
                                 ${j.car_brand} ${j.car_model || ''}
                             </div>
-                            <div class="text-xs text-gray-400">สถานะหลัก: ${j.job_status} | <span class="text-amber-300">สถานีล่าสุด: ${station}</span></div>
+                            <div class="text-xs text-slate-400">สถานะหลัก: ${j.job_status} | <span class="text-amber-300">สถานีล่าสุด: ${station}</span></div>
                         </div>
                         <div class="flex gap-2 w-full sm:w-auto">
-                            <button onclick="openModal('${j.id}')" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg transition w-full sm:w-auto"><i class="fa-solid fa-bars-progress"></i> อัปเดตช่าง</button>
-                            <button onclick="editFullJob('${j.id}')" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition w-full sm:w-auto"><i class="fa-solid fa-pen-to-square"></i> แก้ไข</button>
+                            <button onclick="openModal('${j.id}')" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg transition"><i class="fa-solid fa-sliders"></i> อัปเดตช่าง</button>
                         </div>
                     </div>
                 `;
@@ -415,81 +516,8 @@
                     labels: Object.keys(counters),
                     datasets: [{ data: Object.values(counters), backgroundColor: ['#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', '#22c55e', '#10b981', '#06b6d4', '#3b82f6', '#6366f1', '#a855f7', '#ec4899', '#6b7280'] }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#fff', font: { family: 'Noto Sans Thai' } } } } }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#e2e8f0', font: { family: 'Noto Sans Thai' } } } } }
             });
-        }
-
-        async function openModal(jobId) {
-            try {
-                const job = originalRepairJobs.find(j => String(j.id) === String(jobId));
-                if (!job) return alert('❌ ไม่พบข้อมูลรถคันนี้ในระบบ');
-
-                document.getElementById('m_job_id').value = job.id;
-                document.getElementById('m_plate').innerText = job.car_plate || 'ไม่มีป้ายทะเบียน';
-                document.getElementById('m_car').innerText = `${job.car_brand} ${job.car_model || ''}`;
-                document.getElementById('m_cust').innerText = job.customer_name;
-                
-                document.getElementById('chk_kho').checked = job.station_kho;
-                document.getElementById('chk_pou').checked = job.station_pou;
-                document.getElementById('chk_puan').checked = job.station_puan;
-                document.getElementById('chk_pon').checked = job.station_pon;
-                document.getElementById('chk_prak').checked = job.station_prak;
-                document.getElementById('chk_kat').checked = job.station_kat;
-                document.getElementById('chk_qc').checked = job.station_qc;
-                document.getElementById('chk_mag').checked = job.station_mag;
-                document.getElementById('chk_kraj').checked = job.station_kraj;
-                document.getElementById('chk_film').checked = job.station_film;
-                document.getElementById('chk_pak').checked = job.station_pak;
-                document.getElementById('chk_ready').checked = job.station_ready;
-
-                document.getElementById('m_repair_notes').value = job.repair_notes || '';
-                document.getElementById('m_job_status').value = job.job_status || '10.กำลังซ่อม';
-                
-                document.getElementById('m_dept_routing').value = job.department_routing || 'ซ่อม';
-
-                if(job.repair_finish_date) document.getElementById('m_repair_date').value = job.repair_finish_date.split('T')[0];
-                else document.getElementById('m_repair_date').value = '';
-
-                closeDayListModal();
-                document.getElementById('stationModal').classList.remove('hidden');
-            } catch(e) { alert('❌ ไม่สามารถโหลดป๊อปอัปช่างได้'); }
-        }
-
-        function closeModal() { document.getElementById('stationModal').classList.add('hidden'); }
-
-        async function submitRepairStation() {
-            const id = document.getElementById('m_job_id').value;
-            const payload = {
-                station_kho: document.getElementById('chk_kho').checked,
-                station_pou: document.getElementById('chk_pou').checked,
-                station_puan: document.getElementById('chk_puan').checked,
-                station_pon: document.getElementById('chk_pon').checked,
-                station_prak: document.getElementById('chk_prak').checked,
-                station_kat: document.getElementById('chk_kat').checked,
-                station_qc: document.getElementById('chk_qc').checked,
-                station_mag: document.getElementById('chk_mag').checked,
-                station_kraj: document.getElementById('chk_kraj').checked,
-                station_film: document.getElementById('chk_film').checked,
-                station_pak: document.getElementById('chk_pak').checked,
-                station_ready: document.getElementById('chk_ready').checked,
-                repair_notes: document.getElementById('m_repair_notes').value,
-                repair_finish_date: document.getElementById('m_repair_date').value || null,
-                job_status: document.getElementById('m_job_status').value,
-                department_routing: document.getElementById('m_dept_routing').value 
-            };
-
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/report/${id}/station`, {
-                    method: 'PUT',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
-                if(res.ok) {
-                    alert('🎉 บันทึกข้อมูลคืบหน้าของอู่ซ่อมเสร็จสิ้น!');
-                    closeModal();
-                    fetchJobList(); 
-                }
-            } catch(e) { alert('❌ บันทึกความเห็นช่างล้มเหลว'); }
         }
     </script>
 </body>
