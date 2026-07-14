@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RIZENIC ERP - Repair Tracking Board</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;900&display=swap');
+    
+    :root {
+      --green-main: #f59e0b; /* เปลี่ยนธีมเป็นโทน Amber ของช่าง */
+      --green-dark: #d97706;
+      --green-soft: #fef3c7;
+      --bg: #0f172a; /* พื้นหลัง Dark Mode */
+      --station: rgba(30, 41, 59, 0.7);
+      --card: #1e293b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --border: #334155;
+    }
+
+    html, body { width: 100%; height: 100%; margin: 0; }
+    body { font-family: 'Noto Sans Thai', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; display: flex; flex-direction: column; }
+    
+    header { padding: 16px 20px 10px; background: #1e293b; border-bottom: 1px solid var(--border); z-index: 10;}
+    h1 { text-align: center; font-size: 2rem; font-weight: 900; margin: 0 0 16px; color: var(--green-main); letter-spacing: 1px;}
+    
+    #topMenu { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px; }
+    .menu-btn { padding: 6px 16px; border-radius: 8px; border: 1px solid var(--border); background: #0f172a; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--muted); transition: all 0.2s;}
+    .menu-btn.active { background: var(--green-main); color: #fff; border-color: var(--green-main); box-shadow: 0 0 10px rgba(245,158,11,0.3);}
+    
+    #toggleBar { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+    .toggle-btn { padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border); background: #1e293b; font-weight: 600; font-size: 0.75rem; cursor: pointer; color: #cbd5e1; transition: all 0.2s;}
+    .toggle-btn.off { opacity: 0.4; text-decoration: line-through; background: #0f172a; border-style: dashed;}
+    
+    #scrollArea { flex: 1; overflow: auto; }
+    /* แต่ง Scrollbar */
+    #scrollArea::-webkit-scrollbar { width: 10px; height: 10px; }
+    #scrollArea::-webkit-scrollbar-track { background: #0f172a; }
+    #scrollArea::-webkit-scrollbar-thumb { background-color: #475569; border-radius: 5px; }
+    
+    #zoomWrap { transform-origin: top left; transition: transform 0.3s ease; }
+    #board { display: flex; gap: 20px; padding: 24px; min-height: 100%; align-items: flex-start;}
+    
+    .station { flex: 0 0 320px; background: var(--station); backdrop-filter: blur(10px); border-radius: 16px; padding: 16px; min-height: 500px; border: 1px solid var(--border); box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
+    .station h2 { font-size: 1.2rem; font-weight: 900; padding: 12px; margin-bottom: 16px; background: linear-gradient(135deg, var(--green-main), var(--green-dark)); color: white; border-radius: 10px; text-align: center; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); box-shadow: 0 4px 10px rgba(245,158,11,0.2);}
+    
+    .card { background: var(--card); border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.2); cursor: pointer; transition: transform 0.2s; border-left: 4px solid var(--green-main);}
+    .card:hover { transform: translateY(-3px); border-color: var(--green-main); }
+    
+    .plate-big { font-size: 1.6rem; font-weight: 900; color: #1e293b; background: var(--green-soft); padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 12px; font-family: monospace; letter-spacing: 1px;}
+    .detail-list { font-size: 0.95rem; line-height: 1.6; font-weight: 500; color: #cbd5e1;}
+    .finish-date { font-size: 1.1rem; font-weight: 900; margin-top: 10px; color: #38bdf8; background: #0f172a; padding: 6px; border-radius: 6px; text-align: center; border: 1px dashed #334155;}
+    
+    .damage { display: inline-block; padding: 4px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 800; margin: 4px 0 12px; width: 100%; text-align: center;}
+    .damage.light { background:rgba(22, 101, 52, 0.2); color:#4ade80; border: 1px solid #166534;}
+    .damage.medium { background:rgba(133, 77, 14, 0.2); color:#facc15; border: 1px solid #854d0e;}
+    .damage.heavy { background:rgba(153, 27, 27, 0.2); color:#f87171; border: 1px solid #991b1b;}
+    
+    .card-worker { font-size: 0.85rem; font-weight: 600; color: var(--muted); margin-top: 12px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 8px;}
+    
+    /* แจ้งเตือนเสียง */
+    #voiceToggle { position: absolute; top: 20px; right: 20px; background: #1e293b; color: white; border: 1px solid #334155; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.85rem; display: flex; items-center; gap: 8px;}
+    #voiceToggle.on { color: #f59e0b; border-color: #f59e0b; }
+
+    /* Modal ป๊อปอัป */
+    #modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; z-index: 999; }
+    #modalContent { background: #1e293b; max-width: 500px; width: 90%; max-height: 90%; overflow: auto; border-radius: 16px; padding: 24px; position: relative; border: 1px solid #334155; box-shadow: 0 20px 50px rgba(0,0,0,0.5); color: white;}
+    #closeModal { position: absolute; top: 12px; right: 16px; font-size: 1.5rem; cursor: pointer; color: #94a3b8; transition: color 0.2s;}
+    #closeModal:hover { color: #ef4444; }
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>📋 กระดานติดตามคิวซ่อม</h1>
+  
+  <button id="voiceToggle" class="on" onclick="toggleVoice()">
+    <i class="fa-solid fa-volume-high" id="voiceIcon"></i> <span id="voiceText">ระบบเสียง: เปิด</span>
+  </button>
+
+  <div id="topMenu">
+    <div class="menu-btn active" onclick="setZoom(1,this)">Full (100%)</div>
+    <div class="menu-btn" onclick="setZoom(0.8,this)">80%</div>
+    <div class="menu-btn" onclick="setZoom(0.6,this)">60%</div>
+    <div class="menu-btn" onclick="setZoom(0.4,this)">40%</div>
+  </div>
+  <div id="toggleBar"></div>
+</header>
+
+<div id="scrollArea">
+  <div id="zoomWrap">
+    <div id="board"><div class="text-center w-full py-20 text-slate-500 font-bold text-xl"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังโหลดข้อมูล...</div></div>
+  </div>
+</div>
+
+<div id="modal" onclick="closeModal(event)">
+  <div id="modalContent">
+    <div id="closeModal" onclick="hideModal()"><i class="fa-solid fa-xmark"></i></div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+const API_BASE_URL = window.location.origin;
+let hiddenStations = new Set();
+let oldData = null; // สำหรับเปรียบเทียบข้อมูลเก่า-ใหม่ เพื่อแจ้งเตือนเสียง
+let voiceEnabled = true;
+
+// ลำดับสถานีที่ต้องการให้โชว์
+const stationOrder = [
+    "01. เคาะ", "02. โป๊ว", "03. เตรียมพื้น", "04. พ่นสี", "05. ประกอบ", 
+    "06. ขัดสี", "07. เก็บงาน", "08. ซ่อมแม็ก", "09. กระจก", "10. ฟิล์ม", 
+    "11. พักซ่อม", "12. รอส่งมอบ", "ยังไม่ระบุสถานี"
+];
+
+/* ===== [NEW] ระบบเสียงพูด ===== */
+function toggleVoice() {
+    voiceEnabled = !voiceEnabled;
+    const btn = document.getElementById('voiceToggle');
+    const icon = document.getElementById('voiceIcon');
+    const text = document.getElementById('voiceText');
+    if(voiceEnabled) {
+        btn.classList.add('on');
+        icon.className = 'fa-solid fa-volume-high';
+        text.innerText = 'ระบบเสียง: เปิด';
+    } else {
+        btn.classList.remove('on');
+        icon.className = 'fa-solid fa-volume-xmark';
+        text.innerText = 'ระบบเสียง: ปิด';
+    }
+}
+
+function speakTransition(plate, stationName) {
+  if (voiceEnabled && 'speechSynthesis' in window) {
+    let text = "";
+    let rate = 1.0;
+    
+    if (stationName.includes("ส่งมอบ")) {
+      text = `ประกาศครับ รถทะเบียน ${plate} ซ่อมเสร็จเรียบร้อยแล้ว อยู่ในสถานะ รอส่งมอบ ครับ`;
+      rate = 0.85; 
+    } else {
+      text = `รถทะเบียน ${plate} เคลื่อนย้ายเข้าสู่ ${stationName.replace(/[0-9.]/g, '')}`; // ลบตัวเลขข้างหน้าเวลาพูด
+      rate = 1.0;
+    }
+
+    const msg = new SpeechSynthesisUtterance(text);
+    msg.lang = 'th-TH';
+    msg.rate = rate; 
+    window.speechSynthesis.speak(msg);
+  }
+}
+
+/* ===== [NEW] ตรวจสอบการเคลื่อนย้ายสเตชั่น ===== */
+function checkForChanges(newData) {
+  if (!oldData) {
+    oldData = newData; 
+    return;
+  }
+  let oldMap = {};
+  for (let station in oldData) {
+    oldData[station].forEach(item => { oldMap[item.plate] = station; });
+  }
+  for (let station in newData) {
+    newData[station].forEach(item => {
+      const oldStation = oldMap[item.plate];
+      if (oldStation && oldStation !== station) {
+        speakTransition(item.plate, station);
+      }
+    });
+  }
+  oldData = newData; 
+}
+
+/* ===== Zoom ===== */
+function setZoom(scale, el) {
+  document.getElementById('zoomWrap').style.transform = `scale(${scale})`;
+  document.querySelectorAll('.menu-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+/* ===== Modal ===== */
+function showModal(html) {
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('modal').style.display = 'flex';
+}
+function hideModal() { document.getElementById('modal').style.display = 'none'; }
+function closeModal(e){ if(e.target.id === 'modal') hideModal(); }
+
+/* ===== Load & Format Data ===== */
+function computeHighestStationIFS(j) {
+    if(j.station_ready) return "12. รอส่งมอบ";
+    if(j.station_pak) return "11. พักซ่อม";
+    if(j.station_film) return "10. ฟิล์ม";
+    if(j.station_kraj) return "09. กระจก";
+    if(j.station_mag) return "08. ซ่อมแม็ก";
+    if(j.station_qc) return "07. เก็บงาน";
+    if(j.station_kat) return "06. ขัดสี";
+    if(j.station_prak) return "05. ประกอบ";
+    if(j.station_pon) return "04. พ่นสี";
+    if(j.station_puan) return "03. เตรียมพื้น";
+    if(j.station_pou) return "02. โป๊ว";
+    if(j.station_kho) return "01. เคาะ";
+    return "ยังไม่ระบุสถานี";
+}
+
+async function loadData() {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/reports`);
+        const allJobs = await res.json();
+        
+        // 1. กรองเฉพาะงานซ่อม
+        const repairJobs = allJobs.filter(j => 
+            j.department_routing === 'ซ่อม' || 
+            j.job_status === '09.จอดรอเข้าซ่อม' || 
+            j.job_status === '10.กำลังซ่อม' || 
+            j.job_status === '11.รถซ่อมเสร็จรอส่งมอบ'
+        );
+
+        // 2. จัดกลุ่มตามสถานี
+        const groupedData = {};
+        stationOrder.forEach(st => groupedData[st] = []);
+
+        repairJobs.forEach(job => {
+            const station = computeHighestStationIFS(job);
+            if(groupedData[station]) {
+                groupedData[station].push({
+                    plate: job.car_plate || 'ไม่มีป้าย',
+                    car: `${job.car_brand} ${job.car_model || ''}`,
+                    damage: job.damage_level || 'เบา',
+                    target: job.target_finish_date ? job.target_finish_date.split('T')[0] : 'ยังไม่ระบุ',
+                    actual: job.repair_finish_date ? job.repair_finish_date.split('T')[0] : '-',
+                    status: job.job_status,
+                    notes: job.repair_notes || '-'
+                });
+            }
+        });
+
+        render(groupedData);
+
+    } catch (e) {
+        console.error("ดึงข้อมูลกระดานล้มเหลว", e);
+    }
+}
+
+function getDamageHTML(damage) {
+    if (damage === 'เบา') return '<div class="damage light">🟢 ความเสียหาย: เบา</div>';
+    if (damage === 'กลาง') return '<div class="damage medium">🟡 ความเสียหาย: กลาง</div>';
+    if (damage === 'หนัก') return '<div class="damage heavy">🔴 ความเสียหาย: หนัก</div>';
+    return '';
+}
+
+function render(groupedData) {
+  // ตรวจเช็คเพื่อส่งเสียง
+  checkForChanges(groupedData);
+
+  const board = document.getElementById('board');
+  const toggleBar = document.getElementById('toggleBar');
+  
+  // สร้างปุ่ม Toggle แค่ครั้งแรก
+  if(toggleBar.innerHTML === '') {
+      stationOrder.forEach(station => {
+        const btn = document.createElement('div');
+        btn.className = 'toggle-btn' + (hiddenStations.has(station) ? ' off' : '');
+        btn.textContent = station;
+        btn.onclick = () => {
+          hiddenStations.has(station) ? hiddenStations.delete(station) : hiddenStations.add(station);
+          render(groupedData); // Re-render เมื่อกดปุ่ม
+        };
+        toggleBar.appendChild(btn);
+      });
+  }
+
+  board.innerHTML = '';
+
+  // วาดกระดาน
+  stationOrder.forEach(station => {
+    if (hiddenStations.has(station)) return; // ถ้าโดนซ่อน ให้ข้ามไป
+
+    const wrap = document.createElement('div');
+    wrap.className = 'station';
+    let html = `<h2>${station}</h2>`;
+
+    const items = groupedData[station] || [];
+    
+    if(items.length === 0) {
+        html += `<div class="text-center text-slate-500 py-10 font-bold text-sm">ไม่มีรถในสถานีนี้</div>`;
+    } else {
+        items.forEach(item => {
+          const detailHTML = `
+            <div><i class="fa-solid fa-car-side w-5 text-slate-400"></i> ${item.car}</div>
+            <div class="mt-1"><i class="fa-solid fa-tag w-5 text-slate-400"></i> ${item.status}</div>
+            <div class="finish-date"><i class="fa-regular fa-calendar-check text-blue-400"></i> เป้าเสร็จ: ${item.target}</div>
+          `;
+
+          const cardHTML = `
+            <div class="card" onclick="showModal(this.innerHTML)">
+              <div class="plate-big">${item.plate}</div>
+              ${getDamageHTML(item.damage)}
+              <div class="detail-list">${detailHTML}</div>
+              <div class="card-worker">
+                <span>📝 ${item.notes.substring(0, 15)}${item.notes.length > 15 ? '...' : ''}</span>
+              </div>
+            </div>`;
+          html += cardHTML;
+        });
+    }
+
+    wrap.innerHTML = html;
+    board.appendChild(wrap);
+  });
+}
+
+// เริ่มต้นโหลดข้อมูล
+loadData();
+// รีเฟรชทุกๆ 30 วินาที
+setInterval(loadData, 30000);
+</script>
+
+</body>
+</html>
