@@ -178,7 +178,7 @@ app.delete('/api/customer-types/:id', async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-/// ==========================================
+// ==========================================
 // ⚙️ API Masters อะไหล่ (rizenicpartsmaster)
 // ==========================================
 app.get('/api/parts', async (req, res) => {
@@ -257,6 +257,7 @@ app.delete('/api/statuses/:id', async (req, res) => {
   try { await pool.query('DELETE FROM rizenicstatusmaster WHERE status_code = $1', [req.params.id]); res.json({ success: true }); } 
   catch (e) { res.status(500).json({ error: e.message }); }
 });
+
 // ==========================================
 // 🎨 API Master: ชิ้นส่วนซ่อมสี (rizenic_body_parts)
 // ==========================================
@@ -304,7 +305,7 @@ app.post('/api/report', async (req, res) => {
       target_finish_date, actual_finish_date, delivery_date,
       contact_date, arrived_date, car_plate,
       epc_no, part_status, order_part_date, est_part_date, ordered_part_names,
-      department_routing // 🟢 รับค่า Routing จากหน้าบ้าน
+      department_routing
     } = req.body;
 
     const queryText = `
@@ -328,7 +329,7 @@ app.post('/api/report', async (req, res) => {
       notes || null, job_status || null, target_finish_date || null, actual_finish_date || null, delivery_date || null,
       contact_date || null, arrived_date || null, car_plate || null,
       epc_no || null, part_status || null, order_part_date || null, est_part_date || null, ordered_part_names || null,
-      department_routing || 'รอดำเนินการ' // 🟢 บันทึกลง DB
+      department_routing || 'รอดำเนินการ'
     ];
 
     const result = await pool.query(queryText, values);
@@ -350,7 +351,7 @@ app.put('/api/report/:id', async (req, res) => {
       station_qc, station_mag, station_kraj, station_film, station_pak, station_ready,
       repair_notes, repair_finish_date,
       epc_no, part_status, order_part_date, est_part_date, ordered_part_names,
-      department_routing // 🟢 รับค่า Routing
+      department_routing
     } = req.body;
 
     const queryText = `
@@ -365,7 +366,7 @@ app.put('/api/report/:id', async (req, res) => {
         station_qc=$35, station_mag=$36, station_kraj=$37, station_film=$38, station_pak=$39, station_ready=$40,
         repair_notes=$41, repair_finish_date=$42,
         epc_no=$43, part_status=$44, order_part_date=$45, est_part_date=$46, ordered_part_names=$47,
-        department_routing=$48 -- 🟢 บันทึกลง DB
+        department_routing=$48
       WHERE id=$49;
     `;
 
@@ -380,7 +381,7 @@ app.put('/api/report/:id', async (req, res) => {
       station_qc || false, station_mag || false, station_kraj || false, station_film || false, station_pak || false, station_ready || false,
       repair_notes || null, repair_finish_date || null,
       epc_no || null, part_status || null, order_part_date || null, est_part_date || null, ordered_part_names || null,
-      department_routing || 'รอดำเนินการ', // 🟢 อัปเดต DB
+      department_routing || 'รอดำเนินการ',
       req.params.id
     ];
 
@@ -389,6 +390,34 @@ app.put('/api/report/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// 🟢 อัปเดตข้อมูลจากหน้าสถานีช่าง (Repair Station) โดยเฉพาะ
+app.put('/api/report/:id/station', async (req, res) => {
+  try {
+    const {
+      station_kho, station_pou, station_puan, station_pon, station_prak, station_kat,
+      station_qc, station_mag, station_kraj, station_film, station_pak, station_ready,
+      repair_notes, repair_finish_date, job_status, department_routing
+    } = req.body;
+
+    const queryText = `
+      UPDATE rizenicreport SET 
+        station_kho=$1, station_pou=$2, station_puan=$3, station_pon=$4, station_prak=$5, station_kat=$6,
+        station_qc=$7, station_mag=$8, station_kraj=$9, station_film=$10, station_pak=$11, station_ready=$12,
+        repair_notes=$13, repair_finish_date=$14, job_status=$15, department_routing=$16
+      WHERE id=$17;
+    `;
+
+    const values = [
+      station_kho || false, station_pou || false, station_puan || false, station_pon || false, station_prak || false, station_kat || false,
+      station_qc || false, station_mag || false, station_kraj || false, station_film || false, station_pak || false, station_ready || false,
+      repair_notes || null, repair_finish_date || null, job_status || null, department_routing || 'ซ่อม',
+      req.params.id
+    ];
+
+    await pool.query(queryText, values);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 // ==========================================
 // 📦 API แผนกอะไหล่ (สั่งซื้อ / รับเข้า / เบิกจ่าย) (rizenic_part_orders)
