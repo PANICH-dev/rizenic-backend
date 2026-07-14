@@ -144,16 +144,16 @@
                 <!-- 🌟 Legend (ป้ายกำกับกราฟแท่ง) -->
                 <div class="flex justify-center items-center gap-8 bg-slate-900/60 py-3 px-8 rounded-xl border border-slate-700 shadow-inner">
                     <div class="flex items-center gap-3">
-                        <div class="w-4 h-8 bg-gradient-to-t from-blue-600 to-blue-400 rounded-sm shadow-[0_0_10px_rgba(59,130,246,0.6)]"></div>
-                        <span class="text-sm font-bold text-blue-100">เป้าซ่อมเสร็จ <br><span class="text-[10px] text-blue-400 font-normal">(Target)</span></span>
+                        <div class="w-4 h-8 bg-gradient-to-t from-orange-600 to-amber-400 rounded-sm shadow-[0_0_10px_rgba(245,158,11,0.6)]"></div>
+                        <span class="text-sm font-bold text-orange-100">นัดหมายเข้าซ่อม <br><span class="text-[10px] text-amber-400 font-normal">(Arrived Date)</span></span>
                     </div>
                     <div class="flex items-center gap-3">
-                        <div class="w-4 h-8 bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-sm shadow-[0_0_10px_rgba(16,185,129,0.6)]"></div>
-                        <span class="text-sm font-bold text-emerald-100">เสร็จจริง <br><span class="text-[10px] text-emerald-400 font-normal">(Actual)</span></span>
+                        <div class="w-4 h-8 bg-gradient-to-t from-blue-600 to-blue-400 rounded-sm shadow-[0_0_10px_rgba(59,130,246,0.6)]"></div>
+                        <span class="text-sm font-bold text-blue-100">กำหนดซ่อมเสร็จ <br><span class="text-[10px] text-blue-400 font-normal">(Target)</span></span>
                     </div>
                     <div class="flex items-center gap-3">
                         <div class="w-4 h-8 bg-gradient-to-t from-purple-600 to-purple-400 rounded-sm shadow-[0_0_10px_rgba(168,85,247,0.6)]"></div>
-                        <span class="text-sm font-bold text-purple-100">นัดส่งมอบ <br><span class="text-[10px] text-purple-400 font-normal">(Delivery)</span></span>
+                        <span class="text-sm font-bold text-purple-100">กำหนดส่งมอบ <br><span class="text-[10px] text-purple-400 font-normal">(Delivery)</span></span>
                     </div>
                 </div>
             </div>
@@ -233,11 +233,11 @@
                 <label class="flex items-center gap-2 text-sm cursor-pointer hover:text-amber-300 transition"><input type="checkbox" id="chk_ready" class="w-4 h-4 accent-amber-500"> 12. รอส่งมอบ</label>
             </div>
 
-            <!-- ส่วนที่ 2: อัปเดตข้อมูลตารางนัดหมาย (แก้ไขเฉพาะวันที่เสร็จจริง) -->
-            <label class="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-3"><i class="fa-regular fa-calendar-check text-amber-500"></i> 2. อัปเดตกำหนดการซ่อม</label>
+            <!-- ส่วนที่ 2: อัปเดตข้อมูลตารางนัดหมาย (ล็อกเป้าหมายกับส่งมอบ) -->
+            <label class="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-3"><i class="fa-regular fa-calendar-check text-amber-500"></i> 2. อัปเดตกำหนดการซ่อม (แก้ได้เฉพาะเสร็จจริง)</label>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 bg-slate-900/50 p-4 rounded-xl border border-slate-700 shadow-inner">
                 <div>
-                    <label class="block text-xs text-blue-400 font-bold mb-1">เป้าซ่อมเสร็จ (Target)</label>
+                    <label class="block text-xs text-blue-400 font-bold mb-1">เป้าซ่อมเสร็จ (Target) 🔒</label>
                     <input type="date" id="m_target_date" readonly class="w-full p-2.5 bg-slate-800/50 border border-slate-700 rounded-lg text-slate-500 outline-none cursor-not-allowed text-sm">
                 </div>
                 <div>
@@ -245,7 +245,7 @@
                     <input type="date" id="m_repair_date" onchange="validateRepairDate(this)" class="w-full p-2.5 bg-slate-800 border border-slate-600 rounded-lg text-emerald-300 outline-none focus:border-emerald-500 text-sm cursor-pointer">
                 </div>
                 <div>
-                    <label class="block text-xs text-purple-400 font-bold mb-1">กำหนดส่งมอบลูกค้า (Delivery)</label>
+                    <label class="block text-xs text-purple-400 font-bold mb-1">กำหนดส่งมอบลูกค้า (Delivery) 🔒</label>
                     <input type="date" id="m_delivery_date" readonly class="w-full p-2.5 bg-slate-800/50 border border-slate-700 rounded-lg text-slate-500 outline-none cursor-not-allowed text-sm">
                 </div>
             </div>
@@ -296,7 +296,7 @@
         let currentMonth = 6; 
         let chartInstance = null;
 
-        // 🌟 ตั้งค่าให้ใส่วันที่ย้อนหลังไม่ได้
+        // 🌟 ดึงวันที่ปัจจุบันรูปแบบ YYYY-MM-DD สำหรับบล็อกไม่ให้เลือกวันย้อนหลัง
         function getTodayString() {
             const today = new Date();
             const yyyy = today.getFullYear();
@@ -318,20 +318,20 @@
             fetchJobList();
         });
 
-        // ตรวจสอบการเลือกวันที่ใน Inline Edit ให้ไม่ย้อนหลัง
+        // ตรวจสอบการเลือกวันที่ใน Inline Edit และ Modal ให้ไม่ย้อนหลัง
         function validateRepairDate(inputEl) {
             const selectedDate = inputEl.value;
             const today = getTodayString();
             if (selectedDate && selectedDate < today) {
-                alert('❌ ไม่สามารถใส่วันที่เสร็จจริงย้อนหลังได้ครับ!');
-                inputEl.value = today; // เซ็ตให้เป็นวันนี้แทน
+                alert('❌ ไม่สามารถใส่วันที่เสร็จจริงย้อนหลังได้ครับ! ระบบจะตั้งให้เป็นวันนี้');
+                inputEl.value = today; 
             }
         }
 
         // ตรวจสอบรถ Overdue (เกินเป้าซ่อมเสร็จ แต่ยังไม่เสร็จจริง)
         function checkOverdue(job) {
-            if (!job.target_finish_date) return false; // ถ้าไม่มีเป้า ไม่ถือว่า overdue
-            if (job.repair_finish_date) return false; // ถ้าซ่อมเสร็จแล้ว ไม่ overdue
+            if (!job.target_finish_date) return false; 
+            if (job.repair_finish_date) return false; 
 
             const targetDate = new Date(job.target_finish_date);
             const today = new Date();
@@ -340,7 +340,7 @@
             targetDate.setHours(0,0,0,0);
             today.setHours(0,0,0,0);
 
-            return targetDate < today; // ถ้าเป้าหมายน้อยกว่าวันนี้ แสดงว่าเลยกำหนด (Overdue)
+            return targetDate < today; 
         }
 
         function switchRepairSubTab(tabId) {
@@ -388,11 +388,9 @@
 
         // 🌟 อัปเดตวันที่ด่วนแบบ Inline Edit (เฉพาะเสร็จจริง)
         async function fastUpdateDate(id, field, value) {
-            // ป้องกันการย้อนหลัง
             const today = getTodayString();
             if (value && value < today) {
-                alert('❌ ไม่สามารถใส่วันที่ย้อนหลังได้ครับ!');
-                // รีโหลดตารางกลับค่าเดิม
+                alert('❌ ไม่อนุญาตให้ใส่วันที่เสร็จจริงย้อนหลังครับ!');
                 filterRepairTable(); 
                 return;
             }
@@ -406,8 +404,8 @@
                     const jobIndex = originalRepairJobs.findIndex(j => String(j.id) === String(id));
                     if(jobIndex > -1) {
                         originalRepairJobs[jobIndex][field] = value ? value + 'T00:00:00.000Z' : null;
-                        renderCalendar(); // รีเฟรชปฏิทินกราฟ
-                        filterRepairTable(); // รีเฟรชตารางเพื่ออัปเดตสถานะไฟลุก
+                        renderCalendar(); 
+                        filterRepairTable(); 
                     }
                 }
             } catch(e) { console.log('Fast update fail', e); }
@@ -506,14 +504,14 @@
 
             for(let i = 0; i < firstDay; i++) { grid.innerHTML += `<div class="bg-slate-900/20 p-3 rounded-2xl border border-transparent"></div>`; }
 
-            // 🌟 1. หาค่าสูงสุดของจำนวนรถในเดือนนี้ (Dynamic Scale)
-            let monthMaxQty = 1; // ตั้งขั้นต่ำไว้กัน error หารศูนย์
+            // 🌟 1. หาค่าสูงสุดของจำนวนรถในเดือนนี้ เพื่อตั้งเพดานกราฟไม่ให้พุ่งเกินไปถ้ารถน้อย
+            let monthMaxQty = 5; // กำหนดสเกลเริ่มต้นที่ 5 คัน (1 คันจะสูง 20%)
             for(let day = 1; day <= totalDays; day++) {
                 const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                const aQty = originalRepairJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length;
                 const tQty = originalRepairJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).length;
-                const aQty = originalRepairJobs.filter(j => j.repair_finish_date && j.repair_finish_date.split('T')[0] === dateStr).length;
                 const dQty = originalRepairJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
-                const maxInDay = Math.max(tQty, aQty, dQty);
+                const maxInDay = Math.max(aQty, tQty, dQty);
                 if (maxInDay > monthMaxQty) monthMaxQty = maxInDay;
             }
 
@@ -521,8 +519,9 @@
             for(let day = 1; day <= totalDays; day++) {
                 const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
                 
+                // เปลี่ยนเป็น นับรถเข้าจอด, เป้าซ่อม, ส่งมอบ
+                const arrivedQty = originalRepairJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length;
                 const targetQty = originalRepairJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).length;
-                const actualQty = originalRepairJobs.filter(j => j.repair_finish_date && j.repair_finish_date.split('T')[0] === dateStr).length;
                 const deliveryQty = originalRepairJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
 
                 // ตรวจสอบว่ามีรถ Overdue ในวันนี้ไหม
@@ -533,26 +532,26 @@
 
                 let barBlock = '';
                 
-                if(targetQty > 0 || actualQty > 0 || deliveryQty > 0) {
+                if(arrivedQty > 0 || targetQty > 0 || deliveryQty > 0) {
                     barBlock = `<div class="flex items-end justify-center gap-2 w-full h-[60px] mt-2">`;
                     
+                    // 🔹 แท่งกราฟ นัดเข้าซ่อม/รถจอด (สีส้ม)
+                    if(arrivedQty > 0) {
+                        const h = Math.max(15, (arrivedQty / monthMaxQty) * 100);
+                        barBlock += `
+                        <div class="flex flex-col items-center group/bar cursor-pointer" title="รถเข้าจอด: ${arrivedQty} คัน">
+                            <span class="text-[10px] font-bold text-orange-400 mb-0.5">${arrivedQty}</span>
+                            <div class="w-3.5 bg-gradient-to-t from-orange-600 to-amber-400 rounded-t-sm shadow-[0_0_8px_rgba(245,158,11,0.5)] transition-all group-hover/bar:w-4" style="height: ${h}%;"></div>
+                        </div>`;
+                    }
+
                     // 🔹 แท่งกราฟ เป้าซ่อม (สีฟ้า)
                     if(targetQty > 0) {
                         const h = Math.max(15, (targetQty / monthMaxQty) * 100);
                         barBlock += `
                         <div class="flex flex-col items-center group/bar cursor-pointer" title="เป้าซ่อมเสร็จ: ${targetQty} คัน">
-                            <span class="text-[10px] font-bold text-blue-400 mb-0.5 opacity-0 group-hover/bar:opacity-100 transition-opacity">${targetQty}</span>
+                            <span class="text-[10px] font-bold text-blue-400 mb-0.5">${targetQty}</span>
                             <div class="w-3.5 bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-sm shadow-[0_0_8px_rgba(59,130,246,0.5)] transition-all group-hover/bar:w-4" style="height: ${h}%;"></div>
-                        </div>`;
-                    }
-                    
-                    // 🔹 แท่งกราฟ เสร็จจริง (สีเขียว)
-                    if(actualQty > 0) {
-                        const h = Math.max(15, (actualQty / monthMaxQty) * 100);
-                        barBlock += `
-                        <div class="flex flex-col items-center group/bar cursor-pointer" title="เสร็จจริง: ${actualQty} คัน">
-                            <span class="text-[10px] font-bold text-emerald-400 mb-0.5 opacity-0 group-hover/bar:opacity-100 transition-opacity">${actualQty}</span>
-                            <div class="w-3.5 bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-t-sm shadow-[0_0_8px_rgba(16,185,129,0.5)] transition-all group-hover/bar:w-4" style="height: ${h}%;"></div>
                         </div>`;
                     }
                     
@@ -561,7 +560,7 @@
                         const h = Math.max(15, (deliveryQty / monthMaxQty) * 100);
                         barBlock += `
                         <div class="flex flex-col items-center group/bar cursor-pointer" title="นัดส่งมอบ: ${deliveryQty} คัน">
-                            <span class="text-[10px] font-bold text-purple-400 mb-0.5 opacity-0 group-hover/bar:opacity-100 transition-opacity">${deliveryQty}</span>
+                            <span class="text-[10px] font-bold text-purple-400 mb-0.5">${deliveryQty}</span>
                             <div class="w-3.5 bg-gradient-to-t from-purple-600 to-purple-400 rounded-t-sm shadow-[0_0_8px_rgba(168,85,247,0.5)] transition-all group-hover/bar:w-4" style="height: ${h}%;"></div>
                         </div>`;
                     }
@@ -595,8 +594,8 @@
 
         function clickCalendarDate(dateString) {
             const dayJobs = originalRepairJobs.filter(j => 
+                (j.arrived_date && j.arrived_date.split('T')[0] === dateString) ||
                 (j.target_finish_date && j.target_finish_date.split('T')[0] === dateString) ||
-                (j.repair_finish_date && j.repair_finish_date.split('T')[0] === dateString) ||
                 (j.delivery_date && j.delivery_date.split('T')[0] === dateString)
             );
 
@@ -609,8 +608,8 @@
                 const isOverdue = checkOverdue(j);
                 
                 let tags = '';
+                if(j.arrived_date && j.arrived_date.split('T')[0] === dateString) tags += `<span class="bg-orange-500/20 text-orange-400 text-[10px] px-2 py-0.5 rounded border border-orange-500/30"><i class="fa-solid fa-car"></i> รถเข้าจอด</span> `;
                 if(j.target_finish_date && j.target_finish_date.split('T')[0] === dateString) tags += `<span class="bg-blue-500/20 text-blue-400 text-[10px] px-2 py-0.5 rounded border border-blue-500/30"><i class="fa-solid fa-bullseye"></i> เป้าซ่อม</span> `;
-                if(j.repair_finish_date && j.repair_finish_date.split('T')[0] === dateString) tags += `<span class="bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-0.5 rounded border border-emerald-500/30"><i class="fa-solid fa-check"></i> เสร็จจริง</span> `;
                 if(j.delivery_date && j.delivery_date.split('T')[0] === dateString) tags += `<span class="bg-purple-500/20 text-purple-400 text-[10px] px-2 py-0.5 rounded border border-purple-500/30"><i class="fa-solid fa-car-side"></i> นัดส่งมอบ</span> `;
 
                 return `
