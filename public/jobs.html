@@ -22,12 +22,19 @@
 
         /* สไตล์ตาราง Excel */
         .excel-table { @apply w-full text-left border-collapse whitespace-nowrap text-[12px]; }
-        .excel-table th { @apply px-3 py-2 bg-[#00320D] text-white border border-slate-400 font-bold sticky top-0 z-10 shadow-sm align-middle; }
+        
+        /* แก้ไข z-index และการ sticky ให้รองรับ 2 ชั้น (Header + Filter) */
+        .excel-table thead tr:first-child th { @apply px-3 py-2 bg-[#00320D] text-white border border-slate-400 font-bold sticky top-0 z-20 shadow-sm align-middle; }
+        .excel-table thead tr:nth-child(2) th { @apply px-1 py-1 bg-slate-200 border border-slate-300 sticky top-[37px] z-10 shadow-sm; } 
+        
         .excel-table td { @apply px-3 py-1.5 border border-slate-300 text-slate-700 align-middle; }
         .excel-table tr:nth-child(even) { @apply bg-slate-50; }
         .excel-table tr:hover { @apply bg-green-50; }
         
         .minimal-input { @apply px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none text-sm font-bold text-[#00320D] focus:border-[#00320D] focus:ring-2 focus:ring-green-500/20 shadow-sm; }
+        
+        /* ช่อง Filter ในหัวตาราง */
+        .col-filter-input { @apply w-full px-2 py-1 text-[11px] font-normal text-slate-700 bg-white border border-slate-300 rounded outline-none focus:border-[#00320D] focus:ring-1 focus:ring-[#00320D]; }
     </style>
 </head>
 <body class="text-slate-800 h-screen flex flex-col selection:bg-[#00320D] selection:text-white">
@@ -59,8 +66,8 @@
     <div class="bg-white border-b border-slate-200 p-3 shrink-0 shadow-sm z-40 flex flex-wrap gap-3 items-center justify-between">
         <div class="flex flex-wrap gap-3 items-center w-full lg:w-auto">
             <div class="flex items-center gap-2">
-                <span class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-filter"></i> ค้นหา:</span>
-                <input type="text" id="search_input" onkeyup="applyFilters()" class="minimal-input w-48" placeholder="ทะเบียน, ชื่อลูกค้า, EPC...">
+                <span class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-filter"></i> ค้นหาหลัก:</span>
+                <input type="text" id="search_input" onkeyup="applyFilters()" class="minimal-input w-48" placeholder="ค้นหาทั่วไป...">
             </div>
             <div class="flex items-center gap-2">
                 <span class="text-xs font-bold text-slate-500 uppercase">สาขา:</span>
@@ -89,6 +96,7 @@
         </div>
         <div class="flex items-center gap-3">
             <span class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg border">พบข้อมูล: <span id="row_count" class="text-blue-600 font-black text-sm">0</span> รายการ</span>
+            <button onclick="clearColFilters()" class="px-3 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg text-xs shadow hover:bg-slate-300 transition"><i class="fa-solid fa-eraser mr-1"></i> ล้างฟิลเตอร์</button>
             <button onclick="loadJobsData()" class="px-4 py-2 bg-[#00320D] text-white font-bold rounded-lg text-xs shadow hover:bg-black transition"><i class="fa-solid fa-rotate-right mr-1"></i> รีเฟรช</button>
         </div>
     </div>
@@ -97,7 +105,7 @@
         <table class="excel-table" id="jobsTable">
             <thead>
                 <tr>
-                    <th class="text-center bg-blue-900"><i class="fa-solid fa-pen-to-square"></i></th>
+                    <th class="text-center bg-blue-900 w-10"><i class="fa-solid fa-pen-to-square"></i></th>
                     <th>สาขา (Branch)</th>
                     <th>สถานะงาน (Job Status)</th>
                     <th class="bg-amber-600">ทะเบียนรถ</th>
@@ -132,6 +140,43 @@
                     <th>เลข IVN. / วางบิล (BL)</th>
                     <th>SA ที่รับผิดชอบ</th>
                 </tr>
+                <!-- 🌟 แถวสำหรับ Input Filter หัวคอลัมน์ -->
+                <tr>
+                    <th></th> <!-- ว่างไว้สำหรับคอลัมน์แก้ไข -->
+                    <th><input type="text" class="col-filter-input" data-key="branch_name" placeholder="กรองสาขา..." oninput="applyFilters()"></th>
+                    <th><input type="text" class="col-filter-input" data-key="job_status" placeholder="กรองสถานะ..." oninput="applyFilters()"></th>
+                    <th><input type="text" class="col-filter-input" data-key="car_plate" placeholder="กรองทะเบียน..." oninput="applyFilters()"></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th><input type="text" class="col-filter-input" data-key="customer_name" placeholder="กรองลูกค้า..." oninput="applyFilters()"></th>
+                    <th><input type="text" class="col-filter-input" data-key="phone_number" placeholder="กรองเบอร์..." oninput="applyFilters()"></th>
+                    <th><input type="text" class="col-filter-input" data-key="customer_type" placeholder="กรองประเภท..." oninput="applyFilters()"></th>
+                    <th><input type="text" class="col-filter-input" data-key="payment_type" placeholder="กรองประกัน..." oninput="applyFilters()"></th>
+                    <th><input type="text" class="col-filter-input" data-key="car_brand" placeholder="กรองยี่ห้อ..." oninput="applyFilters()"></th>
+                    <th><input type="text" class="col-filter-input" data-key="car_model" placeholder="กรองรุ่น..." oninput="applyFilters()"></th>
+                    <th><input type="text" class="col-filter-input" data-key="vin_no" placeholder="กรอง VIN..." oninput="applyFilters()"></th>
+                    <th></th>
+                    <th><input type="text" class="col-filter-input" data-key="part_status" placeholder="กรองสถานะอะไหล่..." oninput="applyFilters()"></th>
+                    <th><input type="text" class="col-filter-input" data-key="epc_no" placeholder="กรอง EPC..." oninput="applyFilters()"></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th><input type="text" class="col-filter-input" data-key="qt_no" placeholder="กรอง QT..." oninput="applyFilters()"></th>
+                    <th><input type="text" class="col-filter-input" data-key="so_no" placeholder="กรอง SO..." oninput="applyFilters()"></th>
+                    <th><input type="text" class="col-filter-input" data-key="bl_no" placeholder="กรอง BL..." oninput="applyFilters()"></th>
+                    <th><input type="text" class="col-filter-input" data-key="sa_owner" placeholder="กรอง SA..." oninput="applyFilters()"></th>
+                </tr>
             </thead>
             <tbody id="jobs_table_body">
                 <tr><td colspan="34" class="text-center py-10 text-slate-400 font-mono text-sm">กำลังโหลดข้อมูล...</td></tr>
@@ -150,24 +195,22 @@
                 alert('🚨 กรุณาเข้าสู่ระบบก่อนครับ!'); window.location.href = 'index.html'; return;
             }
 
-            // 🛡️ ยามเฝ้าประตู (แดชบอร์ด)
+            // 🛡️ ยามเฝ้าประตู 
+            userRole = sessionStorage.getItem('emp_role');
+            userBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+
             const allowedPages = (sessionStorage.getItem('accessible_pages') || '').split(',');
-            if (!allowedPages.includes('dashboard')) { 
-                alert('⛔ คุณไม่มีสิทธิ์เข้าถึงหน้านี้ครับ!');
+            if (!allowedPages.includes('jobs')) { 
+                alert('⛔ คุณไม่มีสิทธิ์เข้าถึงบอร์ดใบงานครับ!');
                 window.location.href = allowedPages.length > 0 ? allowedPages[0] + '.html' : 'index.html';
                 return;
             }
             
-            const empName = sessionStorage.getItem('emp_name');
-            const empBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
-            const empRole = sessionStorage.getItem('emp_role');
-
-            document.getElementById('display_emp_name').innerText = empName;
-            document.getElementById('display_branch').innerText = empBranch;
-            document.getElementById('current_date_display').innerText = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+            document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name');
+            document.getElementById('display_branch').innerText = userBranch;
             
-            setupBranchDropdown(empRole, empBranch);
-            fetchDashboardData();
+            loadBranchesForFilter();
+            loadJobsData();
         });
 
         function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
@@ -200,25 +243,56 @@
             }
         }
 
+        function clearColFilters() {
+            document.querySelectorAll('.col-filter-input').forEach(input => input.value = '');
+            document.getElementById('search_input').value = '';
+            document.getElementById('filter_status').value = 'ALL';
+            
+            if (['BA','Manager','Admin','แอดมิน'].includes(userRole)) {
+                document.getElementById('filter_branch').value = 'ALL';
+            }
+            applyFilters();
+        }
+
         function applyFilters() {
             const searchTxt = document.getElementById('search_input').value.toLowerCase();
             const branchFilter = document.getElementById('filter_branch').value;
             const statusFilter = document.getElementById('filter_status').value;
 
+            // รวบรวมค่าจาก Filter หัวคอลัมน์
+            let colFilters = {};
+            document.querySelectorAll('.col-filter-input').forEach(input => {
+                if(input.value.trim() !== '') {
+                    colFilters[input.dataset.key] = input.value.toLowerCase().trim();
+                }
+            });
+
             const filteredData = allJobsData.filter(job => {
-                // กรองสาขา
+                // กรองสาขา (Dropdown หลัก)
                 if (branchFilter !== 'ALL' && job.branch_name !== branchFilter) return false;
                 
-                // กรองสถานะ
+                // กรองสถานะ (Dropdown หลัก)
                 if (statusFilter !== 'ALL' && job.job_status !== statusFilter) return false;
 
-                // กรองข้อความค้นหา (ทะเบียน, ชื่อ, EPC)
+                // กรองข้อความค้นหาหลัก
                 if (searchTxt) {
                     const matchPlate = (job.car_plate || '').toLowerCase().includes(searchTxt);
                     const matchName = (job.customer_name || '').toLowerCase().includes(searchTxt);
                     const matchEPC = (job.epc_no || '').toLowerCase().includes(searchTxt);
                     if (!matchPlate && !matchName && !matchEPC) return false;
                 }
+
+                // กรองจากหัวคอลัมน์ (Excel-like Filter)
+                let matchCols = true;
+                for(let key in colFilters) {
+                    const rowValue = String(job[key] || '').toLowerCase();
+                    if(!rowValue.includes(colFilters[key])) {
+                        matchCols = false;
+                        break;
+                    }
+                }
+                if(!matchCols) return false;
+
                 return true;
             });
 
