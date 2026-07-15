@@ -463,31 +463,40 @@
             const p = parseFloat(document.getElementById('out_price').value) || 0; const q = parseInt(document.getElementById('out_qty').value) || 0;
             if(document.getElementById('out_total')) document.getElementById('out_total').value = (p * q).toFixed(2);
         }
-
-        // =========================================================================
-// 🔔 1. ระบบแจ้งเตือนสั่งอะไหล่ (จับกลุ่มตามทะเบียนรถ -> คลิกจัดการระบุสถานะและวันแยกชิ้น)
+// =========================================================================
+// 🔔 1. ระบบแจ้งเตือนสั่งอะไหล่ (ดึงเฉพาะคันที่ SA สั่ง Routing = อะไหล่ เท่านั้น)
 // =========================================================================
 
 async function loadSAOrders() {
     try {
+        // 1. ดึงใบงานหลัก และรายการพาร์ททั้งหมดจากระบบหลังบ้าน
         const resJobs = await fetch(`${API_BASE_URL}/api/reports`); const allJobs = await resJobs.json();
         const resParts = await fetch(`${API_BASE_URL}/api/part-orders`); const allParts = await resParts.json();
         
-        // กรองหาพาร์ทอะไหล่ของสาขาตัวเอง ที่ยังมาไม่ครบ
-        const activeBranchParts = allParts.filter(p => p.branch_name === currentBranch && p.order_status !== 'อะไหล่เข้าครบแล้ว');
-        const uniquePlatesWithParts = [...new Set(activeBranchParts.map(p => p.car_plate))];
+        // 🚨 [เงื่อนไขล็อกตายตามบรีฟนาย]: กรองเอาใบงานหลักที่ SA กดเลือก Routing ส่งมาที่ "อะไหล่" เท่านั้น!
+        const jobsRoutedToParts = allJobs.filter(j => j.branch_name === currentBranch && (j.department_routing === 'อะไหล่'));
         
+        // ดึงรายการพาร์ทอะไหล่รายตัวที่ยังมาไม่ครบ (เอาไว้แจกแจงข้างใน Modal)
+        const activeBranchParts = allParts.filter(p => p.branch_name === currentBranch && p.order_status !== 'อะไหล่เข้าครบแล้ว');
+        
+        // 🧠 คัดกรองเฉพาะทะเบียนรถที่ "ตรงกัน" ระหว่างใบงานที่ถูกส่งมาแผนกอะไหล่ กับพาร์ทที่ยังค้างสั่ง
+        const uniquePlatesWithParts = [...new Set(activeBranchParts.map(p => p.car_plate))].filter(plate => 
+            jobsRoutedToParts.some(j => j.car_plate === plate)
+        );
+        
+        // อัปเดตตัวเลขแจ้งเตือนทรงกลมสีแดงบนแท็บเมนู
         document.getElementById('alert_count').innerText = uniquePlatesWithParts.length;
         document.getElementById('alert_count').className = uniquePlatesWithParts.length > 0 ? "bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full shadow-sm" : "hidden";
         
         const tbody = document.getElementById('sa_alerts_body');
         if(uniquePlatesWithParts.length === 0) { 
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400 font-bold">✅ ไม่มีคิวรถค้างสั่งซื้ออะไหล่ในขณะนี้</td></tr>`; 
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400 font-bold">✅ ไม่มีคิวรถค้างสั่งซื้ออะไหล่ในแผนกขณะนี้ (หรือ SA ยังไม่ได้กด Routing ส่งต่อมา)</td></tr>`; 
             return; 
         }
 
+        // เรนเดอร์ตารางรายชื่อทะเบียนรถที่รอแผนกอะไหล่ดำเนินการ
         tbody.innerHTML = uniquePlatesWithParts.map(plate => {
-            const jobMatch = allJobs.find(j => j.car_plate === plate);
+            const jobMatch = jobsRoutedToParts.find(j => j.car_plate === plate);
             const customerName = jobMatch ? jobMatch.customer_name : 'ไม่ระบุชื่อ';
             const carModelStr = jobMatch ? `${jobMatch.car_brand} ${jobMatch.car_model || ''}` : '-';
             const epcNoStr = jobMatch ? (jobMatch.epc_no || '-') : '-';
@@ -499,7 +508,7 @@ async function loadSAOrders() {
                 <td class="font-bold text-slate-600">${carModelStr}</td>
                 <td class="font-medium text-slate-700">${customerName}</td>
                 <td class="font-mono text-xs font-bold text-amber-700">${epcNoStr}</td>
-                <td><span class="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-1 rounded-lg text-xs font-bold"><i class="fa-solid fa-cubes mr-1"></i> มีอะไหล่ค้างอยู่ ${totalItemsCount} รายการ</span></td>
+                <td><span class="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-1 rounded-lg text-xs font-bold"><i class="fa-solid fa-cubes mr-1"></i> มีอะไหล่รอจัดการ ${totalItemsCount} รายการ</span></td>
                 <td class="text-center">
                     <button onclick="openCarPartsDetailsModal('${plate}', '${epcNoStr}')" class="bg-rizenic-green text-white font-black px-4 py-2 rounded-lg text-xs shadow-md hover:bg-black transition w-full flex items-center justify-center gap-1">
                         <i class="fa-solid fa-folder-open"></i> คลิกดูรายการพาร์ท
@@ -509,7 +518,7 @@ async function loadSAOrders() {
             `;
         }).join('');
         applyExcelFilters('saTable');
-    } catch(e){ console.error(e); }
+    } catch(e){ console.error("ระบบคัดกรอง Routing แผนกอะไหล่ขัดข้อง:", e); }
 }
 
 // 🗂️ หน้าต่าง Excel ย่อยสไตล์ตาราง สำหรับคีย์วันสั่ง วันของเข้า แยกรายบรรทัดตามที่นายสั่งเป๊ะๆ
