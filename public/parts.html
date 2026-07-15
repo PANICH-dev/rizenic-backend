@@ -36,6 +36,11 @@
         .modern-table tbody tr:hover { @apply bg-green-50/50 transition-colors; }
         
         .excel-filter { @apply mt-2 w-full bg-white/10 border border-white/20 rounded-md px-2 py-1.5 text-[11px] text-white placeholder-white/50 outline-none focus:bg-white focus:text-slate-900 focus:placeholder-slate-400 transition-all font-normal; }
+        
+        /* 🌟 Excel-like Table Styles สำหรับป๊อปอัป */
+        .excel-cell { @apply p-0 border-r border-b border-slate-200 relative overflow-hidden bg-white; }
+        .excel-input { @apply w-full h-full border-0 bg-transparent px-2 py-2.5 outline-none font-mono text-[11px] text-slate-800 focus:ring-2 focus:ring-inset focus:ring-blue-500 focus:bg-blue-50/30 transition-all; }
+        .excel-select { @apply w-full h-full border-0 bg-transparent px-2 py-2.5 outline-none font-bold text-slate-700 text-[11px] focus:ring-2 focus:ring-inset focus:ring-blue-500 focus:bg-blue-50/30 cursor-pointer appearance-none; }
     </style>
 </head>
 <body class="text-slate-800 h-screen flex flex-col selection:bg-[#00320D] selection:text-white">
@@ -330,23 +335,23 @@
 
     </main>
 
-    <!-- 🌟 หน้าต่างป๊อปอัป -->
+    <!-- 🌟 หน้าต่างป๊อปอัป แบบตาราง Excel -->
     <div id="alertModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden border-t-4 border-t-amber-500 flex flex-col max-h-[90vh]">
             <div class="px-6 py-4 border-b flex justify-between items-center bg-amber-50/50 shrink-0">
                 <h3 class="font-black text-amber-900 flex items-center gap-2 text-sm sm:text-base">
-                    <i class="fa-solid fa-paper-plane text-amber-500"></i> ตอบกลับแผนกบริการ (อัปเดตสเตตัสและข้อมูลรายพาร์ทชิ้นต่อชิ้น)
+                    <i class="fa-solid fa-table-cells text-amber-500"></i> โต๊ะคีย์อะไหล่ (อัปเดตสเตตัสแบบ Excel-View)
                 </h3>
                 <button type="button" onclick="closeAlertModal()" class="text-slate-400 hover:text-red-500 transition"><i class="fa-solid fa-xmark text-2xl"></i></button>
             </div>
-            <form onsubmit="saveSAAlertUpdate(event)" class="flex flex-col flex-1 overflow-hidden">
+            <form onsubmit="saveSAAlertUpdate(event)" class="flex flex-col flex-1 overflow-hidden bg-slate-100">
                 <input type="hidden" id="modal_job_id">
                 <input type="hidden" id="modal_epc">
-                <div class="p-6 flex-1 overflow-y-auto custom-scrollbar" id="modal_dynamic_table_container"></div>
-                <div class="bg-slate-50 px-6 py-4 border-t flex justify-end gap-3 shrink-0">
+                <div class="p-4 flex-1 overflow-y-auto custom-scrollbar" id="modal_dynamic_table_container"></div>
+                <div class="bg-white px-6 py-4 border-t flex justify-end gap-3 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                     <button type="button" onclick="closeAlertModal()" class="px-5 py-2.5 bg-white text-slate-600 rounded-lg font-bold border border-slate-300 hover:bg-slate-100 transition shadow-sm">ปิดหน้าต่าง</button>
                     <button type="submit" class="px-8 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-black rounded-lg shadow-md hover:from-amber-600 hover:to-amber-700 transition-all flex items-center gap-1.5 shadow-amber-500/20">
-                        <i class="fa-solid fa-floppy-disk"></i> บันทึกและซิงค์ข้อมูลส่งกลับหน้า Job
+                        <i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลอะไหล่
                     </button>
                 </div>
             </form>
@@ -366,7 +371,7 @@
         let allPOStatuses = []; 
         let allMasterPartsData = []; 
         
-        let hideCompletedPO = true; // ค่าเริ่มต้นซ่อนอะไหล่เข้าครบ
+        let hideCompletedPO = true;
 
         // 🌟 Helper function ป้องกันบั๊กฐานข้อมูลดึงสเตตัสเพี้ยน
         function getSafeStatusName(s) {
@@ -435,7 +440,6 @@
                 const resJobs = await fetch(`${API_BASE_URL}/api/reports`); if(resJobs.ok) allGlobalJobs = await resJobs.json();
                 const resParts = await fetch(`${API_BASE_URL}/api/part-orders`); if(resParts.ok) allGlobalParts = await resParts.json();
                 
-                // 🌟 Smart Fetcher ดึง Dropdown สเตตัสแอดมิน
                 allPOStatuses = [];
                 const possibleEndpoints = ['/api/part-status-master', '/api/part-statuses', '/api/master-status', '/api/po-statuses', '/api/settings/po-status'];
                 for (let ep of possibleEndpoints) {
@@ -450,7 +454,6 @@
                     } catch(e) {}
                 }
 
-                // 🌟 ถมตัวเลือกเข้าหน้าสั่งศูนย์ Tab 2 แบบปลอดภัย 100%
                 const poBoSelect = document.getElementById('po_bo');
                 if (poBoSelect && allPOStatuses.length > 0) {
                     poBoSelect.innerHTML = allPOStatuses.map(s => {
@@ -470,7 +473,6 @@
             loadSAOrders(); loadPOTracking(); loadInbound(); loadOutbound(); loadStockInHouse(); loadMasterParts();
         }
 
-        // 🔔 1. แจ้งเตือน SA (โชว์ EPC แยกรายชิ้นแบบเห็นๆ)
         function loadSAOrders() {
             try {
                 const tbody = document.getElementById('sa_alerts_body');
@@ -484,7 +486,6 @@
                 tbody.innerHTML = jobsRoutedToParts.map(job => {
                     const carPartsItems = (allGlobalParts || []).filter(p => p.car_plate === job.car_plate);
                     
-                    // ดึง EPC อ้างอิงของทุกชิ้นมากองรวมกันแบบครบๆ
                     const uniqueEPCs = [...new Set(carPartsItems.map(p => p.epc_no).filter(Boolean))];
                     const displayEpc = uniqueEPCs.length > 0 ? uniqueEPCs.join('<br>') : (job.epc_no || '-');
 
@@ -504,7 +505,6 @@
                                 else if (statusTxt.includes('ครบ') || statusTxt.includes('สต๊อค')) badgeColor = "bg-emerald-50 text-emerald-700 border-emerald-300";
                             }
 
-                            // 🌟 EPC ปรากฏข้างๆ ชิ้นส่วนเลย พาร์ทใครพาร์ทมัน
                             let partEpcDisplay = p.epc_no ? `<span class="text-amber-700 bg-amber-100/50 px-1.5 rounded border border-amber-200">EPC: ${p.epc_no}</span>` : `<span class="text-slate-400 bg-slate-100 px-1.5 rounded border border-slate-200">EPC: -</span>`;
 
                             partsPreviewHTML += `
@@ -533,6 +533,7 @@
             } catch(e){}
         }
 
+        // 🌟 อัปเกรดตารางป๊อปอัปให้เป็นแบบ Excel-like Table
         function openCarPartsDetailsModal(carPlate, epcNo) {
             const carPartsItems = (allGlobalParts || []).filter(p => p.car_plate === carPlate);
             document.getElementById('modal_job_id').value = carPlate;
@@ -541,52 +542,62 @@
             const today = new Date().toISOString().split('T')[0];
             
             tableContainer.innerHTML = `
-                <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                    <div class="overflow-x-auto custom-scrollbar max-h-[400px] p-1 bg-slate-100">
-                        <table class="w-full text-left bg-white text-[11px] whitespace-nowrap">
-                            <thead class="bg-[#00320D] text-white font-bold">
-                                <tr>
-                                    <th class="p-2">บาร์โค้ด / รายการชิ้นส่วน</th>
-                                    <th class="p-2 text-center">จำนวน</th>
-                                    <th class="p-2 text-amber-400">1. หมายเลข EPC No</th>
-                                    <th class="p-2 text-blue-300">2. คาดการณ์ (ETA)</th>
-                                    <th class="p-2 text-emerald-400">3. วันเข้าครบแล้ว</th>
-                                    <th class="p-2">4. สถานะแอดมิน</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100 font-bold" id="inner_parts_rows_container">
-                                ${carPartsItems.map(item => {
-                                    // 🌟 สร้าง Dropdown ปลอดภัยไม่ว่า DB จะมาแบบไหน
-                                    let dynamicOptionsHtml = allPOStatuses.length > 0 
-                                        ? allPOStatuses.map(s => {
-                                            const sName = getSafeStatusName(s);
-                                            return `<option value="${sName}" ${item.order_status === sName ? 'selected' : ''}>${sName}</option>`;
-                                          }).join('')
-                                        : `<option value="รอสั่งซื้อ" ${item.order_status === 'รอสั่งซื้อ'?'selected':''}>รอสั่งซื้อ</option><option value="สั่งศูนย์แล้ว-รอของเข้า" ${item.order_status === 'สั่งศูนย์แล้ว-รอของเข้า'?'selected':''}>สั่งศูนย์แล้ว-รอของเข้า</option><option value="ติด Back Order" ${item.order_status === 'ติด Back Order'?'selected':''}>ติด Back Order</option>`;
+                <div class="border border-slate-300 rounded-lg overflow-hidden shadow-sm bg-white">
+                    <table class="w-full text-left bg-white text-[11px] whitespace-nowrap border-collapse">
+                        <thead class="bg-slate-100 text-slate-700 font-black uppercase text-[10px] tracking-wider">
+                            <tr>
+                                <th class="px-3 py-2.5 border-r border-b border-slate-300">บาร์โค้ด / ชิ้นส่วน</th>
+                                <th class="px-2 py-2.5 text-center border-r border-b border-slate-300 w-16">จำนวน</th>
+                                <th class="px-2 py-2.5 border-r border-b border-slate-300 text-amber-700">1. หมายเลข EPC</th>
+                                <th class="px-2 py-2.5 border-r border-b border-slate-300 text-blue-700">2. คาดการณ์เข้า</th>
+                                <th class="px-2 py-2.5 border-r border-b border-slate-300 text-emerald-700">3. ของเข้าจริง</th>
+                                <th class="px-2 py-2.5 border-b border-slate-300 text-[#00320D]">4. สถานะ (แอดมิน)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200 font-medium" id="inner_parts_rows_container">
+                            ${carPartsItems.map(item => {
+                                let dynamicOptionsHtml = allPOStatuses.length > 0 
+                                    ? allPOStatuses.map(s => {
+                                        const sName = getSafeStatusName(s);
+                                        return `<option value="${sName}" ${item.order_status === sName ? 'selected' : ''}>${sName}</option>`;
+                                      }).join('')
+                                    : `<option value="รอสั่งซื้อ" ${item.order_status === 'รอสั่งซื้อ'?'selected':''}>รอสั่งซื้อ</option><option value="สั่งศูนย์แล้ว-รอของเข้า" ${item.order_status === 'สั่งศูนย์แล้ว-รอของเข้า'?'selected':''}>สั่งศูนย์แล้ว-รอของเข้า</option><option value="ติด Back Order" ${item.order_status === 'ติด Back Order'?'selected':''}>ติด Back Order</option>`;
 
-                                    return `
-                                    <tr class="inner-part-item-row" data-order-id="${item.order_id}">
-                                        <td class="p-2 border-r"><div class="font-mono text-blue-700">${item.part_no}</div><div class="text-slate-800">${item.part_name}</div></td>
-                                        <td class="p-2 text-center border-r">${item.qty_ordered}</td>
-                                        <td class="p-1 border-r"><input type="text" class="p-1.5 bg-amber-50 border rounded font-mono uppercase w-[110px] inner-part-epc" value="${item.epc_no || ''}" placeholder="EPC-XXX"></td>
-                                        <td class="p-1 border-r"><input type="date" class="p-1 bg-blue-50 border text-blue-900 rounded font-mono inner-part-est-date w-[115px]" value="${item.est_arrival_date ? item.est_arrival_date.split('T')[0] : ''}"></td>
-                                        <td class="p-1 border-r"><input type="date" class="p-1 bg-emerald-50 border text-emerald-900 rounded font-mono inner-part-rcv-date w-[115px]" value="${item.received_date ? item.received_date.split('T')[0] : ''}"></td>
-                                        <td class="p-1"><select class="p-1 bg-slate-50 border rounded font-bold text-slate-700 inner-part-status-dropdown w-[150px]">${dynamicOptionsHtml}</select></td>
-                                    </tr>`}).join('')}
-                            </tbody>
-                        </table>
-                    </div>
+                                return `
+                                <tr class="inner-part-item-row hover:bg-slate-50 transition-colors" data-order-id="${item.order_id}">
+                                    <td class="px-3 py-1.5 border-r border-slate-200 align-middle">
+                                        <div class="font-mono text-blue-700 font-bold">${item.part_no}</div>
+                                        <div class="text-slate-800 font-bold truncate max-w-[150px]" title="${item.part_name}">${item.part_name}</div>
+                                    </td>
+                                    <td class="px-2 py-1.5 text-center border-r border-slate-200 align-middle bg-slate-50 font-black">${item.qty_ordered}</td>
+                                    <td class="excel-cell">
+                                        <input type="text" class="excel-input uppercase text-amber-900 inner-part-epc" value="${item.epc_no || ''}" placeholder="EPC-XXX">
+                                    </td>
+                                    <td class="excel-cell">
+                                        <input type="date" class="excel-input text-blue-900 inner-part-est-date" value="${item.est_arrival_date ? item.est_arrival_date.split('T')[0] : ''}">
+                                    </td>
+                                    <td class="excel-cell">
+                                        <input type="date" class="excel-input text-emerald-900 inner-part-rcv-date" value="${item.received_date ? item.received_date.split('T')[0] : ''}">
+                                    </td>
+                                    <td class="excel-cell">
+                                        <select class="excel-select inner-part-status-dropdown">${dynamicOptionsHtml}</select>
+                                    </td>
+                                </tr>`}).join('')}
+                        </tbody>
+                    </table>
                 </div>`;
             document.getElementById('alertModal').classList.remove('hidden');
         }
 
         function closeAlertModal() { document.getElementById('alertModal').classList.add('hidden'); }
 
+        // 🌟🔥 อุดรอยรั่วเซฟข้อมูล! ดึงข้อมูลเก่าทั้งก้อนมาผสมข้อมูลใหม่ ป้องกัน API เตะออก! 🔥🌟
         async function saveSAAlertUpdate(e) {
             e.preventDefault(); 
             const carPlate = document.getElementById('modal_job_id').value; 
             const rows = document.querySelectorAll('.inner-part-item-row');
-            const promises = []; let latestEpcNo = '';
+            const promises = []; 
+            let latestEpcNo = '';
 
             rows.forEach(row => {
                 const orderId = row.getAttribute('data-order-id');
@@ -596,24 +607,63 @@
                 const partRcvDate = row.querySelector('.inner-part-rcv-date').value;
                 if(partEpc) latestEpcNo = partEpc;
 
-                promises.push(fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, {
-                    method: 'PUT', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ epc_no: partEpc || null, order_status: nextStatus, est_arrival_date: partEstDate || null, received_date: partRcvDate || null })
-                }));
+                // ไปหาข้อมูลอะไหล่เดิมทั้งก้อนมา ก่อนที่จะอัปเดตทับ
+                const existingPart = allGlobalParts.find(p => String(p.order_id) === String(orderId));
+                if(existingPart) {
+                    const payload = {
+                        ...existingPart, // ผสมของเก่าเข้าไปให้ครบทุกฟิลด์ที่ API ต้องการ
+                        epc_no: partEpc || null, 
+                        order_status: nextStatus, 
+                        est_arrival_date: partEstDate || null, 
+                        received_date: partRcvDate || null
+                    };
+
+                    promises.push(
+                        fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, {
+                            method: 'PUT', 
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify(payload)
+                        }).then(async res => {
+                            if(!res.ok) { // 🚨 ดักจับ Error ตัวการทำระบบเงียบ
+                                const err = await res.json();
+                                throw new Error(err.error || 'API ปฏิเสธการบันทึก');
+                            }
+                        })
+                    );
+                }
             });
 
             try {
                 const btn = document.querySelector('#alertModal button[type="submit"]');
-                btn.innerHTML = 'กำลังบันทึก...'; btn.disabled = true;
-                await Promise.all(promises);
+                const ogHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึกระบบ...'; 
+                btn.disabled = true;
+                
+                await Promise.all(promises); // ถ้ายิง API ไม่ผ่านสักตัว มันจะกระโดดไปลง Catch ทันที!
 
+                // อัปเดตฝั่ง Job Board ของ SA
                 const jobMatch = allGlobalJobs.find(j => j.car_plate === carPlate);
                 if(jobMatch && latestEpcNo) {
-                    await fetch(`${API_BASE_URL}/api/report/${jobMatch.id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({...jobMatch, epc_no: latestEpcNo}) });
+                    await fetch(`${API_BASE_URL}/api/report/${jobMatch.id}`, { 
+                        method: 'PUT', 
+                        headers: {'Content-Type': 'application/json'}, 
+                        body: JSON.stringify({...jobMatch, epc_no: latestEpcNo}) 
+                    });
                 }
-                alert('🎉 บันทึกข้อมูลอะไหล่รายชิ้นเรียบร้อย!'); 
-                closeAlertModal(); loadAllData();
-            } catch(e) { alert('❌ เกิดข้อผิดพลาด'); }
+                
+                alert('🎉 บันทึกข้อมูลอะไหล่ลงฐานข้อมูลสำเร็จร้อยเปอร์เซ็นต์!'); 
+                closeAlertModal(); 
+                loadAllData();
+
+                btn.innerHTML = ogHtml; 
+                btn.disabled = false;
+            } catch(e) { 
+                console.error("Save Error:", e);
+                alert('❌ เกิดข้อผิดพลาดในการบันทึก กรุณาลองใหม่อีกครั้ง!\nสาเหตุ: ' + e.message); 
+                const btn = document.querySelector('#alertModal button[type="submit"]');
+                btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลอะไหล่';
+                btn.disabled = false;
+            }
         }
 
         // 🛒 2. สั่งอะไหล่ศูนย์ (PO) & แก้ไข/ลบ
@@ -698,10 +748,11 @@
                 order_status: document.getElementById('po_bo').value 
             };
             try {
-                await fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const res = await fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if(!res.ok) throw new Error('บันทึกไม่สำเร็จ');
                 alert(editId ? '✅ อัปเดตข้อมูลการสั่งซื้อเรียบร้อย!' : '✅ ส่งใบสั่งซื้อเข้าศูนย์บริการเรียบร้อยแล้ว!'); 
                 cancelEditPO(); loadAllData();
-            } catch(err) {}
+            } catch(err) { alert('❌ เกิดข้อผิดพลาด'); }
         }
 
         function toggleCompletedPO() {
@@ -728,7 +779,6 @@
                 myPOs.forEach(o => {
                     const rcvQty = allInbounds.filter(i => i.epc_no === o.epc_no && i.part_no === o.part_no).reduce((sum, item) => sum + item.qty, 0);
                     
-                    // 🌟 ระบบซ่อนอะไหล่ที่เข้าครบแล้ว
                     let isCompleted = (o.order_status === 'อะไหล่เข้าครบแล้ว' || o.order_status === 'อะไหล่ครบ' || rcvQty >= o.qty_ordered);
                     if (hideCompletedPO && isCompleted) return;
 
