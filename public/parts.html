@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <!-- 🛡️ ยันต์กันแคชระดับ Enterprise ห้ามเบราว์เซอร์จำของเก่าเด็ดขาด -->
+    <!-- 🛡️ ยันต์กันแคชระดับ Enterprise -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -17,7 +17,6 @@
         .bg-rizenic-green { background-color: #00320D; }
         .text-rizenic-green { color: #00320D; }
         
-        /* สกอร์บาร์แบบโมเดิร์นสไตล์ Excel */
         .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; border: 2px solid #f1f5f9; }
@@ -27,25 +26,21 @@
         .parts-tab-content.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* อินพุตและฟอร์มดีไซน์ Clean & Premium */
         .minimal-input { @apply w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-lg outline-none transition-all duration-200 text-sm font-bold text-[#00320D] focus:border-[#00320D] focus:ring-4 focus:ring-green-500/10 focus:bg-white shadow-sm; }
         .minimal-input[readonly], .minimal-input:disabled { @apply bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed shadow-none font-medium; }
         .card-container { @apply bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6; }
         .label-text { @apply flex items-center gap-1.5 text-[11px] font-bold text-slate-500 mb-1.5 tracking-wide uppercase; }
         
-        /* ตารางสไตล์บัญชี คมชัดScannableง่าย */
         .modern-table { @apply w-full text-left border-collapse whitespace-nowrap text-[12px]; }
         .modern-table thead th { @apply p-3 bg-[#00320D] text-white border-b border-[#004a1f] align-top sticky top-0 z-10 shadow-md font-bold; }
         .modern-table tbody td { @apply p-3 border-b border-slate-100 text-slate-700 align-middle; }
         .modern-table tbody tr:hover { @apply bg-green-50/50 transition-colors; }
         
-        /* ช่องค้นหาหัวตาราง Excel Filter */
         .excel-filter { @apply mt-2 w-full bg-white/10 border border-white/20 rounded-md px-2 py-1.5 text-[11px] text-white placeholder-white/50 outline-none focus:bg-white focus:text-slate-900 focus:placeholder-slate-400 transition-all font-normal; }
     </style>
 </head>
 <body class="text-slate-800 h-screen flex flex-col selection:bg-[#00320D] selection:text-white">
 
-    <!-- Top Navigation Bar -->
     <header class="bg-rizenic-green text-white shadow-lg z-50 shrink-0 border-b-4 border-amber-500">
         <div class="px-6 py-3 flex flex-col sm:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-3">
@@ -68,7 +63,6 @@
         </div>
     </header>
 
-    <!-- Tabs Menu เมนูด้านบน -->
     <div class="bg-white border-b border-slate-200 z-40 shrink-0 shadow-sm">
         <div class="flex overflow-x-auto custom-scrollbar px-2 pt-2">
             <button onclick="switchTab('tab-alert')" id="btn-tab-alert" class="px-6 py-3.5 text-sm font-bold border-b-2 border-[#00320D] text-[#00320D] flex items-center gap-2 whitespace-nowrap bg-green-50/80 rounded-t-xl transition-all"><i class="fa-solid fa-bell text-amber-500 animate-bounce"></i> 1. แจ้งเตือนสั่งอะไหล่ <span id="alert_count" class="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full hidden shadow-sm">0</span></button>
@@ -82,12 +76,10 @@
 
     <main class="flex-1 overflow-auto custom-scrollbar p-6">
 
-        <!-- 🔔 แท็บ 1: แจ้งเตือนสั่งอะไหล่ -->
         <section id="tab-alert" class="parts-tab-content active">
             <div class="card-container">
                 <div class="px-5 py-4 bg-gradient-to-r from-amber-50 to-white border-b border-amber-100 flex justify-between items-center">
                     <h3 class="font-black text-amber-900 flex items-center gap-2"><i class="fa-solid fa-bell text-amber-500"></i> รายการสั่งซื้ออะไหล่ที่ส่งเข้ามาจากทีมบริการ (SA)</h3>
-                    <!-- เปลี่ยนมาเรียก loadAllData เพื่อโหลดฐานข้อมูลสดใหม่ แทนการใช้ข้อมูลเดิมช้ำๆ -->
                     <button onclick="loadAllData()" class="text-xs bg-white border border-slate-200 px-4 py-2 rounded-lg shadow-sm font-bold text-slate-600 hover:bg-amber-50 hover:text-amber-700 transition flex items-center gap-2"><i class="fa-solid fa-rotate-right"></i> รีเฟรชข้อมูลล่าสุด</button>
                 </div>
                 <div class="overflow-x-auto custom-scrollbar h-[60vh]">
@@ -127,7 +119,13 @@
                     <div class="md:col-span-2"><label class="label-text text-blue-600">สแกนบาร์โค้ดอะไหล่ (Part 2) *</label><input type="text" id="po_part_no" required class="minimal-input font-mono uppercase bg-blue-50 border-blue-200 text-blue-900" onblur="fetchMasterPart('po')" placeholder="Part Number..."></div>
                     <div><label class="label-text text-amber-600">จำนวนที่สั่ง *</label><input type="number" id="po_qty" required min="1" value="1" class="minimal-input text-center font-black text-lg"></div>
                     
-                    <div><label class="label-text">สถานะมาร์คของ</label><select id="po_bo" class="minimal-input"><option value="-">ปกติ (มีของ)</option><option value="ติด Back Order">ติด Back Order</option></select></div>
+                    <!-- 🌟 ระบบใหม่: สเตตัสดึงจากแอดมินอัตโนมัติ -->
+                    <div><label class="label-text">สถานะมาร์คของ (จาก Admin)</label>
+                        <select id="po_bo" class="minimal-input font-bold text-slate-700 border-slate-300">
+                            <option value="รอสั่งซื้อ">รอสั่งซื้อ</option>
+                            <option value="สั่งศูนย์แล้ว-รอของเข้า">สั่งศูนย์แล้ว-รอของเข้า</option>
+                        </select>
+                    </div>
                     <div class="md:col-span-2"><label class="label-text">หมายเหตุการสั่งจากศูนย์</label><input type="text" id="po_note" class="minimal-input" placeholder="พิมพ์หมายเหตุ..."></div>
                     
                     <div><label class="label-text">หมายเลข MAIN</label><input type="text" id="po_part_main" class="minimal-input" readonly></div>
@@ -330,10 +328,9 @@
 
     </main>
 
-    <!-- 🌟 หน้าต่างป๊อปอัปขยายกว้างพิเศษ สะใจ ไม่โดนตารางกลบปุ่ม Save -->
+    <!-- 🌟 หน้าต่างป๊อปอัปขยายกว้างพิเศษ -->
     <div id="alertModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden border-t-4 border-t-amber-500 flex flex-col max-h-[90vh]">
-            <!-- Header ป๊อปอัป -->
             <div class="px-6 py-4 border-b flex justify-between items-center bg-amber-50/50 shrink-0">
                 <h3 class="font-black text-amber-900 flex items-center gap-2 text-sm sm:text-base">
                     <i class="fa-solid fa-paper-plane text-amber-500"></i> ตอบกลับแผนกบริการ (อัปเดตสเตตัสและข้อมูลรายพาร์ทชิ้นต่อชิ้น)
@@ -341,16 +338,13 @@
                 <button type="button" onclick="closeAlertModal()" class="text-slate-400 hover:text-red-500 transition"><i class="fa-solid fa-xmark text-2xl"></i></button>
             </div>
             
-            <!-- Form ครอบเนื้อหา -->
             <form onsubmit="saveSAAlertUpdate(event)" class="flex flex-col flex-1 overflow-hidden">
                 <input type="hidden" id="modal_job_id">
                 <input type="hidden" id="modal_epc">
                 <input type="hidden" id="modal_part_names">
                 
-                <!-- ตัวตารางย่อยด้านใน -->
                 <div class="p-6 flex-1 overflow-y-auto custom-scrollbar" id="modal_dynamic_table_container"></div>
 
-                <!-- 🔘 แผงปุ่มกดด้านล่าง -->
                 <div class="bg-slate-50 px-6 py-4 border-t flex justify-end gap-3 shrink-0">
                     <button type="button" onclick="closeAlertModal()" class="px-5 py-2.5 bg-white text-slate-600 rounded-lg font-bold border border-slate-300 hover:bg-slate-100 transition text-xs sm:text-sm shadow-sm">ปิดหน้าต่าง</button>
                     <button type="submit" class="px-8 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-black rounded-lg shadow-md hover:from-amber-600 hover:to-amber-700 transition-all text-xs sm:text-sm flex items-center gap-1.5 shadow-amber-500/20">
@@ -366,12 +360,14 @@
         const API_BASE_URL = window.location.origin;
         let currentBranch = 'สำนักงานใหญ่';
         
-        // 🌟 ฐานข้อมูลจำลองบนเครื่อง (Local State) ป้องกันเซิร์ฟเวอร์สำลัก
         let allInbounds = []; 
         let allGlobalParts = []; 
         let allPOOrders = []; 
         let allGlobalJobs = []; 
         let cachedInventory = {}; 
+        
+        // 🌟 ตัวแปรเก็บ PO Status จากแอดมิน (ป้องกัน Hardcode)
+        let allPOStatuses = []; 
 
         document.addEventListener('DOMContentLoaded', () => {
             if(sessionStorage.getItem('isLoggedIn') !== 'true') { 
@@ -425,7 +421,7 @@
             }
         }
 
-        // 🌟 ดึงข้อมูลจากเซิร์ฟเวอร์แบบรวมศูนย์ (ทำแค่ตอนเริ่มหน้าจอ หรือกดปุ่มรีเฟรชเท่านั้น)
+        // 🌟 ดึงข้อมูลจากเซิร์ฟเวอร์แบบรวมศูนย์
         async function loadAllData() {
             document.getElementById('sa_alerts_body').innerHTML = `<tr><td colspan="6" class="text-center py-10 text-blue-500 font-bold"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังอัปเดตข้อมูลจากระบบ...</td></tr>`;
 
@@ -433,6 +429,23 @@
                 const resIn = await fetch(`${API_BASE_URL}/api/part-inbound`); if(resIn.ok) allInbounds = await resIn.json(); 
                 const resJobs = await fetch(`${API_BASE_URL}/api/reports`); if(resJobs.ok) allGlobalJobs = await resJobs.json();
                 const resParts = await fetch(`${API_BASE_URL}/api/part-orders`); if(resParts.ok) allGlobalParts = await resParts.json();
+                
+                // 🌟 ดึงข้อมูล PO Status จากหน้าแอดมิน (ยืดหยุ่นตามที่แอดมินตั้งค่าเป๊ะๆ)
+                try {
+                    const resStatus = await fetch(`${API_BASE_URL}/api/po-statuses`); 
+                    if(resStatus.ok) {
+                        allPOStatuses = await resStatus.json();
+                        // 🌟 ถมตัวเลือกเข้าฟอร์มสั่งของหน้า Tab 2
+                        const poBoSelect = document.getElementById('po_bo');
+                        if (poBoSelect && allPOStatuses.length > 0) {
+                            poBoSelect.innerHTML = allPOStatuses.map(s => {
+                                const sName = s.status_name || s.name || s.po_status || s.status;
+                                return `<option value="${sName}">${sName}</option>`;
+                            }).join('');
+                        }
+                    }
+                } catch(e) { console.warn("โหลด PO Status จากแอดมินไม่ได้, ใช้ค่าพื้นฐานแทน:", e); }
+
                 const resInv = await fetch(`${API_BASE_URL}/api/parts-inventory?branch=${encodeURIComponent(currentBranch)}`);
                 if(resInv.ok) {
                     const invData = await resInv.json();
@@ -446,7 +459,7 @@
         }
 
         // =========================================================================
-        // 🔔 1. ระบบแจ้งเตือนสั่งอะไหล่ (ดึงข้อมูลจาก Local Array แทนการ Fetch รัวๆ)
+        // 🔔 1. ระบบแจ้งเตือนสั่งอะไหล่ (รองรับสีสถานะแบบยืดหยุ่น)
         // =========================================================================
         function loadSAOrders() {
             try {
@@ -475,15 +488,19 @@
                     } else {
                         partsPreviewHTML = `<div class="flex flex-col gap-1.5 mt-1">`;
                         carPartsItems.forEach(p => {
-                            let badgeColor = "bg-amber-50 text-amber-700 border-amber-200"; 
-                            if(p.order_status === 'ติด Back Order') badgeColor = "bg-rose-50 text-rose-700 border-rose-300 animate-pulse";
-                            if(p.order_status === 'สั่งศูนย์แล้ว-รอของเข้า' || p.order_status === 'สั่งแล้วรอของเข้า') badgeColor = "bg-blue-50 text-blue-700 border-blue-300";
-                            if(p.order_status === 'ของเข้าบางส่วน') badgeColor = "bg-orange-50 text-orange-700 border-orange-300";
-                            if(p.order_status === 'อะไหล่เข้าครบแล้ว' || p.order_status === 'อะไหล่ครบ') badgeColor = "bg-emerald-50 text-emerald-700 border-emerald-300";
+                            // 🌟 สูตรระบายสี Badge แบบยืดหยุ่น ไม่ยึดติดชื่อตรงตัว แอดมินตั้งชื่ออะไรมาก็รอด
+                            let badgeColor = "bg-slate-50 text-slate-700 border-slate-300"; 
+                            if(p.order_status) {
+                                if(p.order_status.includes('Back Order') || p.order_status.includes('ติด') || p.order_status.includes('ล่าช้า')) badgeColor = "bg-rose-50 text-rose-700 border-rose-300 animate-pulse";
+                                else if(p.order_status.includes('รอของ') || p.order_status.includes('สั่งศูนย์')) badgeColor = "bg-blue-50 text-blue-700 border-blue-300";
+                                else if(p.order_status.includes('บางส่วน')) badgeColor = "bg-orange-50 text-orange-700 border-orange-300";
+                                else if(p.order_status.includes('ครบ')) badgeColor = "bg-emerald-50 text-emerald-700 border-emerald-300";
+                                else badgeColor = "bg-amber-50 text-amber-700 border-amber-200"; // รอสั่งซื้อ
+                            }
 
-                            const dateOrderStr = p.order_date ? p.order_date.split('T')[0] : '-';
-                            const dateEtaStr = p.est_arrival_date ? p.est_arrival_date.split('T')[0] : '-';
-                            const dateActualStr = p.received_date ? p.received_date.split('T')[0] : '-';
+                            const dateOrderStr = p.order_date ? String(p.order_date).split('T')[0] : '-';
+                            const dateEtaStr = p.est_arrival_date ? String(p.est_arrival_date).split('T')[0] : '-';
+                            const dateActualStr = p.received_date ? String(p.received_date).split('T')[0] : '-';
 
                             partsPreviewHTML += `
                                 <div class="px-3 py-2 rounded-lg border text-[11px] font-bold shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-2 bg-white ${badgeColor}">
@@ -548,7 +565,7 @@
                                         <th class="p-2">2. วันที่สั่งอะไหล่</th>
                                         <th class="p-2 text-blue-300">3. คาดการณ์เข้า (ETA)</th>
                                         <th class="p-2 text-emerald-400">4. วันที่อะไหล่เข้าครบแล้ว</th>
-                                        <th class="p-2 rounded-tr-lg">5. สถานะพาร์ทชิ้นนี้</th>
+                                        <th class="p-2 rounded-tr-lg">5. สถานะพาร์ทชิ้นนี้ (จากแอดมิน)</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-100 font-bold" id="inner_parts_rows_container">
@@ -558,6 +575,24 @@
                                         const rcvDateVal = item.received_date ? String(item.received_date).split('T')[0] : '';
                                         const itemEpc = item.epc_no || (epcNo !== '-' ? epcNo : '');
                                         
+                                        // 🌟 สร้าง Dropdown จากฐานข้อมูลแอดมินแบบไดนามิก!
+                                        let dynamicOptionsHtml = '';
+                                        if (allPOStatuses && allPOStatuses.length > 0) {
+                                            dynamicOptionsHtml = allPOStatuses.map(s => {
+                                                const sName = s.status_name || s.name || s.po_status || s.status;
+                                                return `<option value="${sName}" ${item.order_status === sName ? 'selected' : ''}>${sName}</option>`;
+                                            }).join('');
+                                        } else {
+                                            // Fallback กันเหนียวเผื่อ API แอดมินล่ม
+                                            dynamicOptionsHtml = `
+                                                <option value="รอสั่งซื้อ" ${item.order_status === 'รอสั่งซื้อ'?'selected':''}>❌ รอสั่งซื้อ</option>
+                                                <option value="สั่งศูนย์แล้ว-รอของเข้า" ${item.order_status === 'สั่งศูนย์แล้ว-รอของเข้า' || item.order_status === 'สั่งแล้วรอของเข้า'?'selected':''}>🟡 สั่งศูนย์แล้ว (รอของเข้า)</option>
+                                                <option value="ติด Back Order" ${item.order_status === 'ติด Back Order'?'selected':''}>🔴 ติด Back Order</option>
+                                                <option value="ของเข้าบางส่วน" ${item.order_status === 'ของเข้าบางส่วน'?'selected':''}>🟠 ของเข้าบางส่วน</option>
+                                                <option value="อะไหล่เข้าครบแล้ว" ${item.order_status === 'อะไหล่เข้าครบแล้ว' || item.order_status === 'อะไหล่ครบ'?'selected':''}>🟢 อะไหล่เข้าครบแล้ว</option>
+                                            `;
+                                        }
+
                                         return `
                                         <tr class="inner-part-item-row" data-order-id="${item.order_id}">
                                             <td class="p-2 border-r border-slate-100">
@@ -565,22 +600,13 @@
                                                 <div class="text-slate-800 font-medium truncate max-w-[130px]" title="${item.part_name}">${item.part_name}</div>
                                             </td>
                                             <td class="p-2 text-center text-slate-800 text-sm font-black border-r border-slate-100">${item.qty_ordered}</td>
-                                            
                                             <td class="p-1 border-r border-slate-100"><input type="text" class="p-1.5 bg-amber-50/50 border border-amber-300 rounded outline-none font-mono uppercase w-[110px] inner-part-epc" value="${itemEpc}" placeholder="EPC-XXX"></td>
-                                            
                                             <td class="p-1 border-r border-slate-100"><input type="date" class="p-1 bg-slate-50 border border-slate-300 rounded outline-none font-mono inner-part-order-date w-[115px]" value="${orderDateVal}"></td>
-                                            
                                             <td class="p-1 border-r border-slate-100"><input type="date" class="p-1 bg-blue-50/50 border border-blue-300 text-blue-900 rounded outline-none font-mono inner-part-est-date w-[115px]" value="${estDateVal}"></td>
-                                            
                                             <td class="p-1 border-r border-slate-100"><input type="date" class="p-1 bg-emerald-50/50 border border-emerald-300 text-emerald-900 rounded outline-none font-mono inner-part-rcv-date w-[115px]" value="${rcvDateVal}"></td>
-                                            
                                             <td class="p-1">
                                                 <select class="p-1 bg-slate-50 border border-slate-300 rounded outline-none font-bold text-slate-700 inner-part-status-dropdown w-[150px]">
-                                                    <option value="รอสั่งซื้อ" ${item.order_status === 'รอสั่งซื้อ'?'selected':''}>❌ รอสั่งซื้อ</option>
-                                                    <option value="สั่งศูนย์แล้ว-รอของเข้า" ${item.order_status === 'สั่งศูนย์แล้ว-รอของเข้า' || item.order_status === 'สั่งแล้วรอของเข้า'?'selected':''}>🟡 สั่งศูนย์แล้ว (รอของเข้า)</option>
-                                                    <option value="ติด Back Order" ${item.order_status === 'ติด Back Order'?'selected':''}>🔴 ติด Back Order</option>
-                                                    <option value="ของเข้าบางส่วน" ${item.order_status === 'ของเข้าบางส่วน'?'selected':''}>🟠 ของเข้าบางส่วน</option>
-                                                    <option value="อะไหล่เข้าครบแล้ว" ${item.order_status === 'อะไหล่เข้าครบแล้ว' || item.order_status === 'อะไหล่ครบ'?'selected':''}>🟢 อะไหล่เข้าครบแล้ว</option>
+                                                    ${dynamicOptionsHtml}
                                                 </select>
                                             </td>
                                         </tr>
@@ -597,7 +623,6 @@
 
         function closeAlertModal() { document.getElementById('alertModal').classList.add('hidden'); }
 
-        // 💾 บันทึกรวดเร็วปานสายฟ้า แก้บั๊กโหลดค้าง
         async function saveSAAlertUpdate(e) {
             e.preventDefault(); 
             const carPlate = document.getElementById('modal_job_id').value; 
@@ -619,7 +644,6 @@
                 const partNameText = row.cells[0].querySelector('div:nth-child(2)').innerText;
                 summaryPartsStatusText.push(`${partNameText}: ${nextStatus} (ETA: ${partEstDate || '-'})`);
 
-                // 🌟 อัปเดตข้อมูลลงความจำในเครื่องสดๆ สีหน้าแรกเปลี่ยนทันตา
                 if(allGlobalParts) {
                     const partIndex = allGlobalParts.findIndex(p => String(p.order_id) === String(orderId));
                     if(partIndex > -1) {
@@ -659,9 +683,10 @@
                     let overallPartStatus = "สั่งแล้วรอของเข้า";
                     const dropdowns = Array.from(document.querySelectorAll('.inner-part-status-dropdown')).map(d => d.value);
                     
-                    if(dropdowns.every(v => v === 'อะไหล่เข้าครบแล้ว')) overallPartStatus = "อะไหล่เข้าครบแล้ว";
-                    else if(dropdowns.some(v => v === 'ติด Back Order')) overallPartStatus = "ติด Back Order";
-                    else if(dropdowns.every(v => v === 'รอสั่งซื้อ')) overallPartStatus = "รอสั่งซื้อ";
+                    // 🌟 ประเมิน Overall Status คืนให้ SA ด้วยคำแบบกว้างๆ (.includes) รองรับคำกวนๆจากแอดมิน
+                    if(dropdowns.every(v => v.includes('ครบ'))) overallPartStatus = "อะไหล่เข้าครบแล้ว";
+                    else if(dropdowns.some(v => v.includes('Back Order') || v.includes('ติด'))) overallPartStatus = "ติด Back Order";
+                    else if(dropdowns.every(v => v.includes('รอสั่ง') || v.includes('ยังไม่'))) overallPartStatus = "รอสั่งซื้อ";
 
                     const allEstDates = Array.from(document.querySelectorAll('.inner-part-est-date')).map(i => i.value).filter(Boolean);
                     const maxEstDate = allEstDates.length > 0 ? allEstDates.sort().pop() : null;
@@ -699,7 +724,6 @@
                 alert('🎉 ยอดเยี่ยม! บันทึกข้อมูลอะไหล่รายชิ้นเสร็จสมบูรณ์แล้วครับนาย!'); 
                 closeAlertModal(); 
                 
-                // 🌟 วาดหน้าตารางใหม่จากหน่วยความจำ ไม่ยิงเซิร์ฟเวอร์ซ้ำซ้อน ไม่ค้างชัวร์!
                 loadSAOrders(); 
                 loadPOTracking();
 
@@ -749,7 +773,8 @@
                 vin_no: document.getElementById('po_vin').value, car_model: document.getElementById('po_model').value,
                 part_main_no: document.getElementById('po_part_main').value, part_no: document.getElementById('po_part_no').value,
                 part_name: document.getElementById('po_part_name').value, qty_ordered: parseInt(document.getElementById('po_qty').value) || 1,
-                part_type: document.getElementById('po_type').value, notes: document.getElementById('po_note').value, branch_name: currentBranch, order_status: document.getElementById('po_bo').value === '-' ? 'สั่งศูนย์แล้ว-รอของเข้า' : 'ติด Back Order'
+                part_type: document.getElementById('po_type').value, notes: document.getElementById('po_note').value, branch_name: currentBranch, 
+                order_status: document.getElementById('po_bo').value // 🌟 ดึงค่าจากดรอปดาวน์แอดมินโดยตรง
             };
             try {
                 await fetch(`${API_BASE_URL}/api/part-orders`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -920,7 +945,6 @@
         // ================= 📊 5. สต๊อกคงเหลือ (Inventory) =================
         function loadStockInHouse() {
             try {
-                // อาศัย cachedInventory ที่ดึงมาตั้งแต่ต้น
                 fetch(`${API_BASE_URL}/api/parts-inventory?branch=${encodeURIComponent(currentBranch)}`).then(res => res.json()).then(data => {
                     document.getElementById('stock_table_body').innerHTML = data.map(s => `<tr><td class="font-mono font-bold text-blue-600">${s.part_no}</td><td class="font-bold text-[#00320D]">${s.part_name}</td><td class="text-slate-500 text-xs">${s.car_model||'-'}</td><td class="font-mono text-slate-400 text-center">${s.part_main_no||'-'}</td><td class="text-center font-black text-lg ${s.stock_in_house<=0?'text-red-500 bg-red-50':'text-emerald-600 bg-emerald-50'}">${s.stock_in_house}</td></tr>`).join('');
                     applyExcelFilters('stockTable');
