@@ -632,76 +632,88 @@ async function loadSAOrders() {
 
         function closeAlertModal() { document.getElementById('alertModal').classList.add('hidden'); }
 
-        // บันทึกย้อนสเตตัสส่งแยกชิ้นคืนตาราง PO และประมวลภาพรวมส่งหน้า Job
-        async function saveSAAlertUpdate(e) {
-            e.preventDefault(); 
-            const carPlate = document.getElementById('modal_job_id').value;
-            const rows = document.querySelectorAll('.inner-part-item-row');
-            const promises = [];
-            let summaryPartsStatusText = [];
-            let latestEpcNo = '';
+        // 💾 [เวอร์ชันแก้ไขด่วน - ปลอดภัยสูงสุด] บันทึกแยกชิ้น ห้ามลบข้อมูลลูกค้าเดิม + ล็อกสาขายูเซอร์ปัจจุบัน
+async function saveSAAlertUpdate(e) {
+    e.preventDefault(); 
+    const carPlate = document.getElementById('modal_job_id').value; // ดึงทะเบียนรถจากช่องซ่อน
+    const rows = document.querySelectorAll('.inner-part-item-row');
+    const promises = [];
+    let summaryPartsStatusText = [];
+    let latestEpcNo = '';
 
-            rows.forEach(row => {
-                const orderId = row.getAttribute('data-order-id');
-                const nextStatus = row.querySelector('.inner-part-status-dropdown').value;
-                const partEpc = row.querySelector('.inner-part-epc').value.trim().toUpperCase();
-                const partOrderDate = row.querySelector('.inner-part-order-date').value;
-                const partEstDate = row.querySelector('.inner-part-est-date').value;
-                const partRcvDate = row.querySelector('.inner-part-rcv-date').value;
-                
-                if(partEpc) latestEpcNo = partEpc;
+    // 1. วนลูปบันทึกข้อมูลแยกรายชิ้นชิ้นใครชิ้นมันลงตารางพาร์ทสั่งซื้อ (ตารางรอง)
+    rows.forEach(row => {
+        const orderId = row.getAttribute('data-order-id');
+        const nextStatus = row.querySelector('.inner-part-status-dropdown').value;
+        const partEpc = row.querySelector('.inner-part-epc').value.trim().toUpperCase();
+        const partOrderDate = row.querySelector('.inner-part-order-date').value;
+        const partEstDate = row.querySelector('.inner-part-est-date').value;
+        const partRcvDate = row.querySelector('.inner-part-rcv-date').value;
+        
+        if(partEpc) latestEpcNo = partEpc;
 
-                const partNameText = row.cells[0].querySelector('div:nth-child(2)').innerText;
-                summaryPartsStatusText.push(`${partNameText}: ${nextStatus} (ETA: ${partEstDate || '-'})`);
+        const partNameText = row.cells[0].querySelector('div:nth-child(2)').innerText;
+        summaryPartsStatusText.push(`${partNameText}: ${nextStatus} (ETA: ${partEstDate || '-'})`);
 
-                promises.push(
-                    fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, {
-                        method: 'PUT',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            epc_no: partEpc || null,
-                            order_status: nextStatus,
-                            order_date: partOrderDate || null,
-                            est_arrival_date: partEstDate || null,
-                            received_date: partRcvDate || null
-                        })
-                    })
-                );
+        // อัปเดตข้อมูลพาร์ทชิ้นนั้น ๆ (ไม่เกี่ยวกับข้อมูลลูกค้า)
+        promises.push(
+            fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    epc_no: partEpc || null,
+                    order_status: nextStatus,
+                    order_date: partOrderDate || null,
+                    est_arrival_date: partEstDate || null,
+                    received_date: partRcvDate || null
+                })
+            })
+        );
+    });
+
+    try {
+        // บันทึกข้อมูลตารางอะไหล่รายตัวให้เสร็จก่อน
+        await Promise.all(promises);
+
+        // 2. ซิงค์ข้อมูลสรุปกลับไปที่ใบงานซ่อมหลัก (ตารางหลัก)
+        const jobMatch = allGlobalJobs.find(j => j.car_plate === carPlate);
+        if(jobMatch) {
+            let overallPartStatus = "สั่งแล้วรอของเข้า";
+            const dropdowns = Array.from(document.querySelectorAll('.inner-part-status-dropdown')).map(d => d.value);
+            
+            if(dropdowns.every(v => v === 'อะไหล่เข้าครบแล้ว')) overallPartStatus = "อะไหล่เข้าครบแล้ว";
+            else if(dropdowns.some(v => v === 'ติด Back Order')) overallPartStatus = "ติด Back Order";
+            else if(dropdowns.every(v => v === 'รอสั่งซื้อ')) overallPartStatus = "รอสั่งซื้อ";
+
+            const allEstDates = Array.from(document.querySelectorAll('.inner-part-est-date')).map(i => i.value).filter(Boolean);
+            const maxEstDate = allEstDates.length > 0 ? allEstDates.sort().pop() : null;
+
+            // 🔥 [จุดแก้ไขสำคัญ]: ดึงข้อมูลเดิมในใบงานหลักมาถือไว้ก่อน (Spread Operator) เพื่อไม่ให้ค่าเดิมหายวับตอนส่ง PUT 
+            const updatedJobPayload = {
+                ...jobMatch, // โคลนข้อมูลเดิมทั้งหมดมาครอบไว้ (ชื่อลูกค้า, เบอร์โทร, รุ่นรถ, ทะเบียน จะไม่หายไปไหน)
+                branch_name: currentBranch, // 🌟 ล็อกสาขาให้ตรงตามสิทธิ์ยูเซอร์ปัจจุบันที่เปิดบันทึก
+                epc_no: latestEpcNo || jobMatch.epc_no,
+                part_status: overallPartStatus,
+                est_part_date: maxEstDate || null,
+                ordered_part_names: summaryPartsStatusText.join(', ')
+            };
+
+            // ยิงส่งกลับไปอัปเดตแบบรักษาข้อมูลเดิมไว้ครบถ้วน
+            await fetch(`${API_BASE_URL}/api/report/${jobMatch.id}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(updatedJobPayload)
             });
-
-            try {
-                await Promise.all(promises);
-
-                const jobMatch = allGlobalJobs.find(j => j.car_plate === carPlate);
-                if(jobMatch) {
-                    let overallPartStatus = "สั่งแล้วรอของเข้า";
-                    const dropdowns = Array.from(document.querySelectorAll('.inner-part-status-dropdown')).map(d => d.value);
-                    
-                    if(dropdowns.every(v => v === 'อะไหล่เข้าครบแล้ว')) overallPartStatus = "อะไหล่เข้าครบแล้ว";
-                    else if(dropdowns.some(v => v === 'ติด Back Order')) overallPartStatus = "ติด Back Order";
-                    else if(dropdowns.every(v => v === 'รอสั่งซื้อ')) overallPartStatus = "รอสั่งซื้อ";
-
-                    const allEstDates = Array.from(document.querySelectorAll('.inner-part-est-date')).map(i => i.value).filter(Boolean);
-                    const maxEstDate = allEstDates.length > 0 ? allEstDates.sort().pop() : null;
-
-                    await fetch(`${API_BASE_URL}/api/report/${jobMatch.id}`, {
-                        method: 'PUT',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            epc_no: latestEpcNo || jobMatch.epc_no,
-                            part_status: overallPartStatus,
-                            est_part_date: maxEstDate || null,
-                            ordered_part_names: summaryPartsStatusText.join(', ')
-                        })
-                    });
-                }
-                
-                alert('🎉 บันทึกข้อมูลและกำหนดการ 5 รายการแยกชิ้นส่วนอิสระ และส่งกลับหน้าซ่อมเรียบร้อยแล้ว!'); 
-                closeAlertModal(); 
-                loadAllData();
-            } catch(e) { alert('❌ การซิงค์ข้อมูลล้มเหลว'); }
         }
-
+        
+        alert('🎉 บันทึกแยกชิ้นเรียบร้อย! ข้อมูลลูกค้าปลอดภัยครบถ้วน และลงบันทึกสาขาตรงตามผู้ใช้งานแล้วครับนาย!'); 
+        closeAlertModal(); 
+        loadAllData();
+    } catch(e) { 
+        alert('❌ การซิงค์ข้อมูลล้มเหลว'); 
+        console.error(e);
+    }
+}
         // ================= 🛒 2. สั่งอะไหล่จากศูนย์ =================
         async function submitPO(e) {
             e.preventDefault();
