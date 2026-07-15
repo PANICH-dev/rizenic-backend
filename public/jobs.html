@@ -137,6 +137,7 @@
                     <th>วางบิล (BL)</th>
                     <th class="bg-green-700">SA ที่รับผิดชอบ</th>
                 </tr>
+                <!-- 🌟 แถวสำหรับ Input Filter หัวคอลัมน์ -->
                 <tr>
                     <th></th>
                     <th><input type="text" class="col-filter-input" data-key="branch_name" placeholder="กรองสาขา..." oninput="applyFilters()"></th>
@@ -169,16 +170,14 @@
     <!-- 🔥 🚀 Modal เพิ่มข้อมูลด่วน (PDI Excel Mode) -->
     <div id="bulkModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center hidden p-4">
         <div class="bg-white w-full max-w-[95%] h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border-2 border-emerald-500">
-            <!-- Header Modal -->
             <div class="bg-emerald-700 px-6 py-4 flex justify-between items-center text-white shrink-0">
                 <div>
                     <h2 class="text-xl font-black tracking-wide"><i class="fa-solid fa-file-excel text-emerald-300 mr-2"></i> โหมดสร้างรายการด่วน (PDI / Fleet)</h2>
-                    <p class="text-xs text-emerald-200 mt-1">คัดลอกข้อมูลลงมาได้ง่ายๆ แค่พิมพ์แถวแรกแล้วกดปุ่ม "⬇️ ดึงข้อมูลลงมา"</p>
+                    <p class="text-xs text-emerald-200 mt-1">คัดลอกข้อมูลลงมาได้ง่ายๆ แค่พิมพ์แถวแรกแล้วกดปุ่ม "⬇️ ดึงลงมา"</p>
                 </div>
                 <button onclick="closeBulkModal()" class="text-white hover:text-red-300 transition text-2xl"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
-            <!-- ตาราง Excel -->
             <div class="flex-1 overflow-auto custom-scrollbar p-4 bg-slate-50">
                 <table class="bulk-table">
                     <thead>
@@ -206,14 +205,11 @@
                             </th>
                         </tr>
                     </thead>
-                    <tbody id="bulk_table_body">
-                        <!-- แถวจะถูกสร้างด้วย JS -->
-                    </tbody>
+                    <tbody id="bulk_table_body"></tbody>
                 </table>
                 <button onclick="addBulkRow()" class="mt-4 px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg text-sm hover:bg-slate-300 transition shadow-sm border border-slate-300">+ เพิ่มแถวใหม่</button>
             </div>
 
-            <!-- Footer Modal -->
             <div class="bg-white border-t border-slate-200 p-4 shrink-0 flex justify-between items-center">
                 <span class="text-xs text-red-500 font-bold">* ระบบจะบันทึกเฉพาะแถวที่มีการกรอก "ทะเบียนรถ" เท่านั้น</span>
                 <div class="flex gap-3">
@@ -235,7 +231,6 @@
                 alert('🚨 กรุณาเข้าสู่ระบบก่อนครับ!'); window.location.href = 'index.html'; return;
             }
 
-            // 🛡️ ยามเฝ้าประตู 
             userRole = sessionStorage.getItem('emp_role');
             userBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
 
@@ -278,7 +273,6 @@
                 const res = await fetch(`${API_BASE_URL}/api/reports`);
                 const data = await res.json();
                 
-                // ดักจับกรณี API ส่งกลับมาไม่ใช่ Array
                 if(Array.isArray(data)) {
                     allJobsData = data;
                 } else {
@@ -425,10 +419,9 @@
         // 🚀 ฟังก์ชันสำหรับ Smart Bulk Insert (PDI Excel Mode)
         // ==========================================
         function openBulkModal() {
-            document.getElementById('bulk_table_body').innerHTML = ''; // ล้างของเก่า
-            for(let i=0; i<10; i++) addBulkRow(); // สร้าง 10 แถวเริ่มต้น
+            document.getElementById('bulk_table_body').innerHTML = ''; 
+            for(let i=0; i<10; i++) addBulkRow(); 
             
-            // ใส่ชื่อ SA ปัจจุบันไว้ที่แถวแรกให้เลย
             const saInputs = document.querySelectorAll('.bulk-input-sa');
             if(saInputs.length > 0) saInputs[0].value = sessionStorage.getItem('emp_name') || '';
 
@@ -465,16 +458,13 @@
             tbody.appendChild(tr);
         }
 
-        // ฟังก์ชันหัวใจหลัก "คัดลอกข้อมูลลงมา (Fill Down)"
         function copyDown(field) {
             const inputs = document.querySelectorAll(`.bulk-input-${field}`);
             if(inputs.length === 0) return;
-            const topValue = inputs[0].value; // ดึงค่าจากแถวบนสุด
+            const topValue = inputs[0].value; 
             
-            // วนลูปใส่ค่าให้แถวที่เหลือทั้งหมด
             for(let i = 1; i < inputs.length; i++) {
                 inputs[i].value = topValue;
-                // ใส่ Animation วิ้งๆ ให้รู้ว่าโดนก๊อปปี้แล้ว
                 inputs[i].classList.add('bg-green-100', 'transition-colors');
                 setTimeout(() => inputs[i].classList.remove('bg-green-100'), 500);
             }
@@ -486,7 +476,7 @@
             
             rows.forEach(row => {
                 const plate = row.querySelector('.bulk-input-plate').value.trim();
-                if(!plate) return; // ข้ามแถวที่ไม่ได้กรอกทะเบียน
+                if(!plate) return; 
 
                 const payload = {
                     car_plate: plate,
@@ -497,12 +487,11 @@
                     arrived_date: row.querySelector('.bulk-input-arrived').value || null,
                     target_finish_date: row.querySelector('.bulk-input-target').value || null,
                     job_status: row.querySelector('.bulk-input-status').value || '09.จอดรอเข้าซ่อม',
-                    department_routing: 'ซ่อม', // โยนเข้าแผนกซ่อมโดยอัตโนมัติ
-                    branch_name: userBranch, // ล็อกสาขาตามคนที่ล็อกอิน
-                    damage_level: 'เบา' // Default
+                    department_routing: 'ซ่อม', 
+                    branch_name: userBranch, 
+                    damage_level: 'เบา' 
                 };
 
-                // สร้าง Request แต่ยังไม่ส่ง
                 promises.push(
                     fetch(`${API_BASE_URL}/api/report`, {
                         method: 'POST',
@@ -522,11 +511,10 @@
             btn.disabled = true;
 
             try {
-                // ยิงออเดอร์พร้อมกันรวดเดียว (Concurrent Requests) โคตรไว!
                 await Promise.all(promises);
                 alert(`🎉 บันทึกข้อมูลสำเร็จทั้งหมด ${promises.length} คัน!`);
                 closeBulkModal();
-                loadJobsData(); // โหลดกระดานใหม่
+                loadJobsData(); 
             } catch(e) {
                 alert('❌ เกิดข้อผิดพลาดในการบันทึก กรุณาตรวจสอบอินเตอร์เน็ต');
             } finally {
