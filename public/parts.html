@@ -473,58 +473,84 @@
         }
 
         // =========================================================================
-        // 🔔 1. ระบบแจ้งเตือนสั่งอะไหล่ (ดึงเฉพาะคันที่ SA เลือก Routing = อะไหล่ เท่านั้น)
-        // =========================================================================
-        async function loadSAOrders() {
-            try {
-                const resJobs = await fetch(`${API_BASE_URL}/api/reports`); const allJobs = await resJobs.json();
-                const resParts = await fetch(`${API_BASE_URL}/api/part-orders`); const allParts = await resParts.json();
-                
-                // 🚨 กฎเหล็ก: คัดกรองเฉพาะใบงานของสาขาตนเอง ที่ SA กดส่งต่อความรับผิดชอบ (Routing) มาที่ แผนกอะไหล่ เท่านั้น
-                const jobsRoutedToParts = allJobs.filter(j => j.branch_name === currentBranch && (j.department_routing === 'อะไหล่'));
-                
-                // คัดกรองรายการชิ้นส่วนที่สถานะยังมาไม่ครบ
-                const activeBranchParts = allParts.filter(p => p.branch_name === currentBranch && p.order_status !== 'อะไหล่เข้าครบแล้ว');
-                
-                // คัดเฉพาะทะเบียนรถที่มีการผูกข้อมูลชนกันอย่างถูกต้อง
-                const uniquePlatesWithParts = [...new Set(activeBranchParts.map(p => p.car_plate))].filter(plate => 
-                    jobsRoutedToParts.some(j => j.car_plate === plate)
-                );
-                
-                document.getElementById('alert_count').innerText = uniquePlatesWithParts.length;
-                document.getElementById('alert_count').className = uniquePlatesWithParts.length > 0 ? "bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full shadow-sm" : "hidden";
-                
-                const tbody = document.getElementById('sa_alerts_body');
-                if(uniquePlatesWithParts.length === 0) { 
-                    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400 font-bold">✅ ไม่มีคิวรถค้างสั่งซื้ออะไหล่ในแผนกขณะนี้ (หรือ SA ยังไม่ได้ส่งต่อ Routing มา)</td></tr>`; 
-                    return; 
-                }
+// 🔔 1. ระบบแจ้งเตือนสั่งอะไหล่ (ปักหลักค้างตารางถาวร + ดีไซน์โชว์สถานะชิ้นส่วนภาพรวม)
+// =========================================================================
 
-                tbody.innerHTML = uniquePlatesWithParts.map(plate => {
-                    const jobMatch = jobsRoutedToParts.find(j => j.car_plate === plate);
-                    const customerName = jobMatch ? jobMatch.customer_name : 'ไม่ระบุชื่อ';
-                    const carModelStr = jobMatch ? `${jobMatch.car_brand} ${jobMatch.car_model || ''}` : '-';
-                    const epcNoStr = jobMatch ? (jobMatch.epc_no || '-') : '-';
-                    const totalItemsCount = activeBranchParts.filter(p => p.car_plate === plate).length;
-
-                    return `
-                    <tr class="hover:bg-slate-50">
-                        <td class="font-black text-[#00320D]"><span class="bg-slate-200 px-2.5 py-1 rounded-md text-xs font-mono border border-slate-300 shadow-sm">${plate}</span></td>
-                        <td class="font-bold text-slate-600">${carModelStr}</td>
-                        <td class="font-medium text-slate-700">${customerName}</td>
-                        <td class="font-mono text-xs font-bold text-amber-700">${epcNoStr}</td>
-                        <td><span class="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-1 rounded-lg text-xs font-bold"><i class="fa-solid fa-cubes mr-1"></i> มีอะไหล่รอจัดการ ${totalItemsCount} รายการ</span></td>
-                        <td class="text-center">
-                            <button onclick="openCarPartsDetailsModal('${plate}', '${epcNoStr}')" class="bg-rizenic-green text-white font-black px-4 py-2 rounded-lg text-xs shadow-md hover:bg-black transition w-full flex items-center justify-center gap-1">
-                                <i class="fa-solid fa-folder-open"></i> คลิกดูรายการพาร์ท
-                            </button>
-                        </td>
-                    </tr>
-                    `;
-                }).join('');
-                applyExcelFilters('saTable');
-            } catch(e){ console.error(e); }
+async function loadSAOrders() {
+    try {
+        const resJobs = await fetch(`${API_BASE_URL}/api/reports`); const allJobs = await resJobs.json();
+        const resParts = await fetch(`${API_BASE_URL}/api/part-orders`); const allParts = await resParts.json();
+        
+        // 🚨 กฎเหล็ก: ยึดตามคนสั่ง! ดึงใบงานที่ SA สั่ง Routing = อะไหล่ มาโชว์ทั้งหมด ห้ามคัดออกเองเด็ดขาด
+        const jobsRoutedToParts = allJobs.filter(j => j.branch_name === currentBranch && j.department_routing === 'อะไหล่');
+        
+        // อัปเดตตัวเลขแจ้งเตือนแท็บเมนู
+        document.getElementById('alert_count').innerText = jobsRoutedToParts.length;
+        document.getElementById('alert_count').className = jobsRoutedToParts.length > 0 ? "bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full shadow-sm" : "hidden";
+        
+        const tbody = document.getElementById('sa_alerts_body');
+        if(jobsRoutedToParts.length === 0) { 
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400 font-bold">✅ ไม่มีคิวรถในแผนกอะไหล่ขณะนี้ (SA ย้ายแผนกออกไปแล้ว หรือยังไม่ส่งต่อมา)</td></tr>`; 
+            return; 
         }
+
+        // ดีไซน์โครงสร้างตารางใหม่ เห็นภาพรวมชิ้นส่วนและสเตตัสข้างในทันที!
+        tbody.innerHTML = jobsRoutedToParts.map(job => {
+            // ดึงพาร์ทอะไหล่ทั้งหมดที่ผูกกับรถทะเบียนคันนี้
+            const carPartsItems = allParts.filter(p => p.car_plate === job.car_plate);
+            
+            // 🎨 ดีไซน์สรุปภาพรวมชิ้นส่วนรายชิ้น (Part-by-Part Preview Layout)
+            let partsPreviewHTML = '';
+            if(carPartsItems.length === 0) {
+                partsPreviewHTML = `<span class="text-slate-400 italic text-xs">⚠️ SA ยังไม่ได้คีย์เพิ่มรายการอะไหล่เข้ามา</span>`;
+            } else {
+                partsPreviewHTML = `<div class="flex flex-wrap gap-2 mt-1">`;
+                carPartsItems.forEach(p => {
+                    let badgeColor = "bg-amber-50 text-amber-700 border-amber-300"; // รอสั่งซื้อ
+                    if(p.order_status === 'ติด Back Order') badgeColor = "bg-rose-50 text-rose-700 border-rose-300 font-bold animate-pulse";
+                    if(p.order_status === 'สั่งศูนย์แล้ว-รอของเข้า') badgeColor = "bg-blue-50 text-blue-700 border-blue-300";
+                    if(p.order_status === 'ของเข้าบางส่วน') badgeColor = "bg-orange-50 text-orange-700 border-orange-300";
+                    if(p.order_status === 'อะไหล่เข้าครบแล้ว' || p.order_status === 'อะไหล่ครบ') badgeColor = "bg-emerald-50 text-emerald-700 border-emerald-300";
+
+                    partsPreviewHTML += `
+                        <div class="px-2 py-1 rounded-lg border text-[11px] font-bold shadow-sm flex items-center gap-1.5 ${badgeColor}">
+                            <span class="font-mono text-blue-800">${p.part_no}:</span>
+                            <span>${p.part_name}</span>
+                            <span class="bg-black/5 px-1 rounded text-[10px]">x${p.qty_ordered}</span>
+                            <span class="opacity-80">| [ ${p.order_status || 'รอสั่งซื้อ'} ]</span>
+                        </div>
+                    `;
+                });
+                partsPreviewHTML += `</div>`;
+            }
+
+            return `
+            <tr class="hover:bg-slate-50 border-b border-slate-200">
+                <!-- 1. ทะเบียนรถ -->
+                <td class="font-black text-[#00320D]"><span class="bg-slate-200 px-2.5 py-1 rounded-md text-xs font-mono border border-slate-300 shadow-sm">${job.car_plate}</span></td>
+                <!-- 2. รุ่นรถ -->
+                <td class="font-bold text-slate-600">${job.car_brand} ${job.car_model || ''}</td>
+                <!-- 3. ชื่อลูกค้า -->
+                <td class="font-medium text-slate-700">${job.customer_name || '-'}</td>
+                <!-- 4. EPC NO อ้างอิงภาพรวม -->
+                <td class="font-mono text-xs font-bold text-amber-700">${job.epc_no || '-'}</td>
+                <!-- 5. 🌟 แผงโชว์ภาพรวมชิ้นส่วนข้างใน (เห็นหมดชิ้นไหนค้าง ชิ้นไหนมาครบ!) -->
+                <td class="whitespace-normal max-w-[500px] py-3">
+                    <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1"><i class="fa-solid fa-boxes-stacked"></i> สรุปสถานะคลังสินค้าพาร์ทรายชิ้น:</div>
+                    ${partsPreviewHTML}
+                </td>
+                <!-- 6. ปุ่มกดเข้าไปหน้าต่างจัดการคีย์ 5 ฟิลด์หลัก -->
+                <td class="text-center">
+                    <button onclick="openCarPartsDetailsModal('${job.car_plate}', '${job.epc_no||'-'}')" class="bg-[#00320D] text-white font-black px-4 py-2.5 rounded-lg text-xs shadow-md hover:bg-black transition w-full flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-folder-open text-amber-400"></i> เปิดโต๊ะคีย์อะไหล่
+                    </button>
+                </td>
+            </tr>
+            `;
+        }).join('');
+        applyExcelFilters('saTable');
+    } catch(e){ console.error("ระบบคิวแจ้งเตือนอะไหล่ขัดข้อง:", e); }
+}
 
         // หน้าต่างย่อยคลังระบุ 5 ค่าหลักแยกอิสระชิ้นใครชิ้นมัน
         async function openCarPartsDetailsModal(carPlate, epcNo) {
