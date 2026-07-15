@@ -465,53 +465,96 @@
         }
 
         // ================= 🔔 1. แจ้งเตือนสั่งอะไหล่รายบรรทัด =================
-        async function loadSAOrders() {
-            try {
-                const urgentOrders = allGlobalJobs.filter(j => j.branch_name === currentBranch && 
-                    ((j.department_routing || '').includes('อะไหล่') || (j.job_status || '').includes('สั่งอะไหล่')));
-                
-                document.getElementById('alert_count').innerText = urgentOrders.length;
-                document.getElementById('alert_count').className = urgentOrders.length > 0 ? "bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full shadow-sm" : "hidden";
-                
-                const tbody = document.getElementById('sa_alerts_body');
-                if(urgentOrders.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400">✅ ไม่มีใบงานค้างสั่งอะไหล่ในขณะนี้</td></tr>`; return; }
+       // ================= 🔔 1. แจ้งเตือนสั่งอะไหล่ (ดึงแยกรายพาร์ทชิ้นต่อชิ้น) =================
+async function loadSAOrders() {
+    try {
+        // ดึงใบงานหลักเพื่อหาข้อมูล SA / ชื่อลูกค้า
+        const resJobs = await fetch(`${API_BASE_URL}/api/reports`); const allJobs = await resJobs.json();
+        // ดึงรายการชิ้นส่วนอะไหล่รายชิ้น (Part-by-Part) ที่ SA แอดเข้ามา
+        const resParts = await fetch(`${API_BASE_URL}/api/part-orders`); const allParts = await resParts.json();
+        
+        // กรองเฉพาะพาร์ทอะไหล่ของสาขาตัวเอง และสถานะที่ยังมาไม่ครบ
+        const currentBranchParts = allParts.filter(p => p.branch_name === currentBranch && p.order_status !== 'อะไหล่เข้าครบแล้ว');
+        
+        document.getElementById('alert_count').innerText = currentBranchParts.length;
+        document.getElementById('alert_count').className = currentBranchParts.length > 0 ? "bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full shadow-sm" : "hidden";
+        
+        const tbody = document.getElementById('sa_alerts_body');
+        if(currentBranchParts.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400">✅ ไม่มีชิ้นส่วนอะไหล่ค้างสั่งซื้อในขณะนี้</td></tr>`; return; }
 
-                tbody.innerHTML = urgentOrders.map(j => {
-                    const partsList = j.ordered_part_names || j.main_part_name || 'ไม่ได้ระบุรายชื่อชิ้นส่วน';
-                    return `
-                    <tr>
-                        <td class="font-bold text-[#00320D]"><span class="bg-slate-200 px-2 py-0.5 rounded text-xs">${j.car_plate || '-'}</span></td>
-                        <td>${j.car_brand} ${j.car_model || ''}</td>
-                        <td class="font-medium">${j.customer_name || '-'}</td>
-                        <td class="font-mono text-amber-700 font-bold">${j.epc_no || '-'}</td>
-                        <td class="whitespace-normal max-w-[400px]"><div class="bg-slate-50 p-2 rounded-lg border border-slate-200 text-xs font-bold text-slate-700"><i class="fa-solid fa-list-check text-blue-500 mr-1"></i> รายการสั่ง: ${partsList}</div></td>
-                        <td class="text-center"><button onclick="openAlertModal(${j.id}, '${j.epc_no||''}', '${j.part_status||''}', '${partsList}', '${j.order_part_date?j.order_part_date.split('T')[0]:''}', '${j.est_part_date?j.est_part_date.split('T')[0]:''}')" class="bg-amber-500 text-slate-900 font-black px-3 py-2 rounded-lg text-xs shadow-sm hover:bg-amber-600 transition w-full"><i class="fa-solid fa-pen-to-square"></i> เช็คของ / สั่ง</button></td>
-                    </tr>
-                `}).join('');
-                applyExcelFilters('saTable');
-            } catch(e){}
-        }
+        tbody.innerHTML = currentBranchParts.map(p => {
+            // ค้นหาใบงานหลักเพื่อดึงชื่อ SA และชื่อลูกค้ามาแมทช์ VLOOKUP ออโต้
+            const jobMatch = allJobs.find(j => j.car_plate === p.car_plate);
+            const customerName = jobMatch ? jobMatch.customer_name : 'ไม่ระบุชื่อลูกค้า';
+            const carModelStr = p.car_model ? p.car_model : (jobMatch ? `${jobMatch.car_brand} ${jobMatch.car_model}` : '-');
 
-        function openAlertModal(id, epc, status, names, orderDate, estDate) {
-            document.getElementById('modal_job_id').value = id; document.getElementById('modal_epc').value = epc;
-            if(status) document.getElementById('modal_part_status').value = status;
-            document.getElementById('modal_part_names').value = names; document.getElementById('modal_order_date').value = orderDate;
-            document.getElementById('modal_est_date').value = estDate; document.getElementById('alertModal').classList.remove('hidden');
-        }
-        function closeAlertModal() { document.getElementById('alertModal').classList.add('hidden'); }
-        async function saveSAAlertUpdate(e) {
-            e.preventDefault(); const id = document.getElementById('modal_job_id').value;
-            try {
-                await fetch(`${API_BASE_URL}/api/report/${id}`, {
-                    method: 'PUT', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        epc_no: document.getElementById('modal_epc').value, part_status: document.getElementById('modal_part_status').value,
-                        order_part_date: document.getElementById('modal_order_date').value || null, est_part_date: document.getElementById('modal_est_date').value || null
-                    })
-                });
-                alert('🎯 อัปเดตสถานะชิ้นส่วนส่งกลับไปให้ SA เรียบร้อยแล้ว!'); closeAlertModal(); loadAllData();
-            } catch(e) { alert('ขัดข้อง'); }
-        }
+            let statusColor = "text-amber-600 bg-amber-50 border-amber-200";
+            if(p.order_status === 'ติด Back Order') statusColor = "text-red-600 bg-red-50 border-red-200 font-bold";
+            if(p.order_status === 'สั่งศูนย์แล้ว-รอของเข้า') statusColor = "text-blue-600 bg-blue-50 border-blue-200";
+
+            return `
+            <tr>
+                <td class="font-bold text-[#00320D]"><span class="bg-slate-200 px-2 py-0.5 rounded text-xs">${p.car_plate || '-'}</span></td>
+                <td class="font-bold text-slate-600">${carModelStr}</td>
+                <td>${customerName}</td>
+                <td class="font-mono text-xs font-bold text-slate-500">${p.epc_no || '(ยังไม่ได้ลง EPC)'}</td>
+                <!-- 🌟 แสดงแยกรายชิ้นชัดเจน ชิ้นใครชิ้นมัน -->
+                <td>
+                    <div class="flex flex-col gap-1">
+                        <span class="text-blue-700 font-mono font-black text-xs">พาร์ท No: ${p.part_no}</span>
+                        <span class="text-slate-800 font-bold text-xs">ชื่อชิ้นส่วน: ${p.part_name}</span>
+                        <span class="text-slate-500 text-[10px]">ประเภท: ${p.part_type || 'อะไหล่หลัก'} | ยอดสั่ง: <span class="text-slate-800 font-black">${p.qty_ordered}</span> ชิ้น</span>
+                    </div>
+                </td>
+                <td class="text-center">
+                    <!-- 🌟 ส่ง ID ของพาร์ทชิ้นนี้ไปอัปเดตสเตตัสรายชิ้นได้ทันที -->
+                    <button onclick="openPartItemModal(${p.order_id}, '${p.epc_no||''}', '${p.order_status}', '${p.part_name}', '${p.qty_ordered}')" class="px-3 py-2 bg-amber-500 text-slate-900 font-black rounded-lg text-xs shadow-sm hover:bg-amber-600 transition w-full"><i class="fa-solid fa-pen-to-square"></i> อัปเดตพาร์ทนี้</button>
+                </td>
+            </tr>
+        `}).join('');
+        applyExcelFilters('saTable');
+    } catch(e){ console.error(e); }
+}
+
+// ฟังก์ชันเปิด Modal เพื่อระบุว่าพาร์ทชิ้นนี้ สั่งไปยัง? มีของมั้ย?
+function openPartItemModal(orderId, epc, status, partName, qty) {
+    document.getElementById('modal_job_id').value = orderId; // เก็บ ID ของไอเทมพาร์ทอะไหล่
+    document.getElementById('modal_epc').value = epc;
+    document.getElementById('modal_part_status').value = status || 'รอสั่งซื้อ';
+    document.getElementById('modal_part_names').value = `${partName} (จำนวน ${qty} ชิ้น)`;
+    
+    // ตั้งค่าดีฟอลต์วันที่ปัจจุบัน
+    document.getElementById('modal_order_date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('alertModal').classList.remove('hidden');
+}
+
+// ฟังก์ชันเซฟสเตตัสพาร์ทรายชิ้นส่งกลับเข้าตาราง PO Orders
+async function saveSAAlertUpdate(e) {
+    e.preventDefault(); 
+    const orderId = document.getElementById('modal_job_id').value;
+    const nextStatus = document.getElementById('modal_part_status').value;
+    const epcNo = document.getElementById('modal_epc').value;
+    const orderDate = document.getElementById('modal_order_date').value;
+    const estDate = document.getElementById('modal_est_date').value;
+
+    try {
+        // อัปเดตสเตตัสรายชิ้นตัวนี้ไปที่ฝั่งฐานข้อมูลพาร์ทสั่งซื้อโดยตรง
+        await fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                epc_no: epcNo,
+                order_status: nextStatus,
+                order_date: orderDate || null,
+                est_arrival_date: estDate || null
+            })
+        });
+        
+        alert('🎯 อัปเดตสถานะชิ้นส่วนนี้เรียบร้อยแล้ว!'); 
+        closeAlertModal(); 
+        loadAllData(); // โหลดข้อมูลใหม่ทั้งหมดเพื่อรีเฟรชตาราง
+    } catch(e) { alert('❌ บันทึกข้อมูลผิดพลาด'); }
+}
 
         // ================= 🛒 2. สั่งอะไหล่จากศูนย์ =================
         async function submitPO(e) {
