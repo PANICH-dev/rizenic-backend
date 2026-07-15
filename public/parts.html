@@ -473,7 +473,7 @@
         }
 
         // =========================================================================
-// 🔔 1. ระบบแจ้งเตือนสั่งอะไหล่ (ปักหลักค้างตารางถาวร + ดีไซน์โชว์สถานะชิ้นส่วนภาพรวม)
+// 🔔 1. ระบบแจ้งเตือนสั่งอะไหล่ (ปรับดีไซน์เรียงบรรทัด + โชว์วันที่ภาพรวม + ซิงค์ทันใจ)
 // =========================================================================
 
 async function loadSAOrders() {
@@ -481,43 +481,53 @@ async function loadSAOrders() {
         const resJobs = await fetch(`${API_BASE_URL}/api/reports`); const allJobs = await resJobs.json();
         const resParts = await fetch(`${API_BASE_URL}/api/part-orders`); const allParts = await resParts.json();
         
-        // 🚨 กฎเหล็ก: ยึดตามคนสั่ง! ดึงใบงานที่ SA สั่ง Routing = อะไหล่ มาโชว์ทั้งหมด ห้ามคัดออกเองเด็ดขาด
+        // กรองเอาใบงานหลักที่ SA กดเลือก Routing = อะไหล่ เท่านั้น
         const jobsRoutedToParts = allJobs.filter(j => j.branch_name === currentBranch && j.department_routing === 'อะไหล่');
         
-        // อัปเดตตัวเลขแจ้งเตือนแท็บเมนู
+        // เซฟข้อมูลเข้าตัวแปร Global เพื่อให้ฟังก์ชันบันทึกเรียกใช้อัปเดตเวอร์ชันล่าสุดได้แม่นยำ
+        allGlobalJobs = allJobs; 
+
         document.getElementById('alert_count').innerText = jobsRoutedToParts.length;
         document.getElementById('alert_count').className = jobsRoutedToParts.length > 0 ? "bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full shadow-sm" : "hidden";
         
         const tbody = document.getElementById('sa_alerts_body');
         if(jobsRoutedToParts.length === 0) { 
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400 font-bold">✅ ไม่มีคิวรถในแผนกอะไหล่ขณะนี้ (SA ย้ายแผนกออกไปแล้ว หรือยังไม่ส่งต่อมา)</td></tr>`; 
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400 font-bold">✅ ไม่มีคิวรถในแผนกอะไหล่ขณะนี้ (หรือ SA ยังไม่ได้ส่งต่อมา)</td></tr>`; 
             return; 
         }
 
-        // ดีไซน์โครงสร้างตารางใหม่ เห็นภาพรวมชิ้นส่วนและสเตตัสข้างในทันที!
         tbody.innerHTML = jobsRoutedToParts.map(job => {
-            // ดึงพาร์ทอะไหล่ทั้งหมดที่ผูกกับรถทะเบียนคันนี้
+            // ดึงพาร์ทอะไหล่ทั้งหมดของรถคันนี้
             const carPartsItems = allParts.filter(p => p.car_plate === job.car_plate);
             
-            // 🎨 ดีไซน์สรุปภาพรวมชิ้นส่วนรายชิ้น (Part-by-Part Preview Layout)
+            // 🎨 [ดีไซน์ใหม่แกะกล่อง] เรียงบรรทัดลงมาด้านล่าง + แสดงวันที่สั่งและ ETA ชัดเจน
             let partsPreviewHTML = '';
             if(carPartsItems.length === 0) {
-                partsPreviewHTML = `<span class="text-slate-400 italic text-xs">⚠️ SA ยังไม่ได้คีย์เพิ่มรายการอะไหล่เข้ามา</span>`;
+                partsPreviewHTML = `<span class="text-slate-400 italic text-[11px]">⚠️ ไม่มีรายการอะไหล่ผูกกับรถคันนี้</span>`;
             } else {
-                partsPreviewHTML = `<div class="flex flex-wrap gap-2 mt-1">`;
+                partsPreviewHTML = `<div class="flex flex-col gap-1.5 mt-1">`;
                 carPartsItems.forEach(p => {
-                    let badgeColor = "bg-amber-50 text-amber-700 border-amber-300"; // รอสั่งซื้อ
-                    if(p.order_status === 'ติด Back Order') badgeColor = "bg-rose-50 text-rose-700 border-rose-300 font-bold animate-pulse";
-                    if(p.order_status === 'สั่งศูนย์แล้ว-รอของเข้า') badgeColor = "bg-blue-50 text-blue-700 border-blue-300";
+                    let badgeColor = "bg-amber-50 text-amber-700 border-amber-200"; 
+                    if(p.order_status === 'ติด Back Order') badgeColor = "bg-rose-50 text-rose-700 border-rose-300 animate-pulse";
+                    if(p.order_status === 'สั่งศูนย์แล้ว-รอของเข้า' || p.order_status === 'สั่งแล้วรอของเข้า') badgeColor = "bg-blue-50 text-blue-700 border-blue-300";
                     if(p.order_status === 'ของเข้าบางส่วน') badgeColor = "bg-orange-50 text-orange-700 border-orange-300";
                     if(p.order_status === 'อะไหล่เข้าครบแล้ว' || p.order_status === 'อะไหล่ครบ') badgeColor = "bg-emerald-50 text-emerald-700 border-emerald-300";
 
+                    const dateOrderStr = p.order_date ? p.order_date.split('T')[0] : '-';
+                    const dateEtaStr = p.est_arrival_date ? p.est_arrival_date.split('T')[0] : '-';
+
                     partsPreviewHTML += `
-                        <div class="px-2 py-1 rounded-lg border text-[11px] font-bold shadow-sm flex items-center gap-1.5 ${badgeColor}">
-                            <span class="font-mono text-blue-800">${p.part_no}:</span>
-                            <span>${p.part_name}</span>
-                            <span class="bg-black/5 px-1 rounded text-[10px]">x${p.qty_ordered}</span>
-                            <span class="opacity-80">| [ ${p.order_status || 'รอสั่งซื้อ'} ]</span>
+                        <div class="px-3 py-1.5 rounded-lg border text-[11px] font-bold shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white ${badgeColor}">
+                            <div class="flex items-center gap-2">
+                                <span class="font-mono text-blue-800 text-xs font-black bg-slate-100 px-1 rounded border">${p.part_no}</span>
+                                <span class="text-slate-800 font-black">${p.part_name}</span>
+                                <span class="text-slate-500 font-medium">(x${p.qty_ordered} ชิ้น)</span>
+                            </div>
+                            <div class="flex items-center gap-3 text-[10px] font-mono font-bold bg-black/5 px-2 py-0.5 rounded">
+                                <span>📅 สั่งศูนย์: <span class="text-slate-700">${dateOrderStr}</span></span>
+                                <span>⏳ ETA: <span class="text-blue-700">${dateEtaStr}</span></span>
+                                <span class="border-l pl-2 uppercase font-black tracking-wide">[ ${p.order_status || 'รอสั่งซื้อ'} ]</span>
+                            </div>
                         </div>
                     `;
                 });
@@ -526,20 +536,14 @@ async function loadSAOrders() {
 
             return `
             <tr class="hover:bg-slate-50 border-b border-slate-200">
-                <!-- 1. ทะเบียนรถ -->
                 <td class="font-black text-[#00320D]"><span class="bg-slate-200 px-2.5 py-1 rounded-md text-xs font-mono border border-slate-300 shadow-sm">${job.car_plate}</span></td>
-                <!-- 2. รุ่นรถ -->
                 <td class="font-bold text-slate-600">${job.car_brand} ${job.car_model || ''}</td>
-                <!-- 3. ชื่อลูกค้า -->
                 <td class="font-medium text-slate-700">${job.customer_name || '-'}</td>
-                <!-- 4. EPC NO อ้างอิงภาพรวม -->
                 <td class="font-mono text-xs font-bold text-amber-700">${job.epc_no || '-'}</td>
-                <!-- 5. 🌟 แผงโชว์ภาพรวมชิ้นส่วนข้างใน (เห็นหมดชิ้นไหนค้าง ชิ้นไหนมาครบ!) -->
-                <td class="whitespace-normal max-w-[500px] py-3">
-                    <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1"><i class="fa-solid fa-boxes-stacked"></i> สรุปสถานะคลังสินค้าพาร์ทรายชิ้น:</div>
+                <!-- 🌟 แสดงตารางย่อยแนวตั้ง สวยงาม คมชัด -->
+                <td class="whitespace-normal max-w-[550px] py-3">
                     ${partsPreviewHTML}
                 </td>
-                <!-- 6. ปุ่มกดเข้าไปหน้าต่างจัดการคีย์ 5 ฟิลด์หลัก -->
                 <td class="text-center">
                     <button onclick="openCarPartsDetailsModal('${job.car_plate}', '${job.epc_no||'-'}')" class="bg-[#00320D] text-white font-black px-4 py-2.5 rounded-lg text-xs shadow-md hover:bg-black transition w-full flex items-center justify-center gap-1.5">
                         <i class="fa-solid fa-folder-open text-amber-400"></i> เปิดโต๊ะคีย์อะไหล่
@@ -549,7 +553,95 @@ async function loadSAOrders() {
             `;
         }).join('');
         applyExcelFilters('saTable');
-    } catch(e){ console.error("ระบบคิวแจ้งเตือนอะไหล่ขัดข้อง:", e); }
+    } catch(e){ console.error(e); }
+}
+
+// 💾 บันทึกแยกพาร์ท และสั่งบังคับให้ระบบดึงหน้าจอภาพรวมมาจัดคิวใหม่ทันที สีจะเปลี่ยนคาตาชัวร์!
+async function saveSAAlertUpdate(e) {
+    e.preventDefault(); 
+    const carPlate = document.getElementById('modal_job_id').value; 
+    const rows = document.querySelectorAll('.inner-part-item-row');
+    const promises = [];
+    let summaryPartsStatusText = [];
+    let latestEpcNo = '';
+
+    rows.forEach(row => {
+        const orderId = row.getAttribute('data-order-id');
+        const nextStatus = row.querySelector('.inner-part-status-dropdown').value;
+        const partEpc = row.querySelector('.inner-part-epc').value.trim().toUpperCase();
+        const partOrderDate = row.querySelector('.inner-part-order-date').value;
+        const partEstDate = row.querySelector('.inner-part-est-date').value;
+        const partRcvDate = row.querySelector('.inner-part-rcv-date').value;
+        
+        if(partEpc) latestEpcNo = partEpc;
+
+        const partNameText = row.cells[0].querySelector('div:nth-child(2)').innerText;
+        summaryPartsStatusText.push(`${partNameText}: ${nextStatus} (ETA: ${partEstDate || '-'})`);
+
+        promises.push(
+            fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    epc_no: partEpc || null,
+                    order_status: nextStatus,
+                    order_date: partOrderDate || null,
+                    est_arrival_date: partEstDate || null,
+                    received_date: partRcvDate || null
+                })
+            })
+        );
+    });
+
+    try {
+        await Promise.all(promises);
+
+        const jobMatch = allGlobalJobs.find(j => j.car_plate === carPlate);
+        if(jobMatch) {
+            let overallPartStatus = "สั่งแล้วรอของเข้า";
+            const dropdowns = Array.from(document.querySelectorAll('.inner-part-status-dropdown')).map(d => d.value);
+            
+            if(dropdowns.every(v => v === 'อะไหล่เข้าครบแล้ว')) overallPartStatus = "อะไหล่เข้าครบแล้ว";
+            else if(dropdowns.some(v => v === 'ติด Back Order')) overallPartStatus = "ติด Back Order";
+            else if(dropdowns.every(v => v === 'รอสั่งซื้อ')) overallPartStatus = "รอสั่งซื้อ";
+
+            const allEstDates = Array.from(document.querySelectorAll('.inner-part-est-date')).map(i => i.value).filter(Boolean);
+            const maxEstDate = allEstDates.length > 0 ? allEstDates.sort().pop() : null;
+
+            const cleanJobMatch = { ...jobMatch };
+            delete cleanJobMatch.part_status;
+            delete cleanJobMatch.ordered_part_names;
+            delete cleanJobMatch.epc_no;
+            delete cleanJobMatch.est_part_date;
+
+            const updatedJobPayload = {
+                ...cleanJobMatch, 
+                branch_name: currentBranch, 
+                epc_no: latestEpcNo || jobMatch.epc_no,
+                part_status: overallPartStatus, 
+                est_part_date: maxEstDate || null,
+                ordered_part_names: summaryPartsStatusText.join(', ')
+            };
+
+            await fetch(`${API_BASE_URL}/api/report/${jobMatch.id}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(updatedJobPayload)
+            });
+        }
+        
+        alert('🎉 ยอดเยี่ยม! บันทึกข้อมูลอะไหล่รายชิ้นเสร็จสมบูรณ์แล้วครับนาย!'); 
+        closeAlertModal(); 
+        
+        // 🔄 แก้ทางดีเลย์: สั่งโหลด API ค้นหาค่าก้อนใหม่ล่าสุดมาสะบัดหน้าตารางทันที สีเปลี่ยนแน่นอน!
+        setTimeout(async () => {
+            await loadAllData();
+        }, 400);
+
+    } catch(e) { 
+        alert('❌ การซิงค์ข้อมูลล้มเหลว'); 
+        console.error(e);
+    }
 }
 
         // หน้าต่างย่อยคลังระบุ 5 ค่าหลักแยกอิสระชิ้นใครชิ้นมัน
@@ -632,7 +724,7 @@ async function loadSAOrders() {
 
         function closeAlertModal() { document.getElementById('alertModal').classList.add('hidden'); }
 
-        // 💾 [เวอร์ชันแก้จุดบอด - อัปเดตชัวร์ 100%] บันทึกแยกชิ้น ข้อมูลลูกค้าอยู่ครบ และบังคับอัปเดตสถานะใหม่ทันที
+        // 💾 [เวอร์ชันแก้ไขปัญหาดีเลย์หลังบ้าน] บันทึกแยกชิ้น เปลี่ยนสีสเตตัสบนจอทันที ไม่ต้องรอลุ้นมิลลิวินาที
 async function saveSAAlertUpdate(e) {
     e.preventDefault(); 
     const carPlate = document.getElementById('modal_job_id').value; 
@@ -687,23 +779,30 @@ async function saveSAAlertUpdate(e) {
             const allEstDates = Array.from(document.querySelectorAll('.inner-part-est-date')).map(i => i.value).filter(Boolean);
             const maxEstDate = allEstDates.length > 0 ? allEstDates.sort().pop() : null;
 
-            // 🚨 ลบฟิลด์สถานะอะไหล่ตัวเก่าออกจากออนเจกต์เดิมก่อน เพื่อไม่ให้มันไปแย่งตแหน่งและเขียนทับค่าใหม่
+            // ลบฟิลด์สถานะอะไหล่ตัวเก่าออกเพื่อป้องกันการสับสนข้อมูล
             const cleanJobMatch = { ...jobMatch };
             delete cleanJobMatch.part_status;
             delete cleanJobMatch.ordered_part_names;
             delete cleanJobMatch.epc_no;
             delete cleanJobMatch.est_part_date;
 
-            // ประกอบร่าง Payload ใหม่ บังคับเขียนทับแบบชดเจน
+            // ประกอบร่างข้อมูลชุดใหญ่
             const updatedJobPayload = {
-                ...cleanJobMatch, // ข้อมูลลูกค้าเดิมที่ปลอดภัย
+                ...cleanJobMatch, 
                 branch_name: currentBranch, 
                 epc_no: latestEpcNo || jobMatch.epc_no,
-                part_status: overallPartStatus, // 🌟 ค่าใหม่ล่าสุด บังคับอัปเดต
+                part_status: overallPartStatus, 
                 est_part_date: maxEstDate || null,
-                ordered_part_names: summaryPartsStatusText.join(', ') // 🌟 ค่าใหม่ล่าสุด บังคับอัปเดต
+                ordered_part_names: summaryPartsStatusText.join(', ')
             };
 
+            // 🌟 [สูตรแก้หน้าจอนิ่ง]: อัปเดตข้อมูลลงในหน่วยความจำเครื่องตัวเองหน้างานทันทีแบบแมนนวล ไม่ต้องรอดีเลย์จากเบส
+            const jobIndex = allGlobalJobs.findIndex(j => j.car_plate === carPlate);
+            if(jobIndex > -1) {
+                allGlobalJobs[jobIndex] = updatedJobPayload;
+            }
+
+            // ยิงไปเซฟจริงที่ฐานข้อมูลหลังบ้าน
             await fetch(`${API_BASE_URL}/api/report/${jobMatch.id}`, {
                 method: 'PUT',
                 headers: {'Content-Type': 'application/json'},
@@ -711,11 +810,17 @@ async function saveSAAlertUpdate(e) {
             });
         }
         
-        alert('🎉 สำเร็จ! อัปเดตสถานะและข้อมูลอะไหล่รายชิ้นเรียบร้อย ข้อมูลลูกค้าปลอดภัยครบถ้วนครับนาย!'); 
+        alert('🎉 อัปเดตสถานะชิ้นส่วนอะไหล่รายชิ้น และซิงค์ส่งกลับหน้า Job เรียบร้อยแล้ว!'); 
         closeAlertModal(); 
         
-        // 🔄 รีเฟรชข้อมูลโดยตรงจากฐานข้อมูลหลังบ้านทันที เพื่อให้ตารางหน้าแรกเปลี่ยนตาม
-        await loadAllData(); 
+        // 🔄 บังคับหน้าจอหลักเรนเดอร์ตารางใหม่จากข้อมูลหน่วยความจำด่วนทันที สี Badge จะเปลี่ยนทันตาเห็น!
+        loadSAOrders(); 
+        
+        // หน่วงเวลา 800 มิลลิวินาที ให้เซิร์ฟเวอร์เซฟไฟล์เสร็จจริง ๆ แล้วค่อยดึงข้อมูลภาพรวมมาเก็บในคลัง
+        setTimeout(async () => {
+            await loadAllData();
+        }, 800);
+
     } catch(e) { 
         alert('❌ การซิงค์ข้อมูลล้มเหลว'); 
         console.error(e);
