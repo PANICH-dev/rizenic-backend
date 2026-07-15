@@ -82,12 +82,13 @@
 
     <main class="flex-1 overflow-auto custom-scrollbar p-6">
 
-        <!-- 🔔 แท็บ 1: แจ้งเตือนสั่งอะไหล่ (คิวรถซ่อมแบ่งตามทะเบียน VLOOKUP) -->
+        <!-- 🔔 แท็บ 1: แจ้งเตือนสั่งอะไหล่ -->
         <section id="tab-alert" class="parts-tab-content active">
             <div class="card-container">
                 <div class="px-5 py-4 bg-gradient-to-r from-amber-50 to-white border-b border-amber-100 flex justify-between items-center">
                     <h3 class="font-black text-amber-900 flex items-center gap-2"><i class="fa-solid fa-bell text-amber-500"></i> รายการสั่งซื้ออะไหล่ที่ส่งเข้ามาจากทีมบริการ (SA)</h3>
-                    <button onclick="loadSAOrders()" class="text-xs bg-white border border-slate-200 px-4 py-2 rounded-lg shadow-sm font-bold text-slate-600 hover:bg-amber-50 hover:text-amber-700 transition flex items-center gap-2"><i class="fa-solid fa-rotate-right"></i> รีเฟรชข้อมูล</button>
+                    <!-- เปลี่ยนมาเรียก loadAllData เพื่อโหลดฐานข้อมูลสดใหม่ แทนการใช้ข้อมูลเดิมช้ำๆ -->
+                    <button onclick="loadAllData()" class="text-xs bg-white border border-slate-200 px-4 py-2 rounded-lg shadow-sm font-bold text-slate-600 hover:bg-amber-50 hover:text-amber-700 transition flex items-center gap-2"><i class="fa-solid fa-rotate-right"></i> รีเฟรชข้อมูลล่าสุด</button>
                 </div>
                 <div class="overflow-x-auto custom-scrollbar h-[60vh]">
                     <table class="modern-table" id="saTable">
@@ -102,7 +103,7 @@
                             </tr>
                         </thead>
                         <tbody id="sa_alerts_body">
-                            <tr><td colspan="6" class="text-center py-10 text-slate-400">กำลังตรวจสอบระบบออเดอร์ค้างจากระบบ...</td></tr>
+                            <tr><td colspan="6" class="text-center py-10 text-slate-400">กำลังดึงข้อมูลจากระบบหลังบ้าน...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -207,7 +208,7 @@
             </div>
         </section>
 
-        <!-- 📤 แท็บ 4: เบิกอะไหล่ (ตาราง 21 คอลัมน์ ลำดับถูกต้องสมบูรณ์แบบสูงสุด) -->
+        <!-- 📤 แท็บ 4: เบิกอะไหล่ -->
         <section id="tab-outbound" class="parts-tab-content space-y-6">
             <div class="card-container p-6 border-l-4 border-purple-600">
                 <h3 class="font-bold text-purple-800 border-b pb-3 mb-4 flex items-center gap-2"><i class="fa-solid fa-upload bg-purple-100 text-purple-600 p-2 rounded-lg"></i> ลงบันทึกตัดจ่ายใบเบิกอะไหล่พาร์ทสินค้า</h3>
@@ -346,12 +347,10 @@
                 <input type="hidden" id="modal_epc">
                 <input type="hidden" id="modal_part_names">
                 
-                <!-- ตัวตารางย่อยด้านใน (ขยายกว้างและสกรอลล์ได้อิสระ) -->
-                <div class="p-6 flex-1 overflow-y-auto custom-scrollbar" id="modal_dynamic_table_container">
-                    <!-- ข้อมูลตาราง 5 ฟิลด์รายชิ้นจะถูกส่งเข้ามาแสดงในก้อนนี้ผ่าน JavaScript -->
-                </div>
+                <!-- ตัวตารางย่อยด้านใน -->
+                <div class="p-6 flex-1 overflow-y-auto custom-scrollbar" id="modal_dynamic_table_container"></div>
 
-                <!-- 🔘 แผงปุ่มกดด้านล่าง โผล่ชัดเจน ไม่โดนอะไรบังแน่นอน 100% -->
+                <!-- 🔘 แผงปุ่มกดด้านล่าง -->
                 <div class="bg-slate-50 px-6 py-4 border-t flex justify-end gap-3 shrink-0">
                     <button type="button" onclick="closeAlertModal()" class="px-5 py-2.5 bg-white text-slate-600 rounded-lg font-bold border border-slate-300 hover:bg-slate-100 transition text-xs sm:text-sm shadow-sm">ปิดหน้าต่าง</button>
                     <button type="submit" class="px-8 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-black rounded-lg shadow-md hover:from-amber-600 hover:to-amber-700 transition-all text-xs sm:text-sm flex items-center gap-1.5 shadow-amber-500/20">
@@ -362,10 +361,14 @@
         </div>
     </div>
 
+    <!-- Script ควบคุมความเร็วปรี๊ด 10x -->
     <script>
         const API_BASE_URL = window.location.origin;
         let currentBranch = 'สำนักงานใหญ่';
+        
+        // 🌟 ฐานข้อมูลจำลองบนเครื่อง (Local State) ป้องกันเซิร์ฟเวอร์สำลัก
         let allInbounds = []; 
+        let allGlobalParts = []; 
         let allPOOrders = []; 
         let allGlobalJobs = []; 
         let cachedInventory = {}; 
@@ -422,83 +425,50 @@
             }
         }
 
+        // 🌟 ดึงข้อมูลจากเซิร์ฟเวอร์แบบรวมศูนย์ (ทำแค่ตอนเริ่มหน้าจอ หรือกดปุ่มรีเฟรชเท่านั้น)
         async function loadAllData() {
+            document.getElementById('sa_alerts_body').innerHTML = `<tr><td colspan="6" class="text-center py-10 text-blue-500 font-bold"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังอัปเดตข้อมูลจากระบบ...</td></tr>`;
+
             try { 
                 const resIn = await fetch(`${API_BASE_URL}/api/part-inbound`); if(resIn.ok) allInbounds = await resIn.json(); 
                 const resJobs = await fetch(`${API_BASE_URL}/api/reports`); if(resJobs.ok) allGlobalJobs = await resJobs.json();
-                const resParts = await fetch(`${API_BASE_URL}/api/part-orders`); if(resParts.ok) allPOOrders = await resParts.json();
+                const resParts = await fetch(`${API_BASE_URL}/api/part-orders`); if(resParts.ok) allGlobalParts = await resParts.json();
                 const resInv = await fetch(`${API_BASE_URL}/api/parts-inventory?branch=${encodeURIComponent(currentBranch)}`);
                 if(resInv.ok) {
                     const invData = await resInv.json();
                     cachedInventory = {};
                     invData.forEach(item => { cachedInventory[item.part_no] = item.stock_in_house; });
                 }
-            } catch(e){}
+            } catch(e) { console.error("API Fetch Error:", e); }
+            
+            // วาดหน้าจอจากหน่วยความจำ
             loadSAOrders(); loadPOTracking(); loadInbound(); loadOutbound(); loadStockInHouse(); loadMasterParts();
         }
 
-        async function fetchMasterPart(prefix) {
-            const partNo = document.getElementById(`${prefix}_part_no`).value.trim(); if(!partNo) return;
+        // =========================================================================
+        // 🔔 1. ระบบแจ้งเตือนสั่งอะไหล่ (ดึงข้อมูลจาก Local Array แทนการ Fetch รัวๆ)
+        // =========================================================================
+        function loadSAOrders() {
             try {
-                const res = await fetch(`${API_BASE_URL}/api/parts/check/${encodeURIComponent(partNo)}`); const data = await res.json();
-                if(data && data.part_name) {
-                    if(document.getElementById(`${prefix}_part_main`)) document.getElementById(`${prefix}_part_main`).value = data.part_main_no || '-';
-                    if(document.getElementById(`${prefix}_part_name`)) document.getElementById(`${prefix}_part_name`).value = data.part_name || '-';
-                    if(document.getElementById(`${prefix}_model`)) document.getElementById(`${prefix}_model`).value = data.car_model || '-';
-                    if(document.getElementById(`${prefix}_type`)) document.getElementById(`${prefix}_type`).value = data.part_category || 'อะไหล่หลัก';
-                    if(document.getElementById(`${prefix}_price`)) document.getElementById(`${prefix}_price`).value = data.unit_price || 0;
-                    calcInTotal(); calcOutTotal();
+                const tbody = document.getElementById('sa_alerts_body');
+                if (!allGlobalJobs || !Array.isArray(allGlobalJobs)) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-red-500 font-bold">❌ การเชื่อมต่อล้มเหลว กรุณากดปุ่ม 'รีเฟรชข้อมูลล่าสุด' ด้านบน</td></tr>`;
+                    return;
                 }
-            } catch(e) {}
-        }
 
-        async function fetchJobDataByPlate(prefix) {
-            const plate = document.getElementById(`${prefix}_plate`).value.trim(); if(!plate) return;
-            const job = allGlobalJobs.find(j => j.car_plate === plate);
-            if(job) {
-                if(document.getElementById(`${prefix}_vin`)) document.getElementById(`${prefix}_vin`).value = job.vin_no || '-';
-                if(document.getElementById(`${prefix}_model`)) document.getElementById(`${prefix}_model`).value = job.car_model || '-';
-                if(document.getElementById(`${prefix}_qt`)) document.getElementById(`${prefix}_qt`).value = (job.qt_no || '').split(',')[0].trim();
-                if(document.getElementById(`${prefix}_so`)) document.getElementById(`${prefix}_so`).value = (job.so_no || '').split(',')[0].trim();
-                if(document.getElementById(`${prefix}_job_status`)) document.getElementById(`${prefix}_job_status`).value = job.job_status || '-';
-            }
-        }
-
-        function calcInTotal() {
-            const p = parseFloat(document.getElementById('in_price').value) || 0; const q = parseInt(document.getElementById('in_qty').value) || 0;
-            document.getElementById('in_total').value = (p * q).toFixed(2);
-        }
-        function calcOutTotal() {
-            const p = parseFloat(document.getElementById('out_price').value) || 0; const q = parseInt(document.getElementById('out_qty').value) || 0;
-            if(document.getElementById('out_total')) document.getElementById('out_total').value = (p * q).toFixed(2);
-        }
-
-        // =========================================================================
-        // 🔔 1. ระบบแจ้งเตือนสั่งอะไหล่ (เรียงบรรทัด + โชว์วันสั่ง/ETA/วันเข้าครบ + ซิงค์อัปเดตทันที)
-        // =========================================================================
-        async function loadSAOrders() {
-            try {
-                const resJobs = await fetch(`${API_BASE_URL}/api/reports`); const allJobs = await resJobs.json();
-                const resParts = await fetch(`${API_BASE_URL}/api/part-orders`); const allParts = await resParts.json();
-                
-                // กรองเอาใบงานหลักที่ SA กดเลือก Routing = อะไหล่ เท่านั้น[cite: 4]
-                const jobsRoutedToParts = allJobs.filter(j => j.branch_name === currentBranch && j.department_routing === 'อะไหล่');
-                allGlobalJobs = allJobs; 
+                const jobsRoutedToParts = allGlobalJobs.filter(j => j.branch_name === currentBranch && j.department_routing === 'อะไหล่');
 
                 document.getElementById('alert_count').innerText = jobsRoutedToParts.length;
                 document.getElementById('alert_count').className = jobsRoutedToParts.length > 0 ? "bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full shadow-sm" : "hidden";
                 
-                const tbody = document.getElementById('sa_alerts_body');
                 if(jobsRoutedToParts.length === 0) { 
                     tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400 font-bold">✅ ไม่มีคิวรถในแผนกอะไหล่ขณะนี้ (หรือ SA ยังไม่ได้ส่งต่อมา)</td></tr>`; 
                     return; 
                 }
 
                 tbody.innerHTML = jobsRoutedToParts.map(job => {
-                    // ดึงพาร์ทอะไหล่ทั้งหมดที่ผูกกับรถคันนี้ขึ้นมาเช็คสถานะล่าสุดสด ๆ[cite: 4]
-                    const carPartsItems = allParts.filter(p => p.car_plate === job.car_plate);
+                    const carPartsItems = (allGlobalParts || []).filter(p => p.car_plate === job.car_plate);
                     
-                    // 🎨 ดีไซน์สรุปแบบเรียงแนวตั้ง พร้อมระบุวันสั่ง วัน ETA และวันเข้าจริงครบถ้วน เนื้อที่เหลือเฟือ
                     let partsPreviewHTML = '';
                     if(carPartsItems.length === 0) {
                         partsPreviewHTML = `<span class="text-slate-400 italic text-[11px]">⚠️ ไม่มีรายการอะไหล่ผูกกับรถคันนี้</span>`;
@@ -513,7 +483,7 @@
 
                             const dateOrderStr = p.order_date ? p.order_date.split('T')[0] : '-';
                             const dateEtaStr = p.est_arrival_date ? p.est_arrival_date.split('T')[0] : '-';
-                            const dateActualStr = p.received_date ? p.received_date.split('T')[0] : '-'; 
+                            const dateActualStr = p.received_date ? p.received_date.split('T')[0] : '-';
 
                             partsPreviewHTML += `
                                 <div class="px-3 py-2 rounded-lg border text-[11px] font-bold shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-2 bg-white ${badgeColor}">
@@ -522,7 +492,6 @@
                                         <span class="text-slate-900 font-extrabold">${p.part_name}</span>
                                         <span class="text-slate-500 font-medium">(จำนวน: <span class="text-slate-800 font-bold">${p.qty_ordered}</span> ชิ้น)</span>
                                     </div>
-                                    <!-- 🌟 แสดง 3 วันที่สำคัญแบบแยกบล็อกชิ้นใครชิ้นมันอย่างมีระเบียบ -->
                                     <div class="flex flex-wrap items-center gap-3 text-[10px] font-mono bg-black/5 px-2.5 py-1 rounded border border-black/10">
                                         <span>📅 วันสั่ง: <span class="text-slate-700 font-bold">${dateOrderStr}</span></span>
                                         <span class="text-blue-700">⏳ คาดการณ์เข้า (ETA): <span class="font-black bg-blue-100/50 px-1 rounded">${dateEtaStr}</span></span>
@@ -556,11 +525,9 @@
             } catch(e){ console.error(e); }
         }
 
-        // หน้าต่างย่อยคลังระบุ 5 ค่าหลักแยกอิสระชิ้นใครชิ้นมัน[cite: 4]
-        async function openCarPartsDetailsModal(carPlate, epcNo) {
+        function openCarPartsDetailsModal(carPlate, epcNo) {
             try {
-                const resParts = await fetch(`${API_BASE_URL}/api/part-orders`); const allParts = await resParts.json();
-                const carPartsItems = allParts.filter(p => p.car_plate === carPlate);
+                const carPartsItems = (allGlobalParts || []).filter(p => p.car_plate === carPlate);
 
                 document.getElementById('modal_job_id').value = carPlate;
                 document.getElementById('modal_epc').value = epcNo === '-' ? '' : epcNo;
@@ -569,7 +536,6 @@
                 const tableContainer = document.getElementById('modal_dynamic_table_container');
                 const today = new Date().toISOString().split('T')[0];
                 
-                // 🌟 ยัด 5 ตัวแปรหลักรายบรรทัด (EPC, สเตตัส, วันสั่ง, วัน ETA, วันเข้าครบ)[cite: 4]
                 tableContainer.innerHTML = `
                     <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
                         <div class="overflow-x-auto custom-scrollbar max-h-[400px] p-1 bg-slate-100">
@@ -587,9 +553,9 @@
                                 </thead>
                                 <tbody class="divide-y divide-slate-100 font-bold" id="inner_parts_rows_container">
                                     ${carPartsItems.map(item => {
-                                        const orderDateVal = item.order_date ? item.order_date.split('T')[0] : today;
-                                        const estDateVal = item.est_arrival_date ? item.est_arrival_date.split('T')[0] : '';
-                                        const rcvDateVal = item.received_date ? item.received_date.split('T')[0] : '';
+                                        const orderDateVal = item.order_date ? String(item.order_date).split('T')[0] : today;
+                                        const estDateVal = item.est_arrival_date ? String(item.est_arrival_date).split('T')[0] : '';
+                                        const rcvDateVal = item.received_date ? String(item.received_date).split('T')[0] : '';
                                         const itemEpc = item.epc_no || (epcNo !== '-' ? epcNo : '');
                                         
                                         return `
@@ -600,19 +566,14 @@
                                             </td>
                                             <td class="p-2 text-center text-slate-800 text-sm font-black border-r border-slate-100">${item.qty_ordered}</td>
                                             
-                                            <!-- 1. หมายเลข EPC No แยกรายบรรทัด -->
                                             <td class="p-1 border-r border-slate-100"><input type="text" class="p-1.5 bg-amber-50/50 border border-amber-300 rounded outline-none font-mono uppercase w-[110px] inner-part-epc" value="${itemEpc}" placeholder="EPC-XXX"></td>
                                             
-                                            <!-- 2. วันที่สั่งอะไหล่ แยกรายบรรทัด -->
                                             <td class="p-1 border-r border-slate-100"><input type="date" class="p-1 bg-slate-50 border border-slate-300 rounded outline-none font-mono inner-part-order-date w-[115px]" value="${orderDateVal}"></td>
                                             
-                                            <!-- 3. วันที่คาดการณ์อะไหล่เข้า (ETA) แยกรายบรรทัด -->
                                             <td class="p-1 border-r border-slate-100"><input type="date" class="p-1 bg-blue-50/50 border border-blue-300 text-blue-900 rounded outline-none font-mono inner-part-est-date w-[115px]" value="${estDateVal}"></td>
                                             
-                                            <!-- 4. วันที่อะไหล่เข้าครบแล้ว แยกรายบรรทัด -->
                                             <td class="p-1 border-r border-slate-100"><input type="date" class="p-1 bg-emerald-50/50 border border-emerald-300 text-emerald-900 rounded outline-none font-mono inner-part-rcv-date w-[115px]" value="${rcvDateVal}"></td>
                                             
-                                            <!-- 5. สถานะอะไหล่ แยกรายบรรทัด -->
                                             <td class="p-1">
                                                 <select class="p-1 bg-slate-50 border border-slate-300 rounded outline-none font-bold text-slate-700 inner-part-status-dropdown w-[150px]">
                                                     <option value="รอสั่งซื้อ" ${item.order_status === 'รอสั่งซื้อ'?'selected':''}>❌ รอสั่งซื้อ</option>
@@ -636,104 +597,149 @@
 
         function closeAlertModal() { document.getElementById('alertModal').classList.add('hidden'); }
 
-        // 💾 [เวอร์ชันเสถียรที่สุด] บันทึกแยกชิ้น ดักทางความเร็วอัปเดตหน้าจอทันที ไม่ง้อดีเลย์เซิร์ฟเวอร์[cite: 4]
+        // 💾 บันทึกรวดเร็วปานสายฟ้า แก้บั๊กโหลดค้าง
         async function saveSAAlertUpdate(e) {
             e.preventDefault(); 
-            const carPlate = document.getElementById('modal_job_id').value;[cite: 4]
-            const rows = document.querySelectorAll('.inner-part-item-row');[cite: 4]
-            const promises = [];[cite: 4]
-            let summaryPartsStatusText = [];[cite: 4]
-            let latestEpcNo = '';[cite: 4]
+            const carPlate = document.getElementById('modal_job_id').value; 
+            const rows = document.querySelectorAll('.inner-part-item-row');
+            const promises = [];
+            let summaryPartsStatusText = [];
+            let latestEpcNo = '';
 
             rows.forEach(row => {
-                const orderId = row.getAttribute('data-order-id');[cite: 4]
-                const nextStatus = row.querySelector('.inner-part-status-dropdown').value;[cite: 4]
-                const partEpc = row.querySelector('.inner-part-epc').value.trim().toUpperCase();[cite: 4]
-                const partOrderDate = row.querySelector('.inner-part-order-date').value;[cite: 4]
-                const partEstDate = row.querySelector('.inner-part-est-date').value;[cite: 4]
-                const partRcvDate = row.querySelector('.inner-part-rcv-date').value;[cite: 4]
+                const orderId = row.getAttribute('data-order-id');
+                const nextStatus = row.querySelector('.inner-part-status-dropdown').value;
+                const partEpc = row.querySelector('.inner-part-epc').value.trim().toUpperCase();
+                const partOrderDate = row.querySelector('.inner-part-order-date').value;
+                const partEstDate = row.querySelector('.inner-part-est-date').value;
+                const partRcvDate = row.querySelector('.inner-part-rcv-date').value;
                 
-                if(partEpc) latestEpcNo = partEpc;[cite: 4]
+                if(partEpc) latestEpcNo = partEpc;
 
-                const partNameText = row.cells[0].querySelector('div:nth-child(2)').innerText;[cite: 4]
-                summaryPartsStatusText.push(`${partNameText}: ${nextStatus} (ETA: ${partEstDate || '-'})`);[cite: 4]
+                const partNameText = row.cells[0].querySelector('div:nth-child(2)').innerText;
+                summaryPartsStatusText.push(`${partNameText}: ${nextStatus} (ETA: ${partEstDate || '-'})`);
+
+                // 🌟 อัปเดตข้อมูลลงความจำในเครื่องสดๆ สีหน้าแรกเปลี่ยนทันตา
+                if(allGlobalParts) {
+                    const partIndex = allGlobalParts.findIndex(p => String(p.order_id) === String(orderId));
+                    if(partIndex > -1) {
+                        allGlobalParts[partIndex].order_status = nextStatus;
+                        allGlobalParts[partIndex].order_date = partOrderDate || null;
+                        allGlobalParts[partIndex].est_arrival_date = partEstDate || null;
+                        allGlobalParts[partIndex].received_date = partRcvDate || null;
+                        allGlobalParts[partIndex].epc_no = partEpc || null;
+                    }
+                }
 
                 promises.push(
-                    fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, {[cite: 4]
-                        method: 'PUT',[cite: 4]
-                        headers: {'Content-Type': 'application/json'},[cite: 4]
-                        body: JSON.stringify({[cite: 4]
-                            epc_no: partEpc || null,[cite: 4]
-                            order_status: nextStatus,[cite: 4]
-                            order_date: partOrderDate || null,[cite: 4]
-                            est_arrival_date: partEstDate || null,[cite: 4]
-                            received_date: partRcvDate || null[cite: 4]
-                        })[cite: 4]
-                    })[cite: 4]
+                    fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            epc_no: partEpc || null,
+                            order_status: nextStatus,
+                            order_date: partOrderDate || null,
+                            est_arrival_date: partEstDate || null,
+                            received_date: partRcvDate || null
+                        })
+                    })
                 );
             });
 
             try {
-                await Promise.all(promises);[cite: 4]
+                const btn = document.querySelector('#alertModal button[type="submit"]');
+                const originalBtnHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึกเซิร์ฟเวอร์...';
+                btn.disabled = true;
 
-                const jobMatch = allGlobalJobs.find(j => j.car_plate === carPlate);[cite: 4]
+                await Promise.all(promises);
+
+                const jobMatch = allGlobalJobs.find(j => j.car_plate === carPlate);
                 if(jobMatch) {
-                    let overallPartStatus = "สั่งแล้วรอของเข้า";[cite: 4]
-                    const dropdowns = Array.from(document.querySelectorAll('.inner-part-status-dropdown')).map(d => d.value);[cite: 4]
+                    let overallPartStatus = "สั่งแล้วรอของเข้า";
+                    const dropdowns = Array.from(document.querySelectorAll('.inner-part-status-dropdown')).map(d => d.value);
                     
-                    if(dropdowns.every(v => v === 'อะไหล่เข้าครบแล้ว')) overallPartStatus = "อะไหล่เข้าครบแล้ว";[cite: 4]
-                    else if(dropdowns.some(v => v === 'ติด Back Order')) overallPartStatus = "ติด Back Order";[cite: 4]
-                    else if(dropdowns.every(v => v === 'รอสั่งซื้อ')) overallPartStatus = "รอสั่งซื้อ";[cite: 4]
+                    if(dropdowns.every(v => v === 'อะไหล่เข้าครบแล้ว')) overallPartStatus = "อะไหล่เข้าครบแล้ว";
+                    else if(dropdowns.some(v => v === 'ติด Back Order')) overallPartStatus = "ติด Back Order";
+                    else if(dropdowns.every(v => v === 'รอสั่งซื้อ')) overallPartStatus = "รอสั่งซื้อ";
 
-                    const allEstDates = Array.from(document.querySelectorAll('.inner-part-est-date')).map(i => i.value).filter(Boolean);[cite: 4]
-                    const maxEstDate = allEstDates.length > 0 ? allEstDates.sort().pop() : null;[cite: 4]
+                    const allEstDates = Array.from(document.querySelectorAll('.inner-part-est-date')).map(i => i.value).filter(Boolean);
+                    const maxEstDate = allEstDates.length > 0 ? allEstDates.sort().pop() : null;
 
-                    const cleanJobMatch = { ...jobMatch };[cite: 4]
-                    delete cleanJobMatch.part_status;[cite: 4]
-                    delete cleanJobMatch.ordered_part_names;[cite: 4]
-                    delete cleanJobMatch.epc_no;[cite: 4]
-                    delete cleanJobMatch.est_part_date;[cite: 4]
+                    const cleanJobMatch = { ...jobMatch };
+                    delete cleanJobMatch.part_status;
+                    delete cleanJobMatch.ordered_part_names;
+                    delete cleanJobMatch.epc_no;
+                    delete cleanJobMatch.est_part_date;
 
-                    const updatedJobPayload = {[cite: 4]
-                        ...cleanJobMatch,[cite: 4]
-                        branch_name: currentBranch,[cite: 4]
-                        epc_no: latestEpcNo || jobMatch.epc_no,[cite: 4]
-                        part_status: overallPartStatus,[cite: 4]
-                        est_part_date: maxEstDate || null,[cite: 4]
-                        ordered_part_names: summaryPartsStatusText.join(', ')[cite: 4]
-                    };[cite: 4]
+                    const updatedJobPayload = {
+                        ...cleanJobMatch, 
+                        branch_name: currentBranch, 
+                        epc_no: latestEpcNo || jobMatch.epc_no,
+                        part_status: overallPartStatus, 
+                        est_part_date: maxEstDate || null,
+                        ordered_part_names: summaryPartsStatusText.join(', ')
+                    };
 
-                    // 🌟 [แก้ทางหน้านิ่งด่วน]: อัปเดตข้อมูลจำสดในเครื่องทันที สีตารางหลักด้านนอกจะเปลี่ยนทันทีตามมือคลิก[cite: 4]
-                    const jobIndex = allGlobalJobs.findIndex(j => j.car_plate === carPlate);[cite: 4]
+                    const jobIndex = allGlobalJobs.findIndex(j => j.car_plate === carPlate);
                     if(jobIndex > -1) {
-                        allGlobalJobs[jobIndex] = updatedJobPayload;[cite: 4]
+                        allGlobalJobs[jobIndex] = updatedJobPayload;
                     }
 
-                    await fetch(`${API_BASE_URL}/api/report/${jobMatch.id}`, {[cite: 4]
-                        method: 'PUT',[cite: 4]
-                        headers: {'Content-Type': 'application/json'},[cite: 4]
-                        body: JSON.stringify(updatedJobPayload)[cite: 4]
+                    await fetch(`${API_BASE_URL}/api/report/${jobMatch.id}`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(updatedJobPayload)
                     });
                 }
                 
-                alert('🎉 ยอดเยี่ยม! บันทึกข้อมูลอะไหล่รายชิ้นเสร็จสมบูรณ์แล้วครับนาย!');[cite: 4]
-                closeAlertModal();[cite: 4]
+                btn.innerHTML = originalBtnHtml;
+                btn.disabled = false;
                 
-                // สั่งรีเรนเดอร์ตารางภาพรวมทันทีโดยไม่ต้องรอผลสะท้อนกลับจากฐานข้อมูล[cite: 4]
+                alert('🎉 ยอดเยี่ยม! บันทึกข้อมูลอะไหล่รายชิ้นเสร็จสมบูรณ์แล้วครับนาย!'); 
+                closeAlertModal(); 
+                
+                // 🌟 วาดหน้าตารางใหม่จากหน่วยความจำ ไม่ยิงเซิร์ฟเวอร์ซ้ำซ้อน ไม่ค้างชัวร์!
                 loadSAOrders(); 
-                
-                // ดึงโครงสร้างข้อมูลใหญ่มารองรับอีกรอบหลังผ่านไป 600 มิลลิวินาที[cite: 4]
-                setTimeout(async () => {
-                    await loadAllData();[cite: 4]
-                }, 600);
+                loadPOTracking();
 
             } catch(e) { 
-                alert('❌ การซิงค์ข้อมูลล้มเหลว'); 
+                alert('❌ การซิงค์ข้อมูลล้มเหลว กรุณาลองใหม่อีกครั้ง'); 
                 console.error(e);
+                const btn = document.querySelector('#alertModal button[type="submit"]');
+                btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> บันทึกและซิงค์ข้อมูลส่งกลับหน้า Job';
+                btn.disabled = false;
             }
         }
 
         // ================= 🛒 2. สั่งอะไหล่จากศูนย์ =================
+        async function fetchMasterPart(prefix) {
+            const partNo = document.getElementById(`${prefix}_part_no`).value.trim(); if(!partNo) return;
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/parts/check/${encodeURIComponent(partNo)}`); const data = await res.json();
+                if(data && data.part_name) {
+                    if(document.getElementById(`${prefix}_part_main`)) document.getElementById(`${prefix}_part_main`).value = data.part_main_no || '-';
+                    if(document.getElementById(`${prefix}_part_name`)) document.getElementById(`${prefix}_part_name`).value = data.part_name || '-';
+                    if(document.getElementById(`${prefix}_model`)) document.getElementById(`${prefix}_model`).value = data.car_model || '-';
+                    if(document.getElementById(`${prefix}_type`)) document.getElementById(`${prefix}_type`).value = data.part_category || 'อะไหล่หลัก';
+                    if(document.getElementById(`${prefix}_price`)) document.getElementById(`${prefix}_price`).value = data.unit_price || 0;
+                    calcInTotal(); calcOutTotal();
+                }
+            } catch(e) {}
+        }
+
+        async function fetchJobDataByPlate(prefix) {
+            const plate = document.getElementById(`${prefix}_plate`).value.trim(); if(!plate) return;
+            const job = allGlobalJobs.find(j => j.car_plate === plate);
+            if(job) {
+                if(document.getElementById(`${prefix}_vin`)) document.getElementById(`${prefix}_vin`).value = job.vin_no || '-';
+                if(document.getElementById(`${prefix}_model`)) document.getElementById(`${prefix}_model`).value = job.car_model || '-';
+                if(document.getElementById(`${prefix}_qt`)) document.getElementById(`${prefix}_qt`).value = (job.qt_no || '').split(',')[0].trim();
+                if(document.getElementById(`${prefix}_so`)) document.getElementById(`${prefix}_so`).value = (job.so_no || '').split(',')[0].trim();
+                if(document.getElementById(`${prefix}_job_status`)) document.getElementById(`${prefix}_job_status`).value = job.job_status || '-';
+            }
+        }
+
         async function submitPO(e) {
             e.preventDefault();
             const payload = {
@@ -751,10 +757,9 @@
             } catch(err) {}
         }
 
-        async function loadPOTracking() {
+        function loadPOTracking() {
             try {
-                const res = await fetch(`${API_BASE_URL}/api/part-orders`); let orders = await res.json();
-                allPOOrders = orders.filter(o => o.branch_name === currentBranch);
+                allPOOrders = (allGlobalParts || []).filter(o => o.branch_name === currentBranch);
                 
                 const selectInEPC = document.getElementById('in_epc');
                 const uniqueEPCs = [...new Set(allPOOrders.map(o => o.epc_no).filter(Boolean))];
@@ -781,8 +786,8 @@
                         <td class="text-center font-black text-amber-600">${o.qty_ordered}</td>
                         <td class="text-center font-black text-emerald-600">${rcvQty}</td>
                         <td class="truncate max-w-[150px] font-bold" title="${o.part_name}">${o.part_name}</td>
-                        <td class="font-mono text-xs">${o.order_date.split('T')[0]}</td>
-                        <td class="font-mono text-xs text-amber-600">${o.est_arrival_date ? o.est_arrival_date.split('T')[0] : '-'}</td>
+                        <td class="font-mono text-xs">${o.order_date ? String(o.order_date).split('T')[0] : '-'}</td>
+                        <td class="font-mono text-xs text-amber-600">${o.est_arrival_date ? String(o.est_arrival_date).split('T')[0] : '-'}</td>
                         <td class="font-mono text-[10px] text-slate-400">${o.part_main_no || '-'}</td>
                         <td class="text-[10px] text-slate-500 truncate max-w-[100px]">${o.notes || '-'}</td>
                     </tr>
@@ -792,6 +797,10 @@
         }
 
         // ================= 📥 3. รับเข้า (Inbound อัจฉริยะ) =================
+        function calcInTotal() {
+            const p = parseFloat(document.getElementById('in_price').value) || 0; const q = parseInt(document.getElementById('in_qty').value) || 0;
+            document.getElementById('in_total').value = (p * q).toFixed(2);
+        }
         function autoFillInboundFromEPC(selectedEPC) {
             if(!selectedEPC) return;
             const poMatch = allPOOrders.find(o => o.epc_no === selectedEPC);
@@ -817,15 +826,19 @@
                 alert('📥 ลงบันทึกรับเข้าคลังและเชื่อมโยงยอดส่งศูนย์สำเร็จ!'); document.getElementById('inboundForm').reset(); loadAllData();
             } catch(e) {}
         }
-        async function loadInbound() {
+        function loadInbound() {
             try {
                 const tbody = document.getElementById('inbound_table_body');
-                tbody.innerHTML = allInbounds.filter(d => d.branch_name === currentBranch).slice(0, 50).map(d => `<tr><td class="font-mono text-slate-500">${d.received_date.split('T')[0]}</td><td class="font-mono text-amber-600 font-bold">${d.epc_no||'-'}</td><td class="font-mono font-bold text-emerald-600">${d.part_no}</td><td class="font-bold">${d.part_name}</td><td class="text-center font-black text-emerald-600 text-sm bg-emerald-50">+${d.qty}</td><td class="text-right font-mono">${parseFloat(d.unit_price).toFixed(2)}</td></tr>`).join('');
+                tbody.innerHTML = allInbounds.filter(d => d.branch_name === currentBranch).slice(0, 50).map(d => `<tr><td class="font-mono text-slate-500">${String(d.received_date).split('T')[0]}</td><td class="font-mono text-amber-600 font-bold">${d.epc_no||'-'}</td><td class="font-mono font-bold text-emerald-600">${d.part_no}</td><td class="font-bold">${d.part_name}</td><td class="text-center font-black text-emerald-600 text-sm bg-emerald-50">+${d.qty}</td><td class="text-right font-mono">${parseFloat(d.unit_price).toFixed(2)}</td></tr>`).join('');
                 applyExcelFilters('inTable');
             } catch(e){}
         }
 
-        // ================= 📤 4. เบิกอะไหล่ (ตาราง 21 คอลัมน์พ่วง VLOOKUP) =================
+        // ================= 📤 4. เบิกอะไหล่ =================
+        function calcOutTotal() {
+            const p = parseFloat(document.getElementById('out_price').value) || 0; const q = parseInt(document.getElementById('out_qty').value) || 0;
+            if(document.getElementById('out_total')) document.getElementById('out_total').value = (p * q).toFixed(2);
+        }
         async function submitOutbound(e) {
             e.preventDefault();
             const payload = {
@@ -861,13 +874,13 @@
                     const erpStatus = jobMatch ? jobMatch.job_status : (d.job_status || '-');
                     const carModel = jobMatch ? `${jobMatch.car_brand} ${jobMatch.car_model || ''}` : (d.car_model || '-');
                     
-                    const apptDate = jobMatch && jobMatch.contact_date ? jobMatch.contact_date.split('T')[0] : '-';
-                    const repairDate = jobMatch && jobMatch.arrived_date ? jobMatch.arrived_date.split('T')[0] : '-';
+                    const apptDate = jobMatch && jobMatch.contact_date ? String(jobMatch.contact_date).split('T')[0] : '-';
+                    const repairDate = jobMatch && jobMatch.arrived_date ? String(jobMatch.arrived_date).split('T')[0] : '-';
                     
                     let dateAnalysis = "-";
                     if(jobMatch && jobMatch.target_finish_date) {
-                        const targetStr = jobMatch.target_finish_date.split('T')[0];
-                        const finishStr = jobMatch.repair_finish_date ? jobMatch.repair_finish_date.split('T')[0] : '';
+                        const targetStr = String(jobMatch.target_finish_date).split('T')[0];
+                        const finishStr = jobMatch.repair_finish_date ? String(jobMatch.repair_finish_date).split('T')[0] : '';
                         if(finishStr) {
                             dateAnalysis = finishStr <= targetStr ? "🟢 เสร็จตามเป้า" : "🔴 ซ่อมเสร็จล่าช้า";
                         } else {
@@ -879,7 +892,7 @@
                     return `
                     <tr class="hover:bg-slate-50">
                         <td class="text-center bg-purple-50 text-purple-900 font-bold">${index + 1}</td>
-                        <td class="font-mono text-xs bg-purple-50 text-purple-900">${d.issue_date ? d.issue_date.split('T')[0] : '-'}</td>
+                        <td class="font-mono text-xs bg-purple-50 text-purple-900">${d.issue_date ? String(d.issue_date).split('T')[0] : '-'}</td>
                         <td class="font-mono font-bold text-blue-700 bg-purple-50">${d.part_no}</td>
                         <td class="text-center font-black text-purple-800 bg-purple-50 text-sm">${d.qty}</td>
                         <td class="font-bold text-[#00320D] bg-purple-50"><span class="bg-slate-200 px-2 py-0.5 rounded">${d.car_plate}</span></td>
@@ -905,20 +918,23 @@
         }
 
         // ================= 📊 5. สต๊อกคงเหลือ (Inventory) =================
-        async function loadStockInHouse() {
+        function loadStockInHouse() {
             try {
-                const res = await fetch(`${API_BASE_URL}/api/parts-inventory?branch=${encodeURIComponent(currentBranch)}`); const data = await res.json();
-                document.getElementById('stock_table_body').innerHTML = data.map(s => `<tr><td class="font-mono font-bold text-blue-600">${s.part_no}</td><td class="font-bold text-[#00320D]">${s.part_name}</td><td class="text-slate-500 text-xs">${s.car_model||'-'}</td><td class="font-mono text-slate-400 text-center">${s.part_main_no||'-'}</td><td class="text-center font-black text-lg ${s.stock_in_house<=0?'text-red-500 bg-red-50':'text-emerald-600 bg-emerald-50'}">${s.stock_in_house}</td></tr>`).join('');
-                applyExcelFilters('stockTable');
+                // อาศัย cachedInventory ที่ดึงมาตั้งแต่ต้น
+                fetch(`${API_BASE_URL}/api/parts-inventory?branch=${encodeURIComponent(currentBranch)}`).then(res => res.json()).then(data => {
+                    document.getElementById('stock_table_body').innerHTML = data.map(s => `<tr><td class="font-mono font-bold text-blue-600">${s.part_no}</td><td class="font-bold text-[#00320D]">${s.part_name}</td><td class="text-slate-500 text-xs">${s.car_model||'-'}</td><td class="font-mono text-slate-400 text-center">${s.part_main_no||'-'}</td><td class="text-center font-black text-lg ${s.stock_in_house<=0?'text-red-500 bg-red-50':'text-emerald-600 bg-emerald-50'}">${s.stock_in_house}</td></tr>`).join('');
+                    applyExcelFilters('stockTable');
+                });
             } catch(e) {}
         }
 
         // ================= 🗄️ 6. ข้อมูลมาสเตอร์อะไหล่ =================
-        async function loadMasterParts() {
+        function loadMasterParts() {
             try {
-                const res = await fetch(`${API_BASE_URL}/api/parts`); const data = await res.json();
-                document.getElementById('master_table_body').innerHTML = data.map(p => `<tr><td class="font-mono font-bold text-blue-600">${p.part_no}</td><td class="font-bold">${p.part_name}</td><td class="font-mono text-slate-400 text-xs">${p.part_main_no||'-'}</td><td class="text-xs">${p.car_model||'-'}</td><td class="text-[10px] font-bold text-slate-500 uppercase"><span class="bg-slate-200 px-2 py-0.5 rounded">${p.part_category||'-'}</span></td><td class="font-mono text-right font-bold text-emerald-700">${parseFloat(p.unit_price||0).toFixed(2)}</td><td class="font-mono text-xs">${p.location||'-'}</td><td class="text-center"><button onclick="deleteData('/api/parts/${p.part_id}', loadMasterParts)" class="w-7 h-7 flex items-center justify-center bg-red-500/10 text-red-500 border border-red-500/20 rounded-md hover:bg-red-500 hover:text-white transition shadow-sm mx-auto"><i class="fa-solid fa-trash-can"></i></button></td></tr>`).join('');
-                applyExcelFilters('masterTable');
+                fetch(`${API_BASE_URL}/api/parts`).then(res => res.json()).then(data => {
+                    document.getElementById('master_table_body').innerHTML = data.map(p => `<tr><td class="font-mono font-bold text-blue-600">${p.part_no}</td><td class="font-bold">${p.part_name}</td><td class="font-mono text-slate-400 text-xs">${p.part_main_no||'-'}</td><td class="text-xs">${p.car_model||'-'}</td><td class="text-[10px] font-bold text-slate-500 uppercase"><span class="bg-slate-200 px-2 py-0.5 rounded">${p.part_category||'-'}</span></td><td class="font-mono text-right font-bold text-emerald-700">${parseFloat(p.unit_price||0).toFixed(2)}</td><td class="font-mono text-xs">${p.location||'-'}</td><td class="text-center"><button onclick="deleteData('/api/parts/${p.part_id}', loadMasterParts)" class="w-7 h-7 flex items-center justify-center bg-red-500/10 text-red-500 border border-red-500/20 rounded-md hover:bg-red-500 hover:text-white transition shadow-sm mx-auto"><i class="fa-solid fa-trash-can"></i></button></td></tr>`).join('');
+                    applyExcelFilters('masterTable');
+                });
             } catch(e){}
         }
         function resetMasterForm() {
