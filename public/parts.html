@@ -464,21 +464,17 @@
             if(document.getElementById('out_total')) document.getElementById('out_total').value = (p * q).toFixed(2);
         }
 
-        /// =========================================================================
-// 🔔 1. ระบบแจ้งเตือนสั่งอะไหล่ (จับกลุ่มตามทะเบียนรถ -> คลิกดูพาร์ทรายชิ้น)
+        // =========================================================================
+// 🔔 1. ระบบแจ้งเตือนสั่งอะไหล่ (จับกลุ่มตามทะเบียนรถ -> คลิกจัดการระบุสถานะและวันแยกชิ้น)
 // =========================================================================
 
-// ฟังก์ชันดึงและจัดกลุ่มใบงานตามทะเบียนรถที่มีการสั่งอะไหล่
 async function loadSAOrders() {
     try {
-        // 1. ดึงใบงานหลัก และรายการพาร์ททั้งหมดจาก API
         const resJobs = await fetch(`${API_BASE_URL}/api/reports`); const allJobs = await resJobs.json();
         const resParts = await fetch(`${API_BASE_URL}/api/part-orders`); const allParts = await resParts.json();
         
-        // กรองหาเฉพาะ "ทะเบียนรถ" ของสาขาเรา ที่มีพาร์ทอะไหล่ค้างอยู่ในระบบ (สถานะยังไม่ครบ)
+        // กรองหาพาร์ทอะไหล่ของสาขาตัวเอง ที่ยังมาไม่ครบ
         const activeBranchParts = allParts.filter(p => p.branch_name === currentBranch && p.order_status !== 'อะไหล่เข้าครบแล้ว');
-        
-        // ดึงเฉพาะทะเบียนรถที่ไม่ซ้ำกันที่มีพาร์ทค้างสั่ง
         const uniquePlatesWithParts = [...new Set(activeBranchParts.map(p => p.car_plate))];
         
         document.getElementById('alert_count').innerText = uniquePlatesWithParts.length;
@@ -490,29 +486,20 @@ async function loadSAOrders() {
             return; 
         }
 
-        // เรนเดอร์ตารางหลักสรุป "ตามทะเบียนรถ" ตามที่นายสั่งเป๊ะๆ
         tbody.innerHTML = uniquePlatesWithParts.map(plate => {
             const jobMatch = allJobs.find(j => j.car_plate === plate);
             const customerName = jobMatch ? jobMatch.customer_name : 'ไม่ระบุชื่อ';
             const carModelStr = jobMatch ? `${jobMatch.car_brand} ${jobMatch.car_model || ''}` : '-';
             const epcNoStr = jobMatch ? (jobMatch.epc_no || '-') : '-';
-            
-            // นับจำนวนชิ้นส่วนอะไหล่ที่ผูกกับรถคันนี้
             const totalItemsCount = activeBranchParts.filter(p => p.car_plate === plate).length;
 
             return `
             <tr class="hover:bg-slate-50">
-                <!-- 1. ทะเบียนรถ -->
                 <td class="font-black text-[#00320D]"><span class="bg-slate-200 px-2.5 py-1 rounded-md text-xs font-mono border border-slate-300 shadow-sm">${plate}</span></td>
-                <!-- 2. รุ่นรถ -->
                 <td class="font-bold text-slate-600">${carModelStr}</td>
-                <!-- 3. ชื่อลูกค้า -->
                 <td class="font-medium text-slate-700">${customerName}</td>
-                <!-- 4. EPC NO อ้างอิง -->
                 <td class="font-mono text-xs font-bold text-amber-700">${epcNoStr}</td>
-                <!-- 5. จำนวนรายการอะไหล่ค้างสั่ง -->
                 <td><span class="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-1 rounded-lg text-xs font-bold"><i class="fa-solid fa-cubes mr-1"></i> มีอะไหล่ค้างอยู่ ${totalItemsCount} รายการ</span></td>
-                <!-- 6. ปุ่มกดคลิกเข้าเพื่อดูรายการของรถคันนั้น -->
                 <td class="text-center">
                     <button onclick="openCarPartsDetailsModal('${plate}', '${epcNoStr}')" class="bg-rizenic-green text-white font-black px-4 py-2 rounded-lg text-xs shadow-md hover:bg-black transition w-full flex items-center justify-center gap-1">
                         <i class="fa-solid fa-folder-open"></i> คลิกดูรายการพาร์ท
@@ -523,6 +510,139 @@ async function loadSAOrders() {
         }).join('');
         applyExcelFilters('saTable');
     } catch(e){ console.error(e); }
+}
+
+// 🗂️ หน้าต่าง Excel ย่อยสไตล์ตาราง สำหรับคีย์วันสั่ง วันของเข้า แยกรายบรรทัดตามที่นายสั่งเป๊ะๆ
+async function openCarPartsDetailsModal(carPlate, epcNo) {
+    try {
+        const resParts = await fetch(`${API_BASE_URL}/api/part-orders`); const allParts = await resParts.json();
+        const carPartsItems = allParts.filter(p => p.car_plate === carPlate);
+
+        document.getElementById('modal_job_id').value = carPlate;
+        document.getElementById('modal_epc').value = epcNo === '-' ? '' : epcNo;
+        document.getElementById('modal_part_names').value = `ชุดอะไหล่รถทะเบียน ${carPlate}`;
+        
+        const targetContainer = document.getElementById('modal_part_status').parentElement.parentElement;
+        const today = new Date().toISOString().split('T')[0];
+        
+        // 🌟 เจาะหน้าต่างอัปเดต ขยายคอลัมน์ให้ใส่ "วันที่สั่งศูนย์" และ "ETA" แยกชิ้นเป็นอิสระ!
+        targetContainer.innerHTML = `
+            <div class="col-span-2 border-t pt-2">
+                <label class="label-text text-blue-700 font-black"><i class="fa-solid fa-list-check"></i> รายการชิ้นส่วนอะไหล่ (ระบุวันสั่งซื้อ และวันของเข้าแยกรายชิ้น)</label>
+                <div class="overflow-x-auto border rounded-xl mt-1 max-h-[350px] custom-scrollbar bg-slate-100 p-1 shadow-inner">
+                    <table class="w-full text-left bg-white text-xs whitespace-nowrap rounded-lg">
+                        <thead class="bg-slate-800 text-white font-bold">
+                            <tr>
+                                <th class="p-2 rounded-tl-lg">บาร์โค้ด / ชิ้นส่วน</th>
+                                <th class="p-2 text-center">จำนวน</th>
+                                <th class="p-2">1. วันที่สั่งศูนย์</th>
+                                <th class="p-2">2. คาดการณ์เข้า (ETA)</th>
+                                <th class="p-2 rounded-tr-lg">3. สถานะพาร์ทนี้</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 font-bold" id="inner_parts_rows_container">
+                            ${carPartsItems.map(item => {
+                                const orderDateVal = item.order_date ? item.order_date.split('T')[0] : today;
+                                const estDateVal = item.est_arrival_date ? item.est_arrival_date.split('T')[0] : '';
+                                return `
+                                <tr class="inner-part-item-row" data-order-id="${item.order_id}">
+                                    <td class="p-2">
+                                        <div class="font-mono text-blue-600 text-xs font-black">${item.part_no}</div>
+                                        <div class="text-slate-800 text-[11px] font-medium truncate max-w-[130px]" title="${item.part_name}">${item.part_name}</div>
+                                    </td>
+                                    <td class="p-2 text-center text-slate-700 text-sm font-black">${item.qty_ordered}</td>
+                                    <!-- 🌟 ช่องอินพุตวันที่สั่งศูนย์ แยกรายบรรทัด -->
+                                    <td class="p-1"><input type="date" class="p-1 bg-slate-50 border border-slate-300 rounded outline-none font-mono text-[11px] inner-part-order-date w-[115px]" value="${orderDateVal}"></td>
+                                    <!-- 🌟 ช่องอินพุตวันที่ ETA แยกรายบรรทัด -->
+                                    <td class="p-1"><input type="date" class="p-1 bg-amber-50 border border-amber-300 text-amber-900 rounded outline-none font-mono text-[11px] inner-part-est-date w-[115px]" value="${estDateVal}"></td>
+                                    <td class="p-1">
+                                        <select class="p-1 bg-slate-50 border border-slate-300 rounded outline-none font-bold text-slate-700 text-[11px] focus:border-blue-500 inner-part-status-dropdown w-full">
+                                            <option value="รอสั่งซื้อ" ${item.order_status === 'รอสั่งซื้อ'?'selected':''}>❌ รอสั่งซื้อ</option>
+                                            <option value="สั่งศูนย์แล้ว-รอของเข้า" ${item.order_status === 'สั่งศูนย์แล้ว-รอของเข้า' || item.order_status === 'สั่งแล้วรอของเข้า'?'selected':''}>🟡 สั่งศูนย์แล้ว</option>
+                                            <option value="ติด Back Order" ${item.order_status === 'ติด Back Order'?'selected':''}>🔴 ติด Back Order</option>
+                                            <option value="ของเข้าบางส่วน" ${item.order_status === 'ของเข้าบางส่วน'?'selected':''}>🟠 ของเข้าบางส่วน</option>
+                                            <option value="อะไหล่เข้าครบแล้ว" ${item.order_status === 'อะไหล่เข้าครบแล้ว' || item.order_status === 'อะไหล่ครบ'?'selected':''}>🟢 อะไหล่เข้าครบแล้ว</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                            `}).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('alertModal').classList.remove('hidden');
+    } catch(e) { console.error(e); }
+}
+
+// 💾 สั่งบันทึกยอดพาร์ทและวันที่แยกรายชิ้น ยิงตู้มเดียวซิงค์เข้าหน้า SA ครบถ้วน
+async function saveSAAlertUpdate(e) {
+    e.preventDefault(); 
+    const carPlate = document.getElementById('modal_job_id').value;
+    const epcNo = document.getElementById('modal_epc').value;
+
+    const rows = document.querySelectorAll('.inner-part-item-row');
+    const promises = [];
+    let summaryPartsStatusText = [];
+
+    rows.forEach(row => {
+        const orderId = row.getAttribute('data-order-id');
+        const nextStatus = row.querySelector('.inner-part-status-dropdown').value;
+        const partOrderDate = row.querySelector('.inner-part-order-date').value;
+        const partEstDate = row.querySelector('.inner-part-est-date').value;
+        const partNameText = row.cells[0].querySelector('div:nth-child(2)').innerText;
+        
+        summaryPartsStatusText.push(`${partNameText}: ${nextStatus}`);
+
+        // ยิงอัปเดตออเดอร์ของเหล็กแต่ละชิ้น ทั้งสถานะ วันสั่ง และ ETA แยกอิสระ 100%
+        promises.push(
+            fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    epc_no: epcNo,
+                    order_status: nextStatus,
+                    order_date: partOrderDate || null,
+                    est_arrival_date: partEstDate || null
+                })
+            })
+        );
+    });
+
+    try {
+        await Promise.all(promises);
+
+        // หาใบงานหลักมาแมทช์เพื่อซิงค์ข้อมูลชุดใหญ่กลับหน้ากระดานบอร์ดใบงาน (Job)
+        const jobMatch = allGlobalJobs.find(j => j.car_plate === carPlate);
+        if(jobMatch) {
+            let overallPartStatus = "สั่งแล้วรอของเข้า";
+            const dropdowns = Array.from(document.querySelectorAll('.inner-part-status-dropdown')).map(d => d.value);
+            
+            if(dropdowns.every(v => v === 'อะไหล่เข้าครบแล้ว')) overallPartStatus = "อะไหล่เข้าครบแล้ว";
+            else if(dropdowns.some(v => v === 'ติด Back Order')) overallPartStatus = "ติด Back Order";
+            else if(dropdowns.every(v => v === 'รอสั่งซื้อ')) overallPartStatus = "รอสั่งซื้อ";
+
+            // หาค่าเฉลี่ย ETA ที่ไกลที่สุดในรายการพาร์ทเพื่อโชว์เตือนหน้า Job คร่าวๆ
+            const allEstDates = Array.from(document.querySelectorAll('.inner-part-est-date')).map(i => i.value).filter(Boolean);
+            const maxEstDate = allEstDates.length > 0 ? allEstDates.sort().pop() : null;
+
+            await fetch(`${API_BASE_URL}/api/report/${jobMatch.id}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    epc_no: epcNo,
+                    part_status: overallPartStatus,
+                    est_part_date: maxEstDate || null,
+                    ordered_part_names: summaryPartsStatusText.join(', ')
+                })
+            });
+        }
+        
+        alert('🎉 อัปเดตข้อมูลและกำหนดการอะไหล่รายชิ้น ส่งกลับหน้าซ่อมของ SA เรียบร้อยแล้วครับ!'); 
+        closeAlertModal(); 
+        loadAllData();
+    } catch(e) { alert('❌ การซิงค์ข้อมูลล้มเหลว'); }
 }
 
 // 🗂️ ฟังก์ชันเปิด Modal แจกแจง "รายการพาร์ทข้างในรถคันนั้น" เพื่อให้อะไหล่อัปเดตส่งกลับหน้า Job
