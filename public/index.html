@@ -75,7 +75,6 @@
 
     <!-- Main App -->
     <div id="main-app" class="hidden">
-        <!-- 🔥 1. ปรับ Header เมนูด้านบนสุดให้เป็นสีเขียว CI ตัวหนังสือขาว เรืองแสงสะใจ -->
         <header class="bg-[#00320D] border-b border-green-900 sticky top-0 z-50 shadow-md">
             <div class="max-w-[1500px] mx-auto px-6 py-3 flex flex-col lg:flex-row justify-between items-center gap-4">
                 <div class="flex items-center gap-3"><div class="bg-white/10 p-2 rounded-lg border border-white/10 shadow-inner"><i class="fa-solid fa-car text-amber-400"></i></div><h1 class="text-lg font-black tracking-widest text-white">RIZENIC <span class="text-green-400">ERP</span></h1></div>
@@ -189,7 +188,8 @@
                 <div class="card-container">
                     <div class="section-header">
                         <h3 class="section-title"><i class="fa-solid fa-magnifying-glass-chart section-icon"></i> 5. ติดตามสถานะอะไหล่ (PO Tracking)</h3>
-                        <button type="button" onclick="checkCrossPageEditMode()" class="px-4 py-2 bg-white text-slate-700 text-xs font-bold border border-slate-300 rounded-xl shadow-sm hover:bg-slate-50 transition-all w-full sm:w-auto mt-2 sm:mt-0"><i class="fa-solid fa-rotate-right mr-1"></i> รีเฟรชตาราง</button>
+                        <!-- 🌟 เปลี่ยนปุ่มตรงนี้ให้ดึงข้อมูลจากตารางพาร์ทออเดอร์โดยตรง -->
+                        <button type="button" onclick="loadPartsTrackingTable(document.getElementById('car_plate').value)" class="px-4 py-2 bg-white text-slate-700 text-xs font-bold border border-slate-300 rounded-xl shadow-sm hover:bg-slate-50 transition-all w-full sm:w-auto mt-2 sm:mt-0"><i class="fa-solid fa-cloud-arrow-down mr-1 text-blue-600"></i> โหลดข้อมูลจากคลังล่าสุด</button>
                     </div>
                     <div class="overflow-x-auto border border-slate-200 rounded-xl shadow-sm">
                         <table class="modern-table">
@@ -221,7 +221,7 @@
 
                 <!-- 🗓️ บล็อก 7/8 (Timeline & Submit) -->
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
-                    <!-- 🌟 🏢 7. กำหนดการนัดหมาย (เปลี่ยนไอคอนเก๋ๆ ตามสั่งครับนาย) -->
+                    <!-- 🌟 🏢 7. กำหนดการนัดหมาย -->
                     <div class="card-container lg:col-span-5 flex flex-col gap-3 !mb-0">
                         <div class="section-header">
                             <h3 class="section-title"><i class="fa-regular fa-calendar-days section-icon"></i> 7. กำหนดการนัดหมาย</h3>
@@ -231,22 +231,18 @@
                             <input type="date" id="contact_date" class="minimal-input sm:w-40 py-2 !bg-white">
                         </div>
                         <div class="timeline-row">
-                            <!-- 🚚💨 เปลี่ยนเป็นไอคอนรถสไลด์บรรทุกรถ -->
                             <span class="text-xs font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-truck-ramp-box text-emerald-600 w-5 text-center text-sm"></i> 2. รถเข้าจอดอู่ (รถสไลด์)</span>
                             <input type="date" id="arrived_date" class="minimal-input sm:w-40 py-2 !bg-white">
                         </div>
                         <div class="timeline-row">
-                            <!-- 🏎️ เปลี่ยนเป็นไอคอนรถจอดในช่องซ่อม -->
                             <span class="text-xs font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-car-tunnel text-amber-500 w-5 text-center text-sm"></i> 3. กำหนดซ่อมเสร็จ (ในช่องซ่อม)</span>
                             <input type="date" id="target_finish_date" class="minimal-input sm:w-40 py-2 !bg-white">
                         </div>
                         <div class="timeline-row">
-                            <!-- 🛠️ เปลี่ยนเป็นไอคอนเครื่องมือช่าง -->
                             <span class="text-xs font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-screwdriver-wrench text-slate-500 w-5 text-center text-sm"></i> 4. ซ่อมเสร็จจริง (ช่างปิดงาน)</span>
                             <input type="date" id="actual_finish_date" class="minimal-input sm:w-40 py-2 !bg-white">
                         </div>
                         <div class="timeline-row">
-                            <!-- 🔑✨ เปลี่ยนเป็นกุญแจส่งมอบลูกค้า -->
                             <span class="text-xs font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-key text-indigo-600 w-5 text-center text-sm"></i> 5. ส่งมอบรถลูกค้า (คืนกุญแจ)</span>
                             <input type="date" id="delivery_date" class="minimal-input sm:w-40 py-2 !bg-white">
                         </div>
@@ -259,7 +255,7 @@
                         </div>
                         <div class="space-y-6">
                             
-                            <!-- 🔥 🌟 ปุ่มเลือกระดับความเสียหายสีเข้มจัดสะใจ ชัดเจน 100% 🌟 🔥 -->
+                            <!-- 🔥 🌟 ปุ่มเลือกระดับความเสียหาย -->
                             <div>
                                 <label class="label-text">ระดับความเสียหาย (Damage Level)</label>
                                 <div class="grid grid-cols-3 gap-3 mt-1">
@@ -311,19 +307,17 @@
             if(sessionStorage.getItem('isLoggedIn') === 'true') { enterApp(); }
         });
 
-        // 🔥 Logic เลือกระดับความเสียหาย (ปรับสี Active ให้เข้มข้น เนื้อแน่น ไม่จางเด็ดขาด!)
+        // 🔥 Logic เลือกระดับความเสียหาย
         function selectDamage(level) {
             document.getElementById('damage_level').value = level;
             const b = document.getElementById('dmg_btn_เบา');
             const m = document.getElementById('dmg_btn_กลาง');
             const h = document.getElementById('dmg_btn_หนัก');
 
-            // Reset คืนค่าคลาสพื้นฐาน
             b.className = 'dmg-btn dmg-btn-light';
             m.className = 'dmg-btn dmg-btn-medium';
             h.className = 'dmg-btn dmg-btn-heavy';
 
-            // อัดสีทึบสไตล์ Solid คมชัดสูงตอนที่ถูกเลือก (Active)
             if(level === 'เบา') b.className = 'dmg-btn bg-emerald-600 text-white border-emerald-700 shadow-md scale-[1.02]';
             if(level === 'กลาง') m.className = 'dmg-btn bg-amber-500 text-slate-900 border-amber-600 shadow-md scale-[1.02]';
             if(level === 'หนัก') h.className = 'dmg-btn bg-rose-600 text-white border-rose-700 shadow-md scale-[1.02]';
@@ -610,70 +604,69 @@
             } catch(e) { console.error(e); }
         }
 
-        // 🔄 ฟังก์ชัน VLOOKUP ดึงข้อมูลสถานะอะไหล่รายพาร์ทจากแผนกอะไหล่มาโชว์ที่หน้า SA
-async function loadPartsTrackingTable(carPlate) {
-    try {
-        if(!carPlate) return;
-        // ดึงข้อมูลรายการสั่งอะไหล่ชิ้นต่อชิ้นจาก API หลังบ้าน
-        const poRes = await fetch(`${API_BASE_URL}/api/part-orders`);
-        if (poRes.ok) {
-            const allPO = await poRes.json();
-            // กรองเอาเฉพาะอะไหล่ที่ผูกกับทะเบียนรถคันนี้
-            const jobPO = allPO.filter(po => po.car_plate === carPlate);
-            const trackBody = document.getElementById('track_parts_body');
-            
-            if (jobPO.length > 0) {
-                trackBody.innerHTML = jobPO.map(po => {
-                    // จัดการสีของ Badge สถานะตามคลังสินค้าที่แผนกอะไหล่ระบุมา
-                    let statusClass = 'bg-slate-100 border-slate-300 text-slate-700';
-                    if(po.order_status === 'อะไหล่เข้าครบแล้ว' || po.order_status === 'อะไหล่ครบ') {
-                        statusClass = 'bg-emerald-100 border-emerald-400 text-emerald-800 font-black shadow-sm';
-                    } else if(po.order_status === 'ติด Back Order') {
-                        statusClass = 'bg-rose-100 border-rose-400 text-rose-800 font-black shadow-sm';
-                    } else if(po.order_status === 'รอสั่งซื้อ') {
-                        statusClass = 'bg-amber-100 border-amber-400 text-amber-800 font-bold shadow-sm';
-                    } else if(po.order_status === 'สั่งศูนย์แล้ว-รอของเข้า' || po.order_status === 'สั่งแล้วรอของเข้า') {
-                        statusClass = 'bg-blue-100 border-blue-400 text-blue-800 font-bold shadow-sm';
+        // 🌟 🔄 ฟังก์ชัน VLOOKUP ดึงข้อมูลสถานะอะไหล่รายพาร์ทจากฐานข้อมูลแผนกอะไหล่มาโชว์ที่หน้า SA แบบเรียลไทม์!
+        async function loadPartsTrackingTable(carPlate) {
+            try {
+                if(!carPlate) {
+                    alert('⚠️ กรุณาระบุ "ทะเบียนรถ" ในช่องด้านบนก่อนกดโหลดข้อมูลครับ!');
+                    return;
+                }
+                
+                const trackBody = document.getElementById('track_parts_body');
+                trackBody.innerHTML = `<tr><td colspan="11" class="text-center py-8 text-blue-600 text-sm font-bold"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i>กำลังดึงข้อมูลล่าสุดจากฐานข้อมูลแผนกอะไหล่...</td></tr>`;
+
+                const poRes = await fetch(`${API_BASE_URL}/api/part-orders`);
+                if (poRes.ok) {
+                    const allPO = await poRes.json();
+                    const jobPO = allPO.filter(po => po.car_plate === carPlate);
+                    
+                    if (jobPO.length > 0) {
+                        trackBody.innerHTML = jobPO.map(po => {
+                            let statusClass = 'bg-slate-100 border-slate-300 text-slate-700';
+                            if (po.order_status) {
+                                const statusTxt = String(po.order_status);
+                                if (statusTxt.includes('Back Order') || statusTxt.includes('ติด') || statusTxt.includes('ล่าช้า') || statusTxt.includes('วิกฤต')) {
+                                    statusClass = 'bg-rose-100 border-rose-400 text-rose-800 font-black shadow-sm animate-pulse';
+                                } else if (statusTxt.includes('รอของ') || statusTxt.includes('สั่งศูนย์') || statusTxt.includes('ศูนย์')) {
+                                    statusClass = 'bg-blue-100 border-blue-400 text-blue-800 font-bold shadow-sm';
+                                } else if (statusTxt.includes('บางส่วน') || statusTxt.includes('ได้บาง')) {
+                                    statusClass = 'bg-orange-100 border-orange-400 text-orange-800 font-bold shadow-sm';
+                                } else if (statusTxt.includes('ครบ') || statusTxt.includes('เสร็จ') || statusTxt.includes('รับแล้ว') || statusTxt.includes('สต๊อค') || statusTxt.includes('มี')) {
+                                    statusClass = 'bg-emerald-100 border-emerald-400 text-emerald-800 font-black shadow-sm';
+                                } else {
+                                    statusClass = 'bg-amber-100 border-amber-400 text-amber-800 font-bold shadow-sm'; 
+                                }
+                            }
+
+                            const rcvQty = po.qty_received || 0; 
+
+                            return `
+                            <tr class="hover:bg-slate-50 transition">
+                                <td class="font-mono text-xs font-bold text-amber-700">${po.epc_no || '-'}</td>
+                                <td class="font-mono font-black text-blue-700">${po.part_no}</td>
+                                <td class="font-bold text-slate-800 truncate max-w-[180px]" title="${po.part_name}">${po.part_name}</td>
+                                <td class="text-center font-black text-slate-700">${po.qty_ordered}</td>
+                                <td class="text-center font-black text-emerald-600">${rcvQty}</td>
+                                <td><span class="px-2.5 py-1 border rounded-lg text-[10px] whitespace-nowrap ${statusClass}">${po.order_status || 'รอสั่งซื้อ'}</span></td>
+                                <td class="text-xs text-slate-600 font-mono">${po.order_date ? po.order_date.split('T')[0] : '-'}</td>
+                                <td class="text-xs text-blue-600 font-mono font-bold">${po.est_arrival_date ? po.est_arrival_date.split('T')[0] : '-'}</td>
+                                <td class="text-xs text-emerald-600 font-mono font-bold">${po.received_date ? po.received_date.split('T')[0] : '-'}</td>
+                                <td class="text-xs text-slate-500 truncate max-w-[120px]" title="${po.notes || ''}">${po.notes || '-'}</td>
+                                <td class="text-center">
+                                    <button type="button" onclick="editPO(${po.order_id}, '${po.part_no}', ${po.qty_ordered})" class="text-slate-400 hover:text-blue-600 px-2 py-1 bg-white border border-slate-200 rounded-lg shadow-sm"><i class="fa-solid fa-pen"></i></button>
+                                    <button type="button" onclick="deletePO(${po.order_id})" class="text-slate-400 hover:text-red-500 px-2 py-1 bg-white border border-slate-200 rounded-lg shadow-sm ml-1"><i class="fa-solid fa-trash"></i></button>
+                                </td>
+                            </tr>
+                        `}).join('');
+                    } else {
+                        trackBody.innerHTML = `<tr><td colspan="11" class="text-center py-8 text-slate-400 text-xs font-bold">ยังไม่มีประวัติการสั่งซื้ออะไหล่สำหรับรถคันนี้</td></tr>`;
                     }
-
-                    // คำนวณจำนวนรับเข้าจากตารางคลัง inbound (ถ้ามี)
-                    const rcvQty = po.qty_received || 0;
-
-                    return `
-                    <tr class="hover:bg-slate-50 transition">
-                        <!-- 1. EPC NO (ซิงค์ออโต้จากแผนกอะไหล่) -->
-                        <td class="font-mono text-xs font-bold text-amber-700">${po.epc_no || '-'}</td>
-                        <!-- 2. บาร์โค้ด -->
-                        <td class="font-mono font-black text-blue-700">${po.part_no}</td>
-                        <!-- 3. รายการอะไหล่ -->
-                        <td class="font-bold text-slate-800 truncate max-w-[180px]" title="${po.part_name}">${po.part_name}</td>
-                        <!-- 4. ยอดสั่ง -->
-                        <td class="text-center font-black text-slate-700">${po.qty_ordered}</td>
-                        <!-- 5. รับเข้าแล้ว (ซิงค์ออโต้จากยอดรับเข้าแผนกอะไหล่) -->
-                        <td class="text-center font-black text-emerald-600">${rcvQty}</td>
-                        <!-- 6. สถานะคลัง (ดึงจากที่แผนกอะไหล่ระบุมาเป๊ะๆ) -->
-                        <td><span class="px-2.5 py-1 border rounded-lg text-[10px] whitespace-nowrap ${statusClass}">${po.order_status || 'รอสั่งซื้อ'}</span></td>
-                        <!-- 7. วันที่สั่ง -->
-                        <td class="text-xs text-slate-600 font-mono">${po.order_date ? po.order_date.split('T')[0] : '-'}</td>
-                        <!-- 8. คาดการณ์ (ETA) -->
-                        <td class="text-xs text-blue-600 font-mono font-bold">${po.est_arrival_date ? po.est_arrival_date.split('T')[0] : '-'}</td>
-                        <!-- 9. ของเข้า (ACTUAL) -->
-                        <td class="text-xs text-emerald-600 font-mono font-bold">${po.received_date ? po.received_date.split('T')[0] : '-'}</td>
-                        <!-- 10. หมายเหตุ -->
-                        <td class="text-xs text-slate-500 truncate max-w-[120px]" title="${po.notes || ''}">${po.notes || '-'}</td>
-                        <!-- 11. จัดการ -->
-                        <td class="text-center">
-                            <button type="button" onclick="editPO(${po.order_id}, '${po.part_no}', ${po.qty_ordered})" class="text-slate-400 hover:text-blue-600 px-2 py-1 bg-white border border-slate-200 rounded-lg shadow-sm"><i class="fa-solid fa-pen"></i></button>
-                            <button type="button" onclick="deletePO(${po.order_id})" class="text-slate-400 hover:text-red-500 px-2 py-1 bg-white border border-slate-200 rounded-lg shadow-sm ml-1"><i class="fa-solid fa-trash"></i></button>
-                        </td>
-                    </tr>
-                `}).join('');
-            } else {
-                trackBody.innerHTML = `<tr><td colspan="11" class="text-center py-8 text-slate-400 text-xs font-bold">ยังไม่มีประวัติการสั่งซื้ออะไหล่</td></tr>`;
+                }
+            } catch(e) { 
+                console.error(e); 
+                document.getElementById('track_parts_body').innerHTML = `<tr><td colspan="11" class="text-center py-8 text-red-500 text-xs font-bold">❌ เกิดข้อผิดพลาดในการดึงข้อมูล</td></tr>`;
             }
         }
-    } catch(e) { console.error(e); }
-}
 
         async function deletePO(orderId) {
             if(confirm('🚨 ยืนยันการลบออเดอร์นี้ถาวร?')) {
