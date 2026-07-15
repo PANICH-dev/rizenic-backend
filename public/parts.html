@@ -41,7 +41,6 @@
 </head>
 <body class="text-slate-800 h-screen flex flex-col selection:bg-[#00320D] selection:text-white">
 
-    <!-- Top Navigation Bar -->
     <header class="bg-rizenic-green text-white shadow-lg z-50 shrink-0 border-b-4 border-amber-500">
         <div class="px-6 py-3 flex flex-col sm:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-3">
@@ -64,7 +63,6 @@
         </div>
     </header>
 
-    <!-- Tabs Menu เมนูด้านบน -->
     <div class="bg-white border-b border-slate-200 z-40 shrink-0 shadow-sm">
         <div class="flex overflow-x-auto custom-scrollbar px-2 pt-2">
             <button onclick="switchTab('tab-alert')" id="btn-tab-alert" class="px-6 py-3.5 text-sm font-bold border-b-2 border-[#00320D] text-[#00320D] flex items-center gap-2 whitespace-nowrap bg-green-50/80 rounded-t-xl transition-all"><i class="fa-solid fa-bell text-amber-500 animate-bounce"></i> 1. แจ้งเตือนสั่งอะไหล่ <span id="alert_count" class="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full hidden shadow-sm">0</span></button>
@@ -78,7 +76,6 @@
 
     <main class="flex-1 overflow-auto custom-scrollbar p-6">
 
-        <!-- 🔔 แท็บ 1: แจ้งเตือนสั่งอะไหล่ -->
         <section id="tab-alert" class="parts-tab-content active">
             <div class="card-container">
                 <div class="px-5 py-4 bg-gradient-to-r from-amber-50 to-white border-b border-amber-100 flex justify-between items-center">
@@ -122,7 +119,7 @@
                     <div class="md:col-span-2"><label class="label-text text-blue-600">สแกนบาร์โค้ดอะไหล่ (Part 2) *</label><input type="text" id="po_part_no" required class="minimal-input font-mono uppercase bg-blue-50 border-blue-200 text-blue-900" onblur="fetchMasterPart('po')" placeholder="Part Number..."></div>
                     <div><label class="label-text text-amber-600">จำนวนที่สั่ง *</label><input type="number" id="po_qty" required min="1" value="1" class="minimal-input text-center font-black text-lg"></div>
                     
-                    <!-- Dropdown นี้จะถูกถมข้อมูลจาก Admin -->
+                    <!-- 🌟 Dropdown นี้จะถูกถมข้อมูลจากตาราง rizenic_part_status_master -->
                     <div><label class="label-text">สถานะมาร์คของ (จาก Admin)</label>
                         <select id="po_bo" class="minimal-input font-bold text-slate-700 border-slate-300">
                             <option value="รอสั่งซื้อ">รอสั่งซื้อ</option>
@@ -167,7 +164,7 @@
             </div>
         </section>
 
-        <!-- 📥 แท็บ 3: รับเข้า -->
+        <!-- 📥 แท็บ 3: รับเข้า (Inbound อัจฉริยะดึงอ้างอิงจากรหัส EPC) -->
         <section id="tab-inbound" class="parts-tab-content space-y-6">
             <div class="card-container p-6">
                 <h3 class="font-bold text-emerald-800 border-b pb-3 mb-4 flex items-center gap-2"><i class="fa-solid fa-download bg-emerald-100 text-emerald-600 p-2 rounded-lg"></i> บันทึกรับเข้าคลังสินค้าพาร์ทอะไหล่ (Inbound อัจฉริยะ)</h3>
@@ -212,7 +209,6 @@
         <section id="tab-outbound" class="parts-tab-content space-y-6">
             <div class="card-container p-6 border-l-4 border-purple-600">
                 <h3 class="font-bold text-purple-800 border-b pb-3 mb-4 flex items-center gap-2"><i class="fa-solid fa-upload bg-purple-100 text-purple-600 p-2 rounded-lg"></i> ลงบันทึกตัดจ่ายใบเบิกอะไหล่พาร์ทสินค้า</h3>
-                <p class="text-xs text-red-500 font-bold mb-3">* คีย์ป้อนข้อมูลเพียง 6 ฟิลด์ทางด้านล่าง ระบบจะคำนวณและทำ VLOOKUP ดึงค่ามาสลัดลงตารางสรุป 21 ช่องเองทั้งหมดครับนาย!</p>
                 <form id="outboundForm" onsubmit="submitOutbound(event)" class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
                     <div><label class="label-text text-purple-700 font-black">1. วันที่เบิก *</label><input type="date" id="out_date" required class="minimal-input bg-purple-50/50 border-purple-400"></div>
                     <div><label class="label-text text-purple-700 font-black">2. หมายเลขอะไหล่ *</label><input type="text" id="out_part_no" required class="minimal-input font-mono uppercase bg-purple-50/50 border-purple-400" placeholder="สแกนบาร์โค้ดใบเบิก" onblur="fetchMasterPart('out')"></div>
@@ -357,7 +353,7 @@
         </div>
     </div>
 
-    <!-- Script ควบคุมความเร็วปรี๊ด 10x -->
+    <!-- Script ควบคุมการทำงาน -->
     <script>
         const API_BASE_URL = window.location.origin;
         let currentBranch = 'สำนักงานใหญ่';
@@ -368,7 +364,7 @@
         let allGlobalJobs = []; 
         let cachedInventory = {}; 
         
-        // 🌟 ตัวแปรเก็บ PO Status จริงๆ จากแอดมิน!
+        // 🌟 ตัวแปรเก็บ PO Status จริงๆ จากตาราง rizenic_part_status_master
         let allPOStatuses = []; 
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -423,7 +419,7 @@
             }
         }
 
-        // 🌟 ดึงข้อมูลจากเซิร์ฟเวอร์แบบรวมศูนย์และดึงสเตตัส PO ของจริงจากฐานข้อมูล!
+        // 🌟 ดึงข้อมูลจากเซิร์ฟเวอร์แบบรวมศูนย์และดึงสเตตัส PO ของจริงจากฐานข้อมูล
         async function loadAllData() {
             document.getElementById('sa_alerts_body').innerHTML = `<tr><td colspan="6" class="text-center py-10 text-blue-500 font-bold"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังอัปเดตข้อมูลจากระบบ...</td></tr>`;
 
@@ -432,21 +428,32 @@
                 const resJobs = await fetch(`${API_BASE_URL}/api/reports`); if(resJobs.ok) allGlobalJobs = await resJobs.json();
                 const resParts = await fetch(`${API_BASE_URL}/api/part-orders`); if(resParts.ok) allGlobalParts = await resParts.json();
                 
-                // 🌟 โหลด PO Status ของจริงจาก Admin
-                try {
-                    const resStatus = await fetch(`${API_BASE_URL}/api/po-statuses`); 
-                    if(resStatus.ok) {
-                        allPOStatuses = await resStatus.json();
-                        // 🌟 ถมตัวเลือกเข้าฟอร์มสั่งของหน้า Tab 2
-                        const poBoSelect = document.getElementById('po_bo');
-                        if (poBoSelect && allPOStatuses.length > 0) {
-                            poBoSelect.innerHTML = allPOStatuses.map(s => {
-                                const sName = s.status_name || s.name || s.po_status || s.status;
-                                return `<option value="${sName}">${sName}</option>`;
-                            }).join('');
+                // 🌟 Smart Fetcher: สแกนดึงข้อมูลตารางแอดมิน rizenic_part_status_master
+                allPOStatuses = [];
+                const possibleEndpoints = ['/api/part-status-master', '/api/part-statuses', '/api/master-status', '/api/po-statuses', '/api/settings/po-status'];
+                
+                for (let ep of possibleEndpoints) {
+                    try {
+                        let resStatus = await fetch(`${API_BASE_URL}${ep}`);
+                        if(resStatus.ok) {
+                            let data = await resStatus.json();
+                            if(data && Array.isArray(data) && data.length > 0) {
+                                allPOStatuses = data;
+                                break; // เจอแล้วหยุดหา
+                            }
                         }
-                    }
-                } catch(e) { console.warn("Load PO Status Error:", e); }
+                    } catch(e) { /* เงียบไว้ วนหาต่อ */ }
+                }
+
+                // 🌟 ถมตัวเลือกเข้าฟอร์มสั่งของหน้า Tab 2
+                const poBoSelect = document.getElementById('po_bo');
+                if (poBoSelect && allPOStatuses.length > 0) {
+                    poBoSelect.innerHTML = allPOStatuses.map(s => {
+                        // ดึงค่าแบบเจาะเกราะ: หาคอลัมน์ชื่อตรงๆ ถ้าไม่เจอ ดึง Value ตัวที่ 2 ของตารางมาแทน (มักจะเป็นชื่อ Text)
+                        const sName = s.status_name || s.name || s.po_status || s.status || s.message || Object.values(s)[1] || 'Unknown';
+                        return `<option value="${sName}">${sName}</option>`;
+                    }).join('');
+                }
 
                 const resInv = await fetch(`${API_BASE_URL}/api/parts-inventory?branch=${encodeURIComponent(currentBranch)}`);
                 if(resInv.ok) {
@@ -461,7 +468,7 @@
         }
 
         // =========================================================================
-        // 🔔 1. ระบบแจ้งเตือนสั่งอะไหล่ (รองรับสีสถานะแบบยืดหยุ่น)
+        // 🔔 1. ระบบแจ้งเตือนสั่งอะไหล่
         // =========================================================================
         function loadSAOrders() {
             try {
@@ -490,7 +497,6 @@
                     } else {
                         partsPreviewHTML = `<div class="flex flex-col gap-1.5 mt-1">`;
                         carPartsItems.forEach(p => {
-                            // 🌟 ระบายสี Badge ตามกลุ่มคำกว้างๆ แอดมินตั้งค่าคำไหนมา ก็แสดงข้อความจริงตามนั้น!
                             let badgeColor = "bg-amber-50 text-amber-700 border-amber-200"; 
                             
                             if (p.order_status) {
@@ -501,7 +507,7 @@
                                     badgeColor = "bg-blue-50 text-blue-700 border-blue-300";
                                 } else if (statusTxt.includes('บางส่วน') || statusTxt.includes('ได้บาง')) {
                                     badgeColor = "bg-orange-50 text-orange-700 border-orange-300";
-                                } else if (statusTxt.includes('ครบ') || statusTxt.includes('เสร็จ') || statusTxt.includes('รับแล้ว')) {
+                                } else if (statusTxt.includes('ครบ') || statusTxt.includes('เสร็จ') || statusTxt.includes('รับแล้ว') || statusTxt.includes('สต๊อค')) {
                                     badgeColor = "bg-emerald-50 text-emerald-700 border-emerald-300";
                                 }
                             }
@@ -584,22 +590,20 @@
                                         const rcvDateVal = item.received_date ? String(item.received_date).split('T')[0] : '';
                                         const itemEpc = item.epc_no || (epcNo !== '-' ? epcNo : '');
                                         
-                                        // 🌟 สร้าง Dropdown จากฐานข้อมูลแอดมินแท้ๆ ชิ้นต่อชิ้น
+                                        // 🌟 สร้าง Dropdown จากฐานข้อมูลแอดมินแท้ๆ ชิ้นต่อชิ้น แบบเจาะเกราะ
                                         let dynamicOptionsHtml = '';
                                         if (allPOStatuses && allPOStatuses.length > 0) {
                                             dynamicOptionsHtml = allPOStatuses.map(s => {
-                                                const sName = s.status_name || s.name || s.po_status || s.status;
+                                                const sName = s.status_name || s.name || s.po_status || s.status || s.message || Object.values(s)[1] || 'Unknown';
                                                 const isSelected = (item.order_status === sName) ? 'selected' : '';
                                                 return `<option value="${sName}" ${isSelected}>${sName}</option>`;
                                             }).join('');
                                         } else {
                                             // Fallback กันเหนียวเผื่อเน็ตหลุด
                                             dynamicOptionsHtml = `
-                                                <option value="รอสั่งซื้อ" ${item.order_status === 'รอสั่งซื้อ'?'selected':''}>❌ รอสั่งซื้อ</option>
-                                                <option value="สั่งศูนย์แล้ว-รอของเข้า" ${item.order_status === 'สั่งศูนย์แล้ว-รอของเข้า'?'selected':''}>🟡 สั่งศูนย์แล้ว (รอของเข้า)</option>
-                                                <option value="ติด Back Order" ${item.order_status === 'ติด Back Order'?'selected':''}>🔴 ติด Back Order</option>
-                                                <option value="ของเข้าบางส่วน" ${item.order_status === 'ของเข้าบางส่วน'?'selected':''}>🟠 ของเข้าบางส่วน</option>
-                                                <option value="อะไหล่เข้าครบแล้ว" ${item.order_status === 'อะไหล่เข้าครบแล้ว'?'selected':''}>🟢 อะไหล่เข้าครบแล้ว</option>
+                                                <option value="รอสั่งซื้อ" ${item.order_status === 'รอสั่งซื้อ'?'selected':''}>รอสั่งซื้อ</option>
+                                                <option value="สั่งศูนย์แล้ว-รอของเข้า" ${item.order_status === 'สั่งศูนย์แล้ว-รอของเข้า'?'selected':''}>สั่งศูนย์แล้ว-รอของเข้า</option>
+                                                <option value="ติด Back Order" ${item.order_status === 'ติด Back Order'?'selected':''}>ติด Back Order</option>
                                             `;
                                         }
 
@@ -693,7 +697,6 @@
                     let overallPartStatus = "สั่งแล้วรอของเข้า";
                     const dropdowns = Array.from(document.querySelectorAll('.inner-part-status-dropdown')).map(d => d.value);
                     
-                    // 🌟 ประเมิน Overall Status คืนให้ SA ด้วยคำแบบกว้างๆ (.includes) รองรับคำกวนๆจากแอดมิน
                     if(dropdowns.every(v => v.includes('ครบ'))) overallPartStatus = "อะไหล่เข้าครบแล้ว";
                     else if(dropdowns.some(v => v.includes('Back Order') || v.includes('ติด'))) overallPartStatus = "ติด Back Order";
                     else if(dropdowns.every(v => v.includes('รอสั่ง') || v.includes('ยังไม่'))) overallPartStatus = "รอสั่งซื้อ";
