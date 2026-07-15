@@ -585,26 +585,30 @@ async function openCarPartsDetailsModal(carPlate, epcNo) {
     } catch(e) { console.error(e); }
 }
 
-// 💾 สั่งบันทึกยอดพาร์ทและวันที่แยกรายชิ้น ยิงตู้มเดียวซิงค์เข้าหน้า SA ครบถ้วน
+// 💾 สั่งบันทึกข้อมูลแบบแยกชิ้น: อัปเดตสถานะ วันสั่ง และ ETA แยกอิสระรายชิ้น 100%
 async function saveSAAlertUpdate(e) {
     e.preventDefault(); 
-    const carPlate = document.getElementById('modal_job_id').value;
+    const carPlate = document.getElementById('modal_job_id').value; // ดึงทะเบียนรถจากช่องซ่อน
     const epcNo = document.getElementById('modal_epc').value;
 
     const rows = document.querySelectorAll('.inner-part-item-row');
     const promises = [];
     let summaryPartsStatusText = [];
 
+    // วนลูปแกะข้อมูลจากแต่ละแถวของตารางย่อยแยกชิ้นส่วน
     rows.forEach(row => {
         const orderId = row.getAttribute('data-order-id');
         const nextStatus = row.querySelector('.inner-part-status-dropdown').value;
+        
+        // 🌟 ดึงวันที่สั่งศูนย์และ ETA แยกรายบรรทัดของชิ้นนั้นๆ ไม่มัดรวมแล้ว!
         const partOrderDate = row.querySelector('.inner-part-order-date').value;
         const partEstDate = row.querySelector('.inner-part-est-date').value;
-        const partNameText = row.cells[0].querySelector('div:nth-child(2)').innerText;
         
-        summaryPartsStatusText.push(`${partNameText}: ${nextStatus}`);
+        // แกะชื่อชิ้นส่วนไปทำข้อความสรุปรวมส่งหน้าบอร์ด Job (พ่วงวันที่ ETA ไปด้วย)
+        const partNameText = row.cells[0].querySelector('div:nth-child(2)').innerText;
+        summaryPartsStatusText.push(`${partNameText}: ${nextStatus} (ETA: ${partEstDate || '-'})`);
 
-        // ยิงอัปเดตออเดอร์ของเหล็กแต่ละชิ้น ทั้งสถานะ วันสั่ง และ ETA แยกอิสระ 100%
+        // สั่งสร้าง Promise ยิงข้อมูลอัปเดตแยกวันและสถานะรายตัวเข้าฐานข้อมูลหลักอะไหล่
         promises.push(
             fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, {
                 method: 'PUT',
@@ -620,9 +624,10 @@ async function saveSAAlertUpdate(e) {
     });
 
     try {
+        // รันบันทึกพาร์ททุกชิ้นพร้อมกันแบบแยกค่าเป็นอิสระจากกัน
         await Promise.all(promises);
 
-        // หาใบงานหลักมาแมทช์เพื่อซิงค์ข้อมูลชุดใหญ่กลับหน้ากระดานบอร์ดใบงาน (Job)
+        // หาใบงานหลักมาแมทช์ทะเบียน เพื่อไปอัปเดตตัว Badge สรุปหน้ากระดานใบงานหลัก (Job / Index)
         const jobMatch = allGlobalJobs.find(j => j.car_plate === carPlate);
         if(jobMatch) {
             let overallPartStatus = "สั่งแล้วรอของเข้า";
@@ -632,7 +637,7 @@ async function saveSAAlertUpdate(e) {
             else if(dropdowns.some(v => v === 'ติด Back Order')) overallPartStatus = "ติด Back Order";
             else if(dropdowns.every(v => v === 'รอสั่งซื้อ')) overallPartStatus = "รอสั่งซื้อ";
 
-            // หาค่าเฉลี่ย ETA ที่ไกลที่สุดในรายการพาร์ทเพื่อโชว์เตือนหน้า Job คร่าวๆ
+            // ดึงเอาวันของเข้า (ETA) ที่ไกลที่สุดของเซ็ตนี้ ไปบันทึกโชว์เป็นภาพรวมคร่าวๆ บนบอร์ดใบงานหลัก
             const allEstDates = Array.from(document.querySelectorAll('.inner-part-est-date')).map(i => i.value).filter(Boolean);
             const maxEstDate = allEstDates.length > 0 ? allEstDates.sort().pop() : null;
 
@@ -643,17 +648,16 @@ async function saveSAAlertUpdate(e) {
                     epc_no: epcNo,
                     part_status: overallPartStatus,
                     est_part_date: maxEstDate || null,
-                    ordered_part_names: summaryPartsStatusText.join(', ')
+                    ordered_part_names: summaryPartsStatusText.join(', ') // บันทึกสายอักษรแจกแจงวันและสถานะรายชิ้น
                 })
             });
         }
         
-        alert('🎉 อัปเดตข้อมูลและกำหนดการอะไหล่รายชิ้น ส่งกลับหน้าซ่อมของ SA เรียบร้อยแล้วครับ!'); 
+        alert('🎉 แยกบันทึกวันสั่งและวันของเข้า (ETA) รายชิ้น และซิงค์ส่งกลับหน้า Job เรียบร้อยแล้วครับนาย!'); 
         closeAlertModal(); 
-        loadAllData();
-    } catch(e) { alert('❌ การซิงค์ข้อมูลล้มเหลว'); }
+        loadAllData(); // โหลดหน้าตารางเพื่อรีเฟรชข้อมูลล่าสุด
+    } catch(e) { alert('❌ การบันทึกแยกชิ้นผิดพลาด'); }
 }
-
 // 🗂️ ฟังก์ชันเปิด Modal แจกแจง "รายการพาร์ทข้างในรถคันนั้น" เพื่อให้อะไหล่อัปเดตส่งกลับหน้า Job
 async function openCarPartsDetailsModal(carPlate, epcNo) {
     try {
