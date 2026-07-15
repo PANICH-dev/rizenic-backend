@@ -41,6 +41,7 @@
 </head>
 <body class="text-slate-800 h-screen flex flex-col selection:bg-[#00320D] selection:text-white">
 
+    <!-- Top Navigation Bar -->
     <header class="bg-rizenic-green text-white shadow-lg z-50 shrink-0 border-b-4 border-amber-500">
         <div class="px-6 py-3 flex flex-col sm:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-3">
@@ -63,6 +64,7 @@
         </div>
     </header>
 
+    <!-- Tabs Menu เมนูด้านบน -->
     <div class="bg-white border-b border-slate-200 z-40 shrink-0 shadow-sm">
         <div class="flex overflow-x-auto custom-scrollbar px-2 pt-2">
             <button onclick="switchTab('tab-alert')" id="btn-tab-alert" class="px-6 py-3.5 text-sm font-bold border-b-2 border-[#00320D] text-[#00320D] flex items-center gap-2 whitespace-nowrap bg-green-50/80 rounded-t-xl transition-all"><i class="fa-solid fa-bell text-amber-500 animate-bounce"></i> 1. แจ้งเตือนสั่งอะไหล่ <span id="alert_count" class="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full hidden shadow-sm">0</span></button>
@@ -76,6 +78,7 @@
 
     <main class="flex-1 overflow-auto custom-scrollbar p-6">
 
+        <!-- 🔔 แท็บ 1: แจ้งเตือนสั่งอะไหล่ -->
         <section id="tab-alert" class="parts-tab-content active">
             <div class="card-container">
                 <div class="px-5 py-4 bg-gradient-to-r from-amber-50 to-white border-b border-amber-100 flex justify-between items-center">
@@ -119,11 +122,10 @@
                     <div class="md:col-span-2"><label class="label-text text-blue-600">สแกนบาร์โค้ดอะไหล่ (Part 2) *</label><input type="text" id="po_part_no" required class="minimal-input font-mono uppercase bg-blue-50 border-blue-200 text-blue-900" onblur="fetchMasterPart('po')" placeholder="Part Number..."></div>
                     <div><label class="label-text text-amber-600">จำนวนที่สั่ง *</label><input type="number" id="po_qty" required min="1" value="1" class="minimal-input text-center font-black text-lg"></div>
                     
-                    <!-- 🌟 ระบบใหม่: สเตตัสดึงจากแอดมินอัตโนมัติ -->
+                    <!-- Dropdown นี้จะถูกถมข้อมูลจาก Admin -->
                     <div><label class="label-text">สถานะมาร์คของ (จาก Admin)</label>
                         <select id="po_bo" class="minimal-input font-bold text-slate-700 border-slate-300">
                             <option value="รอสั่งซื้อ">รอสั่งซื้อ</option>
-                            <option value="สั่งศูนย์แล้ว-รอของเข้า">สั่งศูนย์แล้ว-รอของเข้า</option>
                         </select>
                     </div>
                     <div class="md:col-span-2"><label class="label-text">หมายเหตุการสั่งจากศูนย์</label><input type="text" id="po_note" class="minimal-input" placeholder="พิมพ์หมายเหตุ..."></div>
@@ -165,7 +167,7 @@
             </div>
         </section>
 
-        <!-- 📥 แท็บ 3: รับเข้า (Inbound อัจฉริยะดึงอ้างอิงจากรหัส EPC) -->
+        <!-- 📥 แท็บ 3: รับเข้า -->
         <section id="tab-inbound" class="parts-tab-content space-y-6">
             <div class="card-container p-6">
                 <h3 class="font-bold text-emerald-800 border-b pb-3 mb-4 flex items-center gap-2"><i class="fa-solid fa-download bg-emerald-100 text-emerald-600 p-2 rounded-lg"></i> บันทึกรับเข้าคลังสินค้าพาร์ทอะไหล่ (Inbound อัจฉริยะ)</h3>
@@ -366,7 +368,7 @@
         let allGlobalJobs = []; 
         let cachedInventory = {}; 
         
-        // 🌟 ตัวแปรเก็บ PO Status จากแอดมิน (ป้องกัน Hardcode)
+        // 🌟 ตัวแปรเก็บ PO Status จริงๆ จากแอดมิน!
         let allPOStatuses = []; 
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -421,7 +423,7 @@
             }
         }
 
-        // 🌟 ดึงข้อมูลจากเซิร์ฟเวอร์แบบรวมศูนย์
+        // 🌟 ดึงข้อมูลจากเซิร์ฟเวอร์แบบรวมศูนย์และดึงสเตตัส PO ของจริงจากฐานข้อมูล!
         async function loadAllData() {
             document.getElementById('sa_alerts_body').innerHTML = `<tr><td colspan="6" class="text-center py-10 text-blue-500 font-bold"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังอัปเดตข้อมูลจากระบบ...</td></tr>`;
 
@@ -430,7 +432,7 @@
                 const resJobs = await fetch(`${API_BASE_URL}/api/reports`); if(resJobs.ok) allGlobalJobs = await resJobs.json();
                 const resParts = await fetch(`${API_BASE_URL}/api/part-orders`); if(resParts.ok) allGlobalParts = await resParts.json();
                 
-                // 🌟 ดึงข้อมูล PO Status จากหน้าแอดมิน (ยืดหยุ่นตามที่แอดมินตั้งค่าเป๊ะๆ)
+                // 🌟 โหลด PO Status ของจริงจาก Admin
                 try {
                     const resStatus = await fetch(`${API_BASE_URL}/api/po-statuses`); 
                     if(resStatus.ok) {
@@ -444,7 +446,7 @@
                             }).join('');
                         }
                     }
-                } catch(e) { console.warn("โหลด PO Status จากแอดมินไม่ได้, ใช้ค่าพื้นฐานแทน:", e); }
+                } catch(e) { console.warn("Load PO Status Error:", e); }
 
                 const resInv = await fetch(`${API_BASE_URL}/api/parts-inventory?branch=${encodeURIComponent(currentBranch)}`);
                 if(resInv.ok) {
@@ -488,43 +490,43 @@
                     } else {
                         partsPreviewHTML = `<div class="flex flex-col gap-1.5 mt-1">`;
                         carPartsItems.forEach(p => {
-    // 🎨 ระบายสี Badge ตามกลุ่มคำกว้างๆ แอดมินตั้งค่าคำไหนมา ระบบจะดึงข้อความจริงจากแอดมิน (p.order_status) มาโชว์เสมอ ไม่ล็อกข้อความตายตัว!
-    let badgeColor = "bg-amber-50 text-amber-700 border-amber-200"; // ค่าเริ่มต้น (รอสั่งซื้อ)
-    
-    if (p.order_status) {
-        const statusTxt = String(p.order_status);
-        if (statusTxt.includes('Back Order') || statusTxt.includes('ติด') || statusTxt.includes('ล่าช้า') || statusTxt.includes('วิกฤต')) {
-            badgeColor = "bg-rose-50 text-rose-700 border-rose-300 animate-pulse";
-        } else if (statusTxt.includes('รอของ') || statusTxt.includes('สั่งศูนย์') || statusTxt.includes('ศูนย์')) {
-            badgeColor = "bg-blue-50 text-blue-700 border-blue-300";
-        } else if (statusTxt.includes('บางส่วน') || statusTxt.includes('ได้บาง')) {
-            badgeColor = "bg-orange-50 text-orange-700 border-orange-300";
-        } else if (statusTxt.includes('ครบ') || statusTxt.includes('เสร็จ') || statusTxt.includes('รับแล้ว')) {
-            badgeColor = "bg-emerald-50 text-emerald-700 border-emerald-300";
-        }
-    }
+                            // 🌟 ระบายสี Badge ตามกลุ่มคำกว้างๆ แอดมินตั้งค่าคำไหนมา ก็แสดงข้อความจริงตามนั้น!
+                            let badgeColor = "bg-amber-50 text-amber-700 border-amber-200"; 
+                            
+                            if (p.order_status) {
+                                const statusTxt = String(p.order_status);
+                                if (statusTxt.includes('Back Order') || statusTxt.includes('ติด') || statusTxt.includes('ล่าช้า') || statusTxt.includes('วิกฤต')) {
+                                    badgeColor = "bg-rose-50 text-rose-700 border-rose-300 animate-pulse";
+                                } else if (statusTxt.includes('รอของ') || statusTxt.includes('สั่งศูนย์') || statusTxt.includes('ศูนย์')) {
+                                    badgeColor = "bg-blue-50 text-blue-700 border-blue-300";
+                                } else if (statusTxt.includes('บางส่วน') || statusTxt.includes('ได้บาง')) {
+                                    badgeColor = "bg-orange-50 text-orange-700 border-orange-300";
+                                } else if (statusTxt.includes('ครบ') || statusTxt.includes('เสร็จ') || statusTxt.includes('รับแล้ว')) {
+                                    badgeColor = "bg-emerald-50 text-emerald-700 border-emerald-300";
+                                }
+                            }
 
-    const dateOrderStr = p.order_date ? String(p.order_date).split('T')[0] : '-';
-    const dateEtaStr = p.est_arrival_date ? String(p.est_arrival_date).split('T')[0] : '-';
-    const dateActualStr = p.received_date ? String(p.received_date).split('T')[0] : '-';
+                            const dateOrderStr = p.order_date ? String(p.order_date).split('T')[0] : '-';
+                            const dateEtaStr = p.est_arrival_date ? String(p.est_arrival_date).split('T')[0] : '-';
+                            const dateActualStr = p.received_date ? String(p.received_date).split('T')[0] : '-';
 
-    partsPreviewHTML += `
-        <div class="px-3 py-2 rounded-lg border text-[11px] font-bold shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-2 bg-white ${badgeColor}">
-            <div class="flex items-center gap-2">
-                <span class="font-mono text-blue-800 text-xs font-black bg-slate-100 px-1.5 py-0.5 rounded border shadow-sm">${p.part_no}</span>
-                <span class="text-slate-900 font-extrabold">${p.part_name}</span>
-                <span class="text-slate-500 font-medium">(จำนวน: <span class="text-slate-800 font-bold">${p.qty_ordered}</span> ชิ้น)</span>
-            </div>
-            <div class="flex flex-wrap items-center gap-3 text-[10px] font-mono bg-black/5 px-2.5 py-1 rounded border border-black/10">
-                <span>📅 วันสั่ง: <span class="text-slate-700 font-bold">${dateOrderStr}</span></span>
-                <span class="text-blue-700">⏳ คาดการณ์เข้า (ETA): <span class="font-black bg-blue-100/50 px-1 rounded">${dateEtaStr}</span></span>
-                <span class="text-emerald-700">🟢 เข้าครบจริง: <span class="font-black bg-emerald-100/50 px-1 rounded">${dateActualStr}</span></span>
-                <!-- 🌟 แสดงคำจริงที่ผูกอยู่ปัจจุบัน ไม่ล็อกตายตัวตามฮาร์ดโค้ดแล้วครับ -->
-                <span class="border-l border-slate-300 pl-2 uppercase font-black tracking-wide">[ ${p.order_status || 'รอสั่งซื้อ'} ]</span>
-            </div>
-        </div>
-    `;
-});
+                            partsPreviewHTML += `
+                                <div class="px-3 py-2 rounded-lg border text-[11px] font-bold shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-2 bg-white ${badgeColor}">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-mono text-blue-800 text-xs font-black bg-slate-100 px-1.5 py-0.5 rounded border shadow-sm">${p.part_no}</span>
+                                        <span class="text-slate-900 font-extrabold">${p.part_name}</span>
+                                        <span class="text-slate-500 font-medium">(จำนวน: <span class="text-slate-800 font-bold">${p.qty_ordered}</span> ชิ้น)</span>
+                                    </div>
+                                    <div class="flex flex-wrap items-center gap-3 text-[10px] font-mono bg-black/5 px-2.5 py-1 rounded border border-black/10">
+                                        <span>📅 วันสั่ง: <span class="text-slate-700 font-bold">${dateOrderStr}</span></span>
+                                        <span class="text-blue-700">⏳ คาดการณ์เข้า (ETA): <span class="font-black bg-blue-100/50 px-1 rounded">${dateEtaStr}</span></span>
+                                        <span class="text-emerald-700">🟢 เข้าครบจริง: <span class="font-black bg-emerald-100/50 px-1 rounded">${dateActualStr}</span></span>
+                                        <!-- 🌟 แสดงคำจริงที่ผูกอยู่ปัจจุบัน ไม่ล็อกตายตัวตามฮาร์ดโค้ดแล้วครับ -->
+                                        <span class="border-l border-slate-300 pl-2 uppercase font-black tracking-wide">[ ${p.order_status || 'รอสั่งซื้อ'} ]</span>
+                                    </div>
+                                </div>
+                            `;
+                        });
                         partsPreviewHTML += `</div>`;
                     }
 
@@ -582,21 +584,22 @@
                                         const rcvDateVal = item.received_date ? String(item.received_date).split('T')[0] : '';
                                         const itemEpc = item.epc_no || (epcNo !== '-' ? epcNo : '');
                                         
-                                        // 🌟 สร้าง Dropdown จากฐานข้อมูลแอดมินแบบไดนามิก!
+                                        // 🌟 สร้าง Dropdown จากฐานข้อมูลแอดมินแท้ๆ ชิ้นต่อชิ้น
                                         let dynamicOptionsHtml = '';
                                         if (allPOStatuses && allPOStatuses.length > 0) {
                                             dynamicOptionsHtml = allPOStatuses.map(s => {
                                                 const sName = s.status_name || s.name || s.po_status || s.status;
-                                                return `<option value="${sName}" ${item.order_status === sName ? 'selected' : ''}>${sName}</option>`;
+                                                const isSelected = (item.order_status === sName) ? 'selected' : '';
+                                                return `<option value="${sName}" ${isSelected}>${sName}</option>`;
                                             }).join('');
                                         } else {
-                                            // Fallback กันเหนียวเผื่อ API แอดมินล่ม
+                                            // Fallback กันเหนียวเผื่อเน็ตหลุด
                                             dynamicOptionsHtml = `
                                                 <option value="รอสั่งซื้อ" ${item.order_status === 'รอสั่งซื้อ'?'selected':''}>❌ รอสั่งซื้อ</option>
-                                                <option value="สั่งศูนย์แล้ว-รอของเข้า" ${item.order_status === 'สั่งศูนย์แล้ว-รอของเข้า' || item.order_status === 'สั่งแล้วรอของเข้า'?'selected':''}>🟡 สั่งศูนย์แล้ว (รอของเข้า)</option>
+                                                <option value="สั่งศูนย์แล้ว-รอของเข้า" ${item.order_status === 'สั่งศูนย์แล้ว-รอของเข้า'?'selected':''}>🟡 สั่งศูนย์แล้ว (รอของเข้า)</option>
                                                 <option value="ติด Back Order" ${item.order_status === 'ติด Back Order'?'selected':''}>🔴 ติด Back Order</option>
                                                 <option value="ของเข้าบางส่วน" ${item.order_status === 'ของเข้าบางส่วน'?'selected':''}>🟠 ของเข้าบางส่วน</option>
-                                                <option value="อะไหล่เข้าครบแล้ว" ${item.order_status === 'อะไหล่เข้าครบแล้ว' || item.order_status === 'อะไหล่ครบ'?'selected':''}>🟢 อะไหล่เข้าครบแล้ว</option>
+                                                <option value="อะไหล่เข้าครบแล้ว" ${item.order_status === 'อะไหล่เข้าครบแล้ว'?'selected':''}>🟢 อะไหล่เข้าครบแล้ว</option>
                                             `;
                                         }
 
@@ -781,7 +784,7 @@
                 part_main_no: document.getElementById('po_part_main').value, part_no: document.getElementById('po_part_no').value,
                 part_name: document.getElementById('po_part_name').value, qty_ordered: parseInt(document.getElementById('po_qty').value) || 1,
                 part_type: document.getElementById('po_type').value, notes: document.getElementById('po_note').value, branch_name: currentBranch, 
-                order_status: document.getElementById('po_bo').value // 🌟 ดึงค่าจากดรอปดาวน์แอดมินโดยตรง
+                order_status: document.getElementById('po_bo').value 
             };
             try {
                 await fetch(`${API_BASE_URL}/api/part-orders`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
