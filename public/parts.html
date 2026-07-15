@@ -488,36 +488,43 @@
                     } else {
                         partsPreviewHTML = `<div class="flex flex-col gap-1.5 mt-1">`;
                         carPartsItems.forEach(p => {
-                            // 🌟 สูตรระบายสี Badge แบบยืดหยุ่น ไม่ยึดติดชื่อตรงตัว แอดมินตั้งชื่ออะไรมาก็รอด
-                            let badgeColor = "bg-slate-50 text-slate-700 border-slate-300"; 
-                            if(p.order_status) {
-                                if(p.order_status.includes('Back Order') || p.order_status.includes('ติด') || p.order_status.includes('ล่าช้า')) badgeColor = "bg-rose-50 text-rose-700 border-rose-300 animate-pulse";
-                                else if(p.order_status.includes('รอของ') || p.order_status.includes('สั่งศูนย์')) badgeColor = "bg-blue-50 text-blue-700 border-blue-300";
-                                else if(p.order_status.includes('บางส่วน')) badgeColor = "bg-orange-50 text-orange-700 border-orange-300";
-                                else if(p.order_status.includes('ครบ')) badgeColor = "bg-emerald-50 text-emerald-700 border-emerald-300";
-                                else badgeColor = "bg-amber-50 text-amber-700 border-amber-200"; // รอสั่งซื้อ
-                            }
+    // 🎨 ระบายสี Badge ตามกลุ่มคำกว้างๆ แอดมินตั้งค่าคำไหนมา ระบบจะดึงข้อความจริงจากแอดมิน (p.order_status) มาโชว์เสมอ ไม่ล็อกข้อความตายตัว!
+    let badgeColor = "bg-amber-50 text-amber-700 border-amber-200"; // ค่าเริ่มต้น (รอสั่งซื้อ)
+    
+    if (p.order_status) {
+        const statusTxt = String(p.order_status);
+        if (statusTxt.includes('Back Order') || statusTxt.includes('ติด') || statusTxt.includes('ล่าช้า') || statusTxt.includes('วิกฤต')) {
+            badgeColor = "bg-rose-50 text-rose-700 border-rose-300 animate-pulse";
+        } else if (statusTxt.includes('รอของ') || statusTxt.includes('สั่งศูนย์') || statusTxt.includes('ศูนย์')) {
+            badgeColor = "bg-blue-50 text-blue-700 border-blue-300";
+        } else if (statusTxt.includes('บางส่วน') || statusTxt.includes('ได้บาง')) {
+            badgeColor = "bg-orange-50 text-orange-700 border-orange-300";
+        } else if (statusTxt.includes('ครบ') || statusTxt.includes('เสร็จ') || statusTxt.includes('รับแล้ว')) {
+            badgeColor = "bg-emerald-50 text-emerald-700 border-emerald-300";
+        }
+    }
 
-                            const dateOrderStr = p.order_date ? String(p.order_date).split('T')[0] : '-';
-                            const dateEtaStr = p.est_arrival_date ? String(p.est_arrival_date).split('T')[0] : '-';
-                            const dateActualStr = p.received_date ? String(p.received_date).split('T')[0] : '-';
+    const dateOrderStr = p.order_date ? String(p.order_date).split('T')[0] : '-';
+    const dateEtaStr = p.est_arrival_date ? String(p.est_arrival_date).split('T')[0] : '-';
+    const dateActualStr = p.received_date ? String(p.received_date).split('T')[0] : '-';
 
-                            partsPreviewHTML += `
-                                <div class="px-3 py-2 rounded-lg border text-[11px] font-bold shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-2 bg-white ${badgeColor}">
-                                    <div class="flex items-center gap-2">
-                                        <span class="font-mono text-blue-800 text-xs font-black bg-slate-100 px-1.5 py-0.5 rounded border shadow-sm">${p.part_no}</span>
-                                        <span class="text-slate-900 font-extrabold">${p.part_name}</span>
-                                        <span class="text-slate-500 font-medium">(จำนวน: <span class="text-slate-800 font-bold">${p.qty_ordered}</span> ชิ้น)</span>
-                                    </div>
-                                    <div class="flex flex-wrap items-center gap-3 text-[10px] font-mono bg-black/5 px-2.5 py-1 rounded border border-black/10">
-                                        <span>📅 วันสั่ง: <span class="text-slate-700 font-bold">${dateOrderStr}</span></span>
-                                        <span class="text-blue-700">⏳ คาดการณ์เข้า (ETA): <span class="font-black bg-blue-100/50 px-1 rounded">${dateEtaStr}</span></span>
-                                        <span class="text-emerald-700">🟢 เข้าครบจริง: <span class="font-black bg-emerald-100/50 px-1 rounded">${dateActualStr}</span></span>
-                                        <span class="border-l border-slate-300 pl-2 uppercase font-black tracking-wide">[ ${p.order_status || 'รอสั่งซื้อ'} ]</span>
-                                    </div>
-                                </div>
-                            `;
-                        });
+    partsPreviewHTML += `
+        <div class="px-3 py-2 rounded-lg border text-[11px] font-bold shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-2 bg-white ${badgeColor}">
+            <div class="flex items-center gap-2">
+                <span class="font-mono text-blue-800 text-xs font-black bg-slate-100 px-1.5 py-0.5 rounded border shadow-sm">${p.part_no}</span>
+                <span class="text-slate-900 font-extrabold">${p.part_name}</span>
+                <span class="text-slate-500 font-medium">(จำนวน: <span class="text-slate-800 font-bold">${p.qty_ordered}</span> ชิ้น)</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-3 text-[10px] font-mono bg-black/5 px-2.5 py-1 rounded border border-black/10">
+                <span>📅 วันสั่ง: <span class="text-slate-700 font-bold">${dateOrderStr}</span></span>
+                <span class="text-blue-700">⏳ คาดการณ์เข้า (ETA): <span class="font-black bg-blue-100/50 px-1 rounded">${dateEtaStr}</span></span>
+                <span class="text-emerald-700">🟢 เข้าครบจริง: <span class="font-black bg-emerald-100/50 px-1 rounded">${dateActualStr}</span></span>
+                <!-- 🌟 แสดงคำจริงที่ผูกอยู่ปัจจุบัน ไม่ล็อกตายตัวตามฮาร์ดโค้ดแล้วครับ -->
+                <span class="border-l border-slate-300 pl-2 uppercase font-black tracking-wide">[ ${p.order_status || 'รอสั่งซื้อ'} ]</span>
+            </div>
+        </div>
+    `;
+});
                         partsPreviewHTML += `</div>`;
                     }
 
