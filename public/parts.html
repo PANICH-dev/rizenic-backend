@@ -89,12 +89,13 @@
                                 <th><div>ทะเบียนรถ</div><input type="text" data-col="0" onkeyup="applyExcelFilters('saTable')" class="excel-filter filter-input" placeholder="🔍 กรองทะเบียน..."></th>
                                 <th><div>รุ่นรถ</div><input type="text" data-col="1" onkeyup="applyExcelFilters('saTable')" class="excel-filter filter-input" placeholder="🔍 กรองรุ่นรถ..."></th>
                                 <th><div>ชื่อลูกค้า</div></th>
-                                <th><div>รายการอะไหล่และ EPC ประจำชิ้น (ค้นหาได้)</div><input type="text" data-col="3" onkeyup="applyExcelFilters('saTable')" class="excel-filter filter-input" placeholder="🔍 กรองหาอะไหล่ หรือ EPC..."></th>
+                                <th><div>EPC No. อ้างอิงทั้งหมด</div><input type="text" data-col="3" onkeyup="applyExcelFilters('saTable')" class="excel-filter filter-input" placeholder="🔍 กรอง EPC..."></th>
+                                <th><div>รายการอะไหล่ค้างสั่งองค์รวม</div></th>
                                 <th class="text-center w-36"><div>จัดการใบสั่ง</div></th>
                             </tr>
                         </thead>
                         <tbody id="sa_alerts_body">
-                            <tr><td colspan="5" class="text-center py-10 text-slate-400">กำลังดึงข้อมูลจากระบบหลังบ้าน...</td></tr>
+                            <tr><td colspan="6" class="text-center py-10 text-slate-400">กำลังดึงข้อมูลจากระบบหลังบ้าน...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -114,7 +115,6 @@
                     <div><label class="label-text">ประมาณการณ์เข้า (ETA)</label><input type="date" id="po_est" class="minimal-input font-mono"></div>
                     <div><label class="label-text">วันที่รับอะไหล่ (Actual)</label><input type="date" id="po_rcv_date" class="minimal-input font-mono"></div>
                     
-                    <!-- 🌟 Dropdown สถานะจาก Admin กลับมาแล้ว! -->
                     <div><label class="label-text text-blue-600">สถานะมาร์คของ (Admin)</label>
                         <select id="po_bo" class="minimal-input font-bold text-blue-800 border-blue-300 bg-blue-50">
                             <option value="รอสั่งซื้อ">รอสั่งซื้อ</option>
@@ -143,7 +143,6 @@
             <div class="card-container">
                 <div class="px-5 py-3 bg-slate-50 border-b flex justify-between items-center">
                     <span class="text-sm font-bold text-[#00320D] flex items-center gap-2"><i class="fa-solid fa-table-list text-slate-400"></i> ตารางติดตามสถานะการสั่งซื้ออะไหล่ศูนย์ (PO Tracking)</span>
-                    <!-- 🌟 ปุ่มซ่อนอะไหล่ครบ กันตาลาย -->
                     <button id="btn_toggle_completed_po" onclick="toggleCompletedPO()" class="text-xs bg-white border border-slate-300 px-3 py-1.5 rounded-lg shadow-sm font-bold text-slate-600 hover:bg-slate-100 transition flex items-center gap-2"><i class="fa-solid fa-eye-slash"></i> ซ่อนอะไหล่ที่เข้าครบแล้ว</button>
                 </div>
                 <div class="overflow-x-auto custom-scrollbar h-[50vh]">
@@ -367,8 +366,20 @@
         let allPOStatuses = []; 
         let allMasterPartsData = []; 
         
-        // ตัวแปรซ่อน PO ที่รับครบแล้ว
-        let hideCompletedPO = true;
+        let hideCompletedPO = true; // ค่าเริ่มต้นซ่อนอะไหล่เข้าครบ
+
+        // 🌟 Helper function ป้องกันบั๊กฐานข้อมูลดึงสเตตัสเพี้ยน
+        function getSafeStatusName(s) {
+            if(s['ข้อความสถานะที่นำไปแสดงในแผนกอะไหล่']) return s['ข้อความสถานะที่นำไปแสดงในแผนกอะไหล่'];
+            if(s.status_name) return s.status_name;
+            if(s.po_status) return s.po_status;
+            if(s.name) return s.name;
+            if(s.status) return s.status;
+            for(let key in s) {
+                if(typeof s[key] === 'string' && isNaN(s[key]) && !s[key].includes('T00:')) return s[key];
+            }
+            return 'Unknown';
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
             if(sessionStorage.getItem('isLoggedIn') !== 'true') { window.location.href = 'index.html'; return; }
@@ -439,11 +450,11 @@
                     } catch(e) {}
                 }
 
-                // 🌟 ถมตัวเลือกเข้าหน้าสั่งศูนย์ Tab 2 (กลับมาแล้ว!)
+                // 🌟 ถมตัวเลือกเข้าหน้าสั่งศูนย์ Tab 2 แบบปลอดภัย 100%
                 const poBoSelect = document.getElementById('po_bo');
                 if (poBoSelect && allPOStatuses.length > 0) {
                     poBoSelect.innerHTML = allPOStatuses.map(s => {
-                        const sName = s.status_name || s.name || s.po_status || s.status || s.message || Object.values(s)[1] || 'Unknown';
+                        const sName = getSafeStatusName(s);
                         return `<option value="${sName}">${sName}</option>`;
                     }).join('');
                 }
@@ -459,7 +470,7 @@
             loadSAOrders(); loadPOTracking(); loadInbound(); loadOutbound(); loadStockInHouse(); loadMasterParts();
         }
 
-        // 🔔 1. แจ้งเตือน SA (โชว์ EPC แยกรายชิ้น)
+        // 🔔 1. แจ้งเตือน SA (โชว์ EPC แยกรายชิ้นแบบเห็นๆ)
         function loadSAOrders() {
             try {
                 const tbody = document.getElementById('sa_alerts_body');
@@ -468,10 +479,15 @@
                 document.getElementById('alert_count').innerText = jobsRoutedToParts.length;
                 document.getElementById('alert_count').className = jobsRoutedToParts.length > 0 ? "bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full shadow-sm" : "hidden";
                 
-                if(jobsRoutedToParts.length === 0) { tbody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-slate-400 font-bold">✅ ไม่มีคิวรถในแผนกอะไหล่ขณะนี้</td></tr>`; return; }
+                if(jobsRoutedToParts.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400 font-bold">✅ ไม่มีคิวรถในแผนกอะไหล่ขณะนี้</td></tr>`; return; }
 
                 tbody.innerHTML = jobsRoutedToParts.map(job => {
                     const carPartsItems = (allGlobalParts || []).filter(p => p.car_plate === job.car_plate);
+                    
+                    // ดึง EPC อ้างอิงของทุกชิ้นมากองรวมกันแบบครบๆ
+                    const uniqueEPCs = [...new Set(carPartsItems.map(p => p.epc_no).filter(Boolean))];
+                    const displayEpc = uniqueEPCs.length > 0 ? uniqueEPCs.join('<br>') : (job.epc_no || '-');
+
                     let partsPreviewHTML = '';
 
                     if(carPartsItems.length === 0) {
@@ -509,6 +525,7 @@
                         <td class="font-black text-[#00320D]"><span class="bg-slate-200 px-2 py-1 rounded shadow-sm">${job.car_plate}</span></td>
                         <td class="font-bold text-slate-600">${job.car_brand} ${job.car_model || ''}</td>
                         <td class="font-medium text-slate-700">${job.customer_name || '-'}</td>
+                        <td class="font-mono text-[10px] font-bold text-amber-700 leading-tight">${displayEpc}</td>
                         <td class="whitespace-normal max-w-[650px] py-2">${partsPreviewHTML}</td>
                         <td class="text-center"><button onclick="openCarPartsDetailsModal('${job.car_plate}', '${job.epc_no||'-'}')" class="bg-[#00320D] text-white font-black px-4 py-2.5 rounded-lg text-xs shadow-md hover:bg-black transition w-full"><i class="fa-solid fa-folder-open text-amber-400"></i> เปิดโต๊ะคีย์อะไหล่</button></td>
                     </tr>`;
@@ -539,9 +556,10 @@
                             </thead>
                             <tbody class="divide-y divide-slate-100 font-bold" id="inner_parts_rows_container">
                                 ${carPartsItems.map(item => {
+                                    // 🌟 สร้าง Dropdown ปลอดภัยไม่ว่า DB จะมาแบบไหน
                                     let dynamicOptionsHtml = allPOStatuses.length > 0 
                                         ? allPOStatuses.map(s => {
-                                            const sName = s.status_name || s.name || s.po_status || Object.values(s)[1] || 'Unknown';
+                                            const sName = getSafeStatusName(s);
                                             return `<option value="${sName}" ${item.order_status === sName ? 'selected' : ''}>${sName}</option>`;
                                           }).join('')
                                         : `<option value="รอสั่งซื้อ" ${item.order_status === 'รอสั่งซื้อ'?'selected':''}>รอสั่งซื้อ</option><option value="สั่งศูนย์แล้ว-รอของเข้า" ${item.order_status === 'สั่งศูนย์แล้ว-รอของเข้า'?'selected':''}>สั่งศูนย์แล้ว-รอของเข้า</option><option value="ติด Back Order" ${item.order_status === 'ติด Back Order'?'selected':''}>ติด Back Order</option>`;
@@ -550,7 +568,7 @@
                                     <tr class="inner-part-item-row" data-order-id="${item.order_id}">
                                         <td class="p-2 border-r"><div class="font-mono text-blue-700">${item.part_no}</div><div class="text-slate-800">${item.part_name}</div></td>
                                         <td class="p-2 text-center border-r">${item.qty_ordered}</td>
-                                        <td class="p-1 border-r"><input type="text" class="p-1.5 bg-amber-50 border rounded font-mono uppercase w-[110px] inner-part-epc" value="${item.epc_no || (epcNo !== '-' ? epcNo : '')}"></td>
+                                        <td class="p-1 border-r"><input type="text" class="p-1.5 bg-amber-50 border rounded font-mono uppercase w-[110px] inner-part-epc" value="${item.epc_no || ''}" placeholder="EPC-XXX"></td>
                                         <td class="p-1 border-r"><input type="date" class="p-1 bg-blue-50 border text-blue-900 rounded font-mono inner-part-est-date w-[115px]" value="${item.est_arrival_date ? item.est_arrival_date.split('T')[0] : ''}"></td>
                                         <td class="p-1 border-r"><input type="date" class="p-1 bg-emerald-50 border text-emerald-900 rounded font-mono inner-part-rcv-date w-[115px]" value="${item.received_date ? item.received_date.split('T')[0] : ''}"></td>
                                         <td class="p-1"><select class="p-1 bg-slate-50 border rounded font-bold text-slate-700 inner-part-status-dropdown w-[150px]">${dynamicOptionsHtml}</select></td>
@@ -644,7 +662,6 @@
             document.getElementById('po_type').value = p.part_type || '';
             document.getElementById('po_model').value = p.car_model || '';
             
-            // สเตตัส Admin กลับมาแล้วก็ต้องดึงค่าเดิมมาโชว์
             if(document.getElementById('po_bo')) document.getElementById('po_bo').value = p.order_status || 'รอสั่งซื้อ';
             
             document.getElementById('edit_po_id').value = orderId;
@@ -713,7 +730,7 @@
                     
                     // 🌟 ระบบซ่อนอะไหล่ที่เข้าครบแล้ว
                     let isCompleted = (o.order_status === 'อะไหล่เข้าครบแล้ว' || o.order_status === 'อะไหล่ครบ' || rcvQty >= o.qty_ordered);
-                    if (hideCompletedPO && isCompleted) return; // ข้ามการวาดแถวนี้ไปเลย
+                    if (hideCompletedPO && isCompleted) return;
 
                     renderedHTML += `
                     <tr>
