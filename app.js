@@ -9,7 +9,14 @@ const port = process.env.PORT || 3000;
 app.use(cors()); 
 app.use(express.json());
 
-app.use(express.static(path.join(__dirname, 'public')));
+// บังคับไม่ให้ Express และ Vercel จำ Cache ไฟล์ในโฟลเดอร์ public
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: function (res, path) {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+  }
+}));
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
