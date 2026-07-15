@@ -632,16 +632,16 @@ async function loadSAOrders() {
 
         function closeAlertModal() { document.getElementById('alertModal').classList.add('hidden'); }
 
-        // 💾 [เวอร์ชันแก้ไขด่วน - ปลอดภัยสูงสุด] บันทึกแยกชิ้น ห้ามลบข้อมูลลูกค้าเดิม + ล็อกสาขายูเซอร์ปัจจุบัน
+        // 💾 [เวอร์ชันแก้จุดบอด - อัปเดตชัวร์ 100%] บันทึกแยกชิ้น ข้อมูลลูกค้าอยู่ครบ และบังคับอัปเดตสถานะใหม่ทันที
 async function saveSAAlertUpdate(e) {
     e.preventDefault(); 
-    const carPlate = document.getElementById('modal_job_id').value; // ดึงทะเบียนรถจากช่องซ่อน
+    const carPlate = document.getElementById('modal_job_id').value; 
     const rows = document.querySelectorAll('.inner-part-item-row');
     const promises = [];
     let summaryPartsStatusText = [];
     let latestEpcNo = '';
 
-    // 1. วนลูปบันทึกข้อมูลแยกรายชิ้นชิ้นใครชิ้นมันลงตารางพาร์ทสั่งซื้อ (ตารางรอง)
+    // 1. วนลูปบันทึกข้อมูลแยกรายชิ้นชิ้นใครชิ้นมันลงตารางพาร์ทสั่งซื้อ
     rows.forEach(row => {
         const orderId = row.getAttribute('data-order-id');
         const nextStatus = row.querySelector('.inner-part-status-dropdown').value;
@@ -655,7 +655,6 @@ async function saveSAAlertUpdate(e) {
         const partNameText = row.cells[0].querySelector('div:nth-child(2)').innerText;
         summaryPartsStatusText.push(`${partNameText}: ${nextStatus} (ETA: ${partEstDate || '-'})`);
 
-        // อัปเดตข้อมูลพาร์ทชิ้นนั้น ๆ (ไม่เกี่ยวกับข้อมูลลูกค้า)
         promises.push(
             fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, {
                 method: 'PUT',
@@ -675,7 +674,7 @@ async function saveSAAlertUpdate(e) {
         // บันทึกข้อมูลตารางอะไหล่รายตัวให้เสร็จก่อน
         await Promise.all(promises);
 
-        // 2. ซิงค์ข้อมูลสรุปกลับไปที่ใบงานซ่อมหลัก (ตารางหลัก)
+        // 2. ซิงค์ข้อมูลสรุปกลับไปที่ใบงานซ่อมหลัก
         const jobMatch = allGlobalJobs.find(j => j.car_plate === carPlate);
         if(jobMatch) {
             let overallPartStatus = "สั่งแล้วรอของเข้า";
@@ -688,17 +687,23 @@ async function saveSAAlertUpdate(e) {
             const allEstDates = Array.from(document.querySelectorAll('.inner-part-est-date')).map(i => i.value).filter(Boolean);
             const maxEstDate = allEstDates.length > 0 ? allEstDates.sort().pop() : null;
 
-            // 🔥 [จุดแก้ไขสำคัญ]: ดึงข้อมูลเดิมในใบงานหลักมาถือไว้ก่อน (Spread Operator) เพื่อไม่ให้ค่าเดิมหายวับตอนส่ง PUT 
+            // 🚨 ลบฟิลด์สถานะอะไหล่ตัวเก่าออกจากออนเจกต์เดิมก่อน เพื่อไม่ให้มันไปแย่งตแหน่งและเขียนทับค่าใหม่
+            const cleanJobMatch = { ...jobMatch };
+            delete cleanJobMatch.part_status;
+            delete cleanJobMatch.ordered_part_names;
+            delete cleanJobMatch.epc_no;
+            delete cleanJobMatch.est_part_date;
+
+            // ประกอบร่าง Payload ใหม่ บังคับเขียนทับแบบชดเจน
             const updatedJobPayload = {
-                ...jobMatch, // โคลนข้อมูลเดิมทั้งหมดมาครอบไว้ (ชื่อลูกค้า, เบอร์โทร, รุ่นรถ, ทะเบียน จะไม่หายไปไหน)
-                branch_name: currentBranch, // 🌟 ล็อกสาขาให้ตรงตามสิทธิ์ยูเซอร์ปัจจุบันที่เปิดบันทึก
+                ...cleanJobMatch, // ข้อมูลลูกค้าเดิมที่ปลอดภัย
+                branch_name: currentBranch, 
                 epc_no: latestEpcNo || jobMatch.epc_no,
-                part_status: overallPartStatus,
+                part_status: overallPartStatus, // 🌟 ค่าใหม่ล่าสุด บังคับอัปเดต
                 est_part_date: maxEstDate || null,
-                ordered_part_names: summaryPartsStatusText.join(', ')
+                ordered_part_names: summaryPartsStatusText.join(', ') // 🌟 ค่าใหม่ล่าสุด บังคับอัปเดต
             };
 
-            // ยิงส่งกลับไปอัปเดตแบบรักษาข้อมูลเดิมไว้ครบถ้วน
             await fetch(`${API_BASE_URL}/api/report/${jobMatch.id}`, {
                 method: 'PUT',
                 headers: {'Content-Type': 'application/json'},
@@ -706,9 +711,11 @@ async function saveSAAlertUpdate(e) {
             });
         }
         
-        alert('🎉 บันทึกแยกชิ้นเรียบร้อย! ข้อมูลลูกค้าปลอดภัยครบถ้วน และลงบันทึกสาขาตรงตามผู้ใช้งานแล้วครับนาย!'); 
+        alert('🎉 สำเร็จ! อัปเดตสถานะและข้อมูลอะไหล่รายชิ้นเรียบร้อย ข้อมูลลูกค้าปลอดภัยครบถ้วนครับนาย!'); 
         closeAlertModal(); 
-        loadAllData();
+        
+        // 🔄 รีเฟรชข้อมูลโดยตรงจากฐานข้อมูลหลังบ้านทันที เพื่อให้ตารางหน้าแรกเปลี่ยนตาม
+        await loadAllData(); 
     } catch(e) { 
         alert('❌ การซิงค์ข้อมูลล้มเหลว'); 
         console.error(e);
