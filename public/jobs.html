@@ -7,6 +7,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
+    <!-- 🌟 ไลบรารีสำหรับอ่านและสร้างไฟล์ Excel (SheetJS) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
     <style type="text/tailwindcss">
         @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Kanit', sans-serif; background-color: #f4f6f9; overflow: hidden; }
@@ -19,16 +22,22 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-        /* สไตล์ตารางหลัก */
+        /* 🌟 สไตล์ตารางหลัก */
         .excel-table { @apply w-full text-left border-collapse whitespace-nowrap text-[12px]; }
-        .excel-table thead tr:first-child th { @apply px-3 py-2 bg-[#00320D] text-white border border-slate-400 font-bold sticky top-0 z-20 shadow-sm align-middle; }
-        .excel-table thead tr:nth-child(2) th { @apply px-1 py-1 bg-slate-200 border border-slate-300 sticky top-[37px] z-10 shadow-sm; } 
+        .excel-table thead th { @apply px-3 py-2 bg-[#00320D] text-white border border-slate-500 font-bold sticky top-0 z-10 shadow-sm align-middle select-none hover:bg-[#004a1f] transition-colors cursor-pointer; }
         .excel-table td { @apply px-3 py-1.5 border border-slate-300 text-slate-700 align-middle; }
-        .excel-table tr:nth-child(even) { @apply bg-slate-50; }
-        .excel-table tr:hover { @apply bg-green-50; }
-        
+        .excel-table tr:nth-child(even) td { @apply bg-slate-50; }
+        .excel-table tr:hover td { @apply bg-green-50; }
+
         .minimal-input { @apply px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none text-sm font-bold text-[#00320D] focus:border-[#00320D] focus:ring-2 focus:ring-green-500/20 shadow-sm; }
-        .col-filter-input { @apply w-full px-2 py-1 text-[11px] font-normal text-slate-700 bg-white border border-slate-300 rounded outline-none focus:border-[#00320D] focus:ring-1 focus:ring-[#00320D]; }
+        
+        /* 🌟 สไตล์ Excel Filter Modal */
+        .filter-icon { @apply text-slate-400 ml-2 hover:text-white transition-colors; }
+        .filter-active .filter-icon { @apply text-amber-400; }
+        
+        .excel-filter-modal { @apply absolute bg-white border border-slate-200 shadow-xl rounded-lg p-3 z-[200] w-64 text-sm hidden flex flex-col; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .excel-filter-modal.active { @apply flex; }
+        .filter-checkbox-list { @apply max-h-48 overflow-y-auto space-y-1 mt-2 border border-slate-200 p-2 rounded bg-slate-50; }
 
         /* 🔥 สไตล์ตาราง Bulk Insert (โหมด Excel) */
         .bulk-table { @apply w-full text-left border-collapse whitespace-nowrap text-sm; }
@@ -37,6 +46,7 @@
         .bulk-input { @apply w-full h-full px-3 py-2 outline-none bg-transparent focus:bg-blue-50 focus:ring-2 focus:ring-blue-500 font-mono text-sm; }
         .copy-down-btn { @apply text-[10px] text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-200 hover:bg-blue-600 hover:text-white transition-colors cursor-pointer block text-center mt-1 w-full shadow-sm; }
     </style>
+    <style id="dynamic-col-styles"></style>
 </head>
 <body class="text-slate-800 h-screen flex flex-col selection:bg-[#00320D] selection:text-white">
 
@@ -67,115 +77,71 @@
     <div class="bg-white border-b border-slate-200 p-3 shrink-0 shadow-sm z-40 flex flex-wrap gap-3 items-center justify-between">
         <div class="flex flex-wrap gap-3 items-center w-full lg:w-auto">
             <div class="flex items-center gap-2">
-                <span class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-filter"></i> ค้นหาหลัก:</span>
-                <input type="text" id="search_input" onkeyup="applyFilters()" class="minimal-input w-48" placeholder="ค้นหาทั่วไป...">
-            </div>
-            <div class="flex items-center gap-2">
-                <span class="text-xs font-bold text-slate-500 uppercase">สาขา:</span>
-                <select id="filter_branch" onchange="applyFilters()" class="minimal-input w-40">
-                    <option value="ALL">-- ทุกสาขา --</option>
-                </select>
-            </div>
-            <div class="flex items-center gap-2">
-                <span class="text-xs font-bold text-slate-500 uppercase">สถานะงาน:</span>
-                <select id="filter_status" onchange="applyFilters()" class="minimal-input w-48">
-                    <option value="ALL">-- ทุกสถานะ --</option>
-                    <option value="01.ติดต่อสอบถาม">01.ติดต่อสอบถาม</option>
-                    <option value="05.อนุมัติแล้ว">05.อนุมัติแล้ว</option>
-                    <option value="06.สั่งอะไหล่">06.สั่งอะไหล่</option>
-                    <option value="09.จอดรอเข้าซ่อม">09.จอดรอเข้าซ่อม</option>
-                    <option value="10.กำลังซ่อม">10.กำลังซ่อม</option>
-                    <option value="11.รถซ่อมเสร็จรอส่งมอบ">11.รถซ่อมเสร็จรอส่งมอบ</option>
-                    <option value="12.ส่งมอบแล้ว">12.ส่งมอบแล้ว</option>
-                </select>
+                <span class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-search"></i> ค้นหาด่วน:</span>
+                <input type="text" id="search_input" onkeyup="applyFilters()" class="minimal-input w-48" placeholder="พิมพ์คำค้นหา...">
             </div>
         </div>
         <div class="flex items-center gap-2">
             <span class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg border mr-2">พบ: <span id="row_count" class="text-blue-600 font-black text-sm">0</span> คัน</span>
-            <button onclick="openBulkModal()" class="px-4 py-2 bg-emerald-600 text-white font-bold rounded-lg text-xs shadow-md hover:bg-emerald-700 transition animate-pulse"><i class="fa-solid fa-bolt mr-1"></i> เพิ่มด่วน (PDI)</button>
-            <button onclick="clearColFilters()" class="px-3 py-2 bg-slate-100 text-slate-600 font-bold rounded-lg text-xs border border-slate-300 hover:bg-slate-200 transition"><i class="fa-solid fa-eraser"></i></button>
-            <button onclick="loadJobsData()" class="px-3 py-2 bg-[#00320D] text-white font-bold rounded-lg text-xs shadow hover:bg-black transition"><i class="fa-solid fa-rotate-right"></i></button>
+            
+            <button onclick="openBulkModal()" class="px-4 py-2 bg-emerald-600 text-white font-bold rounded-lg text-xs shadow-md hover:bg-emerald-700 transition animate-pulse mr-2"><i class="fa-solid fa-bolt mr-1"></i> เพิ่มด่วน (PDI)</button>
+
+            <button onclick="toggleColManager()" class="px-3 py-2 bg-indigo-50 text-indigo-700 font-bold rounded-lg text-xs border border-indigo-200 hover:bg-indigo-100 transition shadow-sm"><i class="fa-solid fa-eye-slash mr-1"></i> ซ่อนคอลัมน์</button>
+            <button onclick="clearAllFilters()" class="px-3 py-2 bg-slate-100 text-slate-600 font-bold rounded-lg text-xs border border-slate-300 hover:bg-slate-200 transition shadow-sm"><i class="fa-solid fa-filter-circle-xmark mr-1"></i> ล้างฟิลเตอร์</button>
+            <button onclick="loadJobsData()" class="px-3 py-2 bg-[#00320D] text-white font-bold rounded-lg text-xs shadow hover:bg-black transition"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
         </div>
     </div>
 
-    <main class="flex-1 overflow-auto custom-scrollbar bg-slate-100 p-2 relative">
+    <!-- แผงซ่อน/แสดงคอลัมน์ -->
+    <div id="colManagerPanel" class="hidden bg-white border-b border-slate-200 p-4 shrink-0 shadow-inner z-30">
+        <h3 class="text-xs font-bold text-slate-700 mb-2 uppercase border-b pb-1">ติ๊กออกเพื่อซ่อนคอลัมน์</h3>
+        <div class="flex flex-wrap gap-2" id="col_toggles_container"></div>
+    </div>
+
+    <main class="flex-1 overflow-auto custom-scrollbar bg-slate-100 p-2 relative" id="tableContainer">
         <table class="excel-table" id="jobsTable">
-            <thead>
-                <tr>
-                    <th class="text-center bg-blue-900 w-10"><i class="fa-solid fa-pen-to-square"></i></th>
-                    <th>สาขา (Branch)</th>
-                    <th>สถานะงาน (Job Status)</th>
-                    <th class="bg-amber-600">ทะเบียนรถ</th>
-                    <th>วันที่ติดต่อ</th>
-                    <th>วันที่เข้าจอด</th>
-                    <th>กำหนดซ่อมเสร็จ</th>
-                    <th>ชื่อลูกค้า</th>
-                    <th>เบอร์โทร</th>
-                    <th>ประเภทลูกค้า</th>
-                    <th>ประกันภัย / เงินสด</th>
-                    <th>ยี่ห้อ</th>
-                    <th>รุ่นรถ</th>
-                    <th>เลขตัวถัง (VIN)</th>
-                    <th>ระดับความเสียหาย</th>
-                    <th>สถานะอะไหล่รวม</th>
-                    <th>EPC No.</th>
-                    <th>รายการอะไหล่ที่สั่ง</th>
-                    <th>วันที่สั่งอะไหล่</th>
-                    <th>คาดการณ์อะไหล่เข้า</th>
-                    <th>ชิ้นส่วนอะไหล่ (หลัก)</th>
-                    <th>จำนวน (หลัก)</th>
-                    <th>ชิ้นส่วนอะไหล่ (รอง)</th>
-                    <th>จำนวน (รอง)</th>
-                    <th class="text-right">ค่าแรง</th>
-                    <th class="text-right">ค่าอะไหล่</th>
-                    <th class="text-right">งานนอก</th>
-                    <th>วันที่เสร็จจริง</th>
-                    <th>วันที่ส่งมอบ</th>
-                    <th>หมายเหตุ (Notes)</th>
-                    <th>ใบเสนอราคา (QT)</th>
-                    <th>ใบสั่งซ่อม (SO)</th>
-                    <th>วางบิล (BL)</th>
-                    <th class="bg-green-700">SA ที่รับผิดชอบ</th>
-                </tr>
-                <!-- 🌟 แถวสำหรับ Input Filter หัวคอลัมน์ -->
-                <tr>
-                    <th></th>
-                    <th><input type="text" class="col-filter-input" data-key="branch_name" placeholder="กรองสาขา..." oninput="applyFilters()"></th>
-                    <th><input type="text" class="col-filter-input" data-key="job_status" placeholder="กรองสถานะ..." oninput="applyFilters()"></th>
-                    <th><input type="text" class="col-filter-input" data-key="car_plate" placeholder="กรองทะเบียน..." oninput="applyFilters()"></th>
-                    <th></th><th></th><th></th>
-                    <th><input type="text" class="col-filter-input" data-key="customer_name" placeholder="กรองลูกค้า..." oninput="applyFilters()"></th>
-                    <th><input type="text" class="col-filter-input" data-key="phone_number" placeholder="กรองเบอร์..." oninput="applyFilters()"></th>
-                    <th><input type="text" class="col-filter-input" data-key="customer_type" placeholder="กรองประเภท..." oninput="applyFilters()"></th>
-                    <th><input type="text" class="col-filter-input" data-key="payment_type" placeholder="กรองประกัน..." oninput="applyFilters()"></th>
-                    <th><input type="text" class="col-filter-input" data-key="car_brand" placeholder="กรองยี่ห้อ..." oninput="applyFilters()"></th>
-                    <th><input type="text" class="col-filter-input" data-key="car_model" placeholder="กรองรุ่น..." oninput="applyFilters()"></th>
-                    <th><input type="text" class="col-filter-input" data-key="vin_no" placeholder="กรอง VIN..." oninput="applyFilters()"></th>
-                    <th></th>
-                    <th><input type="text" class="col-filter-input" data-key="part_status" placeholder="กรองสถานะอะไหล่..." oninput="applyFilters()"></th>
-                    <th><input type="text" class="col-filter-input" data-key="epc_no" placeholder="กรอง EPC..." oninput="applyFilters()"></th>
-                    <th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    <th><input type="text" class="col-filter-input" data-key="qt_no" placeholder="กรอง QT..." oninput="applyFilters()"></th>
-                    <th><input type="text" class="col-filter-input" data-key="so_no" placeholder="กรอง SO..." oninput="applyFilters()"></th>
-                    <th><input type="text" class="col-filter-input" data-key="bl_no" placeholder="กรอง BL..." oninput="applyFilters()"></th>
-                    <th><input type="text" class="col-filter-input" data-key="sa_owner" placeholder="กรอง SA..." oninput="applyFilters()"></th>
-                </tr>
-            </thead>
+            <thead id="jobs_table_head"></thead>
             <tbody id="jobs_table_body">
                 <tr><td colspan="34" class="text-center py-10 text-slate-400 font-mono text-sm"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังโหลดข้อมูล...</td></tr>
             </tbody>
         </table>
     </main>
 
-    <!-- 🔥 🚀 Modal เพิ่มข้อมูลด่วน (PDI Excel Mode) -->
+    <!-- Excel Filter Modal -->
+    <div id="excelFilterModal" class="excel-filter-modal">
+        <div class="flex justify-between items-center border-b pb-2 mb-2">
+            <span class="font-bold text-[#00320D] text-xs"><i class="fa-solid fa-filter mr-1"></i> ตัวกรอง: <span id="ef_col_name" class="text-amber-600"></span></span>
+            <button onclick="closeExcelFilter()" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <input type="text" id="ef_search" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none focus:border-blue-500" placeholder="ค้นหา..." onkeyup="searchExcelFilter()">
+        <div class="flex items-center gap-2 mt-2 px-1">
+            <input type="checkbox" id="ef_select_all" checked onchange="toggleAllExcelFilters(this.checked)" class="w-3 h-3 cursor-pointer">
+            <label for="ef_select_all" class="text-xs font-bold text-slate-700 cursor-pointer select-none">เลือกทั้งหมด</label>
+        </div>
+        <div id="ef_checkbox_list" class="filter-checkbox-list custom-scrollbar"></div>
+        <div class="flex gap-2 mt-3">
+            <button onclick="applyExcelFilter()" class="flex-1 bg-[#00320D] text-white text-xs font-bold py-1.5 rounded hover:bg-black transition shadow">ตกลง</button>
+            <button onclick="clearSpecificExcelFilter()" class="flex-1 bg-slate-200 text-slate-700 text-xs font-bold py-1.5 rounded hover:bg-slate-300 transition border border-slate-300">ล้างคอลัมน์นี้</button>
+        </div>
+    </div>
+
+    <!-- 🔥 🚀 Modal เพิ่มข้อมูลด่วน (PDI Excel Mode) พร้อม Import/Export -->
     <div id="bulkModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center hidden p-4">
         <div class="bg-white w-full max-w-[95%] h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border-2 border-emerald-500">
-            <div class="bg-emerald-700 px-6 py-4 flex justify-between items-center text-white shrink-0">
+            <!-- Header Modal + Import/Export Buttons -->
+            <div class="bg-emerald-700 px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center text-white shrink-0 gap-4">
                 <div>
                     <h2 class="text-xl font-black tracking-wide"><i class="fa-solid fa-file-excel text-emerald-300 mr-2"></i> โหมดสร้างรายการด่วน (PDI / Fleet)</h2>
-                    <p class="text-xs text-emerald-200 mt-1">คัดลอกข้อมูลลงมาได้ง่ายๆ แค่พิมพ์แถวแรกแล้วกดปุ่ม "⬇️ ดึงลงมา"</p>
+                    <p class="text-xs text-emerald-200 mt-1">คัดลอกลงมา (Fill Down) หรืออัปโหลดไฟล์ Excel เพื่อนำเข้าข้อมูลรวดเดียว</p>
                 </div>
-                <button onclick="closeBulkModal()" class="text-white hover:text-red-300 transition text-2xl"><i class="fa-solid fa-xmark"></i></button>
+                <div class="flex items-center gap-3">
+                    <button onclick="downloadExcelTemplate()" class="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 border border-emerald-600 rounded-lg text-xs font-bold transition flex items-center gap-2 shadow-sm"><i class="fa-solid fa-download"></i> 1. โหลดฟอร์มเปล่า</button>
+                    
+                    <label for="excel_upload" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-900 border border-amber-600 rounded-lg text-xs font-bold transition flex items-center gap-2 shadow-sm cursor-pointer"><i class="fa-solid fa-upload"></i> 2. อัปโหลด Excel ที่กรอกแล้ว</label>
+                    <input type="file" id="excel_upload" accept=".xlsx, .xls" class="hidden" onchange="handleExcelUpload(event)">
+                    
+                    <button onclick="closeBulkModal()" class="text-white hover:text-red-300 transition text-2xl ml-4"><i class="fa-solid fa-xmark"></i></button>
+                </div>
             </div>
             
             <div class="flex-1 overflow-auto custom-scrollbar p-4 bg-slate-50">
@@ -207,14 +173,14 @@
                     </thead>
                     <tbody id="bulk_table_body"></tbody>
                 </table>
-                <button onclick="addBulkRow()" class="mt-4 px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg text-sm hover:bg-slate-300 transition shadow-sm border border-slate-300">+ เพิ่มแถวใหม่</button>
+                <button onclick="addBulkRow()" class="mt-4 px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg text-sm hover:bg-slate-300 transition shadow-sm border border-slate-300">+ เพิ่มแถวใหม่ (Manual)</button>
             </div>
 
             <div class="bg-white border-t border-slate-200 p-4 shrink-0 flex justify-between items-center">
                 <span class="text-xs text-red-500 font-bold">* ระบบจะบันทึกเฉพาะแถวที่มีการกรอก "ทะเบียนรถ" เท่านั้น</span>
                 <div class="flex gap-3">
                     <button onclick="closeBulkModal()" class="px-6 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition border border-slate-300">ยกเลิก</button>
-                    <button onclick="saveBulkData()" id="btn_save_bulk" class="px-8 py-2.5 bg-emerald-600 text-white font-black rounded-xl hover:bg-emerald-700 transition shadow-lg shadow-emerald-600/30 flex items-center gap-2"><i class="fa-solid fa-save"></i> บันทึกข้อมูลทั้งหมด</button>
+                    <button onclick="saveBulkData()" id="btn_save_bulk" class="px-8 py-2.5 bg-emerald-600 text-white font-black rounded-xl hover:bg-emerald-700 transition shadow-lg shadow-emerald-600/30 flex items-center gap-2"><i class="fa-solid fa-save"></i> 3. บันทึกข้อมูลเข้าฐานข้อมูล</button>
                 </div>
             </div>
         </div>
@@ -226,109 +192,226 @@
         let userRole = '';
         let userBranch = '';
 
+        const columnsDef = [
+            { idx: 1, key: 'action', title: '<i class="fa-solid fa-pen-to-square"></i>', filterable: false, defaultShow: true },
+            { idx: 2, key: 'branch_name', title: 'สาขา (Branch)', filterable: true, defaultShow: true },
+            { idx: 3, key: 'job_status', title: 'สถานะงาน (Job Status)', filterable: true, defaultShow: true },
+            { idx: 4, key: 'car_plate', title: 'ทะเบียนรถ', filterable: true, defaultShow: true },
+            { idx: 5, key: 'contact_date', title: 'วันที่ติดต่อ', filterable: false, defaultShow: true },
+            { idx: 6, key: 'arrived_date', title: 'วันที่เข้าจอด', filterable: false, defaultShow: true },
+            { idx: 7, key: 'target_finish_date', title: 'กำหนดซ่อมเสร็จ', filterable: false, defaultShow: true },
+            { idx: 8, key: 'customer_name', title: 'ชื่อลูกค้า', filterable: true, defaultShow: true },
+            { idx: 9, key: 'phone_number', title: 'เบอร์โทร', filterable: true, defaultShow: false }, 
+            { idx: 10, key: 'customer_type', title: 'ประเภทลูกค้า', filterable: true, defaultShow: true },
+            { idx: 11, key: 'payment_type', title: 'ประกันภัย / เงินสด', filterable: true, defaultShow: true },
+            { idx: 12, key: 'car_brand', title: 'ยี่ห้อ', filterable: true, defaultShow: true },
+            { idx: 13, key: 'car_model', title: 'รุ่นรถ', filterable: true, defaultShow: true },
+            { idx: 14, key: 'vin_no', title: 'เลขตัวถัง (VIN)', filterable: true, defaultShow: false }, 
+            { idx: 15, key: 'damage_level', title: 'ระดับความเสียหาย', filterable: true, defaultShow: true },
+            { idx: 16, key: 'part_status', title: 'สถานะอะไหล่รวม', filterable: true, defaultShow: true },
+            { idx: 17, key: 'epc_no', title: 'EPC No.', filterable: true, defaultShow: false },
+            { idx: 18, key: 'ordered_part_names', title: 'รายการอะไหล่ที่สั่ง', filterable: true, defaultShow: true },
+            { idx: 19, key: 'order_part_date', title: 'วันที่สั่งอะไหล่', filterable: false, defaultShow: false },
+            { idx: 20, key: 'est_part_date', title: 'คาดการณ์อะไหล่เข้า', filterable: false, defaultShow: false },
+            { idx: 21, key: 'main_part_name', title: 'ชิ้นส่วนอะไหล่ (หลัก)', filterable: true, defaultShow: true },
+            { idx: 22, key: 'main_part_qty', title: 'จำนวน (หลัก)', filterable: false, defaultShow: false },
+            { idx: 23, key: 'sub_part_name', title: 'ชิ้นส่วนอะไหล่ (รอง)', filterable: true, defaultShow: true },
+            { idx: 24, key: 'sub_part_qty', title: 'จำนวน (รอง)', filterable: false, defaultShow: false },
+            { idx: 25, key: 'actual_finish_date', title: 'วันที่เสร็จจริง', filterable: false, defaultShow: true },
+            { idx: 26, key: 'delivery_date', title: 'วันที่ส่งมอบ', filterable: false, defaultShow: true },
+            { idx: 27, key: 'notes', title: 'หมายเหตุ', filterable: true, defaultShow: true },
+            { idx: 28, key: 'qt_no', title: 'QT', filterable: true, defaultShow: true },
+            { idx: 29, key: 'so_no', title: 'SO', filterable: true, defaultShow: true },
+            { idx: 30, key: 'bl_no', title: 'BL', filterable: true, defaultShow: true },
+            { idx: 31, key: 'sa_owner', title: 'SA ผู้รับผิดชอบ', filterable: true, defaultShow: true }
+        ];
+
+        let activeFilters = {}; 
+        let currentFilterKey = '';
+        let hiddenCols = new Set(); 
+
         document.addEventListener('DOMContentLoaded', () => {
             if(sessionStorage.getItem('isLoggedIn') !== 'true') {
-                alert('🚨 กรุณาเข้าสู่ระบบก่อนครับ!'); window.location.href = 'index.html'; return;
+                window.location.href = 'index.html'; return;
             }
-
             userRole = sessionStorage.getItem('emp_role');
             userBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
 
             const allowedPages = (sessionStorage.getItem('accessible_pages') || '').split(',');
             if (!allowedPages.includes('jobs')) { 
                 alert('⛔ คุณไม่มีสิทธิ์เข้าถึงบอร์ดใบงานครับ!');
-                window.location.href = allowedPages.length > 0 ? allowedPages[0] + '.html' : 'index.html';
-                return;
+                window.location.href = allowedPages.length > 0 ? allowedPages[0] + '.html' : 'index.html'; return;
             }
             
             document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name');
             document.getElementById('display_branch').innerText = userBranch;
-            
-            loadBranchesForFilter();
+
+            initColumns();
             loadJobsData();
+
+            document.addEventListener('click', (e) => {
+                const modal = document.getElementById('excelFilterModal');
+                if (!modal.contains(e.target) && !e.target.closest('th') && !modal.classList.contains('hidden')) {
+                    closeExcelFilter();
+                }
+            });
         });
 
         function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
 
-        async function loadBranchesForFilter() {
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/employees`);
-                const data = await res.json();
-                const branches = [...new Set(data.map(e => e.branch_name))];
-                const select = document.getElementById('filter_branch');
+        // =====================================
+        // 🚀 1. ระบบจัดการคอลัมน์ (Column Visibility)
+        // =====================================
+        function initColumns() {
+            const thead = document.getElementById('jobs_table_head');
+            let trHtml = '<tr>';
+            columnsDef.forEach(col => {
+                let filterIcon = col.filterable ? `<i class="fa-solid fa-filter filter-icon float-right mt-1"></i>` : '';
+                let onclickEvent = col.filterable ? `onclick="openExcelFilter(event, '${col.key}', '${col.title}')"` : '';
+                let bgClass = col.key === 'car_plate' ? 'bg-amber-600' : (col.key === 'action' ? 'bg-blue-900 text-center w-10' : '');
                 
-                if (['BA','Manager','Admin','แอดมิน'].includes(userRole)) {
-                    branches.forEach(b => select.innerHTML += `<option value="${b}">${b}</option>`);
-                } else {
-                    select.innerHTML = `<option value="${userBranch}">${userBranch}</option>`;
-                    select.value = userBranch;
-                    select.disabled = true; 
-                }
-            } catch (e) { console.error(e); }
+                trHtml += `<th class="${bgClass}" id="th_${col.key}" ${onclickEvent}>${col.title} ${filterIcon}</th>`;
+                if (!col.defaultShow) hiddenCols.add(col.idx); 
+            });
+            trHtml += '</tr>';
+            thead.innerHTML = trHtml;
+
+            const toggleContainer = document.getElementById('col_toggles_container');
+            let togglesHtml = '';
+            columnsDef.forEach(col => {
+                if(col.key === 'action') return; 
+                const checked = hiddenCols.has(col.idx) ? '' : 'checked';
+                togglesHtml += `
+                    <label class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded cursor-pointer hover:bg-slate-100 select-none">
+                        <input type="checkbox" onchange="toggleColumnVisibility(${col.idx}, this.checked)" ${checked} class="accent-[#00320D] w-4 h-4 cursor-pointer">
+                        <span class="text-[11px] font-bold text-slate-700">${col.title.replace('<i class="fa-solid fa-pen-to-square"></i>','แก้ไข')}</span>
+                    </label>`;
+            });
+            toggleContainer.innerHTML = togglesHtml;
+
+            applyColumnStyles();
         }
 
+        function toggleColManager() { document.getElementById('colManagerPanel').classList.toggle('hidden'); }
+        function toggleColumnVisibility(idx, isShow) {
+            if (isShow) hiddenCols.delete(idx); else hiddenCols.add(idx);
+            applyColumnStyles();
+        }
+        function applyColumnStyles() {
+            const styleTag = document.getElementById('dynamic-col-styles');
+            let css = '';
+            hiddenCols.forEach(idx => { css += `#jobsTable th:nth-child(${idx}), #jobsTable td:nth-child(${idx}) { display: none !important; }\n`; });
+            styleTag.innerHTML = css;
+        }
+
+        // =====================================
+        // 🚀 2. ระบบตารางและดึงข้อมูล
+        // =====================================
         async function loadJobsData() {
             try {
-                document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="34" class="text-center py-10 text-slate-400 font-mono"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังดึงข้อมูล...</td></tr>`;
+                document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-10 text-slate-400 font-mono"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังดึงข้อมูล...</td></tr>`;
                 const res = await fetch(`${API_BASE_URL}/api/reports`);
                 const data = await res.json();
                 
-                if(Array.isArray(data)) {
-                    allJobsData = data;
-                } else {
-                    allJobsData = [];
-                }
+                if (['BA','Manager','Admin','แอดมิน'].includes(userRole)) allJobsData = data;
+                else allJobsData = data.filter(d => d.branch_name === userBranch);
                 
                 applyFilters(); 
             } catch (error) {
-                document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="34" class="text-center py-10 text-red-500 font-bold">⚠️ ไม่สามารถเชื่อมต่อฐานข้อมูลได้</td></tr>`;
+                document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-10 text-red-500 font-bold">⚠️ ไม่สามารถเชื่อมต่อฐานข้อมูลได้</td></tr>`;
             }
         }
 
-        function clearColFilters() {
-            document.querySelectorAll('.col-filter-input').forEach(input => input.value = '');
-            document.getElementById('search_input').value = '';
-            document.getElementById('filter_status').value = 'ALL';
+        // =====================================
+        // 🚀 3. ระบบ Excel Filter (Checkbox)
+        // =====================================
+        function openExcelFilter(e, key, title) {
+            e.stopPropagation();
+            currentFilterKey = key;
+            document.getElementById('ef_col_name').innerText = title;
+            document.getElementById('ef_search').value = '';
             
-            if (['BA','Manager','Admin','แอดมิน'].includes(userRole)) {
-                document.getElementById('filter_branch').value = 'ALL';
+            const uniqueValues = [...new Set(allJobsData.map(item => String(item[key] || '-').trim()))].sort();
+            const listDiv = document.getElementById('ef_checkbox_list');
+            listDiv.innerHTML = '';
+            const activeSet = activeFilters[key]; 
+
+            uniqueValues.forEach(val => {
+                const isChecked = activeSet ? activeSet.has(val) : true;
+                listDiv.innerHTML += `
+                    <label class="flex items-start gap-2 hover:bg-slate-100 p-1 rounded cursor-pointer ef-item">
+                        <input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''} class="ef-check accent-blue-600 mt-0.5">
+                        <span class="text-slate-700 truncate w-full" title="${val}">${val === '-' ? '(ว่าง)' : val}</span>
+                    </label>
+                `;
+            });
+
+            const allChecked = Array.from(document.querySelectorAll('.ef-check')).every(cb => cb.checked);
+            document.getElementById('ef_select_all').checked = allChecked;
+
+            const modal = document.getElementById('excelFilterModal');
+            const rect = e.target.closest('th').getBoundingClientRect();
+            let topPos = rect.bottom + window.scrollY;
+            let leftPos = rect.left + window.scrollX;
+            if (leftPos + 256 > window.innerWidth) leftPos = window.innerWidth - 270;
+
+            modal.style.top = topPos + 'px'; modal.style.left = leftPos + 'px';
+            modal.classList.add('active'); modal.classList.remove('hidden');
+        }
+
+        function closeExcelFilter() {
+            document.getElementById('excelFilterModal').classList.add('hidden');
+            document.getElementById('excelFilterModal').classList.remove('active');
+        }
+
+        function searchExcelFilter() {
+            const txt = document.getElementById('ef_search').value.toLowerCase();
+            document.querySelectorAll('.ef-item').forEach(label => {
+                const val = label.querySelector('.ef-check').value.toLowerCase();
+                label.style.display = val.includes(txt) ? 'flex' : 'none';
+            });
+        }
+
+        function toggleAllExcelFilters(checked) { document.querySelectorAll('.ef-item:not([style*="display: none"]) .ef-check').forEach(cb => cb.checked = checked); }
+
+        function applyExcelFilter() {
+            const key = currentFilterKey;
+            const checks = document.querySelectorAll('.ef-check');
+            const checkedVals = Array.from(checks).filter(cb => cb.checked).map(cb => cb.value);
+            
+            if (checkedVals.length === checks.length || checkedVals.length === 0) {
+                delete activeFilters[key]; document.getElementById(`th_${key}`).classList.remove('filter-active');
+            } else {
+                activeFilters[key] = new Set(checkedVals); document.getElementById(`th_${key}`).classList.add('filter-active');
             }
+            closeExcelFilter(); applyFilters();
+        }
+
+        function clearSpecificExcelFilter() {
+            delete activeFilters[currentFilterKey]; document.getElementById(`th_${currentFilterKey}`).classList.remove('filter-active');
+            closeExcelFilter(); applyFilters();
+        }
+
+        function clearAllFilters() {
+            activeFilters = {}; document.getElementById('search_input').value = '';
+            document.querySelectorAll('th.filter-active').forEach(th => th.classList.remove('filter-active'));
             applyFilters();
         }
 
         function applyFilters() {
             const searchTxt = document.getElementById('search_input').value.toLowerCase();
-            const branchFilter = document.getElementById('filter_branch').value;
-            const statusFilter = document.getElementById('filter_status').value;
-
-            let colFilters = {};
-            document.querySelectorAll('.col-filter-input').forEach(input => {
-                if(input.value.trim() !== '') {
-                    colFilters[input.dataset.key] = input.value.toLowerCase().trim();
-                }
-            });
-
             const filteredData = allJobsData.filter(job => {
-                if (branchFilter !== 'ALL' && job.branch_name !== branchFilter) return false;
-                if (statusFilter !== 'ALL' && job.job_status !== statusFilter) return false;
-
                 if (searchTxt) {
-                    const matchPlate = (job.car_plate || '').toLowerCase().includes(searchTxt);
-                    const matchName = (job.customer_name || '').toLowerCase().includes(searchTxt);
-                    const matchEPC = (job.epc_no || '').toLowerCase().includes(searchTxt);
-                    if (!matchPlate && !matchName && !matchEPC) return false;
+                    const matchPlate = String(job.car_plate || '').toLowerCase().includes(searchTxt);
+                    const matchName = String(job.customer_name || '').toLowerCase().includes(searchTxt);
+                    const matchPhone = String(job.phone_number || '').toLowerCase().includes(searchTxt);
+                    const matchSA = String(job.sa_owner || '').toLowerCase().includes(searchTxt);
+                    if (!matchPlate && !matchName && !matchPhone && !matchSA) return false;
                 }
-
-                let matchCols = true;
-                for(let key in colFilters) {
-                    const rowValue = String(job[key] || '').toLowerCase();
-                    if(!rowValue.includes(colFilters[key])) {
-                        matchCols = false;
-                        break;
-                    }
+                for (let key in activeFilters) {
+                    const val = String(job[key] || '-').trim();
+                    if (!activeFilters[key].has(val)) return false;
                 }
-                if(!matchCols) return false;
-
                 return true;
             });
 
@@ -336,10 +419,12 @@
             document.getElementById('row_count').innerText = filteredData.length;
         }
 
+        // =====================================
+        // 🚀 4. เรนเดอร์ลงตาราง HTML
+        // =====================================
         function formatDate(isoString) {
             if (!isoString) return '-';
-            const d = new Date(isoString);
-            return d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            return new Date(isoString).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
         }
 
         function formatCurrency(val) {
@@ -347,16 +432,12 @@
             return parseFloat(val).toLocaleString('th-TH', { minimumFractionDigits: 2 });
         }
 
-        function goToEditJob(jobId) {
-            sessionStorage.setItem('edit_job_id', jobId);
-            window.location.href = 'index.html'; 
-        }
+        function goToEditJob(jobId) { sessionStorage.setItem('edit_job_id', jobId); window.location.href = 'index.html'; }
 
         function renderTable(data) {
             const tbody = document.getElementById('jobs_table_body');
             if (!data || data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="34" class="text-center py-10 text-slate-400 font-mono bg-white">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td></tr>`;
-                return;
+                tbody.innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-10 text-slate-400 font-mono bg-white">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td></tr>`; return;
             }
 
             tbody.innerHTML = data.map(job => {
@@ -364,105 +445,137 @@
                 if (job.job_status === '12.ส่งมอบแล้ว') statusBadge = 'bg-emerald-100 text-emerald-800 border-emerald-400 font-black';
                 else if (job.job_status === '10.กำลังซ่อม') statusBadge = 'bg-amber-100 text-amber-800 border-amber-400 font-bold';
                 else if (job.job_status === '11.รถซ่อมเสร็จรอส่งมอบ') statusBadge = 'bg-blue-100 text-blue-800 border-blue-400 font-bold';
+                else if (job.job_status === '06.สั่งอะไหล่') statusBadge = 'bg-purple-100 text-purple-800 border-purple-400 font-bold';
 
                 let dmgColor = 'text-green-600';
-                if (job.damage_level === 'กลาง') dmgColor = 'text-amber-500 font-bold';
+                if (job.damage_level === 'กลาง') dmgColor = 'text-amber-600 font-bold';
                 if (job.damage_level === 'หนัก') dmgColor = 'text-red-600 font-black';
 
-                return `
-                <tr>
-                    <td class="text-center"><button onclick="goToEditJob('${job.id}')" class="bg-blue-600 text-white px-2 py-1 rounded shadow-sm hover:bg-blue-800 transition"><i class="fa-solid fa-pen-to-square"></i></button></td>
-                    <td class="font-bold text-[#00320D]">${job.branch_name || '-'}</td>
-                    <td><span class="px-2 py-0.5 rounded border text-[10px] ${statusBadge}">${job.job_status || '-'}</span></td>
-                    <td class="font-black text-amber-700 bg-amber-50 text-center">${job.car_plate || '-'}</td>
-                    <td class="font-mono">${formatDate(job.contact_date)}</td>
-                    <td class="font-mono text-blue-700">${formatDate(job.arrived_date)}</td>
-                    <td class="font-mono text-amber-600 font-bold">${formatDate(job.target_finish_date)}</td>
-                    <td class="font-medium max-w-[150px] truncate" title="${job.customer_name}">${job.customer_name || '-'}</td>
-                    <td class="font-mono">${job.phone_number || '-'}</td>
-                    <td>${job.customer_type || '-'}</td>
-                    <td>${job.payment_type || '-'}</td>
-                    <td class="font-bold">${job.car_brand || '-'}</td>
-                    <td>${job.car_model || '-'}</td>
-                    <td class="font-mono text-[10px] text-slate-500">${job.vin_no || '-'}</td>
-                    <td class="${dmgColor}">${job.damage_level || 'เบา'}</td>
-                    
-                    <td class="font-bold text-purple-700">${job.part_status || '-'}</td>
-                    <td class="font-mono text-[10px]">${job.epc_no || '-'}</td>
-                    <td class="truncate max-w-[200px] text-[10px]" title="${job.ordered_part_names}">${job.ordered_part_names || '-'}</td>
-                    <td class="font-mono text-[10px]">${formatDate(job.order_part_date)}</td>
-                    <td class="font-mono text-[10px]">${formatDate(job.est_part_date)}</td>
-                    
-                    <td class="truncate max-w-[150px] text-[10px]" title="${job.main_part_name}">${job.main_part_name || '-'}</td>
-                    <td class="text-center font-bold">${job.main_part_qty || 0}</td>
-                    <td class="truncate max-w-[150px] text-[10px]" title="${job.sub_part_name}">${job.sub_part_name || '-'}</td>
-                    <td class="text-center font-bold">${job.sub_part_qty || 0}</td>
-                    
-                    <td class="text-right font-mono text-slate-500">${formatCurrency(job.cost_labor)}</td>
-                    <td class="text-right font-mono text-slate-500">${formatCurrency(job.cost_part)}</td>
-                    <td class="text-right font-mono text-slate-500">${formatCurrency(job.cost_external)}</td>
-                    
-                    <td class="font-mono text-green-600">${formatDate(job.actual_finish_date)}</td>
-                    <td class="font-mono font-bold text-emerald-700">${formatDate(job.delivery_date)}</td>
-                    
-                    <td class="truncate max-w-[150px] text-[10px] text-slate-400" title="${job.notes}">${job.notes || '-'}</td>
-                    <td class="font-mono text-[10px]">${job.qt_no || '-'}</td>
-                    <td class="font-mono text-[10px]">${job.so_no || '-'}</td>
-                    <td class="font-mono text-[10px]">${job.bl_no || '-'}</td>
-                    <td class="text-xs font-bold text-green-800">${job.sa_owner || '-'}</td>
-                </tr>
-                `;
+                let rowHtml = '<tr>';
+                columnsDef.forEach(col => {
+                    let cellData = ''; let cellClass = '';
+                    switch(col.key) {
+                        case 'action': cellData = `<button onclick="goToEditJob('${job.id}')" class="bg-blue-600 text-white px-2 py-1 rounded shadow-sm hover:bg-blue-800 transition"><i class="fa-solid fa-pen-to-square"></i></button>`; cellClass="text-center"; break;
+                        case 'branch_name': cellData = job.branch_name || '-'; cellClass="font-bold text-[#00320D]"; break;
+                        case 'job_status': cellData = `<span class="px-2 py-0.5 rounded border text-[10px] ${statusBadge}">${job.job_status || '-'}</span>`; break;
+                        case 'car_plate': cellData = job.car_plate || '-'; cellClass="font-black text-amber-700 bg-amber-50 text-center"; break;
+                        case 'contact_date': case 'arrived_date': case 'target_finish_date': case 'actual_finish_date': case 'delivery_date': case 'order_part_date': case 'est_part_date': cellData = formatDate(job[col.key]); cellClass="font-mono text-slate-600"; break;
+                        case 'customer_name': cellData = `<div class="truncate max-w-[150px]" title="${job.customer_name}">${job.customer_name || '-'}</div>`; break;
+                        case 'vin_no': cellData = job.vin_no || '-'; cellClass="font-mono text-[10px] text-slate-400"; break;
+                        case 'damage_level': cellData = job.damage_level || 'เบา'; cellClass=dmgColor; break;
+                        case 'part_status': cellData = job.part_status || '-'; cellClass="font-bold text-purple-700"; break;
+                        case 'ordered_part_names': case 'main_part_name': case 'sub_part_name': case 'notes': cellData = `<div class="truncate max-w-[150px] text-[11px]" title="${job[col.key]}">${job[col.key] || '-'}</div>`; break;
+                        case 'cost_labor': case 'cost_part': case 'cost_external': cellData = formatCurrency(job[col.key]); cellClass="text-right font-mono text-slate-500"; break;
+                        default: cellData = job[col.key] || '-'; break;
+                    }
+                    rowHtml += `<td class="${cellClass}">${cellData}</td>`;
+                });
+                rowHtml += '</tr>'; return rowHtml;
             }).join('');
         }
 
-        // ==========================================
-        // 🚀 ฟังก์ชันสำหรับ Smart Bulk Insert (PDI Excel Mode)
-        // ==========================================
+        // =====================================
+        // 🚀 5. ระบบ Import/Export Excel (SheetJS)
+        // =====================================
         function openBulkModal() {
             document.getElementById('bulk_table_body').innerHTML = ''; 
             for(let i=0; i<10; i++) addBulkRow(); 
-            
             const saInputs = document.querySelectorAll('.bulk-input-sa');
             if(saInputs.length > 0) saInputs[0].value = sessionStorage.getItem('emp_name') || '';
-
             document.getElementById('bulkModal').classList.remove('hidden');
         }
 
-        function closeBulkModal() {
-            document.getElementById('bulkModal').classList.add('hidden');
-        }
+        function closeBulkModal() { document.getElementById('bulkModal').classList.add('hidden'); }
 
-        function addBulkRow() {
+        function addBulkRow(rowData = null) {
             const tbody = document.getElementById('bulk_table_body');
             const rowCount = tbody.children.length + 1;
             const tr = document.createElement('tr');
             tr.className = 'bulk-row hover:bg-blue-50/30 transition-colors';
+            
+            // อ่านค่าจาก Excel ถ้ามี
+            const vPlate = rowData ? (rowData['ทะเบียนรถ'] || '') : '';
+            const vVin = rowData ? (rowData['เลขตัวถัง (VIN)'] || '') : '';
+            const vSa = rowData ? (rowData['ชื่อ SA'] || '') : '';
+            const vBrand = rowData ? (rowData['ยี่ห้อรถ'] || '') : '';
+            const vModel = rowData ? (rowData['รุ่นรถ'] || '') : '';
+            const vArrived = rowData ? formatExcelDate(rowData['วันที่เข้าจอด (YYYY-MM-DD)']) : '';
+            const vTarget = rowData ? formatExcelDate(rowData['เป้าซ่อมเสร็จ (YYYY-MM-DD)']) : '';
+            const vStatus = rowData ? (rowData['สถานะ'] || '09.จอดรอเข้าซ่อม') : '09.จอดรอเข้าซ่อม';
+
             tr.innerHTML = `
                 <td class="text-center text-xs text-slate-400 font-mono bg-slate-50">${rowCount}</td>
-                <td class="bg-amber-50/30"><input type="text" class="bulk-input bulk-input-plate uppercase font-bold text-blue-700" placeholder="ทะเบียน"></td>
-                <td><input type="text" class="bulk-input bulk-input-vin uppercase" placeholder="VIN"></td>
-                <td class="bg-blue-50/10"><input type="text" class="bulk-input bulk-input-sa" placeholder="ชื่อ SA"></td>
-                <td><input type="text" class="bulk-input bulk-input-brand" placeholder="ยี่ห้อ"></td>
-                <td><input type="text" class="bulk-input bulk-input-model" placeholder="รุ่น"></td>
-                <td><input type="date" class="bulk-input bulk-input-arrived text-slate-600"></td>
-                <td><input type="date" class="bulk-input bulk-input-target text-amber-600"></td>
+                <td class="bg-amber-50/30"><input type="text" class="bulk-input bulk-input-plate uppercase font-bold text-blue-700" placeholder="ทะเบียน" value="${vPlate}"></td>
+                <td><input type="text" class="bulk-input bulk-input-vin uppercase" placeholder="VIN" value="${vVin}"></td>
+                <td class="bg-blue-50/10"><input type="text" class="bulk-input bulk-input-sa" placeholder="ชื่อ SA" value="${vSa}"></td>
+                <td><input type="text" class="bulk-input bulk-input-brand" placeholder="ยี่ห้อ" value="${vBrand}"></td>
+                <td><input type="text" class="bulk-input bulk-input-model" placeholder="รุ่น" value="${vModel}"></td>
+                <td><input type="date" class="bulk-input bulk-input-arrived text-slate-600" value="${vArrived}"></td>
+                <td><input type="date" class="bulk-input bulk-input-target text-amber-600" value="${vTarget}"></td>
                 <td>
                     <select class="bulk-input bulk-input-status text-slate-700">
-                        <option value="09.จอดรอเข้าซ่อม">09.จอดรอเข้าซ่อม</option>
-                        <option value="10.กำลังซ่อม">10.กำลังซ่อม</option>
-                        <option value="06.สั่งอะไหล่">06.สั่งอะไหล่</option>
-                        <option value="01.ติดต่อสอบถาม">01.ติดต่อสอบถาม</option>
+                        <option value="09.จอดรอเข้าซ่อม" ${vStatus === '09.จอดรอเข้าซ่อม' ? 'selected' : ''}>09.จอดรอเข้าซ่อม</option>
+                        <option value="10.กำลังซ่อม" ${vStatus === '10.กำลังซ่อม' ? 'selected' : ''}>10.กำลังซ่อม</option>
+                        <option value="06.สั่งอะไหล่" ${vStatus === '06.สั่งอะไหล่' ? 'selected' : ''}>06.สั่งอะไหล่</option>
+                        <option value="01.ติดต่อสอบถาม" ${vStatus === '01.ติดต่อสอบถาม' ? 'selected' : ''}>01.ติดต่อสอบถาม</option>
                     </select>
                 </td>
             `;
             tbody.appendChild(tr);
         }
 
+        function formatExcelDate(dateStr) {
+            if(!dateStr) return '';
+            const d = new Date(dateStr);
+            if(isNaN(d.getTime())) return '';
+            return d.toISOString().split('T')[0];
+        }
+
+        function downloadExcelTemplate() {
+            const templateData = [
+                { "ทะเบียนรถ": "กข 1234", "เลขตัวถัง (VIN)": "VIN1234567890", "ชื่อ SA": "พนักงาน A", "ยี่ห้อรถ": "Tesla", "รุ่นรถ": "Model 3", "วันที่เข้าจอด (YYYY-MM-DD)": "2024-01-15", "เป้าซ่อมเสร็จ (YYYY-MM-DD)": "2024-01-20", "สถานะ": "09.จอดรอเข้าซ่อม" },
+                { "ทะเบียนรถ": "ขค 5678", "เลขตัวถัง (VIN)": "", "ชื่อ SA": "พนักงาน A", "ยี่ห้อรถ": "Toyota", "รุ่นรถ": "Camry", "วันที่เข้าจอด (YYYY-MM-DD)": "", "เป้าซ่อมเสร็จ (YYYY-MM-DD)": "", "สถานะ": "01.ติดต่อสอบถาม" }
+            ];
+            const ws = XLSX.utils.json_to_sheet(templateData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "PDI_Template");
+            XLSX.writeFile(wb, "RIZENIC_PDI_Template.xlsx");
+        }
+
+        function handleExcelUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, {raw: false});
+                    
+                    if(jsonData.length > 0) {
+                        document.getElementById('bulk_table_body').innerHTML = ''; // ล้างของเก่าทิ้ง
+                        jsonData.forEach(row => addBulkRow(row)); // วนลูปยัดเข้าตาราง
+                        alert(`✅ โหลดข้อมูลสำเร็จ ${jsonData.length} รายการ! กรุณาตรวจสอบข้อมูลและกดปุ่ม "บันทึก" เพื่อนำเข้าฐานข้อมูล`);
+                    } else {
+                        alert('⚠️ ไม่พบข้อมูลในไฟล์ Excel');
+                    }
+                } catch(err) {
+                    alert('❌ รูปแบบไฟล์ไม่ถูกต้อง กรุณาใช้ไฟล์ Template ที่ดาวน์โหลดจากระบบ');
+                }
+                
+                document.getElementById('excel_upload').value = ''; // เคลียร์ input
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
         function copyDown(field) {
             const inputs = document.querySelectorAll(`.bulk-input-${field}`);
             if(inputs.length === 0) return;
             const topValue = inputs[0].value; 
-            
             for(let i = 1; i < inputs.length; i++) {
                 inputs[i].value = topValue;
                 inputs[i].classList.add('bg-green-100', 'transition-colors');
@@ -479,48 +592,26 @@
                 if(!plate) return; 
 
                 const payload = {
-                    car_plate: plate,
-                    vin_no: row.querySelector('.bulk-input-vin').value,
-                    sa_owner: row.querySelector('.bulk-input-sa').value,
-                    car_brand: row.querySelector('.bulk-input-brand').value,
-                    car_model: row.querySelector('.bulk-input-model').value,
-                    arrived_date: row.querySelector('.bulk-input-arrived').value || null,
-                    target_finish_date: row.querySelector('.bulk-input-target').value || null,
-                    job_status: row.querySelector('.bulk-input-status').value || '09.จอดรอเข้าซ่อม',
-                    department_routing: 'ซ่อม', 
-                    branch_name: userBranch, 
-                    damage_level: 'เบา' 
+                    car_plate: plate, vin_no: row.querySelector('.bulk-input-vin').value,
+                    sa_owner: row.querySelector('.bulk-input-sa').value, car_brand: row.querySelector('.bulk-input-brand').value,
+                    car_model: row.querySelector('.bulk-input-model').value, arrived_date: row.querySelector('.bulk-input-arrived').value || null,
+                    target_finish_date: row.querySelector('.bulk-input-target').value || null, job_status: row.querySelector('.bulk-input-status').value || '09.จอดรอเข้าซ่อม',
+                    department_routing: 'ซ่อม', branch_name: userBranch, damage_level: 'เบา' 
                 };
 
-                promises.push(
-                    fetch(`${API_BASE_URL}/api/report`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify(payload)
-                    })
-                );
+                promises.push(fetch(`${API_BASE_URL}/api/report`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }));
             });
 
-            if(promises.length === 0) {
-                alert('⚠️ กรุณากรอกข้อมูลอย่างน้อย 1 คัน (ต้องระบุทะเบียนรถ)');
-                return;
-            }
+            if(promises.length === 0) { alert('⚠️ กรุณากรอกข้อมูลอย่างน้อย 1 คัน (ต้องระบุทะเบียนรถ)'); return; }
 
             const btn = document.getElementById('btn_save_bulk');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึกข้อมูล...';
-            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึกข้อมูล...'; btn.disabled = true;
 
             try {
-                await Promise.all(promises);
-                alert(`🎉 บันทึกข้อมูลสำเร็จทั้งหมด ${promises.length} คัน!`);
-                closeBulkModal();
-                loadJobsData(); 
-            } catch(e) {
-                alert('❌ เกิดข้อผิดพลาดในการบันทึก กรุณาตรวจสอบอินเตอร์เน็ต');
-            } finally {
-                btn.innerHTML = '<i class="fa-solid fa-save"></i> บันทึกข้อมูลทั้งหมด';
-                btn.disabled = false;
-            }
+                await Promise.all(promises); alert(`🎉 นำเข้าข้อมูลสำเร็จทั้งหมด ${promises.length} คัน!`);
+                closeBulkModal(); loadJobsData(); 
+            } catch(e) { alert('❌ เกิดข้อผิดพลาดในการบันทึก กรุณาตรวจสอบอินเตอร์เน็ต'); } 
+            finally { btn.innerHTML = '<i class="fa-solid fa-save"></i> 3. บันทึกข้อมูลเข้าฐานข้อมูล'; btn.disabled = false; }
         }
     </script>
 </body>
