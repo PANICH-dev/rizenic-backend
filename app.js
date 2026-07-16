@@ -610,9 +610,8 @@ app.delete('/api/part-outbound/:id', async (req, res) => {
   try { await pool.query('DELETE FROM rizenic_part_outbound WHERE outbound_id=$1', [req.params.id]); res.json({ success: true }); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
-
 // ==========================================
-// 📊 4. คำนวณยอดสต๊อกคงเหลือจริง (Inventory)
+// 📊 4. คำนวณยอดสต๊อกคงเหลือจริง (Inventory - อัปเกรดระบบ Booking)
 // ==========================================
 app.get('/api/parts-inventory', async (req, res) => {
   const { branch } = req.query; 
@@ -621,10 +620,15 @@ app.get('/api/parts-inventory', async (req, res) => {
     const queryText = `
       SELECT 
         i.part_main_no, i.part_no, i.part_name, i.car_model,
-        COALESCE(SUM(i.qty), 0) - COALESCE((
+        COALESCE(SUM(i.qty), 0) AS total_inbound,
+        COALESCE((
           SELECT SUM(o.qty) FROM rizenic_part_outbound o 
-          WHERE o.part_no = i.part_no AND o.branch_name = i.branch_name
-        ), 0) AS stock_in_house
+          WHERE o.part_no = i.part_no AND o.branch_name = i.branch_name AND COALESCE(o.job_status, '') != 'รอเข้าซ่อม'
+        ), 0) AS total_issued,
+        COALESCE((
+          SELECT SUM(o.qty) FROM rizenic_part_outbound o 
+          WHERE o.part_no = i.part_no AND o.branch_name = i.branch_name AND o.job_status = 'รอเข้าซ่อม'
+        ), 0) AS total_booked
       FROM rizenic_part_inbound i
       WHERE i.branch_name = $1
       GROUP BY i.part_main_no, i.part_no, i.part_name, i.car_model, i.branch_name
