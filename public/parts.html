@@ -31,11 +31,12 @@
         .label-text { @apply flex items-center gap-1.5 text-[11px] font-bold text-slate-500 mb-1.5 tracking-wide uppercase; }
         
         .modern-table { @apply w-full text-left border-collapse whitespace-nowrap text-[12px]; }
-        .modern-table thead th { @apply p-3 bg-[#00320D] text-white border-b border-[#004a1f] align-top sticky top-0 z-10 shadow-md font-bold; }
+        .modern-table thead th { @apply p-2 bg-[#00320D] text-white border-b border-[#004a1f] align-top sticky top-0 z-10 shadow-md font-bold; }
         .modern-table tbody td { @apply p-2 border-b border-slate-100 text-slate-700 align-middle; }
         .modern-table tbody tr:hover { @apply bg-green-50/50 transition-colors; }
         
         .excel-filter { @apply mt-2 w-full bg-white/10 border border-white/20 rounded-md px-2 py-1.5 text-[11px] text-white placeholder-white/50 outline-none focus:bg-white focus:text-slate-900 focus:placeholder-slate-400 transition-all font-normal; }
+        .sort-icon { @apply ml-1 opacity-50 transition-opacity group-hover:opacity-100; }
         
         /* 🌟 ระบบตารางแบบ Excel View แท้ๆ 🌟 */
         .excel-grid-table { @apply w-full text-left bg-white text-[11px] whitespace-nowrap border-collapse border border-slate-300; }
@@ -51,6 +52,11 @@
     </style>
 </head>
 <body class="text-slate-800 h-screen flex flex-col selection:bg-[#00320D] selection:text-white">
+
+    <!-- 🔔 ป๊อปอัปแจ้งเตือนการ Auto-Save (Toast) -->
+    <div id="toastMsg" class="fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 translate-y-20 opacity-0 z-[200] flex items-center gap-2 border border-white/20">
+        <span id="toastContent"><i class="fa-solid fa-circle-check text-xl"></i> บันทึกข้อมูลอัตโนมัติเรียบร้อย!</span>
+    </div>
 
     <header class="bg-rizenic-green text-white shadow-lg z-50 shrink-0 border-b-4 border-amber-500">
         <div class="px-6 py-3 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -79,7 +85,7 @@
             <button onclick="switchTab('tab-alert')" id="btn-tab-alert" class="px-6 py-3.5 text-sm font-bold border-b-2 border-[#00320D] text-[#00320D] flex items-center gap-2 whitespace-nowrap bg-green-50/80 rounded-t-xl transition-all"><i class="fa-solid fa-bell text-amber-500 animate-bounce"></i> 1. แจ้งเตือนสั่งอะไหล่ <span id="alert_count" class="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full hidden shadow-sm">0</span></button>
             <button onclick="switchTab('tab-po')" id="btn-tab-po" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 whitespace-nowrap rounded-t-xl transition-all"><i class="fa-solid fa-cart-shopping text-blue-500"></i> 2. สั่งอะไหล่จากศูนย์</button>
             <button onclick="switchTab('tab-inbound')" id="btn-tab-inbound" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 whitespace-nowrap rounded-t-xl transition-all"><i class="fa-solid fa-truck-ramp-box text-emerald-500"></i> 3. รับเข้า</button>
-            <button onclick="switchTab('tab-outbound')" id="btn-tab-outbound" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 whitespace-nowrap rounded-t-xl transition-all"><i class="fa-solid fa-dolly text-purple-500"></i> 4. เบิกอะไหล่</button>
+            <button onclick="switchTab('tab-outbound')" id="btn-tab-outbound" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 whitespace-nowrap rounded-t-xl transition-all"><i class="fa-solid fa-dolly text-purple-500"></i> 4. เบิกอะไหล่/จอง</button>
             <button onclick="switchTab('tab-stock')" id="btn-tab-stock" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 whitespace-nowrap rounded-t-xl transition-all"><i class="fa-solid fa-cubes-stacked text-amber-600"></i> 5. สต๊อกคงเหลือ</button>
             <button onclick="switchTab('tab-master')" id="btn-tab-master" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 whitespace-nowrap rounded-t-xl transition-all"><i class="fa-solid fa-database text-slate-400"></i> 6. ข้อมูลมาสเตอร์</button>
         </div>
@@ -98,12 +104,12 @@
                     <table class="modern-table" id="saTable">
                         <thead>
                             <tr>
-                                <th><div>ทะเบียนรถ</div><input type="text" data-col="0" onkeyup="applyExcelFilters('saTable')" class="excel-filter filter-input" placeholder="🔍 กรองทะเบียน..."></th>
-                                <th><div>วันที่เข้าจอด</div></th>
-                                <th><div>รุ่นรถ</div><input type="text" data-col="2" onkeyup="applyExcelFilters('saTable')" class="excel-filter filter-input" placeholder="🔍 กรองรุ่นรถ..."></th>
-                                <th><div>ชื่อลูกค้า</div></th>
-                                <th><div>EPC No. อ้างอิงทั้งหมด</div><input type="text" data-col="4" onkeyup="applyExcelFilters('saTable')" class="excel-filter filter-input" placeholder="🔍 กรอง EPC..."></th>
-                                <th><div>รายการอะไหล่ค้างสั่งองค์รวม</div></th>
+                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('saTable', 0)">ทะเบียนรถ <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="0" onkeyup="applyExcelFilters('saTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('saTable', 1)">วันที่เข้าจอด <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="1" onkeyup="applyExcelFilters('saTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('saTable', 2)">รุ่นรถ <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="2" onkeyup="applyExcelFilters('saTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('saTable', 3)">ชื่อลูกค้า <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="3" onkeyup="applyExcelFilters('saTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('saTable', 4)">EPC No. อ้างอิง <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="4" onkeyup="applyExcelFilters('saTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('saTable', 5)">รายการอะไหล่ค้างสั่ง <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="5" onkeyup="applyExcelFilters('saTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
                                 <th class="text-center w-36"><div>จัดการใบสั่ง</div></th>
                             </tr>
                         </thead>
@@ -129,16 +135,16 @@
                     <table class="modern-table" id="poTable">
                         <thead>
                             <tr>
-                                <th class="w-24"><div>EPC No</div><input type="text" data-col="0" onkeyup="applyExcelFilters('poTable')" class="excel-filter filter-input" placeholder="กรอง EPC..."></th>
-                                <th class="w-24"><div>บาร์โค้ดอะไหล่</div><input type="text" data-col="1" onkeyup="applyExcelFilters('poTable')" class="excel-filter filter-input" placeholder="กรอง Part..."></th>
-                                <th><div>ทะเบียนรถ</div><input type="text" data-col="2" onkeyup="applyExcelFilters('poTable')" class="excel-filter filter-input" placeholder="กรองทะเบียน..."></th>
-                                <th><div>สถานะการสั่ง</div></th>
-                                <th class="text-center w-16"><div>ยอดสั่ง</div></th>
-                                <th class="text-center w-16"><div>รับจริง</div></th>
-                                <th><div>รายการอะไหล่</div></th>
-                                <th><div>วันที่สั่ง</div></th>
-                                <th class="w-28"><div>คาดการณ์เข้า</div></th>
-                                <th><div>MAIN No.</div></th>
+                                <th class="w-24 cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('poTable', 0)">EPC No <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="0" onkeyup="applyExcelFilters('poTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="w-28 cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('poTable', 1)">บาร์โค้ดอะไหล่ <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="1" onkeyup="applyExcelFilters('poTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('poTable', 2)">ทะเบียนรถ <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="2" onkeyup="applyExcelFilters('poTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('poTable', 3)">สถานะการสั่ง (Auto-Save) <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="3" onkeyup="applyExcelFilters('poTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="text-center w-20 cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('poTable', 4)">ยอดสั่ง <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="4" onkeyup="applyExcelFilters('poTable')" class="excel-filter filter-input" placeholder="🔍"></th>
+                                <th class="text-center w-20 cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('poTable', 5)">รับจริง <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="5" onkeyup="applyExcelFilters('poTable')" class="excel-filter filter-input" placeholder="🔍"></th>
+                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('poTable', 6)">รายการอะไหล่ <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="6" onkeyup="applyExcelFilters('poTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('poTable', 7)">วันที่สั่ง <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="7" onkeyup="applyExcelFilters('poTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="w-32 cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('poTable', 8)">คาดการณ์เข้า <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="8" onkeyup="applyExcelFilters('poTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('poTable', 9)">MAIN No. <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="9" onkeyup="applyExcelFilters('poTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
                                 <th class="text-center w-24"><div>จัดการ</div></th>
                             </tr>
                         </thead>
@@ -159,12 +165,12 @@
                     <table class="modern-table" id="inTable">
                         <thead>
                             <tr>
-                                <th class="w-32"><div>วันที่ของเข้า</div></th>
-                                <th><div>EPC No</div><input type="text" data-col="1" onkeyup="applyExcelFilters('inTable')" class="excel-filter filter-input" placeholder="กรอง EPC..."></th>
-                                <th><div>หมายเลขอะไหล่</div><input type="text" data-col="2" onkeyup="applyExcelFilters('inTable')" class="excel-filter filter-input" placeholder="กรอง Part..."></th>
-                                <th><div>รายการชิ้นส่วน</div></th>
-                                <th class="text-center w-20"><div>จำนวน</div></th>
-                                <th class="text-right w-24"><div>ราคา/หน่วย</div></th>
+                                <th class="w-32 cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('inTable', 0)">วันที่ของเข้า <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="0" onkeyup="applyExcelFilters('inTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('inTable', 1)">EPC No <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="1" onkeyup="applyExcelFilters('inTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('inTable', 2)">หมายเลขอะไหล่ <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="2" onkeyup="applyExcelFilters('inTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('inTable', 3)">รายการชิ้นส่วน <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="3" onkeyup="applyExcelFilters('inTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="text-center w-24 cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('inTable', 4)">จำนวน <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="4" onkeyup="applyExcelFilters('inTable')" class="excel-filter filter-input" placeholder="🔍..."></th>
+                                <th class="text-right w-28 cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('inTable', 5)">ราคา/หน่วย <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="5" onkeyup="applyExcelFilters('inTable')" class="excel-filter filter-input" placeholder="🔍..."></th>
                                 <th class="text-center w-24"><div>จัดการ</div></th>
                             </tr>
                         </thead>
@@ -174,7 +180,7 @@
             </div>
         </section>
 
-        <!-- 📤 4. เบิกอะไหล่ (ตารางหลัก) -->
+        <!-- 📤 4. เบิกอะไหล่ / จอง -->
         <section id="tab-outbound" class="parts-tab-content">
             <div class="card-container border-l-4 border-l-purple-600">
                 <div class="px-5 py-4 bg-slate-50 border-b flex justify-between items-center">
@@ -185,22 +191,20 @@
                     <table class="modern-table" id="outTable">
                         <thead>
                             <tr>
-                                <th class="bg-purple-900 text-white">ลำดับ</th>
-                                <th class="bg-purple-900 text-white w-32">วันที่ทำรายการ</th>
-                                <th class="bg-purple-900 text-white">สถานะการเบิก</th>
-                                <th class="bg-purple-900 text-white">หมายเลขอะไหล่<input type="text" data-col="3" onkeyup="applyExcelFilters('outTable')" class="excel-filter filter-input" placeholder="🔍 กรองอะไหล่..."></th>
-                                <th class="bg-purple-900 text-white text-center w-20">จำนวน</th>
-                                <th class="bg-purple-900 text-white">ทะเบียน<input type="text" data-col="5" onkeyup="applyExcelFilters('outTable')" class="excel-filter filter-input" placeholder="🔍 กรองทะเบียน..."></th>
-                                <th class="bg-slate-800 text-white">หมายเลข QT</th>
-                                <th class="bg-slate-800 text-white">หมายเลข SO</th>
-                                <th class="bg-emerald-800 text-white text-center">Stock In House</th>
-                                <th class="bg-blue-900 text-white">ชิ้นส่วน</th>
-                                <th class="bg-blue-900 text-white text-right">มูลค่าอะไหล่</th>
+                                <th class="bg-purple-900 text-white cursor-pointer group hover:bg-purple-800"><div onclick="sortTable('outTable', 0)">ลำดับ <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="0" onkeyup="applyExcelFilters('outTable')" class="excel-filter filter-input" placeholder="🔍..."></th>
+                                <th class="bg-purple-900 text-white w-32 cursor-pointer group hover:bg-purple-800"><div onclick="sortTable('outTable', 1)">วันที่ทำรายการ <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="1" onkeyup="applyExcelFilters('outTable')" class="excel-filter filter-input" placeholder="🔍..."></th>
+                                <th class="bg-purple-900 text-white cursor-pointer group hover:bg-purple-800"><div onclick="sortTable('outTable', 2)">สถานะเบิก (Auto-Save) <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="2" onkeyup="applyExcelFilters('outTable')" class="excel-filter filter-input" placeholder="🔍..."></th>
+                                <th class="bg-purple-900 text-white cursor-pointer group hover:bg-purple-800"><div onclick="sortTable('outTable', 3)">หมายเลขอะไหล่ <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="3" onkeyup="applyExcelFilters('outTable')" class="excel-filter filter-input" placeholder="🔍..."></th>
+                                <th class="bg-purple-900 text-white text-center w-24 cursor-pointer group hover:bg-purple-800"><div onclick="sortTable('outTable', 4)">จำนวน <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="4" onkeyup="applyExcelFilters('outTable')" class="excel-filter filter-input" placeholder="🔍..."></th>
+                                <th class="bg-purple-900 text-white cursor-pointer group hover:bg-purple-800"><div onclick="sortTable('outTable', 5)">ทะเบียน <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="5" onkeyup="applyExcelFilters('outTable')" class="excel-filter filter-input" placeholder="🔍..."></th>
+                                <th class="bg-slate-800 text-white cursor-pointer group hover:bg-slate-700"><div onclick="sortTable('outTable', 6)">QT <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="6" onkeyup="applyExcelFilters('outTable')" class="excel-filter filter-input" placeholder="🔍..."></th>
+                                <th class="bg-slate-800 text-white cursor-pointer group hover:bg-slate-700"><div onclick="sortTable('outTable', 7)">SO <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="7" onkeyup="applyExcelFilters('outTable')" class="excel-filter filter-input" placeholder="🔍..."></th>
+                                <th class="bg-blue-900 text-white cursor-pointer group hover:bg-blue-800"><div onclick="sortTable('outTable', 8)">ชิ้นส่วน <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="8" onkeyup="applyExcelFilters('outTable')" class="excel-filter filter-input" placeholder="🔍..."></th>
                                 <th class="bg-red-900 text-white text-center w-24">จัดการ</th>
                             </tr>
                         </thead>
                         <tbody id="outbound_table_body">
-                            <tr><td colspan="12" class="text-center py-8 text-slate-400">ยังไม่มีประวัติการเบิก/จองชิ้นส่วนอะไหล่</td></tr>
+                            <tr><td colspan="10" class="text-center py-8 text-slate-400">ยังไม่มีประวัติการเบิก/จองชิ้นส่วนอะไหล่</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -217,13 +221,13 @@
                     <table class="modern-table" id="stockTable">
                         <thead>
                             <tr>
-                                <th><div>หมายเลขอะไหล่ (Part 2)</div><input type="text" data-col="0" onkeyup="applyExcelFilters('stockTable')" class="excel-filter filter-input" placeholder="🔍 กรองบาร์โค้ด..."></th>
-                                <th><div>ชื่อชิ้นส่วน</div><input type="text" data-col="1" onkeyup="applyExcelFilters('stockTable')" class="excel-filter filter-input" placeholder="🔍 กรองชื่อชิ้นส่วน..."></th>
-                                <th><div>รุ่นรถที่รองรับ</div><input type="text" data-col="2" onkeyup="applyExcelFilters('stockTable')" class="excel-filter filter-input" placeholder="🔍 กรองรุ่นรถ..."></th>
-                                <th class="text-center w-24"><div>MAIN No.</div></th>
-                                <th class="text-center w-28 bg-slate-200 text-slate-800"><div>ยอดรวม<br><span class="text-[9px] font-normal">(รับเข้า - เบิกจ่าย)</span></div></th>
-                                <th class="text-center w-28 bg-amber-200 text-amber-900"><div>ติดจอง<br><span class="text-[9px] font-normal">(รอเข้าซ่อม)</span></div></th>
-                                <th class="text-center w-28 bg-emerald-200 text-emerald-900"><div>ยอดในคลัง<br><span class="text-[9px] font-normal">(ยอดรวม - ติดจอง)</span></div></th>
+                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('stockTable', 0)">หมายเลขอะไหล่ (Part 2) <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="0" onkeyup="applyExcelFilters('stockTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('stockTable', 1)">ชื่อชิ้นส่วน <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="1" onkeyup="applyExcelFilters('stockTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('stockTable', 2)">รุ่นรถที่รองรับ <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="2" onkeyup="applyExcelFilters('stockTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="text-center w-24 cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('stockTable', 3)">MAIN No. <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="3" onkeyup="applyExcelFilters('stockTable')" class="excel-filter filter-input" placeholder="🔍..."></th>
+                                <th class="text-center w-28 bg-slate-200 text-slate-800 cursor-pointer group hover:bg-slate-300"><div onclick="sortTable('stockTable', 4)">ยอดรวม <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="4" onkeyup="applyExcelFilters('stockTable')" class="excel-filter filter-input !bg-white/50 !text-slate-900" placeholder="🔍..."></th>
+                                <th class="text-center w-28 bg-amber-200 text-amber-900 cursor-pointer group hover:bg-amber-300"><div onclick="sortTable('stockTable', 5)">ติดจอง <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="5" onkeyup="applyExcelFilters('stockTable')" class="excel-filter filter-input !bg-white/50 !text-slate-900" placeholder="🔍..."></th>
+                                <th class="text-center w-28 bg-emerald-200 text-emerald-900 cursor-pointer group hover:bg-emerald-300"><div onclick="sortTable('stockTable', 6)">ยอดในคลัง <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="6" onkeyup="applyExcelFilters('stockTable')" class="excel-filter filter-input !bg-white/50 !text-slate-900" placeholder="🔍..."></th>
                             </tr>
                         </thead>
                         <tbody id="stock_table_body"></tbody>
@@ -243,13 +247,13 @@
                     <table class="modern-table" id="masterTable">
                         <thead>
                             <tr>
-                                <th><div>บาร์โค้ด (Part 2)</div><input type="text" data-col="0" onkeyup="applyExcelFilters('masterTable')" class="excel-filter filter-input" placeholder="กรอง Part..."></th>
-                                <th><div>ชื่อชิ้นส่วน</div><input type="text" data-col="1" onkeyup="applyExcelFilters('masterTable')" class="excel-filter filter-input" placeholder="กรองชื่อ..."></th>
-                                <th><div>MAIN No.</div></th>
-                                <th><div>รุ่นรถที่รองรับ</div></th>
-                                <th><div>หมวดหมู่</div></th>
-                                <th class="text-right"><div>ราคา/หน่วย</div></th>
-                                <th><div>Location</div></th>
+                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('masterTable', 0)">บาร์โค้ด (Part 2) <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="0" onkeyup="applyExcelFilters('masterTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('masterTable', 1)">ชื่อชิ้นส่วน <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="1" onkeyup="applyExcelFilters('masterTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('masterTable', 2)">MAIN No. <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="2" onkeyup="applyExcelFilters('masterTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('masterTable', 3)">รุ่นรถที่รองรับ <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="3" onkeyup="applyExcelFilters('masterTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('masterTable', 4)">หมวดหมู่ <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="4" onkeyup="applyExcelFilters('masterTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="text-right cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('masterTable', 5)">ราคา/หน่วย <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="5" onkeyup="applyExcelFilters('masterTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('masterTable', 6)">Location <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="6" onkeyup="applyExcelFilters('masterTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
                                 <th class="text-center w-24"><div>จัดการ</div></th>
                             </tr>
                         </thead>
@@ -261,9 +265,8 @@
 
     </main>
 
-    <!-- 🌟 ================= MODALS ================= 🌟 -->
+    <!-- 🌟 ================= MODALS (คงเดิม ไม่แตะต้อง) ================= 🌟 -->
 
-    <!-- Modal: แจ้งเตือน SA -->
     <div id="alertModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden border-t-4 border-t-amber-500 flex flex-col max-h-[90vh]">
             <div class="px-6 py-4 border-b flex justify-between items-center bg-amber-50/50 shrink-0">
@@ -283,7 +286,6 @@
         </div>
     </div>
 
-    <!-- Modal: สั่งศูนย์ (PO) -->
     <div id="poModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden border-t-4 border-t-blue-600 flex flex-col max-h-[90vh]">
             <div class="px-6 py-4 border-b flex justify-between items-center bg-blue-50/50 shrink-0">
@@ -323,7 +325,6 @@
         </div>
     </div>
 
-    <!-- Modal: รับเข้า -->
     <div id="inboundModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden border-t-4 border-t-emerald-500 flex flex-col max-h-[90vh]">
             <div class="px-6 py-4 border-b flex justify-between items-center bg-emerald-50/50 shrink-0">
@@ -359,7 +360,6 @@
         </div>
     </div>
 
-    <!-- Modal: เบิกอะไหล่ / จอง (Outbound) -->
     <div id="outboundModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden border-t-4 border-t-purple-600 flex flex-col max-h-[90vh]">
             <div class="px-6 py-4 border-b flex justify-between items-center bg-purple-50/50 shrink-0">
@@ -400,7 +400,6 @@
         </div>
     </div>
 
-    <!-- Modal: ข้อมูลมาสเตอร์ -->
     <div id="masterModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden border-t-4 border-t-slate-700 flex flex-col max-h-[90vh]">
             <div class="px-6 py-4 border-b flex justify-between items-center bg-slate-100 shrink-0">
@@ -450,6 +449,30 @@
         
         let hideCompletedPO = true;
 
+        // 🌟 Helper: แจ้งเตือน Toast
+        function showToast(msg, type='success') {
+            const toast = document.getElementById('toastMsg');
+            if(type === 'error') { 
+                toast.classList.replace('bg-emerald-600', 'bg-red-600'); 
+                toast.innerHTML = `<i class="fa-solid fa-circle-xmark text-xl"></i> ${msg}`; 
+            } else { 
+                toast.classList.replace('bg-red-600', 'bg-emerald-600'); 
+                toast.innerHTML = `<i class="fa-solid fa-circle-check text-xl"></i> ${msg}`; 
+            }
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 2500);
+        }
+
+        // 🌟 Helper: กรองเอาค่าดิบๆ มาใช้ในตารางเวลาเรียง/กรองข้อมูล
+        function getCellValue(cell) {
+            const input = cell.querySelector('input, select');
+            if (input) {
+                if (input.tagName === 'SELECT') return input.options[input.selectedIndex].text;
+                return input.value;
+            }
+            return cell.innerText.trim();
+        }
+
         function getSafeStatusName(s) {
             if(s['ข้อความสถานะที่นำไปแสดงในแผนกอะไหล่']) return s['ข้อความสถานะที่นำไปแสดงในแผนกอะไหล่'];
             if(s.status_name) return s.status_name;
@@ -490,6 +513,7 @@
             document.getElementById('btn-' + tabId).classList.remove('border-transparent', 'text-slate-500');
         }
 
+        // 🌟 ฟังก์ชัน Filter (กรองทุกคอลัมน์)
         function applyExcelFilters(tableId) {
             const table = document.getElementById(tableId); if(!table) return;
             const rows = table.querySelector('tbody').getElementsByTagName('tr');
@@ -501,11 +525,62 @@
                     const colIndex = input.getAttribute('data-col'); const filterValue = input.value.toLowerCase();
                     if(filterValue && colIndex !== null) {
                         const cell = rows[i].getElementsByTagName('td')[colIndex];
-                        if(cell) { const cellText = cell.textContent || cell.innerText; if(!cellText.toLowerCase().includes(filterValue)) showRow = false; }
+                        if(cell) { 
+                            const cellText = getCellValue(cell).toLowerCase();
+                            if(!cellText.includes(filterValue)) showRow = false; 
+                        }
                     }
                 });
                 rows[i].style.display = showRow ? "" : "none";
             }
+        }
+
+        // 🌟 ฟังก์ชัน Sort (เรียงลำดับ A-Z / มาก-น้อย)
+        function sortTable(tableId, colIndex) {
+            const table = document.getElementById(tableId);
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            
+            if (rows.length === 0 || (rows.length === 1 && rows[0].cells.length === 1)) return;
+
+            // รีเซ็ตไอคอนทั้งหมด
+            table.querySelectorAll('.fa-sort, .fa-sort-up, .fa-sort-down').forEach(icon => {
+                icon.className = "fa-solid fa-sort sort-icon";
+            });
+
+            let dir = table.getAttribute(`data-dir-${colIndex}`) || 'asc';
+            table.setAttribute(`data-dir-${colIndex}`, dir === 'asc' ? 'desc' : 'asc');
+            
+            // เปลี่ยนไอคอนเฉพาะคอลัมน์ที่ถูกคลิก
+            const clickedIcon = table.querySelectorAll('th')[colIndex].querySelector('i');
+            if (clickedIcon) {
+                clickedIcon.className = dir === 'asc' ? "fa-solid fa-sort-down ml-1 text-amber-400" : "fa-solid fa-sort-up ml-1 text-amber-400";
+            }
+
+            rows.sort((a, b) => {
+                let valA = getCellValue(a.cells[colIndex]);
+                let valB = getCellValue(b.cells[colIndex]);
+                
+                // ตรวจสอบวันที่ (YYYY-MM-DD)
+                let isDateA = valA.match(/^\d{4}-\d{2}-\d{2}$/);
+                let isDateB = valB.match(/^\d{4}-\d{2}-\d{2}$/);
+                if (isDateA && isDateB) {
+                    let dateA = new Date(valA); let dateB = new Date(valB);
+                    if (!isNaN(dateA) && !isNaN(dateB)) return dir === 'asc' ? dateA - dateB : dateB - dateA;
+                }
+
+                // ตรวจสอบตัวเลข (ลบคอมม่าออกก่อนเทียบ)
+                let numA = parseFloat(valA.replace(/,/g, ''));
+                let numB = parseFloat(valB.replace(/,/g, ''));
+                if (!isNaN(numA) && !isNaN(numB)) {
+                    return dir === 'asc' ? numA - numB : numB - numA;
+                }
+
+                // เทียบตัวอักษรปกติ
+                return dir === 'asc' ? valA.localeCompare(valB, 'th') : valB.localeCompare(valA, 'th');
+            });
+
+            rows.forEach(row => tbody.appendChild(row));
         }
 
         async function loadCarModelsGrid() {
@@ -562,14 +637,15 @@
             loadSAOrders(); loadPOTracking(); loadInbound(); loadOutbound(); loadStockInHouse(); loadMasterParts();
         }
 
-        // ================= FAST INLINE EDIT API CALLERS =================
+        // ================= FAST INLINE EDIT API CALLERS (Auto-Save) =================
         async function fastUpdatePO(id, field, value) {
             try {
                 const res = await fetch(`${API_BASE_URL}/api/part-orders/${id}/fast`, {
                     method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ field, value })
                 });
                 if(!res.ok) throw new Error();
-            } catch(e) { alert('❌ แก้ไขข้อมูลบนตารางไม่สำเร็จ'); loadAllData(); }
+                showToast('อัปเดตสถานะใบสั่งซื้อเรียบร้อย!');
+            } catch(e) { showToast('แก้ไขข้อมูลบนตารางไม่สำเร็จ', 'error'); loadAllData(); }
         }
         
         async function fastUpdateInbound(id, field, value) {
@@ -578,8 +654,9 @@
                     method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ field, value })
                 });
                 if(!res.ok) throw new Error();
-                loadStockInHouse(); // อัปเดตสต๊อกทันที
-            } catch(e) { alert('❌ แก้ไขข้อมูลรับเข้าไม่สำเร็จ'); loadAllData(); }
+                showToast('อัปเดตข้อมูลรับเข้าเรียบร้อย!');
+                loadStockInHouse(); 
+            } catch(e) { showToast('แก้ไขข้อมูลรับเข้าไม่สำเร็จ', 'error'); loadAllData(); }
         }
 
         async function fastUpdateOutbound(id, field, value) {
@@ -588,12 +665,13 @@
                     method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ field, value })
                 });
                 if(!res.ok) throw new Error();
-                if(field === 'job_status') loadAllData(); // รีเฟรชทั้งหน้าเพราะกระทบสเตตัสจอง
+                showToast('อัปเดตข้อมูลเบิกจ่ายเรียบร้อย!');
+                if(field === 'job_status') loadAllData(); 
                 else loadStockInHouse();
-            } catch(e) { alert('❌ แก้ไขข้อมูลเบิกจ่ายไม่สำเร็จ'); loadAllData(); }
+            } catch(e) { showToast('แก้ไขข้อมูลเบิกจ่ายไม่สำเร็จ', 'error'); loadAllData(); }
         }
 
-        // ================= POP-UP CONTROLLERS (เปิดปิดแบบไร้บัก) =================
+        // ================= POP-UP CONTROLLERS =================
         function openAlertModal() { 
             const modal = document.getElementById('alertModal');
             modal.classList.remove('hidden'); modal.classList.add('flex');
@@ -812,7 +890,7 @@
         }
 
 
-        // ================= TABLE RENDERERS (รองรับ Inline Edit) =================
+        // ================= TABLE RENDERERS =================
 
         function loadSAOrders() {
             try {
@@ -901,7 +979,7 @@
                 const jobMatch = allGlobalJobs.find(j => j.car_plate === carPlate);
                 if(jobMatch && latestEpcNo) { await fetch(`${API_BASE_URL}/api/report/${jobMatch.id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({...jobMatch, epc_no: latestEpcNo}) }); }
                 
-                alert('🎉 บันทึกข้อมูลสำเร็จ!'); closeAlertModal(); loadAllData();
+                showToast('บันทึกข้อมูลสำเร็จ!'); closeAlertModal(); loadAllData();
                 btn.innerHTML = ogHtml; btn.disabled = false;
             } catch(e) { alert('❌ เกิดข้อผิดพลาด: ' + e.message); document.querySelector('#alertModal button[type="submit"]').disabled = false; }
         }
@@ -986,9 +1064,9 @@
             try {
                 const res = await fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 if(!res.ok) { const err = await res.json().catch(()=>({})); throw new Error(err.error || 'บันทึกไม่สำเร็จ (API Error)'); }
-                alert(editId ? '✅ อัปเดตข้อมูลสำเร็จ!' : '✅ บันทึกสั่งซื้อสำเร็จ!'); 
+                showToast(editId ? 'อัปเดตข้อมูลสำเร็จ!' : 'บันทึกสั่งซื้อสำเร็จ!'); 
                 closePOModal(); loadAllData();
-            } catch(err) { alert('❌ เกิดข้อผิดพลาด: ' + err.message); }
+            } catch(err) { showToast('เกิดข้อผิดพลาด: ' + err.message, 'error'); }
         }
 
         function loadInbound() {
@@ -1029,9 +1107,9 @@
             try {
                 const res = await fetch(url, { method: method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
                 if(!res.ok) { const err = await res.json().catch(()=>({})); throw new Error(err.error || 'ไม่สามารถบันทึกรับเข้าได้'); }
-                alert(editId ? '✅ อัปเดตรับเข้าสำเร็จ!' : '📥 บันทึกรับเข้าคลังสำเร็จ!'); 
+                showToast(editId ? 'อัปเดตรับเข้าสำเร็จ!' : 'บันทึกรับเข้าคลังสำเร็จ!'); 
                 closeInboundModal(); loadAllData();
-            } catch(e) { alert('❌ เกิดข้อผิดพลาด: ' + e.message); }
+            } catch(e) { showToast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
         }
 
         async function loadOutbound() {
@@ -1053,7 +1131,7 @@
                         <td class="text-center bg-purple-50 text-purple-900 font-bold px-3">${index + 1}</td>
                         <td class="font-mono p-1"><input type="date" value="${d.issue_date ? String(d.issue_date).split('T')[0] : ''}" onchange="fastUpdateOutbound('${outId}', 'issue_date', this.value)" class="inline-edit-input text-slate-500 w-full"></td>
                         <td class="text-center p-1">
-                            <select onchange="fastUpdateOutbound('${outId}', 'job_status', this.value)" class="inline-edit-select ${badgeColor} w-full font-black">
+                            <select onchange="fastUpdateOutbound('${outId}', 'job_status', this.value)" class="inline-edit-select ${badgeColor} w-full font-black text-center">
                                 <option value="รอเข้าซ่อม" ${isBook ? 'selected' : ''}>⏳ จองอะไหล่</option>
                                 <option value="เบิกอะไหล่" ${!isBook ? 'selected' : ''}>📦 ตัดสต๊อกจริง</option>
                             </select>
@@ -1092,12 +1170,11 @@
             try {
                 const res = await fetch(url, { method: method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
                 if(!res.ok) { const err = await res.json().catch(()=>({})); throw new Error(err.error || 'ไม่สามารถบันทึกรายการได้'); }
-                alert(editId ? '✅ อัปเดตข้อมูลสำเร็จ!' : '📤 บันทึกรายการสำเร็จ!'); 
+                showToast(editId ? 'อัปเดตข้อมูลสำเร็จ!' : 'บันทึกรายการสำเร็จ!'); 
                 closeOutboundModal(); loadAllData();
-            } catch(e) { alert('❌ เกิดข้อผิดพลาด: ' + e.message); }
+            } catch(e) { showToast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
         }
 
-        // 🌟 5. โหลดสต๊อกคงเหลือ (แจกแจง ยอดรวม / ยอดจอง / ยอดในคลัง)
         function loadStockInHouse() {
             try {
                 fetch(`${API_BASE_URL}/api/parts-inventory?branch=${encodeURIComponent(currentBranch)}`).then(res => res.json()).then(data => {
@@ -1105,20 +1182,20 @@
                         const tIn = parseInt(s.total_inbound) || 0;
                         const tOut = parseInt(s.total_issued) || 0;
                         const tBook = parseInt(s.total_booked) || 0;
-                        const physicalStock = tIn - tOut; // ยอดรวมที่จับต้องได้ในโกดัง
-                        const availableStock = physicalStock - tBook; // ยอดว่างที่ยังไม่มีใครจอง
+                        const physicalStock = tIn - tOut; 
+                        const availableStock = physicalStock - tBook; 
                         return { ...s, physicalStock, totalBooked: tBook, availableStock };
-                    }).filter(s => s.physicalStock > 0); // โชว์เฉพาะที่มีของในโกดัง
+                    }).filter(s => s.physicalStock > 0); 
 
                     document.getElementById('stock_table_body').innerHTML = activeStock.map(s => `
                         <tr class="hover:bg-amber-50/50 transition">
-                            <td class="font-mono font-bold text-blue-600">${s.part_no}</td>
-                            <td class="font-bold text-[#00320D]">${s.part_name}</td>
-                            <td class="text-slate-500 text-xs whitespace-normal max-w-[150px]">${s.car_model||'-'}</td>
-                            <td class="font-mono text-slate-400 text-center">${s.part_main_no||'-'}</td>
-                            <td class="text-center font-black text-lg text-slate-600 bg-slate-50 border-l border-slate-200">${s.physicalStock}</td>
-                            <td class="text-center font-black text-lg text-amber-600 bg-amber-50/50 border-l border-amber-200">${s.totalBooked}</td>
-                            <td class="text-center font-black text-xl text-emerald-600 bg-emerald-50/80 border-l border-emerald-200">${s.availableStock}</td>
+                            <td class="font-mono font-bold text-blue-600 px-3">${s.part_no}</td>
+                            <td class="font-bold text-[#00320D] px-3">${s.part_name}</td>
+                            <td class="text-slate-500 text-xs whitespace-normal max-w-[150px] px-3">${s.car_model||'-'}</td>
+                            <td class="font-mono text-slate-400 text-center px-3">${s.part_main_no||'-'}</td>
+                            <td class="text-center font-black text-lg text-slate-600 bg-slate-50 border-l border-slate-200 px-3">${s.physicalStock}</td>
+                            <td class="text-center font-black text-lg text-amber-600 bg-amber-50/50 border-l border-amber-200 px-3">${s.totalBooked}</td>
+                            <td class="text-center font-black text-xl text-emerald-600 bg-emerald-50/80 border-l border-emerald-200 px-3">${s.availableStock}</td>
                         </tr>`).join('');
                     applyExcelFilters('stockTable');
                 });
@@ -1131,14 +1208,14 @@
                     allMasterPartsData = data;
                     document.getElementById('master_table_body').innerHTML = data.map(p => `
                         <tr>
-                            <td class="font-mono font-bold text-blue-600">${p.part_no}</td>
-                            <td class="font-bold">${p.part_name}</td>
-                            <td class="font-mono text-slate-400 text-xs">${p.part_main_no||'-'}</td>
-                            <td class="text-xs text-slate-600 font-bold whitespace-normal max-w-[200px]">${p.car_model||'-'}</td>
-                            <td class="text-[10px] font-bold text-slate-500 uppercase"><span class="bg-slate-200 px-2 py-0.5 rounded">${p.part_category||'-'}</span></td>
-                            <td class="font-mono text-right font-bold text-emerald-700">${parseFloat(p.unit_price||0).toFixed(2)}</td>
-                            <td class="font-mono text-xs">${p.location||'-'}</td>
-                            <td class="text-center flex justify-center gap-1">
+                            <td class="font-mono font-bold text-blue-600 px-3">${p.part_no}</td>
+                            <td class="font-bold px-3">${p.part_name}</td>
+                            <td class="font-mono text-slate-400 text-xs px-3">${p.part_main_no||'-'}</td>
+                            <td class="text-xs text-slate-600 font-bold whitespace-normal max-w-[200px] px-3">${p.car_model||'-'}</td>
+                            <td class="text-[10px] font-bold text-slate-500 uppercase px-3"><span class="bg-slate-200 px-2 py-0.5 rounded">${p.part_category||'-'}</span></td>
+                            <td class="font-mono text-right font-bold text-emerald-700 px-3">${parseFloat(p.unit_price||0).toFixed(2)}</td>
+                            <td class="font-mono text-xs px-3">${p.location||'-'}</td>
+                            <td class="text-center flex justify-center gap-1 px-3">
                                 <button onclick="openMasterModal('${p.part_no}')" class="text-blue-500 hover:text-blue-700 bg-blue-50 px-2 py-1 rounded"><i class="fa-solid fa-pen"></i></button>
                                 <button onclick="deleteRow('/api/parts/${p.part_id}')" class="text-red-500 hover:text-red-700 bg-red-50 px-2 py-1 rounded"><i class="fa-solid fa-trash"></i></button>
                             </td>
@@ -1171,8 +1248,8 @@
             try {
                 const res = await fetch(url, { method: method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
                 if(!res.ok) { const err = await res.json().catch(()=>({})); throw new Error(err.error || 'บันทึกไม่ได้'); }
-                alert('🎉 บันทึกมาสเตอร์สำเร็จ!'); closeMasterModal(); loadAllData();
-            } catch(e) { alert('❌ เกิดข้อผิดพลาด: ' + e.message); }
+                showToast('บันทึกมาสเตอร์สำเร็จ!'); closeMasterModal(); loadAllData();
+            } catch(e) { showToast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
         }
 
         async function deleteRow(endpoint) {
@@ -1180,8 +1257,9 @@
                 try { 
                     const res = await fetch(API_BASE_URL + endpoint, { method: 'DELETE' }); 
                     if(!res.ok) throw new Error('เซิร์ฟเวอร์ปฏิเสธการลบ');
+                    showToast('ลบข้อมูลเรียบร้อย');
                     loadAllData(); 
-                } catch(e) { alert('ลบข้อมูลไม่สำเร็จ: ' + e.message); }
+                } catch(e) { showToast('ลบข้อมูลไม่สำเร็จ: ' + e.message, 'error'); }
             }
         }
 
