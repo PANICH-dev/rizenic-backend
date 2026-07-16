@@ -507,74 +507,43 @@ app.put('/api/part-orders/:id/status', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 📥 2. บันทึกรับเข้าคลังสินค้า (Inbound) + 🧠 สมองกลคำนวณปรับสเตตัสออเดอร์อัตโนมัติ!
-app.post('/api/part-inbound', async (req, res) => {
+// ==========================================
+// 🛠️ API เพิ่มเติม: แก้ไขและลบ (รับเข้า / เบิกออก)
+// ==========================================
+
+// 📥 แก้ไข/ลบ รับเข้า (Inbound)
+app.put('/api/part-inbound/:id', async (req, res) => {
   try {
-    const { received_date, epc_no, part_main_no, part_no, part_name, car_model, qty, unit_price, branch_name } = req.body;
-    const inputQty = parseInt(qty) || 1;
-
-    const insertInboundQuery = `
-      INSERT INTO rizenic_part_inbound (received_date, epc_no, part_main_no, part_no, part_name, car_model, qty, unit_price, branch_name)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;
-    `;
-    await pool.query(insertInboundQuery, [
-      received_date, epc_no || null, part_main_no || null, part_no, part_name, car_model || null,
-      inputQty, parseFloat(unit_price) || 0.00, branch_name
-    ]);
-
-    if (epc_no && part_no) {
-      const orderCheck = await pool.query(
-        `SELECT order_id, qty_ordered, COALESCE(qty_received, 0) as current_rcv FROM rizenic_part_orders 
-         WHERE epc_no = $1 AND part_no = $2 AND branch_name = $3 LIMIT 1`,
-        [epc_no, part_no, branch_name]
-      );
-
-      if (orderCheck.rows.length > 0) {
-        const order = orderCheck.rows[0];
-        const newQtyReceived = order.current_rcv + inputQty; 
-        
-        let newStatus = 'อะไหล่ยังมาไม่ครบ';
-        if (newQtyReceived >= order.qty_ordered) {
-          newStatus = 'อะไหล่มาครบแล้ว';
-        }
-
-        await pool.query(
-          `UPDATE rizenic_part_orders SET qty_received = $1, order_status = $2, received_date = $3 WHERE order_id = $4`,
-          [newQtyReceived, newStatus, received_date, order.order_id]
-        );
-      }
-    }
-    res.status(201).json({ success: true });
+    const { received_date, epc_no, part_no, part_name, qty, unit_price } = req.body;
+    await pool.query(
+      `UPDATE rizenic_part_inbound SET received_date=$1, epc_no=$2, part_no=$3, part_name=$4, qty=$5, unit_price=$6 WHERE inbound_id=$7`,
+      [received_date, epc_no, part_no, part_name, qty, unit_price, req.params.id]
+    );
+    res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/part-inbound', async (req, res) => {
-  try { res.json((await pool.query('SELECT * FROM rizenic_part_inbound ORDER BY inbound_id DESC')).rows); } 
+app.delete('/api/part-inbound/:id', async (req, res) => {
+  try { await pool.query('DELETE FROM rizenic_part_inbound WHERE inbound_id=$1', [req.params.id]); res.json({ success: true }); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 📤 3. เบิกจ่ายอะไหล่ (Outbound)
-app.get('/api/part-outbound', async (req, res) => {
-  try { res.json((await pool.query('SELECT * FROM rizenic_part_outbound ORDER BY outbound_id DESC')).rows); } 
-  catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/api/part-outbound', async (req, res) => {
+// 📤 แก้ไข/ลบ เบิกออก (Outbound)
+app.put('/api/part-outbound/:id', async (req, res) => {
   try {
-    const { issue_date, part_no, part_main_no, part_name, qty, car_plate, qt_no, unit_price, part_type, car_model, job_status, branch_name } = req.body;
-    const queryText = `
-      INSERT INTO rizenic_part_outbound (issue_date, part_no, part_main_no, part_name, qty, car_plate, qt_no, unit_price, part_type, car_model, job_status, branch_name)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *;
-    `;
-    const values = [
-      issue_date, part_no, part_main_no || null, part_name, parseInt(qty) || 1, car_plate,
-      qt_no || null, parseFloat(unit_price) || 0.00, part_type || null, car_model || null, job_status || null, branch_name
-    ];
-    const result = await pool.query(queryText, values);
-    res.status(201).json({ success: true, data: result.rows[0] });
+    const { issue_date, part_no, part_name, qty, car_plate, qt_no, so_no } = req.body;
+    await pool.query(
+      `UPDATE rizenic_part_outbound SET issue_date=$1, part_no=$2, part_name=$3, qty=$4, car_plate=$5, qt_no=$6, so_no=$7 WHERE outbound_id=$8`,
+      [issue_date, part_no, part_name, qty, car_plate, qt_no, so_no, req.params.id]
+    );
+    res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.delete('/api/part-outbound/:id', async (req, res) => {
+  try { await pool.query('DELETE FROM rizenic_part_outbound WHERE outbound_id=$1', [req.params.id]); res.json({ success: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
 // 📊 4. คำนวณยอดสต๊อกคงเหลือจริง
 app.get('/api/parts-inventory', async (req, res) => {
   const { branch } = req.query; 
