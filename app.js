@@ -602,7 +602,6 @@ if (process.env.NODE_ENV !== 'production') {
     app.listen(port, () => console.log(`🚀 พร้อมที่: http://localhost:${port}`));
 }
 
-module.exports = app;
 // 🛠️ ลบออเดอร์ PO (ลบแบบถาวร)
 app.delete('/api/part-orders/:id', async (req, res) => {
   try {
@@ -611,15 +610,44 @@ app.delete('/api/part-orders/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 🛠️ แก้ไขบาร์โค้ด ชื่อ และยอดสั่ง ในออเดอร์ PO
+// 🛠️ แก้ไขข้อมูลออเดอร์ PO (อัปเดตแบบ Full Option รองรับทั้งหน้าแจ้งเตือนและแก้ไข)
 app.put('/api/part-orders/:id', async (req, res) => {
   try {
-    const { part_no, part_main_no, part_name, qty_ordered } = req.body;
+    const { 
+      part_no, part_main_no, part_name, qty_ordered, 
+      epc_no, order_status, est_arrival_date, received_date,
+      qt_no, so_no, order_date, car_plate, vin_no, car_model, part_type, notes
+    } = req.body;
+
     await pool.query(`
       UPDATE rizenic_part_orders 
-      SET part_no=$1, part_main_no=$2, part_name=$3, qty_ordered=$4 
-      WHERE order_id=$5
-    `, [part_no, part_main_no || null, part_name, qty_ordered, req.params.id]);
+      SET part_no = COALESCE($1, part_no), 
+          part_main_no = $2, 
+          part_name = COALESCE($3, part_name), 
+          qty_ordered = COALESCE($4, qty_ordered),
+          epc_no = $5,
+          order_status = COALESCE($6, order_status),
+          est_arrival_date = $7,
+          received_date = $8,
+          qt_no = COALESCE($9, qt_no),
+          so_no = COALESCE($10, so_no),
+          order_date = COALESCE($11, order_date),
+          car_plate = COALESCE($12, car_plate),
+          vin_no = COALESCE($13, vin_no),
+          car_model = COALESCE($14, car_model),
+          part_type = COALESCE($15, part_type),
+          notes = $16
+      WHERE order_id = $17
+    `, [
+      part_no, part_main_no || null, part_name, qty_ordered,
+      epc_no || null, order_status, est_arrival_date || null, received_date || null,
+      qt_no, so_no, order_date, car_plate, vin_no, car_model, part_type, notes || null,
+      req.params.id
+    ]);
+    
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { 
+    console.error("PUT /api/part-orders Error:", e);
+    res.status(500).json({ error: e.message }); 
+  }
 });
