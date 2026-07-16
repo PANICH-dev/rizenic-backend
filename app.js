@@ -427,12 +427,11 @@ app.put('/api/report/:id/station', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-/// ⚡ Fast Edit สำหรับบอร์ดใบงานและแผนกบัญชี (อัปเดตผ่านตารางแบบ Excel)
+// ⚡ Fast Edit สำหรับบอร์ดใบงานและแผนกบัญชี (อัปเดตผ่านตารางแบบ Excel)
 app.put('/api/report/:id/fast-date', async (req, res) => {
   try {
     const { field, value } = req.body;
     
-    // ปลดล็อกฟิลด์ของแผนกบัญชี (cost_labor, cost_part, cost_external, billing_date, ivn_no)
     const validFields = [
       'target_finish_date', 'repair_finish_date', 'delivery_date', 'contact_date', 'arrived_date', 'order_part_date', 'est_part_date',
       'car_plate', 'notes', 'qt_no', 'so_no', 'bl_no', 'sa_owner', 'damage_level', 'job_status',
@@ -440,18 +439,30 @@ app.put('/api/report/:id/fast-date', async (req, res) => {
     ];
     if (!validFields.includes(field)) return res.status(400).json({ error: 'ไม่อนุญาตให้แก้ฟิลด์นี้' });
     
-    // ถ้าเป็นพวกค่าใช้จ่าย ให้แปลงเป็นตัวเลขเพื่อความชัวร์ ป้องกันพัง
     let safeValue = value || null;
     if (['cost_labor', 'cost_part', 'cost_external'].includes(field)) {
         safeValue = parseFloat(value) || 0;
     }
 
+    // 🌟 อัปเกรดความฉลาด: ถ้าเปลี่ยน "สถานะงาน" ให้ดึงชื่อแผนกส่งต่อ (Routing) มาอัปเดตคู่กันทันที!
+    if (field === 'job_status') {
+        const statusRes = await pool.query('SELECT department FROM rizenicstatusmaster WHERE status_name = $1', [value]);
+        if (statusRes.rows.length > 0) {
+            const newDepartment = statusRes.rows[0].department;
+            await pool.query(
+                `UPDATE rizenicreport SET job_status = $1, department_routing = $2 WHERE id = $3`,
+                [value, newDepartment, req.params.id]
+            );
+            return res.json({ success: true, department_routing: newDepartment });
+        }
+    }
+
+    // 📌 ถ้าเป็นฟิลด์อื่นๆ ก็บันทึกตามปกติ
     const queryText = `UPDATE rizenicreport SET ${field} = $1 WHERE id = $2`;
     await pool.query(queryText, [safeValue, req.params.id]);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
-
 // ==========================================
 // 📦 API แผนกอะไหล่ (สั่งซื้อ / รับเข้า / เบิกจ่าย / สถานะ)
 // ==========================================
