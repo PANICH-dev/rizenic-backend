@@ -647,8 +647,8 @@ app.put('/api/part-orders/:id', async (req, res) => {
   }
 });
 
-// 🚀 รัน Local Server (ถ้าไม่ได้รันผ่าน Vercel)
-if (process.env.NODE_ENV !== 'production') {
+// 🚀 รัน Local Server เฉพาะตอนเทสในเครื่อง (Vercel จะข้ามโค้ดส่วนนี้ไป)
+if (require.main === module) {
     app.listen(port, () => console.log(`🚀 พร้อมที่: http://localhost:${port}`));
 }
 
