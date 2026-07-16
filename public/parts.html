@@ -22,7 +22,8 @@
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
         
         .parts-tab-content { display: none; animation: fadeIn 0.3s ease-in-out; }
-        .parts-tab-content.active { display: flex; flex-col h-full; }
+        /* 🌟 แก้ไขจุดที่ช็อตตรงนี้ครับ! 🌟 */
+        .parts-tab-content.active { display: flex; flex-direction: column; height: 100%; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
         .minimal-input { @apply w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-lg outline-none transition-all duration-200 text-sm font-bold text-[#00320D] focus:border-[#00320D] focus:ring-4 focus:ring-green-500/10 focus:bg-white shadow-sm; }
@@ -369,6 +370,40 @@
         </div>
     </div>
 
+    <!-- Modal: ข้อมูลมาสเตอร์ -->
+    <div id="masterModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden border-t-4 border-t-slate-700 flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 border-b flex justify-between items-center bg-slate-100 shrink-0">
+                <h3 class="font-black text-slate-800 flex items-center gap-2 text-sm sm:text-base"><i class="fa-solid fa-database text-slate-500"></i> <span id="master_modal_title">จัดการข้อมูลมาสเตอร์แม่แบบอะไหล่ตัวถัง</span></h3>
+                <button type="button" onclick="closeMasterModal()" class="text-slate-400 hover:text-red-500 transition"><i class="fa-solid fa-xmark text-2xl"></i></button>
+            </div>
+            <div class="p-6 flex-1 overflow-y-auto custom-scrollbar">
+                <input type="hidden" id="edit_master_id">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                    <div class="space-y-4">
+                        <div><label class="label-text text-blue-700">บาร์โค้ด (Part 2) *</label><input type="text" id="master_part_no" class="minimal-input font-mono bg-blue-50 uppercase border-blue-200" required></div>
+                        <div><label class="label-text">ชื่อชิ้นส่วน *</label><input type="text" id="master_part_name" class="minimal-input" required></div>
+                        <div><label class="label-text">หมายเลข MAIN</label><input type="text" id="master_part_main" class="minimal-input font-mono uppercase"></div>
+                        <div><label class="label-text">ประเภทอะไหล่</label><select id="master_category" class="minimal-input"><option value="อะไหล่หลัก">อะไหล่หลัก</option><option value="อะไหล่รอง">อะไหล่รอง</option></select></div>
+                        <div><label class="label-text">ราคาต่อหน่วย</label><input type="number" id="master_price" class="minimal-input font-mono" value="0.00" step="0.01"></div>
+                        <div><label class="label-text">Location จัดเก็บ</label><input type="text" id="master_location" class="minimal-input font-mono"></div>
+                        <div><label class="label-text">จุดสั่งซื้อ (Safety Stock)</label><input type="number" id="master_safety" class="minimal-input text-center" value="0"></div>
+                    </div>
+                    
+                    <div class="border border-slate-200 rounded-xl p-4 bg-slate-50 h-full max-h-[55vh] flex flex-col overflow-hidden">
+                        <label class="label-text text-blue-800 font-black"><i class="fa-solid fa-car"></i> ติ๊กรุ่นรถที่อะไหล่ชิ้นนี้รองรับ (เลือกได้มากกว่า 1 รุ่น)</label>
+                        <div id="master_car_models_container" class="flex-1 overflow-y-auto custom-scrollbar mt-2 pr-1 space-y-4">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-slate-50 px-6 py-4 border-t flex justify-end gap-3 shrink-0">
+                <button type="button" onclick="closeMasterModal()" class="px-5 py-2.5 bg-white text-slate-600 rounded-lg font-bold border border-slate-300 hover:bg-slate-100 transition shadow-sm">ยกเลิก</button>
+                <button onclick="saveMasterPart()" id="btn_submit_master" class="px-8 py-2.5 bg-slate-800 text-white font-black rounded-lg shadow-md hover:bg-black transition flex items-center gap-2"><i class="fa-solid fa-save"></i> บันทึกข้อมูล</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Script ควบคุมระบบ -->
     <script>
         const API_BASE_URL = window.location.origin;
@@ -387,6 +422,79 @@
         let activeFilters = {}; 
         let currentFilterTable = '';
         let currentFilterCol = -1;
+
+        // 🌟 Helper: แจ้งเตือน Toast
+        function showToast(msg, type='success') {
+            const toast = document.getElementById('toastMsg');
+            if(type === 'error') { 
+                toast.classList.replace('bg-emerald-600', 'bg-red-600'); 
+                toast.innerHTML = `<i class="fa-solid fa-circle-xmark text-xl"></i> ${msg}`; 
+            } else { 
+                toast.classList.replace('bg-red-600', 'bg-emerald-600'); 
+                toast.innerHTML = `<i class="fa-solid fa-circle-check text-xl"></i> ${msg}`; 
+            }
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 2500);
+        }
+
+        // 🌟 Helper: ดึงค่าดิบในตารางเพื่อนำมา Sort/Filter
+        function getCellValue(cell) {
+            if(!cell) return '';
+            const input = cell.querySelector('input, select');
+            if (input) {
+                if (input.tagName === 'SELECT') return input.options[input.selectedIndex].text.trim();
+                return input.value.trim();
+            }
+            return cell.innerText.trim();
+        }
+
+        function getSafeStatusName(s) {
+            if(s['ข้อความสถานะที่นำไปแสดงในแผนกอะไหล่']) return s['ข้อความสถานะที่นำไปแสดงในแผนกอะไหล่'];
+            if(s.status_name) return s.status_name;
+            if(s.po_status) return s.po_status;
+            if(s.name) return s.name;
+            if(s.status) return s.status;
+            for(let key in s) { if(typeof s[key] === 'string' && isNaN(s[key]) && !s[key].includes('T00:')) return s[key]; }
+            return 'Unknown';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if(sessionStorage.getItem('isLoggedIn') !== 'true') { window.location.href = 'index.html'; return; }
+            const allowedPages = (sessionStorage.getItem('accessible_pages') || '').split(',');
+            if (!allowedPages.includes('parts')) { alert('⛔ คุณไม่มีสิทธิ์เข้าถึงหน้านี้ครับ!'); window.location.href = 'index.html'; return; }
+
+            document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name');
+            currentBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+            document.getElementById('display_branch').innerText = currentBranch;
+            
+            const today = new Date().toISOString().split('T')[0];
+            ['po_date','in_date','out_date'].forEach(id => { if(document.getElementById(id)) document.getElementById(id).value = today; });
+            
+            loadAllData();
+            loadCarModelsGrid(); 
+
+            // ปิด Modal Filter เมื่อคลิกที่อื่น
+            document.addEventListener('click', (e) => {
+                const modal = document.getElementById('excelFilterModal');
+                if (!modal.contains(e.target) && !e.target.closest('.filter-icon') && !modal.classList.contains('hidden')) {
+                    closeExcelFilter();
+                }
+            });
+        });
+
+        function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.parts-tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            const tabIds = ['btn-tab-alert', 'btn-tab-po', 'btn-tab-inbound', 'btn-tab-outbound', 'btn-tab-stock', 'btn-tab-master'];
+            tabIds.forEach(id => {
+                const btn = document.getElementById(id);
+                if(btn) btn.className = "px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 whitespace-nowrap rounded-t-xl transition-all";
+            });
+            document.getElementById('btn-' + tabId).classList.add('border-[#00320D]', 'text-[#00320D]', 'bg-green-50/80');
+            document.getElementById('btn-' + tabId).classList.remove('border-transparent', 'text-slate-500');
+        }
 
         // 🌟 หัวตารางและขนาดพิกเซลสำหรับความกว้างคอลัมน์ (Excel Sizing Def)
         const tablesStructure = {
