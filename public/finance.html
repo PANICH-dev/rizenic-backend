@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
+    <!-- Chart.js สำหรับกราฟโดนัท -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style type="text/tailwindcss">
@@ -24,6 +25,7 @@
         .acc-tab-content.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
+        /* 🌟 ระบบตารางแบบ Excel View แท้ๆ 🌟 */
         .excel-table { @apply w-full text-left border-collapse whitespace-nowrap text-[12px] bg-white; table-layout: fixed; }
         .excel-table thead th { @apply relative px-0 py-0 bg-[#00320D] text-white border border-slate-500 font-bold sticky top-0 z-10 shadow-sm align-middle select-none; }
         .excel-table tbody td { @apply p-0 border border-slate-300 text-slate-700 align-middle overflow-hidden; }
@@ -86,10 +88,34 @@
         </div>
     </header>
 
-    <div class="bg-white border-b border-slate-200 z-40 shrink-0 shadow-sm">
-        <div class="flex overflow-x-auto custom-scrollbar px-2 pt-2">
+    <!-- 🌟 แผงสลับแท็บ และ ตัวกรองเดือน/ปี (Global Filter) 🌟 -->
+    <div class="bg-white border-b border-slate-200 z-40 shrink-0 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-end">
+        <div class="flex overflow-x-auto custom-scrollbar px-2 pt-2 w-full md:w-auto">
             <button onclick="switchTab('tab-dashboard')" id="btn-tab-dashboard" class="px-6 py-3.5 text-sm font-bold border-b-2 border-[#00320D] text-[#00320D] flex items-center gap-2 whitespace-nowrap bg-blue-50/80 rounded-t-xl transition-all"><i class="fa-solid fa-chart-pie text-blue-500"></i> 1. แดชบอร์ดติดตามงาน</button>
             <button onclick="switchTab('tab-excel')" id="btn-tab-excel" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 whitespace-nowrap rounded-t-xl transition-all"><i class="fa-solid fa-file-excel text-emerald-600"></i> 2. โต๊ะทำงานบัญชี (Excel Mode)</button>
+        </div>
+        
+        <!-- ตัวกรองปิดยอดเดือน/ปี (ย้ายมาไว้ข้างบนสุด ให้มีผลกับทั้ง Dashboard และ Excel) -->
+        <div class="px-4 pb-2 md:pb-2 pt-2 md:pt-0 flex items-center gap-2 w-full md:w-auto justify-end border-t md:border-t-0 border-slate-100">
+            <span class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-calendar text-blue-500"></i> ปิดยอดเดือน/ปี:</span>
+            <select id="month_filter_select" onchange="applyFilters()" class="px-2 py-1.5 bg-blue-50 border border-blue-300 text-blue-900 rounded-lg outline-none text-xs font-bold cursor-pointer shadow-sm">
+                <option value="">รวมทุกเดือน</option>
+                <option value="01">มกราคม (01)</option>
+                <option value="02">กุมภาพันธ์ (02)</option>
+                <option value="03">มีนาคม (03)</option>
+                <option value="04">เมษายน (04)</option>
+                <option value="05">พฤษภาคม (05)</option>
+                <option value="06">มิถุนายน (06)</option>
+                <option value="07">กรกฎาคม (07)</option>
+                <option value="08">สิงหาคม (08)</option>
+                <option value="09">กันยายน (09)</option>
+                <option value="10">ตุลาคม (10)</option>
+                <option value="11">พฤศจิกายน (11)</option>
+                <option value="12">ธันวาคม (12)</option>
+            </select>
+            <select id="year_filter_select" onchange="applyFilters()" class="px-2 py-1.5 bg-blue-50 border border-blue-300 text-blue-900 rounded-lg outline-none text-xs font-bold cursor-pointer shadow-sm">
+                <option value="">ทุกปี</option>
+            </select>
         </div>
     </div>
 
@@ -97,27 +123,29 @@
 
         <!-- 📊 แท็บ 1: แดชบอร์ดโดนัท -->
         <section id="tab-dashboard" class="acc-tab-content active h-full flex flex-col justify-center items-center">
-            <div class="w-full max-w-4xl bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row gap-8 items-center">
+            <div class="w-full max-w-4xl bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row gap-8 items-center relative">
+                
                 <div class="w-full md:w-1/2 relative flex justify-center">
                     <div class="w-64 h-64">
                         <canvas id="jobDonutChart"></canvas>
                     </div>
                 </div>
+                
                 <div class="w-full md:w-1/2 space-y-4">
                     <h2 class="text-xl font-black text-[#00320D] border-b pb-2"><i class="fa-solid fa-chart-simple text-amber-500"></i> ภาพรวมงานแผนกบัญชี</h2>
                     
-                    <div class="bg-rose-50 border border-rose-200 p-4 rounded-xl flex justify-between items-center cursor-pointer hover:bg-rose-100 transition" onclick="switchTab('tab-excel'); setTimeout(()=>filterByStatus('รอจัดการ'), 100);">
+                    <div class="bg-rose-50 border border-rose-200 p-4 rounded-xl flex justify-between items-center cursor-pointer hover:bg-rose-100 transition shadow-sm" onclick="switchTab('tab-excel'); setTimeout(()=>filterByStatus('รอจัดการ'), 100);">
                         <div>
                             <p class="text-xs font-bold text-rose-600 uppercase tracking-wide">งานที่ยังไม่ได้จัดการ (รอออกบิล)</p>
-                            <p class="text-xs text-rose-500">ยังไม่มีข้อมูลวันที่ออกบิล</p>
+                            <p class="text-xs text-rose-500">ยอดสะสมค้างทั้งหมด (ไม่สนเดือน/ปี)</p>
                         </div>
                         <span class="text-3xl font-black text-rose-700" id="stat_unmanaged">0</span>
                     </div>
 
-                    <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex justify-between items-center cursor-pointer hover:bg-emerald-100 transition" onclick="switchTab('tab-excel'); setTimeout(()=>filterByStatus('จัดการแล้ว'), 100);">
+                    <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex justify-between items-center cursor-pointer hover:bg-emerald-100 transition shadow-sm" onclick="switchTab('tab-excel'); setTimeout(()=>filterByStatus('จัดการแล้ว'), 100);">
                         <div>
                             <p class="text-xs font-bold text-emerald-600 uppercase tracking-wide">งานที่จัดการแล้ว (ออกบิลแล้ว)</p>
-                            <p class="text-xs text-emerald-500">นับตามเดือน/ปีที่เลือกบนหัวตาราง</p>
+                            <p class="text-xs text-emerald-500" id="managed_date_label">นับตามเดือน/ปี ที่เลือกบนหัวแท็บ</p>
                         </div>
                         <span class="text-3xl font-black text-emerald-700" id="stat_managed">0</span>
                     </div>
@@ -125,10 +153,10 @@
             </div>
         </section>
 
-        <!-- 📑 แท็บ 2: ตาราง Excel Pro Max (อัปเกรดตัวกรองเดือน/ปี และยอดสรุป) -->
+        <!-- 📑 แท็บ 2: ตาราง Excel Pro Max -->
         <section id="tab-excel" class="acc-tab-content h-full flex flex-col relative">
             <div class="bg-white border-b border-slate-200 p-3 shrink-0 shadow-sm z-30 rounded-t-xl space-y-3">
-                <!-- แถวบน: ตัวกรองค้นหา และเลือกเดือนปี -->
+                <!-- แถวบน: ตัวกรองค้นหาในตาราง -->
                 <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                     <div class="flex flex-wrap gap-3 items-center w-full lg:w-auto">
                         <div class="flex items-center gap-2">
@@ -137,33 +165,11 @@
                         </div>
                         
                         <div class="flex items-center gap-2">
-                            <span class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-filter text-amber-500"></i> ประเภท:</span>
+                            <span class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-filter text-amber-500"></i> สถานะ:</span>
                             <select id="managed_filter_select" onchange="applyFilters()" class="px-2 py-1.5 bg-amber-50 border border-amber-300 text-amber-900 rounded-lg outline-none text-xs font-bold cursor-pointer">
                                 <option value="">ทั้งหมด</option>
                                 <option value="รอจัดการ">🔴 รอจัดการ (ยังไม่ออกบิล)</option>
                                 <option value="จัดการแล้ว">🟢 จัดการแล้ว (ออกบิลแล้ว)</option>
-                            </select>
-                        </div>
-
-                        <div class="flex items-center gap-2 border-l pl-3 ml-1">
-                            <span class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-calendar text-blue-500"></i> เดือน/ปี ที่ออกบิล:</span>
-                            <select id="month_filter_select" onchange="applyFilters()" class="px-2 py-1.5 bg-blue-50 border border-blue-300 text-blue-900 rounded-lg outline-none text-xs font-bold cursor-pointer">
-                                <option value="">ทุกเดือน</option>
-                                <option value="01">มกราคม (01)</option>
-                                <option value="02">กุมภาพันธ์ (02)</option>
-                                <option value="03">มีนาคม (03)</option>
-                                <option value="04">เมษายน (04)</option>
-                                <option value="05">พฤษภาคม (05)</option>
-                                <option value="06">มิถุนายน (06)</option>
-                                <option value="07">กรกฎาคม (07)</option>
-                                <option value="08">สิงหาคม (08)</option>
-                                <option value="09">กันยายน (09)</option>
-                                <option value="10">ตุลาคม (10)</option>
-                                <option value="11">พฤศจิกายน (11)</option>
-                                <option value="12">ธันวาคม (12)</option>
-                            </select>
-                            <select id="year_filter_select" onchange="applyFilters()" class="px-2 py-1.5 bg-blue-50 border border-blue-300 text-blue-900 rounded-lg outline-none text-xs font-bold cursor-pointer">
-                                <option value="">ทุกปี</option>
                             </select>
                         </div>
                     </div>
@@ -178,19 +184,19 @@
                 <!-- แถวล่าง: สรุปยอดรวม (เปลี่ยนตามการกรองแบบ Real-time) -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 pt-3 border-t border-slate-100">
                     <div class="bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl flex justify-between items-center shadow-sm">
-                        <span class="text-[10px] font-bold text-slate-500 uppercase"><i class="fa-solid fa-screwdriver-wrench"></i> รวมค่าแรง</span>
+                        <span class="text-[10px] font-bold text-slate-500 uppercase"><i class="fa-solid fa-screwdriver-wrench text-blue-500"></i> รวมค่าแรง</span>
                         <span id="sum_labor" class="text-base font-black text-slate-700">0.00</span>
                     </div>
                     <div class="bg-amber-50 border border-amber-200 px-4 py-2 rounded-xl flex justify-between items-center shadow-sm">
-                        <span class="text-[10px] font-bold text-amber-700 uppercase"><i class="fa-solid fa-box-open"></i> รวมค่าอะไหล่</span>
+                        <span class="text-[10px] font-bold text-amber-700 uppercase"><i class="fa-solid fa-box-open text-amber-500"></i> รวมค่าอะไหล่</span>
                         <span id="sum_part" class="text-base font-black text-amber-800">0.00</span>
                     </div>
                     <div class="bg-purple-50 border border-purple-200 px-4 py-2 rounded-xl flex justify-between items-center shadow-sm">
-                        <span class="text-[10px] font-bold text-purple-700 uppercase"><i class="fa-solid fa-handshake"></i> รวมงานนอก</span>
+                        <span class="text-[10px] font-bold text-purple-700 uppercase"><i class="fa-solid fa-handshake text-purple-500"></i> รวมงานนอก</span>
                         <span id="sum_ext" class="text-base font-black text-purple-800">0.00</span>
                     </div>
                     <div class="bg-emerald-50 border border-emerald-300 px-4 py-2 rounded-xl flex justify-between items-center shadow-md">
-                        <span class="text-[10px] font-black text-emerald-700 uppercase"><i class="fa-solid fa-sack-dollar"></i> ยอดรวมทั้งสิ้น</span>
+                        <span class="text-[10px] font-black text-emerald-700 uppercase"><i class="fa-solid fa-sack-dollar text-emerald-500"></i> ยอดรวมทั้งสิ้น</span>
                         <span id="sum_total" class="text-lg font-black text-emerald-700">0.00</span>
                     </div>
                 </div>
@@ -257,10 +263,11 @@
             document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name');
             document.getElementById('display_branch').innerText = userBranch;
 
-            // 🌟 ตั้งค่าเริ่มต้นให้ดรอปดาวน์เดือนเป็นเดือนปัจจุบันทันทีที่เปิดหน้าเว็บ
+            // 🌟 ตั้งค่าเริ่มต้นให้ดรอปดาวน์เดือน/ปี เป็นปัจจุบันทันทีที่เปิดหน้าเว็บ
             const today = new Date();
             const curMonth = String(today.getMonth() + 1).padStart(2, '0');
             document.getElementById('month_filter_select').value = curMonth;
+            // ปีจะถูกเซ็ตในฟังก์ชัน buildYearDropdown เพราะต้องรอสร้าง Options ก่อน
 
             initColumns();
             loadAccountingData();
@@ -279,7 +286,7 @@
             activeBtn.classList.remove('border-transparent', 'text-slate-500');
             activeBtn.classList.add('border-[#00320D]', 'text-[#00320D]', 'bg-blue-50/80');
 
-            if(tabId === 'tab-excel') applyFilters();
+            if(tabId === 'tab-excel') applyFilters(); // รีเฟรชตารางตอนเปลี่ยนแท็บ
         }
 
         function initColumns() {
@@ -406,6 +413,12 @@
 
             document.getElementById('stat_unmanaged').innerText = unmanaged;
             document.getElementById('stat_managed').innerText = managed;
+            
+            // อัปเดตข้อความให้สอดคล้องกับการกรอง
+            const monthNames = ["", "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+            const txtMonth = filterMonth ? monthNames[parseInt(filterMonth)] : 'ทุกเดือน';
+            const txtYear = filterYear ? filterYear : 'ทุกปี';
+            document.getElementById('managed_date_label').innerText = `นับเฉพาะบิลของ ${txtMonth} ${txtYear}`;
 
             if (donutChart) donutChart.destroy();
             
@@ -605,7 +618,7 @@
             document.getElementById('search_input').value = '';
             document.getElementById('managed_filter_select').value = '';
             
-            // 🌟 รีเซ็ตกลับไปเป็นเดือนปัจจุบัน
+            // 🌟 รีเซ็ตกลับไปเป็นเดือน/ปี ปัจจุบัน
             const today = new Date();
             document.getElementById('month_filter_select').value = String(today.getMonth() + 1).padStart(2, '0');
             document.getElementById('year_filter_select').value = today.getFullYear().toString();
