@@ -427,28 +427,29 @@ app.put('/api/report/:id/station', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ⚡ Fast Edit สำหรับบอร์ดใบงาน (อัปเดตผ่านตารางแบบ Excel)
+/// ⚡ Fast Edit สำหรับบอร์ดใบงานและแผนกบัญชี (อัปเดตผ่านตารางแบบ Excel)
 app.put('/api/report/:id/fast-date', async (req, res) => {
   try {
     const { field, value } = req.body;
-    // ปลดล็อกให้แก้ไขได้หลายฟิลด์ผ่านตาราง
+    
+    // ปลดล็อกฟิลด์ของแผนกบัญชี (cost_labor, cost_part, cost_external, billing_date, ivn_no)
     const validFields = [
       'target_finish_date', 'repair_finish_date', 'delivery_date', 'contact_date', 'arrived_date', 'order_part_date', 'est_part_date',
-      'car_plate', 'notes', 'qt_no', 'so_no', 'bl_no', 'sa_owner', 'damage_level', 'job_status'
+      'car_plate', 'notes', 'qt_no', 'so_no', 'bl_no', 'sa_owner', 'damage_level', 'job_status',
+      'billing_date', 'ivn_no', 'cost_labor', 'cost_part', 'cost_external'
     ];
     if (!validFields.includes(field)) return res.status(400).json({ error: 'ไม่อนุญาตให้แก้ฟิลด์นี้' });
     
+    // ถ้าเป็นพวกค่าใช้จ่าย ให้แปลงเป็นตัวเลขเพื่อความชัวร์ ป้องกันพัง
+    let safeValue = value || null;
+    if (['cost_labor', 'cost_part', 'cost_external'].includes(field)) {
+        safeValue = parseFloat(value) || 0;
+    }
+
     const queryText = `UPDATE rizenicreport SET ${field} = $1 WHERE id = $2`;
-    await pool.query(queryText, [value || null, req.params.id]);
+    await pool.query(queryText, [safeValue, req.params.id]);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.delete('/api/report/:id', async (req, res) => {
-  try {
-    await pool.query('DELETE FROM rizenicreport WHERE id = $1', [req.params.id]);
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ==========================================
