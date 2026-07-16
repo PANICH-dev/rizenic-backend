@@ -409,7 +409,7 @@ app.put('/api/report/:id/station', async (req, res) => {
       station_kho, station_pou, station_puan, station_pon, station_prak, station_kat,
       station_qc, station_mag, station_kraj, station_film, station_pak, station_ready,
       repair_notes, repair_finish_date, job_status, department_routing,
-      target_finish_date, delivery_date // รับค่าวันที่มาด้วย
+      target_finish_date, delivery_date
     } = req.body;
 
     const queryText = `
@@ -438,7 +438,6 @@ app.put('/api/report/:id/station', async (req, res) => {
 app.put('/api/report/:id/fast-date', async (req, res) => {
   try {
     const { field, value } = req.body;
-    // ป้องกัน SQL Injection โดยล็อกฟิลด์ที่อนุญาตให้แก้ได้
     const validFields = ['target_finish_date', 'repair_finish_date', 'delivery_date'];
     if (!validFields.includes(field)) return res.status(400).json({ error: 'ไม่อนุญาตให้แก้ฟิลด์นี้' });
     
@@ -598,10 +597,6 @@ app.get('/api/parts-inventory', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-if (process.env.NODE_ENV !== 'production') {
-    app.listen(port, () => console.log(`🚀 พร้อมที่: http://localhost:${port}`));
-}
-
 // 🛠️ ลบออเดอร์ PO (ลบแบบถาวร)
 app.delete('/api/part-orders/:id', async (req, res) => {
   try {
@@ -651,3 +646,11 @@ app.put('/api/part-orders/:id', async (req, res) => {
     res.status(500).json({ error: e.message }); 
   }
 });
+
+// 🚀 รัน Local Server (ถ้าไม่ได้รันผ่าน Vercel)
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(port, () => console.log(`🚀 พร้อมที่: http://localhost:${port}`));
+}
+
+// 🌟 ตัวส่งออกสำหรับ Vercel Serverless (ห้ามลบเด็ดขาด)
+module.exports = app;
