@@ -498,14 +498,14 @@ app.put('/api/part-orders/:id/status', async (req, res) => {
 });
 
 // ==========================================
-// 📥 2. บันทึกรับเข้าคลังสินค้า (Inbound)
+// 📥 2. บันทึกรับเข้าคลังสินค้า (Inbound) - อัปเดตรองรับการไม่ใส่ EPC
 // ==========================================
 app.post('/api/part-inbound', async (req, res) => {
   try {
     const { received_date, epc_no, part_main_no, part_no, part_name, car_model, qty, unit_price, branch_name } = req.body;
     const inputQty = parseInt(qty) || 1;
 
-    // 🌟 อุดรอยรั่วจุดที่ 1: ตรวจสอบและให้ใช้ฟิลด์ทดแทนกันเหนียว ป้องกัน Query ช็อต
+    // บันทึกลงตารางรับเข้าคลังตามปกติ (EPC เป็น null ได้ไม่มีปัญหา)
     const insertInboundQuery = `
       INSERT INTO rizenic_part_inbound (received_date, epc_no, part_main_no, part_no, part_name, car_model, qty, unit_price, branch_name)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;
@@ -515,10 +515,12 @@ app.post('/api/part-inbound', async (req, res) => {
       inputQty, parseFloat(unit_price) || 0.00, branch_name || 'สำนักงานใหญ่'
     ]);
 
-    if (epc_no && part_no) {
+    // 🌟 ลอจิกใหม่: ถ้ามีการกรอก EPC No มาด้วย ถึงจะวิ่งไปอัปเดตยอดรับเข้าในตารางใบสั่งซื้อ (part_orders)
+    if (epc_no && epc_no.trim() !== "" && part_no) {
       const orderCheck = await pool.query(
         `SELECT order_id, qty_ordered, COALESCE(qty_received, 0) as current_rcv FROM rizenic_part_orders 
-         WHERE epc_no = $1 AND part_no = $2 LIMIT 1`
+         WHERE epc_no = $1 AND part_no = $2 LIMIT 1`,
+        [epc_no, part_no] // 🌟 อุดรอยรั่ว: ใส่ Array พารามิเตอร์ที่ขาดไปเรียบร้อยครับนาย!
       );
 
       if (orderCheck.rows.length > 0) {
@@ -535,6 +537,7 @@ app.post('/api/part-inbound', async (req, res) => {
         );
       }
     }
+    
     res.status(201).json({ success: true });
   } catch (e) { 
     console.error("Inbound POST Error:", e);
