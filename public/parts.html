@@ -564,8 +564,9 @@
                                   }).join('')
                                 : `<option value="รอสั่งซื้อ" ${item.order_status === 'รอสั่งซื้อ'?'selected':''}>รอสั่งซื้อ</option><option value="สั่งศูนย์แล้ว-รอของเข้า" ${item.order_status === 'สั่งศูนย์แล้ว-รอของเข้า'?'selected':''}>สั่งศูนย์แล้ว-รอของเข้า</option><option value="ติด Back Order" ${item.order_status === 'ติด Back Order'?'selected':''}>ติด Back Order</option>`;
 
+                            // 🚨 แก้ไข ID Binding ที่ช็อต: ใช้ item.id หรือ item.order_id กันเหนียว!
                             return `
-                            <tr class="inner-part-item-row bg-white hover:bg-slate-50 transition-colors" data-order-id="${item.order_id}">
+                            <tr class="inner-part-item-row bg-white hover:bg-slate-50 transition-colors" data-order-id="${item.id || item.order_id}">
                                 <td class="excel-cell px-3 py-2 bg-slate-50/50">
                                     <div class="font-mono text-blue-700 font-bold">${item.part_no}</div>
                                     <div class="text-slate-800 font-bold truncate max-w-[150px]" title="${item.part_name}">${item.part_name}</div>
@@ -599,11 +600,21 @@
                 const partRcvDate = row.querySelector('.inner-part-rcv-date').value;
                 if(partEpc) latestEpcNo = partEpc;
 
-                // ไปหาข้อมูลอะไหล่เดิมทั้งก้อนมา ก่อนที่จะอัปเดตทับ
-                const existingPart = allGlobalParts.find(p => String(p.order_id) === String(orderId));
-                if(existingPart) {
+                // ไปหาข้อมูลอะไหล่เดิมทั้งก้อนมา (ดักจับทั้ง id และ order_id)
+                const existingPart = allGlobalParts.find(p => String(p.id || p.order_id) === String(orderId)) || {};
+                
+                // ดึงข้อมูลดิบจากหน้าจอ เผื่อ cache ขาดหาย จะได้ไม่ส่งค่าว่างไปพังระบบ
+                const rawPartNo = row.cells[0].querySelector('.font-mono').innerText.trim();
+                const rawPartName = row.cells[0].querySelector('.truncate').innerText.trim();
+                const rawQty = parseInt(row.cells[1].innerText.trim()) || 1;
+
+                if (orderId && orderId !== 'undefined' && orderId !== 'null') {
                     const payload = {
-                        ...existingPart, // ผสมของเก่าเข้าไปให้ครบทุกฟิลด์ที่ API ต้องการ
+                        ...existingPart, 
+                        car_plate: carPlate,
+                        part_no: existingPart.part_no || rawPartNo,
+                        part_name: existingPart.part_name || rawPartName,
+                        qty_ordered: existingPart.qty_ordered || rawQty,
                         epc_no: partEpc || null, 
                         order_status: nextStatus, 
                         est_arrival_date: partEstDate || null, 
@@ -618,12 +629,17 @@
                         }).then(async res => {
                             if(!res.ok) { // 🚨 ดักจับ Error ตัวการทำระบบเงียบ
                                 const err = await res.json().catch(()=>({}));
-                                throw new Error(err.error || 'API ปฏิเสธการบันทึก (ตรวจสอบความครบถ้วนของข้อมูล)');
+                                throw new Error(err.error || 'API ปฏิเสธ (Error ' + res.status + ')');
                             }
                         })
                     );
                 }
             });
+
+            if (promises.length === 0) {
+                alert('⚠️ ไม่พบข้อมูลที่สามารถอัปเดตได้ (เกิดข้อผิดพลาดในการดึง ID อะไหล่)');
+                return;
+            }
 
             try {
                 const btn = document.querySelector('#alertModal button[type="submit"]');
@@ -685,8 +701,9 @@
             }
         }
 
+        // 🌟 ดึงข้อมูลมาแก้ไข
         function editPO(orderId) {
-            const p = allGlobalParts.find(x => String(x.order_id) === String(orderId));
+            const p = allGlobalParts.find(x => String(x.id || x.order_id) === String(orderId));
             if(!p) return;
             document.getElementById('po_qt').value = p.qt_no || '';
             document.getElementById('po_so').value = p.so_no || '';
@@ -772,6 +789,8 @@
                     let isCompleted = (o.order_status === 'อะไหล่เข้าครบแล้ว' || o.order_status === 'อะไหล่ครบ' || rcvQty >= o.qty_ordered);
                     if (hideCompletedPO && isCompleted) return;
 
+                    const orderId = o.id || o.order_id; // 🌟 Safe Binding
+
                     renderedHTML += `
                     <tr>
                         <td class="font-mono font-bold text-amber-700">${o.epc_no || '-'}</td>
@@ -785,8 +804,8 @@
                         <td class="font-mono text-xs">${o.est_arrival_date ? String(o.est_arrival_date).split('T')[0] : '-'}</td>
                         <td class="font-mono text-[10px] text-slate-400">${o.part_main_no || '-'}</td>
                         <td class="text-center flex justify-center gap-1">
-                            <button onclick="editPO('${o.order_id}')" class="text-blue-500 hover:text-blue-700 bg-blue-50 px-2 py-1 rounded"><i class="fa-solid fa-pen"></i></button>
-                            <button onclick="deleteRow('/api/part-orders/${o.order_id}')" class="text-red-500 hover:text-red-700 bg-red-50 px-2 py-1 rounded"><i class="fa-solid fa-trash"></i></button>
+                            <button onclick="editPO('${orderId}')" class="text-blue-500 hover:text-blue-700 bg-blue-50 px-2 py-1 rounded"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deleteRow('/api/part-orders/${orderId}')" class="text-red-500 hover:text-red-700 bg-red-50 px-2 py-1 rounded"><i class="fa-solid fa-trash"></i></button>
                         </td>
                     </tr>`;
                 });
