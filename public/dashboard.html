@@ -32,7 +32,7 @@
         .modal-fade { animation: fadeIn 0.2s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 
-        /* Excel-like Table for Parked Cars */
+        /* Excel-like Table for Parked Cars & Parts */
         .excel-table { @apply w-full text-left border-collapse whitespace-nowrap text-[12px] bg-white; }
         .excel-table thead th { @apply px-3 py-2 bg-[#00320D] text-white border border-slate-500 font-bold sticky top-0 z-10 shadow-sm align-middle; }
         .excel-table tbody td { @apply px-3 py-2 border border-slate-300 text-slate-700 align-middle; }
@@ -129,7 +129,7 @@
                 <div class="text-emerald-200 text-5xl opacity-50"><i class="fa-solid fa-flag-checkered"></i></div>
             </div>
             <div class="stat-card bg-gradient-to-br from-purple-50 to-white" onclick="window.location.href='parts.html'">
-                <div><p class="text-[11px] font-black text-purple-800 uppercase tracking-widest"><i class="fa-solid fa-box-open"></i> อะไหล่ค้างส่ง (BO)</p>
+                <div><p class="text-[11px] font-black text-purple-800 uppercase tracking-widest"><i class="fa-solid fa-box-open"></i> อะไหล่ค้างสั่ง/ค้างรับ</p>
                 <h3 class="text-4xl font-black text-purple-600 mt-1" id="stat_backorder">0</h3></div>
                 <div class="text-purple-200 text-5xl opacity-50"><i class="fa-solid fa-boxes-stacked"></i></div>
             </div>
@@ -182,22 +182,30 @@
             </div>
         </div>
 
-        <!-- 🗓️ 7. ปฏิทินปฏิบัติงาน -->
-        <div class="card-box">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-slate-100 pb-4">
-                <h3 class="text-lg font-black text-slate-800 flex items-center gap-2"><i class="fa-regular fa-calendar-days text-blue-600"></i> ปฏิทินภาพรวม (เข้าจอด / เป้าเสร็จ / ส่งมอบ)</h3>
-                <div class="flex flex-wrap gap-4 text-xs font-bold px-2 bg-slate-50 py-1.5 px-3 rounded-lg border border-slate-200 shadow-inner">
-                    <div class="flex items-center gap-1.5"><div class="w-3 h-3 bg-blue-500 rounded-sm"></div> <span class="text-slate-600">1. เข้าจอด</span></div>
-                    <div class="flex items-center gap-1.5"><div class="w-3 h-3 bg-amber-500 rounded-sm"></div> <span class="text-slate-600">2. กำหนดเสร็จ</span></div>
-                    <div class="flex items-center gap-1.5"><div class="w-3 h-3 bg-green-500 rounded-sm"></div> <span class="text-slate-600">3. ส่งมอบ</span></div>
-                </div>
+        <!-- 📦 7. ตารางติดตามใบสั่งอะไหล่ (Parts Tracking) -->
+        <div class="card-box !p-0">
+            <div class="p-5 border-b border-slate-200 flex justify-between items-center bg-purple-50">
+                <h3 class="text-lg font-black text-purple-900 flex items-center gap-2"><i class="fa-solid fa-boxes-stacked text-purple-600"></i> แจ้งเตือนและติดตามสถานะใบสั่งอะไหล่ (Parts Tracking)</h3>
+                <button onclick="window.location.href='parts.html'" class="text-xs bg-white text-purple-600 px-3 py-1.5 rounded font-bold hover:bg-purple-100 transition shadow-sm border border-purple-200"><i class="fa-solid fa-arrow-up-right-from-square"></i> ไปแผนกอะไหล่</button>
             </div>
-
-            <div class="grid grid-cols-7 gap-2 text-center text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 bg-slate-50 rounded-lg py-2 border border-slate-200">
-                <div>อาทิตย์</div><div>จันทร์</div><div>อังคาร</div><div>พุธ</div><div>พฤหัสฯ</div><div>ศุกร์</div><div>เสาร์</div>
+            <div class="overflow-x-auto h-[350px] custom-scrollbar">
+                <table class="excel-table w-full">
+                    <thead>
+                        <tr>
+                            <th class="w-32 text-center !bg-purple-900">สถานะอะไหล่</th>
+                            <th class="w-32 !bg-purple-900">ทะเบียนรถ</th>
+                            <th class="w-24 !bg-purple-900">SA</th>
+                            <th class="w-32 !bg-purple-900">หมายเลขอะไหล่</th>
+                            <th class="w-48 !bg-purple-900">รายการชิ้นส่วน</th>
+                            <th class="w-24 text-center !bg-purple-900">สั่ง / รับ</th>
+                            <th class="w-32 text-center !bg-purple-900">กำหนดของเข้า</th>
+                        </tr>
+                    </thead>
+                    <tbody id="parts_tracking_body">
+                        <!-- JS Injects Here -->
+                    </tbody>
+                </table>
             </div>
-            
-            <div id="calendar_grid" class="grid grid-cols-7 gap-2 min-h-[500px]"></div>
         </div>
 
         <!-- 🚗 8. ตารางรถจอดซ่อม -->
@@ -205,7 +213,7 @@
             <div class="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50">
                 <h3 class="text-lg font-black text-[#00320D] flex items-center gap-2"><i class="fa-solid fa-car text-amber-500"></i> ตารางรถกำลังจอดซ่อม (ยังไม่ส่งมอบ)</h3>
             </div>
-            <div class="overflow-x-auto h-[600px] custom-scrollbar">
+            <div class="overflow-x-auto h-[400px] custom-scrollbar">
                 <table class="excel-table w-full">
                     <thead>
                         <tr>
@@ -224,6 +232,24 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+
+        <!-- 🗓️ 9. ปฏิทินปฏิบัติงาน -->
+        <div class="card-box">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-slate-100 pb-4">
+                <h3 class="text-lg font-black text-slate-800 flex items-center gap-2"><i class="fa-regular fa-calendar-days text-blue-600"></i> ปฏิทินภาพรวม (เข้าจอด / เป้าเสร็จ / ส่งมอบ)</h3>
+                <div class="flex flex-wrap gap-4 text-xs font-bold px-2 bg-slate-50 py-1.5 px-3 rounded-lg border border-slate-200 shadow-inner">
+                    <div class="flex items-center gap-1.5"><div class="w-3 h-3 bg-blue-500 rounded-sm"></div> <span class="text-slate-600">1. เข้าจอด</span></div>
+                    <div class="flex items-center gap-1.5"><div class="w-3 h-3 bg-amber-500 rounded-sm"></div> <span class="text-slate-600">2. กำหนดเสร็จ</span></div>
+                    <div class="flex items-center gap-1.5"><div class="w-3 h-3 bg-green-500 rounded-sm"></div> <span class="text-slate-600">3. ส่งมอบ</span></div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-7 gap-2 text-center text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 bg-slate-50 rounded-lg py-2 border border-slate-200">
+                <div>อาทิตย์</div><div>จันทร์</div><div>อังคาร</div><div>พุธ</div><div>พฤหัสฯ</div><div>ศุกร์</div><div>เสาร์</div>
+            </div>
+            
+            <div id="calendar_grid" class="grid grid-cols-7 gap-2 min-h-[500px]"></div>
         </div>
 
     </main>
@@ -358,6 +384,7 @@
             renderFinanceChart(filterMonth, filterYear);
             renderSASection();
             renderStationSection();
+            renderPartsTracking();
             renderParkedCars();
             renderCalendar(filterMonth, filterYear);
         }
@@ -416,7 +443,7 @@
             statusChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: labels.map(l => l.substring(3)), // ตัดเลขหน้าออกเพื่อความสวย
+                    labels: labels.map(l => l.substring(3)), 
                     datasets: [{ label: 'จำนวน (คัน)', data: data, backgroundColor: '#3b82f6', borderRadius: 4, barPercentage: 0.7 }]
                 },
                 options: { 
@@ -474,10 +501,7 @@
         function renderFinanceChart(fMonth, fYear) {
             const accJobs = filteredJobs.filter(d => d.department_routing === 'บัญชี');
             
-            // รอจัดการ = ไม่มีวันที่ออกบิล (โชว์ทั้งหมด ไม่สนเดือนปี)
             const unmanaged = accJobs.filter(j => !j.billing_date || j.billing_date.trim() === '').length;
-            
-            // จัดการแล้ว = มีวันที่ออกบิล (กรองตามเดือน/ปี บนหัวตาราง)
             const managed = accJobs.filter(j => {
                 if (!j.billing_date || j.billing_date.trim() === '') return false;
                 return isDateInFilter(j.billing_date, fMonth, fYear);
@@ -549,7 +573,6 @@
         function renderStationSection() {
             const stCounts = { "01.เคาะ":0, "02.โป๊ว":0, "03.เตรียมพื้น":0, "04.พ่นสี":0, "05.ประกอบ":0, "06.ขัดสี":0, "08.เก็บงาน":0, "09.ซ่อมแม็ก":0, "10.กระจก":0, "11.ฟิล์ม":0, "12.พักซ่อม":0, "13.รอส่งมอบ":0, "รอรับรถ":0 };
             
-            // กรองรถที่ยังไม่ส่งมอบ เพื่อเช็คสถานี
             filteredJobs.filter(j => j.job_status !== '12.ส่งมอบแล้ว').forEach(j => {
                 const s = computeHighestStationIFS(j);
                 if(stCounts[s] !== undefined) stCounts[s]++;
@@ -571,10 +594,40 @@
             document.getElementById('jobListModal').classList.remove('hidden');
         }
 
-        // ================= 🚗 7. ตารางรถจอดซ่อม (ยังไม่ส่งมอบ) =================
+        // ================= 📦 7. ติดตามอะไหล่ =================
+        function renderPartsTracking() {
+            const tbody = document.getElementById('parts_tracking_body');
+            if (filteredPartOrders.length === 0) { 
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-400 font-bold">ไม่มีรายการใบสั่งอะไหล่ 🎉</td></tr>`; 
+                return; 
+            }
+
+            const sortedParts = [...filteredPartOrders].sort((a,b) => b.order_id - a.order_id);
+
+            tbody.innerHTML = sortedParts.map(o => {
+                const isComplete = o.order_status === 'อะไหล่มาครบแล้ว' || o.order_status === 'อะไหล่ครบ';
+                const statusBadge = isComplete ? 'bg-green-100 text-green-700 border-green-300' : (o.order_status === 'รอสั่งซื้อ' || o.order_status === 'รออะไหล่' || o.order_status === 'ติด Back Order' ? 'bg-red-100 text-red-700 border-red-300 animate-pulse' : 'bg-amber-100 text-amber-700 border-amber-300');
+                
+                const jobMatch = allJobs.find(j => j.car_plate === o.car_plate);
+                const saName = jobMatch ? (jobMatch.sa_owner || 'ไม่ระบุ') : 'ไม่ระบุ';
+
+                return `
+                    <tr class="hover:bg-slate-50 transition cursor-pointer" onclick="window.location.href='parts.html'">
+                        <td class="text-center"><span class="px-2 py-0.5 rounded font-bold border text-[10px] shadow-sm ${statusBadge}">${o.order_status || 'รออัปเดต'}</span></td>
+                        <td class="font-black text-[#00320D]"><span class="bg-slate-100 border border-slate-200 px-2 py-0.5 rounded font-mono text-xs">${o.car_plate || '-'}</span></td>
+                        <td class="text-xs font-bold text-slate-600">${saName}</td>
+                        <td class="font-mono font-bold text-blue-700 text-xs">${o.part_no || '-'}</td>
+                        <td class="text-xs font-bold text-slate-700 truncate max-w-[200px]" title="${o.part_name || '-'}">${o.part_name || '-'}</td>
+                        <td class="text-center text-xs"><span class="text-amber-600 font-bold">${o.qty_ordered}</span> / <span class="text-green-600 font-bold">${o.qty_received || 0}</span></td>
+                        <td class="text-center font-mono text-[11px] text-slate-500 font-bold">${o.est_arrival_date ? o.est_arrival_date.split('T')[0] : '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ================= 🚗 8. ตารางรถจอดซ่อม =================
         function renderParkedCars() {
             const tbody = document.getElementById('parked_cars_body');
-            // หารถที่เข้าจอดแล้ว แต่ยังไม่ส่งมอบ
             const parkedCars = filteredJobs.filter(j => j.arrived_date && j.job_status !== '12.ส่งมอบแล้ว');
             
             if(parkedCars.length === 0) {
@@ -585,7 +638,7 @@
             const today = new Date();
             today.setHours(0,0,0,0);
 
-            parkedCars.sort((a,b) => new Date(a.arrived_date) - new Date(b.arrived_date)); // เรียงจากจอดนานสุดไปน้อย
+            parkedCars.sort((a,b) => new Date(a.arrived_date) - new Date(b.arrived_date)); 
 
             tbody.innerHTML = parkedCars.map(j => {
                 const arrDate = new Date(j.arrived_date); arrDate.setHours(0,0,0,0);
@@ -609,7 +662,7 @@
             }).join('');
         }
 
-        // ================= 🗓️ 8. ปฏิทินรวม (เข้าจอด / เป้าเสร็จ / ส่งมอบ) =================
+        // ================= 🗓️ 9. ปฏิทิน =================
         function renderCalendar(fMonth, fYear) {
             const grid = document.getElementById('calendar_grid'); grid.innerHTML = '';
             
@@ -671,7 +724,6 @@
             document.getElementById('jobListModal').classList.remove('hidden');
         }
 
-        // ================= 📝 Modal Table Renderer =================
         function renderJobTableInModal(jobs) {
             const tbody = document.getElementById('modal_job_table');
             if (jobs.length === 0) { tbody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-slate-500 font-bold">ไม่มีข้อมูล</td></tr>`; return; }
