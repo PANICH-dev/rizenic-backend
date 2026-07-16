@@ -8,7 +8,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
-    <!-- Chart.js สำหรับกราฟโดนัท -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style type="text/tailwindcss">
@@ -25,7 +24,6 @@
         .acc-tab-content.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* 🌟 ระบบตารางแบบ Excel View แท้ๆ 🌟 */
         .excel-table { @apply w-full text-left border-collapse whitespace-nowrap text-[12px] bg-white; table-layout: fixed; }
         .excel-table thead th { @apply relative px-0 py-0 bg-[#00320D] text-white border border-slate-500 font-bold sticky top-0 z-10 shadow-sm align-middle select-none; }
         .excel-table tbody td { @apply p-0 border border-slate-300 text-slate-700 align-middle overflow-hidden; }
@@ -100,13 +98,11 @@
         <!-- 📊 แท็บ 1: แดชบอร์ดโดนัท -->
         <section id="tab-dashboard" class="acc-tab-content active h-full flex flex-col justify-center items-center">
             <div class="w-full max-w-4xl bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row gap-8 items-center">
-                <!-- กราฟโดนัท -->
                 <div class="w-full md:w-1/2 relative flex justify-center">
                     <div class="w-64 h-64">
                         <canvas id="jobDonutChart"></canvas>
                     </div>
                 </div>
-                <!-- ข้อมูลสรุป -->
                 <div class="w-full md:w-1/2 space-y-4">
                     <h2 class="text-xl font-black text-[#00320D] border-b pb-2"><i class="fa-solid fa-chart-simple text-amber-500"></i> ภาพรวมงานแผนกบัญชี</h2>
                     
@@ -121,7 +117,7 @@
                     <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex justify-between items-center cursor-pointer hover:bg-emerald-100 transition" onclick="switchTab('tab-excel'); setTimeout(()=>filterByStatus('จัดการแล้ว'), 100);">
                         <div>
                             <p class="text-xs font-bold text-emerald-600 uppercase tracking-wide">งานที่จัดการแล้ว (ออกบิลแล้ว)</p>
-                            <p class="text-xs text-emerald-500">ลงวันที่ออกบิลเรียบร้อย</p>
+                            <p class="text-xs text-emerald-500">นับตามเดือน/ปีที่เลือกบนหัวตาราง</p>
                         </div>
                         <span class="text-3xl font-black text-emerald-700" id="stat_managed">0</span>
                     </div>
@@ -261,6 +257,11 @@
             document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name');
             document.getElementById('display_branch').innerText = userBranch;
 
+            // 🌟 ตั้งค่าเริ่มต้นให้ดรอปดาวน์เดือนเป็นเดือนปัจจุบันทันทีที่เปิดหน้าเว็บ
+            const today = new Date();
+            const curMonth = String(today.getMonth() + 1).padStart(2, '0');
+            document.getElementById('month_filter_select').value = curMonth;
+
             initColumns();
             loadAccountingData();
         });
@@ -278,7 +279,7 @@
             activeBtn.classList.remove('border-transparent', 'text-slate-500');
             activeBtn.classList.add('border-[#00320D]', 'text-[#00320D]', 'bg-blue-50/80');
 
-            if(tabId === 'tab-excel') applyFilters(); // รีเฟรชตารางตอนเปลี่ยนแท็บ
+            if(tabId === 'tab-excel') applyFilters();
         }
 
         function initColumns() {
@@ -350,8 +351,7 @@
                     allAccJobs = allAccJobs.filter(d => d.branch_name === userBranch);
                 }
                 
-                buildYearDropdown(); // สร้าง Dropdown ให้เลือกปีจากข้อมูลที่มี
-                updateDashboard();
+                buildYearDropdown(); 
                 applyFilters(); 
             } catch (error) {
                 document.getElementById('acc_table_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-10 text-red-500 font-bold">⚠️ ไม่สามารถเชื่อมต่อฐานข้อมูลได้</td></tr>`;
@@ -363,23 +363,46 @@
             const ySelect = document.getElementById('year_filter_select');
             const savedVal = ySelect.value;
             const years = new Set();
+            const curYear = new Date().getFullYear();
+            years.add(curYear); // เผื่อไว้ให้มีปีปัจจุบันให้เลือกเสมอ
+
             allAccJobs.forEach(j => {
                 if(j.billing_date) {
                     const y = new Date(j.billing_date).getFullYear();
                     if(!isNaN(y)) years.add(y);
                 }
             });
+
             let opts = '<option value="">ทุกปี</option>';
             [...years].sort((a,b)=>b-a).forEach(y => {
                 opts += `<option value="${y}">${y}</option>`;
             });
             ySelect.innerHTML = opts;
-            if(savedVal) ySelect.value = savedVal;
+
+            // ตั้งค่าปีปัจจุบันเป็นค่าเริ่มต้น ถ้ายังไม่เคยเลือก
+            if(!ySelect.dataset.initialized) {
+                ySelect.value = curYear.toString();
+                ySelect.dataset.initialized = "true";
+            } else if (savedVal) {
+                ySelect.value = savedVal;
+            }
         }
 
         function updateDashboard() {
+            const filterMonth = document.getElementById('month_filter_select').value;
+            const filterYear = document.getElementById('year_filter_select').value;
+
+            // งานที่ "รอจัดการ" จะโชว์ Backlog ทั้งหมดเสมอ (ไม่สนเดือน/ปี)
             const unmanaged = allAccJobs.filter(j => !j.billing_date || j.billing_date.trim() === '').length;
-            const managed = allAccJobs.filter(j => j.billing_date && j.billing_date.trim() !== '').length;
+            
+            // งานที่ "จัดการแล้ว" จะถูกกรองตามเดือน/ปี ที่เลือกบนหัวตาราง
+            const managed = allAccJobs.filter(j => {
+                if (!j.billing_date || j.billing_date.trim() === '') return false;
+                const d = new Date(j.billing_date);
+                if (filterYear && d.getFullYear().toString() !== filterYear) return false;
+                if (filterMonth && (d.getMonth() + 1).toString().padStart(2, '0') !== filterMonth) return false;
+                return true;
+            }).length;
 
             document.getElementById('stat_unmanaged').innerText = unmanaged;
             document.getElementById('stat_managed').innerText = managed;
@@ -418,7 +441,7 @@
             try {
                 let valToSend = value;
                 if(['cost_labor', 'cost_part', 'cost_external'].includes(field)) {
-                    valToSend = value.replace(/,/g, ''); // ล้างลูกน้ำก่อนส่งให้ฐานข้อมูล
+                    valToSend = value.replace(/,/g, ''); 
                 }
 
                 const res = await fetch(`${API_BASE_URL}/api/report/${jobId}/fast-date`, {
@@ -430,11 +453,10 @@
                     showToast('อัปเดตข้อมูลอัตโนมัติสำเร็จ!');
                     
                     if(['cost_labor', 'cost_part', 'cost_external'].includes(field)) {
-                        applyFilters(); // รีเฟรชเพื่อคำนวณยอดรวมใหม่
+                        applyFilters(); 
                     } else if (field === 'billing_date') {
                         buildYearDropdown(); 
-                        updateDashboard(); 
-                        applyFilters(); // เพราะบางทีอาจจะโดนกรองเดือนปีอยู่
+                        applyFilters(); 
                     }
                 } else throw new Error();
             } catch (err) { showToast('บันทึกข้อมูลไม่สำเร็จ!', 'error'); loadAccountingData(); }
@@ -582,8 +604,12 @@
             activeFilters = {}; 
             document.getElementById('search_input').value = '';
             document.getElementById('managed_filter_select').value = '';
-            document.getElementById('month_filter_select').value = '';
-            document.getElementById('year_filter_select').value = '';
+            
+            // 🌟 รีเซ็ตกลับไปเป็นเดือนปัจจุบัน
+            const today = new Date();
+            document.getElementById('month_filter_select').value = String(today.getMonth() + 1).padStart(2, '0');
+            document.getElementById('year_filter_select').value = today.getFullYear().toString();
+            
             document.querySelectorAll('.filter-icon').forEach(icon => { icon.classList.remove('text-amber-400'); icon.classList.add('text-slate-400'); });
             applyFilters();
         }
@@ -608,9 +634,8 @@
                 if (managedType === 'รอจัดการ' && hasBillingDate) return false;
                 if (managedType === 'จัดการแล้ว' && !hasBillingDate) return false;
 
-                // กรองตามเดือน / ปี (จากวันที่ออกบิล)
-                if (filterMonth || filterYear) {
-                    if (!hasBillingDate) return false; 
+                // 🌟 กรองตามเดือน / ปี (กรองเฉพาะงานที่ "มีวันออกบิลแล้ว")
+                if (hasBillingDate && (filterMonth || filterYear)) {
                     const d = new Date(job.billing_date);
                     if (filterYear && d.getFullYear().toString() !== filterYear) return false;
                     if (filterMonth && (d.getMonth() + 1).toString().padStart(2, '0') !== filterMonth) return false;
@@ -637,7 +662,7 @@
                 return true;
             });
 
-            // 🌟 คำนวณสรุปยอด (Real-time)
+            // 🌟 คำนวณสรุปยอดจากงานที่กำลังโชว์อยู่ (Real-time)
             filteredData.forEach(job => {
                 sumLabor += parseFloat(job.cost_labor) || 0;
                 sumPart += parseFloat(job.cost_part) || 0;
@@ -645,7 +670,6 @@
             });
             sumTotal = sumLabor + sumPart + sumExt;
 
-            // แสดงผลยอดรวม
             document.getElementById('sum_labor').innerText = sumLabor.toLocaleString('th-TH', { minimumFractionDigits: 2 });
             document.getElementById('sum_part').innerText = sumPart.toLocaleString('th-TH', { minimumFractionDigits: 2 });
             document.getElementById('sum_ext').innerText = sumExt.toLocaleString('th-TH', { minimumFractionDigits: 2 });
@@ -653,6 +677,9 @@
 
             renderTable(filteredData);
             document.getElementById('row_count').innerText = filteredData.length;
+            
+            // อัปเดตยอดโดนัทตามเดือน/ปี ที่เลือกด้วย
+            updateDashboard();
         }
 
         function sortTable(colIndex) {
