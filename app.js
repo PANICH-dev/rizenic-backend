@@ -427,10 +427,15 @@ app.put('/api/report/:id/station', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ⚡ Fast Edit สำหรับบอร์ดใบงาน (อัปเดตผ่านตารางแบบ Excel)
 app.put('/api/report/:id/fast-date', async (req, res) => {
   try {
     const { field, value } = req.body;
-    const validFields = ['target_finish_date', 'repair_finish_date', 'delivery_date'];
+    // ปลดล็อกให้แก้ไขได้หลายฟิลด์ผ่านตาราง
+    const validFields = [
+      'target_finish_date', 'repair_finish_date', 'delivery_date', 'contact_date', 'arrived_date', 'order_part_date', 'est_part_date',
+      'car_plate', 'notes', 'qt_no', 'so_no', 'bl_no', 'sa_owner', 'damage_level', 'job_status'
+    ];
     if (!validFields.includes(field)) return res.status(400).json({ error: 'ไม่อนุญาตให้แก้ฟิลด์นี้' });
     
     const queryText = `UPDATE rizenicreport SET ${field} = $1 WHERE id = $2`;
