@@ -123,7 +123,7 @@ app.delete('/api/employees/:id', async (req, res) => {
 });
 
 // ==========================================
-// 🚗 API Car Models - CRUD (rizeniccarmodelmaster)
+// 🚗 API Car Models - CRUD
 // ==========================================
 app.get('/api/car-models', async (req, res) => {
   try { res.json((await pool.query('SELECT model_id, car_brand, car_model FROM rizeniccarmodelmaster ORDER BY car_brand ASC')).rows); } 
@@ -143,7 +143,7 @@ app.delete('/api/car-models/:id', async (req, res) => {
 });
 
 // ==========================================
-// 🛡️ API Insurances - CRUD (rizenicinsurancemaster)
+// 🛡️ API Insurances - CRUD
 // ==========================================
 app.get('/api/insurances', async (req, res) => {
   try { res.json((await pool.query('SELECT insurance_code, insurance_name, insurance_type FROM rizenicinsurancemaster ORDER BY insurance_code ASC')).rows); } 
@@ -163,7 +163,7 @@ app.delete('/api/insurances/:id', async (req, res) => {
 });
 
 // ==========================================
-// 👥 API Customer Types - CRUD (rizeniccustomertypemaster)
+// 👥 API Customer Types - CRUD
 // ==========================================
 app.get('/api/customer-types', async (req, res) => {
   try { res.json((await pool.query('SELECT customer_type_id, type_code, type_name FROM rizeniccustomertypemaster ORDER BY type_code ASC')).rows); } 
@@ -238,7 +238,7 @@ app.delete('/api/parts/:id', async (req, res) => {
 });
 
 // ==========================================
-// 📌 API จัดการสถานะหลักและ Routing (rizenicstatusmaster)
+// 📌 API จัดการสถานะหลักและ Routing
 // ==========================================
 app.get('/api/statuses', async (req, res) => {
   try { res.json((await pool.query('SELECT * FROM rizenicstatusmaster ORDER BY status_code ASC')).rows); } 
@@ -447,8 +447,9 @@ app.delete('/api/report/:id', async (req, res) => {
 });
 
 // ==========================================
-// 📦 API Master สถานะอะไหล่
+// 📦 API แผนกอะไหล่ (สั่งซื้อ / รับเข้า / เบิกจ่าย / สถานะ)
 // ==========================================
+
 app.get('/api/part-statuses', async (req, res) => {
   try { res.json((await pool.query('SELECT * FROM rizenic_part_status_master ORDER BY status_id ASC')).rows); } 
   catch (e) { res.status(500).json({ error: e.message }); }
@@ -462,9 +463,6 @@ app.delete('/api/part-statuses/:id', async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ==========================================
-// 🛒 1. สั่งอะไหล่ (Order Parts)
-// ==========================================
 app.get('/api/part-orders', async (req, res) => {
   try { res.json((await pool.query('SELECT * FROM rizenic_part_orders ORDER BY order_id DESC')).rows); } 
   catch (e) { res.status(500).json({ error: e.message }); }
@@ -486,163 +484,6 @@ app.post('/api/part-orders', async (req, res) => {
     ];
     const result = await pool.query(queryText, values);
     res.status(201).json({ success: true, data: result.rows[0] });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.put('/api/part-orders/:id/status', async (req, res) => {
-  try {
-    const { order_status } = req.body;
-    await pool.query('UPDATE rizenic_part_orders SET order_status = $1 WHERE order_id = $2', [order_status, req.params.id]);
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// ==========================================
-// 📥 2. บันทึกรับเข้าคลังสินค้า (Inbound) - อัปเดตรองรับการไม่ใส่ EPC
-// ==========================================
-app.post('/api/part-inbound', async (req, res) => {
-  try {
-    const { received_date, epc_no, part_main_no, part_no, part_name, car_model, qty, unit_price, branch_name } = req.body;
-    const inputQty = parseInt(qty) || 1;
-
-    // บันทึกลงตารางรับเข้าคลังตามปกติ (EPC เป็น null ได้ไม่มีปัญหา)
-    const insertInboundQuery = `
-      INSERT INTO rizenic_part_inbound (received_date, epc_no, part_main_no, part_no, part_name, car_model, qty, unit_price, branch_name)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;
-    `;
-    await pool.query(insertInboundQuery, [
-      received_date, epc_no || null, part_main_no || null, part_no, part_name, car_model || null,
-      inputQty, parseFloat(unit_price) || 0.00, branch_name || 'สำนักงานใหญ่'
-    ]);
-
-    // 🌟 ลอจิกใหม่: ถ้ามีการกรอก EPC No มาด้วย ถึงจะวิ่งไปอัปเดตยอดรับเข้าในตารางใบสั่งซื้อ (part_orders)
-    if (epc_no && epc_no.trim() !== "" && part_no) {
-      const orderCheck = await pool.query(
-        `SELECT order_id, qty_ordered, COALESCE(qty_received, 0) as current_rcv FROM rizenic_part_orders 
-         WHERE epc_no = $1 AND part_no = $2 LIMIT 1`,
-        [epc_no, part_no] // 🌟 อุดรอยรั่ว: ใส่ Array พารามิเตอร์ที่ขาดไปเรียบร้อยครับนาย!
-      );
-
-      if (orderCheck.rows.length > 0) {
-        const order = orderCheck.rows[0];
-        const newQtyReceived = parseInt(order.current_rcv) + inputQty; 
-        let newStatus = 'อะไหล่ยังมาไม่ครบ';
-        if (newQtyReceived >= parseInt(order.qty_ordered)) {
-          newStatus = 'อะไหล่มาครบแล้ว';
-        }
-
-        await pool.query(
-          `UPDATE rizenic_part_orders SET qty_received = $1, order_status = $2, received_date = $3 WHERE order_id = $4`,
-          [newQtyReceived, newStatus, received_date, order.order_id]
-        );
-      }
-    }
-    
-    res.status(201).json({ success: true });
-  } catch (e) { 
-    console.error("Inbound POST Error:", e);
-    res.status(500).json({ error: e.message }); 
-  }
-});
-
-app.get('/api/part-inbound', async (req, res) => {
-  try { res.json((await pool.query('SELECT * FROM rizenic_part_inbound ORDER BY inbound_id DESC')).rows); } 
-  catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.put('/api/part-inbound/:id', async (req, res) => {
-  try {
-    const { received_date, epc_no, part_no, part_name, qty, unit_price } = req.body;
-    await pool.query(
-      `UPDATE rizenic_part_inbound SET received_date=$1, epc_no=$2, part_no=$3, part_name=$4, qty=$5, unit_price=$6 WHERE inbound_id=$7`,
-      [received_date, epc_no, part_no, part_name, parseInt(qty), parseFloat(unit_price), req.params.id]
-    );
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.delete('/api/part-inbound/:id', async (req, res) => {
-  try { await pool.query('DELETE FROM rizenic_part_inbound WHERE inbound_id=$1', [req.params.id]); res.json({ success: true }); }
-  catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// ==========================================
-// 📤 3. เบิกจ่ายอะไหล่ (Outbound)
-// ==========================================
-app.post('/api/part-outbound', async (req, res) => {
-  try {
-    const { issue_date, part_no, part_main_no, part_name, qty, car_plate, qt_no, so_no, unit_price, part_type, car_model, job_status, branch_name } = req.body;
-    
-    // 🌟 อุดรอยรั่วจุดที่ 2: แก้ไขการเรียงลำดับคอลัมน์ SQL Parameter ที่ส่งค่าสลับตำแหน่งกันให้ถูกต้องตรงช่องเป๊ะๆ
-    const queryText = `
-      INSERT INTO rizenic_part_outbound (issue_date, part_no, part_main_no, part_name, qty, car_plate, qt_no, so_no, unit_price, part_type, car_model, job_status, branch_name)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *;
-    `;
-    const values = [
-      issue_date, part_no, part_main_no || null, part_name, parseInt(qty) || 1, car_plate,
-      qt_no || null, so_no || null, parseFloat(unit_price) || 0.00, part_type || null, car_model || null, job_status || null, branch_name || 'สำนักงานใหญ่'
-    ];
-    const result = await pool.query(queryText, values);
-    res.status(201).json({ success: true, data: result.rows[0] });
-  } catch (e) { 
-    console.error("Outbound POST Error:", e);
-    res.status(500).json({ error: e.message }); 
-  }
-});
-
-app.get('/api/part-outbound', async (req, res) => {
-  try { res.json((await pool.query('SELECT * FROM rizenic_part_outbound ORDER BY outbound_id DESC')).rows); } 
-  catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.put('/api/part-outbound/:id', async (req, res) => {
-  try {
-    const { issue_date, part_no, part_name, qty, car_plate, qt_no, so_no } = req.body;
-    await pool.query(
-      `UPDATE rizenic_part_outbound SET issue_date=$1, part_no=$2, part_name=$3, qty=$4, car_plate=$5, qt_no=$6, so_no=$7 WHERE outbound_id=$8`,
-      [issue_date, part_no, part_name, parseInt(qty), car_plate, qt_no, so_no, req.params.id]
-    );
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.delete('/api/part-outbound/:id', async (req, res) => {
-  try { await pool.query('DELETE FROM rizenic_part_outbound WHERE outbound_id=$1', [req.params.id]); res.json({ success: true }); }
-  catch (e) { res.status(500).json({ error: e.message }); }
-});
-// ==========================================
-// 📊 4. คำนวณยอดสต๊อกคงเหลือจริง (Inventory - อัปเกรดระบบ Booking)
-// ==========================================
-app.get('/api/parts-inventory', async (req, res) => {
-  const { branch } = req.query; 
-  if (!branch) return res.status(400).json({ error: 'กรุณาระบุสาขาครับนาย' });
-  try {
-    const queryText = `
-      SELECT 
-        i.part_main_no, i.part_no, i.part_name, i.car_model,
-        COALESCE(SUM(i.qty), 0) AS total_inbound,
-        COALESCE((
-          SELECT SUM(o.qty) FROM rizenic_part_outbound o 
-          WHERE o.part_no = i.part_no AND o.branch_name = i.branch_name AND COALESCE(o.job_status, '') != 'รอเข้าซ่อม'
-        ), 0) AS total_issued,
-        COALESCE((
-          SELECT SUM(o.qty) FROM rizenic_part_outbound o 
-          WHERE o.part_no = i.part_no AND o.branch_name = i.branch_name AND o.job_status = 'รอเข้าซ่อม'
-        ), 0) AS total_booked
-      FROM rizenic_part_inbound i
-      WHERE i.branch_name = $1
-      GROUP BY i.part_main_no, i.part_no, i.part_name, i.car_model, i.branch_name
-      ORDER BY i.part_name ASC;
-    `;
-    const result = await pool.query(queryText, [branch]);
-    res.json(result.rows);
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.delete('/api/part-orders/:id', async (req, res) => {
-  try {
-    await pool.query('DELETE FROM rizenic_part_orders WHERE order_id = $1', [req.params.id]);
-    res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -679,18 +520,180 @@ app.put('/api/part-orders/:id', async (req, res) => {
       qt_no, so_no, order_date, car_plate, vin_no, car_model, part_type, notes || null,
       req.params.id
     ]);
-    
     res.json({ success: true });
-  } catch (e) { 
-    console.error("PUT /api/part-orders Error:", e);
-    res.status(500).json({ error: e.message }); 
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 🚀 รัน Local Server
+// ⚡ Fast Edit ออเดอร์ (อัปเดตผ่านตาราง)
+app.put('/api/part-orders/:id/fast', async (req, res) => {
+  try {
+    const { field, value } = req.body;
+    const validFields = ['epc_no', 'order_status', 'qty_ordered', 'est_arrival_date'];
+    if (!validFields.includes(field)) return res.status(400).json({ error: 'ไม่อนุญาตให้แก้ฟิลด์นี้' });
+    await pool.query(`UPDATE rizenic_part_orders SET ${field} = $1 WHERE order_id = $2`, [value || null, req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/part-orders/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM rizenic_part_orders WHERE order_id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 📥 การรับเข้า (Inbound)
+app.post('/api/part-inbound', async (req, res) => {
+  try {
+    const { received_date, epc_no, part_main_no, part_no, part_name, car_model, qty, unit_price, branch_name } = req.body;
+    const inputQty = parseInt(qty) || 1;
+
+    const insertInboundQuery = `
+      INSERT INTO rizenic_part_inbound (received_date, epc_no, part_main_no, part_no, part_name, car_model, qty, unit_price, branch_name)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;
+    `;
+    await pool.query(insertInboundQuery, [
+      received_date, epc_no || null, part_main_no || null, part_no, part_name, car_model || null,
+      inputQty, parseFloat(unit_price) || 0.00, branch_name || 'สำนักงานใหญ่'
+    ]);
+
+    if (epc_no && epc_no.trim() !== "" && part_no) {
+      const orderCheck = await pool.query(
+        `SELECT order_id, qty_ordered, COALESCE(qty_received, 0) as current_rcv FROM rizenic_part_orders 
+         WHERE epc_no = $1 AND part_no = $2 LIMIT 1`,
+        [epc_no, part_no]
+      );
+
+      if (orderCheck.rows.length > 0) {
+        const order = orderCheck.rows[0];
+        const newQtyReceived = parseInt(order.current_rcv) + inputQty; 
+        let newStatus = 'อะไหล่ยังมาไม่ครบ';
+        if (newQtyReceived >= parseInt(order.qty_ordered)) {
+          newStatus = 'อะไหล่มาครบแล้ว';
+        }
+
+        await pool.query(
+          `UPDATE rizenic_part_orders SET qty_received = $1, order_status = $2, received_date = $3 WHERE order_id = $4`,
+          [newQtyReceived, newStatus, received_date, order.order_id]
+        );
+      }
+    }
+    
+    res.status(201).json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/part-inbound', async (req, res) => {
+  try { res.json((await pool.query('SELECT * FROM rizenic_part_inbound ORDER BY inbound_id DESC')).rows); } 
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/part-inbound/:id', async (req, res) => {
+  try {
+    const { received_date, epc_no, part_no, part_name, qty, unit_price } = req.body;
+    await pool.query(
+      `UPDATE rizenic_part_inbound SET received_date=$1, epc_no=$2, part_no=$3, part_name=$4, qty=$5, unit_price=$6 WHERE inbound_id=$7`,
+      [received_date, epc_no, part_no, part_name, parseInt(qty), parseFloat(unit_price), req.params.id]
+    );
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ⚡ Fast Edit อินบาวด์ (อัปเดตผ่านตาราง)
+app.put('/api/part-inbound/:id/fast', async (req, res) => {
+  try {
+    const { field, value } = req.body;
+    const validFields = ['received_date', 'qty', 'unit_price'];
+    if (!validFields.includes(field)) return res.status(400).json({ error: 'ไม่อนุญาต' });
+    await pool.query(`UPDATE rizenic_part_inbound SET ${field} = $1 WHERE inbound_id = $2`, [value || null, req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/part-inbound/:id', async (req, res) => {
+  try { await pool.query('DELETE FROM rizenic_part_inbound WHERE inbound_id=$1', [req.params.id]); res.json({ success: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 📤 การเบิก/จอง (Outbound)
+app.post('/api/part-outbound', async (req, res) => {
+  try {
+    const { issue_date, part_no, part_main_no, part_name, qty, car_plate, qt_no, so_no, unit_price, part_type, car_model, job_status, branch_name } = req.body;
+    
+    const queryText = `
+      INSERT INTO rizenic_part_outbound (issue_date, part_no, part_main_no, part_name, qty, car_plate, qt_no, so_no, unit_price, part_type, car_model, job_status, branch_name)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *;
+    `;
+    const values = [
+      issue_date, part_no, part_main_no || null, part_name, parseInt(qty) || 1, car_plate,
+      qt_no || null, so_no || null, parseFloat(unit_price) || 0.00, part_type || null, car_model || null, job_status || null, branch_name || 'สำนักงานใหญ่'
+    ];
+    await pool.query(queryText, values);
+    res.status(201).json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/part-outbound', async (req, res) => {
+  try { res.json((await pool.query('SELECT * FROM rizenic_part_outbound ORDER BY outbound_id DESC')).rows); } 
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 🌟 อัปเดต PUT Outbound ให้รองรับ job_status 
+app.put('/api/part-outbound/:id', async (req, res) => {
+  try {
+    const { issue_date, part_no, part_name, qty, car_plate, qt_no, so_no, job_status } = req.body;
+    await pool.query(
+      `UPDATE rizenic_part_outbound SET issue_date=$1, part_no=$2, part_name=$3, qty=$4, car_plate=$5, qt_no=$6, so_no=$7, job_status=$8 WHERE outbound_id=$9`,
+      [issue_date, part_no, part_name, parseInt(qty), car_plate, qt_no, so_no, job_status, req.params.id]
+    );
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ⚡ Fast Edit เอาต์บาวด์ (อัปเดตผ่านตาราง)
+app.put('/api/part-outbound/:id/fast', async (req, res) => {
+  try {
+    const { field, value } = req.body;
+    const validFields = ['issue_date', 'qty', 'job_status'];
+    if (!validFields.includes(field)) return res.status(400).json({ error: 'ไม่อนุญาต' });
+    await pool.query(`UPDATE rizenic_part_outbound SET ${field} = $1 WHERE outbound_id = $2`, [value || null, req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/part-outbound/:id', async (req, res) => {
+  try { await pool.query('DELETE FROM rizenic_part_outbound WHERE outbound_id=$1', [req.params.id]); res.json({ success: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/parts-inventory', async (req, res) => {
+  const { branch } = req.query; 
+  if (!branch) return res.status(400).json({ error: 'กรุณาระบุสาขาครับนาย' });
+  try {
+    const queryText = `
+      SELECT 
+        i.part_main_no, i.part_no, i.part_name, i.car_model,
+        COALESCE(SUM(i.qty), 0) AS total_inbound,
+        COALESCE((
+          SELECT SUM(o.qty) FROM rizenic_part_outbound o 
+          WHERE o.part_no = i.part_no AND o.branch_name = i.branch_name AND COALESCE(o.job_status, '') != 'รอเข้าซ่อม'
+        ), 0) AS total_issued,
+        COALESCE((
+          SELECT SUM(o.qty) FROM rizenic_part_outbound o 
+          WHERE o.part_no = i.part_no AND o.branch_name = i.branch_name AND o.job_status = 'รอเข้าซ่อม'
+        ), 0) AS total_booked
+      FROM rizenic_part_inbound i
+      WHERE i.branch_name = $1
+      GROUP BY i.part_main_no, i.part_no, i.part_name, i.car_model, i.branch_name
+      ORDER BY i.part_name ASC;
+    `;
+    const result = await pool.query(queryText, [branch]);
+    res.json(result.rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 if (require.main === module) {
     app.listen(port, () => console.log(`🚀 พร้อมที่: http://localhost:${port}`));
 }
 
-// 🌟 ส่งออกยานแม่ Vercel
 module.exports = app;
