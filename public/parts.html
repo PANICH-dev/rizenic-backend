@@ -6,7 +6,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RIZENIC ERP - Parts Department</title>
+    <title>RIZENIC ERP - Parts Department (Excel Mode)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
@@ -30,15 +30,15 @@
         .card-container { @apply bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6; }
         .label-text { @apply flex items-center gap-1.5 text-[11px] font-bold text-slate-500 mb-1.5 tracking-wide uppercase; }
         
-        .modern-table { @apply w-full text-left border-collapse whitespace-nowrap text-[12px]; }
-        .modern-table thead th { @apply p-2 bg-[#00320D] text-white border-b border-[#004a1f] align-top sticky top-0 z-10 shadow-md font-bold; }
-        .modern-table tbody td { @apply p-2 border-b border-slate-100 text-slate-700 align-middle; }
-        .modern-table tbody tr:hover { @apply bg-green-50/50 transition-colors; }
-        
-        .excel-filter { @apply mt-2 w-full bg-white/10 border border-white/20 rounded-md px-2 py-1.5 text-[11px] text-white placeholder-white/50 outline-none focus:bg-white focus:text-slate-900 focus:placeholder-slate-400 transition-all font-normal; }
-        .sort-icon { @apply ml-1 opacity-50 transition-opacity group-hover:opacity-100; }
-        
         /* 🌟 ระบบตารางแบบ Excel View แท้ๆ 🌟 */
+        .modern-table { @apply w-full text-left border-collapse whitespace-nowrap text-[12px]; }
+        .modern-table thead th { @apply p-2 bg-[#00320D] text-white border border-[#004a1f] align-middle sticky top-0 z-10 shadow-md font-bold; }
+        .modern-table tbody td { @apply p-2 border border-slate-200 text-slate-700 align-middle; }
+        .modern-table tbody tr:hover td { @apply bg-green-50/50 transition-colors; }
+        
+        .sort-icon { @apply ml-1 opacity-40 transition-opacity group-hover:opacity-100 text-[10px]; }
+        .filter-icon { @apply ml-2 text-slate-400 hover:text-amber-400 transition-colors p-1 rounded hover:bg-white/10; }
+        
         .excel-grid-table { @apply w-full text-left bg-white text-[11px] whitespace-nowrap border-collapse border border-slate-300; }
         .excel-grid-th { @apply px-3 py-2 bg-slate-100 text-slate-700 font-black border border-slate-300; }
         .excel-cell { @apply p-0 border border-slate-200 relative; }
@@ -56,6 +56,24 @@
     <!-- 🔔 ป๊อปอัปแจ้งเตือนการ Auto-Save (Toast) -->
     <div id="toastMsg" class="fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 translate-y-20 opacity-0 z-[200] flex items-center gap-2 border border-white/20">
         <span id="toastContent"><i class="fa-solid fa-circle-check text-xl"></i> บันทึกข้อมูลอัตโนมัติเรียบร้อย!</span>
+    </div>
+
+    <!-- 🔍 Excel Filter Modal -->
+    <div id="excelFilterModal" class="absolute bg-white border border-slate-200 shadow-2xl rounded-xl p-3 z-[200] w-64 text-sm hidden flex-col transition-all">
+        <div class="flex justify-between items-center border-b pb-2 mb-2">
+            <span class="font-bold text-[#00320D] text-xs"><i class="fa-solid fa-filter mr-1"></i> ตัวกรอง: <span id="ef_col_name" class="text-amber-600"></span></span>
+            <button onclick="closeExcelFilter()" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <input type="text" id="ef_search" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none focus:border-amber-500 bg-slate-50" placeholder="🔍 ค้นหาในตัวกรอง..." onkeyup="searchExcelFilter()">
+        <div class="flex items-center gap-2 mt-2 px-1 pb-1 border-b">
+            <input type="checkbox" id="ef_select_all" checked onchange="toggleAllExcelFilters(this.checked)" class="w-3.5 h-3.5 cursor-pointer accent-[#00320D]">
+            <label for="ef_select_all" class="text-xs font-bold text-[#00320D] cursor-pointer select-none">เลือกทั้งหมด</label>
+        </div>
+        <div id="ef_checkbox_list" class="max-h-48 overflow-y-auto space-y-1 mt-2 p-1 rounded custom-scrollbar"></div>
+        <div class="flex gap-2 mt-3 pt-2 border-t">
+            <button onclick="applyExcelFilter()" class="flex-1 bg-[#00320D] text-white text-xs font-bold py-2 rounded-lg hover:bg-black transition shadow-md"><i class="fa-solid fa-check"></i> ตกลง</button>
+            <button onclick="clearSpecificExcelFilter()" class="flex-1 bg-slate-100 text-slate-700 text-xs font-bold py-2 rounded-lg hover:bg-slate-200 transition border border-slate-300"><i class="fa-solid fa-eraser"></i> ล้าง</button>
+        </div>
     </div>
 
     <header class="bg-rizenic-green text-white shadow-lg z-50 shrink-0 border-b-4 border-amber-500">
@@ -85,7 +103,7 @@
             <button onclick="switchTab('tab-alert')" id="btn-tab-alert" class="px-6 py-3.5 text-sm font-bold border-b-2 border-[#00320D] text-[#00320D] flex items-center gap-2 whitespace-nowrap bg-green-50/80 rounded-t-xl transition-all"><i class="fa-solid fa-bell text-amber-500 animate-bounce"></i> 1. แจ้งเตือนสั่งอะไหล่ <span id="alert_count" class="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full hidden shadow-sm">0</span></button>
             <button onclick="switchTab('tab-po')" id="btn-tab-po" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 whitespace-nowrap rounded-t-xl transition-all"><i class="fa-solid fa-cart-shopping text-blue-500"></i> 2. สั่งอะไหล่จากศูนย์</button>
             <button onclick="switchTab('tab-inbound')" id="btn-tab-inbound" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 whitespace-nowrap rounded-t-xl transition-all"><i class="fa-solid fa-truck-ramp-box text-emerald-500"></i> 3. รับเข้า</button>
-            <button onclick="switchTab('tab-outbound')" id="btn-tab-outbound" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 whitespace-nowrap rounded-t-xl transition-all"><i class="fa-solid fa-dolly text-purple-500"></i> 4. เบิกอะไหล่/จอง</button>
+            <button onclick="switchTab('tab-outbound')" id="btn-tab-outbound" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 whitespace-nowrap rounded-t-xl transition-all"><i class="fa-solid fa-dolly text-purple-500"></i> 4. เบิกอะไหล่</button>
             <button onclick="switchTab('tab-stock')" id="btn-tab-stock" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 whitespace-nowrap rounded-t-xl transition-all"><i class="fa-solid fa-cubes-stacked text-amber-600"></i> 5. สต๊อกคงเหลือ</button>
             <button onclick="switchTab('tab-master')" id="btn-tab-master" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 whitespace-nowrap rounded-t-xl transition-all"><i class="fa-solid fa-database text-slate-400"></i> 6. ข้อมูลมาสเตอร์</button>
         </div>
@@ -98,23 +116,23 @@
             <div class="card-container">
                 <div class="px-5 py-4 bg-gradient-to-r from-amber-50 to-white border-b border-amber-100 flex justify-between items-center">
                     <h3 class="font-black text-amber-900 flex items-center gap-2"><i class="fa-solid fa-bell text-amber-500"></i> รายการสั่งซื้ออะไหล่ที่ส่งเข้ามาจากทีมบริการ (SA)</h3>
-                    <button onclick="loadAllData()" class="text-xs bg-white border border-slate-200 px-4 py-2 rounded-lg shadow-sm font-bold text-slate-600 hover:bg-amber-50 hover:text-amber-700 transition flex items-center gap-2"><i class="fa-solid fa-rotate-right"></i> รีเฟรชข้อมูลล่าสุด</button>
+                    <button onclick="loadAllData()" class="text-xs bg-white border border-slate-200 px-4 py-2 rounded-lg shadow-sm font-bold text-slate-600 hover:bg-amber-50 hover:text-amber-700 transition flex items-center gap-2"><i class="fa-solid fa-rotate-right"></i> รีเฟรชข้อมูล</button>
                 </div>
                 <div class="overflow-x-auto custom-scrollbar h-[70vh]">
                     <table class="modern-table" id="saTable">
                         <thead>
                             <tr>
-                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('saTable', 0)">ทะเบียนรถ <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="0" onkeyup="applyExcelFilters('saTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('saTable', 1)">วันที่เข้าจอด <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="1" onkeyup="applyExcelFilters('saTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('saTable', 2)">รุ่นรถ <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="2" onkeyup="applyExcelFilters('saTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('saTable', 3)">ชื่อลูกค้า <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="3" onkeyup="applyExcelFilters('saTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('saTable', 4)">EPC No. อ้างอิง <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="4" onkeyup="applyExcelFilters('saTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('saTable', 5)">รายการอะไหล่ค้างสั่ง <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="5" onkeyup="applyExcelFilters('saTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('saTable', 0)">ทะเบียนรถ <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'saTable', 0, 'ทะเบียนรถ')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('saTable', 1)">วันที่เข้าจอด <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'saTable', 1, 'วันที่เข้าจอด')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('saTable', 2)">รุ่นรถ <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'saTable', 2, 'รุ่นรถ')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('saTable', 3)">ชื่อลูกค้า <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'saTable', 3, 'ชื่อลูกค้า')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('saTable', 4)">EPC No. อ้างอิงทั้งหมด <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'saTable', 4, 'EPC No.')"></i></div></th>
+                                <th><div>รายการอะไหล่ค้างสั่งองค์รวม</div></th>
                                 <th class="text-center w-36"><div>จัดการใบสั่ง</div></th>
                             </tr>
                         </thead>
                         <tbody id="sa_alerts_body">
-                            <tr><td colspan="7" class="text-center py-10 text-slate-400">กำลังดึงข้อมูลจากระบบหลังบ้าน...</td></tr>
+                            <tr><td colspan="7" class="text-center py-10 text-slate-400">กำลังดึงข้อมูล...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -127,24 +145,24 @@
                 <div class="px-5 py-4 bg-slate-50 border-b flex justify-between items-center">
                     <span class="text-sm font-bold text-[#00320D] flex items-center gap-2"><i class="fa-solid fa-cart-plus text-blue-600"></i> ตารางติดตามสถานะการสั่งซื้ออะไหล่ศูนย์ (PO Tracking)</span>
                     <div class="flex gap-2">
-                        <button id="btn_toggle_completed_po" onclick="toggleCompletedPO()" class="text-xs bg-white border border-slate-300 px-4 py-2 rounded-lg shadow-sm font-bold text-slate-600 hover:bg-slate-100 transition flex items-center gap-2"><i class="fa-solid fa-eye-slash"></i> ซ่อนรายการที่เข้าครบแล้ว</button>
-                        <button onclick="openPOModal()" class="text-xs bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm font-bold hover:bg-blue-700 transition flex items-center gap-2"><i class="fa-solid fa-plus"></i> เพิ่มรายการสั่งซื้อใหม่</button>
+                        <button id="btn_toggle_completed_po" onclick="toggleCompletedPO()" class="text-xs bg-white border border-slate-300 px-4 py-2 rounded-lg shadow-sm font-bold text-slate-600 hover:bg-slate-100 transition"><i class="fa-solid fa-eye-slash"></i> ซ่อนรายการที่เข้าครบแล้ว</button>
+                        <button onclick="openPOModal()" class="text-xs bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm font-bold hover:bg-blue-700 transition"><i class="fa-solid fa-plus"></i> เพิ่มรายการสั่งซื้อใหม่</button>
                     </div>
                 </div>
                 <div class="overflow-x-auto custom-scrollbar h-[70vh]">
                     <table class="modern-table" id="poTable">
                         <thead>
                             <tr>
-                                <th class="w-24 cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('poTable', 0)">EPC No <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="0" onkeyup="applyExcelFilters('poTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="w-28 cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('poTable', 1)">บาร์โค้ดอะไหล่ <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="1" onkeyup="applyExcelFilters('poTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('poTable', 2)">ทะเบียนรถ <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="2" onkeyup="applyExcelFilters('poTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('poTable', 3)">สถานะการสั่ง (Auto-Save) <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="3" onkeyup="applyExcelFilters('poTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="text-center w-20 cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('poTable', 4)">ยอดสั่ง <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="4" onkeyup="applyExcelFilters('poTable')" class="excel-filter filter-input" placeholder="🔍"></th>
-                                <th class="text-center w-20 cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('poTable', 5)">รับจริง <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="5" onkeyup="applyExcelFilters('poTable')" class="excel-filter filter-input" placeholder="🔍"></th>
-                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('poTable', 6)">รายการอะไหล่ <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="6" onkeyup="applyExcelFilters('poTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('poTable', 7)">วันที่สั่ง <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="7" onkeyup="applyExcelFilters('poTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="w-32 cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('poTable', 8)">คาดการณ์เข้า <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="8" onkeyup="applyExcelFilters('poTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('poTable', 9)">MAIN No. <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="9" onkeyup="applyExcelFilters('poTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="group hover:bg-[#004a1f] select-none w-24"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('poTable', 0)">EPC No <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'poTable', 0, 'EPC No')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none w-24"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('poTable', 1)">บาร์โค้ดอะไหล่ <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'poTable', 1, 'บาร์โค้ดอะไหล่')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('poTable', 2)">ทะเบียนรถ <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'poTable', 2, 'ทะเบียนรถ')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('poTable', 3)">สถานะการสั่ง <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'poTable', 3, 'สถานะการสั่ง')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none w-20"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1 text-center" onclick="sortTable('poTable', 4)">ยอดสั่ง <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'poTable', 4, 'ยอดสั่ง')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none w-20"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1 text-center" onclick="sortTable('poTable', 5)">รับจริง <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'poTable', 5, 'รับจริง')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('poTable', 6)">รายการอะไหล่ <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'poTable', 6, 'รายการอะไหล่')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('poTable', 7)">วันที่สั่ง <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'poTable', 7, 'วันที่สั่ง')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none w-28"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('poTable', 8)">คาดการณ์เข้า <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'poTable', 8, 'คาดการณ์เข้า')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('poTable', 9)">MAIN No. <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'poTable', 9, 'MAIN No.')"></i></div></th>
                                 <th class="text-center w-24"><div>จัดการ</div></th>
                             </tr>
                         </thead>
@@ -159,18 +177,18 @@
             <div class="card-container border-l-4 border-l-emerald-600">
                 <div class="px-5 py-4 bg-slate-50 border-b flex justify-between items-center">
                     <span class="text-sm font-bold text-[#00320D] flex items-center gap-2"><i class="fa-solid fa-download text-emerald-600"></i> ประวัติการรับเข้าคลังสินค้าพาร์ทอะไหล่ (Inbound)</span>
-                    <button onclick="openInboundModal()" class="text-xs bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-sm font-bold hover:bg-emerald-700 transition flex items-center gap-2"><i class="fa-solid fa-plus"></i> บันทึกรับเข้าใหม่</button>
+                    <button onclick="openInboundModal()" class="text-xs bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-sm font-bold hover:bg-emerald-700 transition"><i class="fa-solid fa-plus"></i> บันทึกรับเข้าใหม่</button>
                 </div>
                 <div class="overflow-x-auto custom-scrollbar h-[70vh]">
                     <table class="modern-table" id="inTable">
                         <thead>
                             <tr>
-                                <th class="w-32 cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('inTable', 0)">วันที่ของเข้า <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="0" onkeyup="applyExcelFilters('inTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('inTable', 1)">EPC No <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="1" onkeyup="applyExcelFilters('inTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('inTable', 2)">หมายเลขอะไหล่ <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="2" onkeyup="applyExcelFilters('inTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('inTable', 3)">รายการชิ้นส่วน <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="3" onkeyup="applyExcelFilters('inTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="text-center w-24 cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('inTable', 4)">จำนวน <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="4" onkeyup="applyExcelFilters('inTable')" class="excel-filter filter-input" placeholder="🔍..."></th>
-                                <th class="text-right w-28 cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('inTable', 5)">ราคา/หน่วย <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="5" onkeyup="applyExcelFilters('inTable')" class="excel-filter filter-input" placeholder="🔍..."></th>
+                                <th class="group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('inTable', 0)">วันที่ของเข้า <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'inTable', 0, 'วันที่ของเข้า')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('inTable', 1)">EPC No <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'inTable', 1, 'EPC No')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('inTable', 2)">หมายเลขอะไหล่ <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'inTable', 2, 'หมายเลขอะไหล่')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('inTable', 3)">รายการชิ้นส่วน <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'inTable', 3, 'รายการชิ้นส่วน')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none w-20"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1 text-center" onclick="sortTable('inTable', 4)">จำนวน <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'inTable', 4, 'จำนวน')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none w-24"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1 text-right" onclick="sortTable('inTable', 5)">ราคา/หน่วย <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'inTable', 5, 'ราคา/หน่วย')"></i></div></th>
                                 <th class="text-center w-24"><div>จัดการ</div></th>
                             </tr>
                         </thead>
@@ -180,26 +198,26 @@
             </div>
         </section>
 
-        <!-- 📤 4. เบิกอะไหล่ / จอง -->
+        <!-- 📤 4. เบิกอะไหล่ (ตารางหลัก) -->
         <section id="tab-outbound" class="parts-tab-content">
             <div class="card-container border-l-4 border-l-purple-600">
                 <div class="px-5 py-4 bg-slate-50 border-b flex justify-between items-center">
                     <span class="text-sm font-bold text-purple-900 flex items-center gap-2"><i class="fa-solid fa-upload text-purple-600"></i> ตารางตรวจสอบประวัติใบเบิกอะไหล่ (Outbound & Booking)</span>
-                    <button onclick="openOutboundModal()" class="text-xs bg-purple-600 text-white px-4 py-2 rounded-lg shadow-sm font-bold hover:bg-purple-700 transition flex items-center gap-2"><i class="fa-solid fa-plus"></i> สร้างใบเบิก / จองอะไหล่</button>
+                    <button onclick="openOutboundModal()" class="text-xs bg-purple-600 text-white px-4 py-2 rounded-lg shadow-sm font-bold hover:bg-purple-700 transition"><i class="fa-solid fa-plus"></i> สร้างใบเบิก / จองอะไหล่</button>
                 </div>
                 <div class="overflow-auto custom-scrollbar h-[70vh]">
                     <table class="modern-table" id="outTable">
                         <thead>
                             <tr>
-                                <th class="bg-purple-900 text-white cursor-pointer group hover:bg-purple-800"><div onclick="sortTable('outTable', 0)">ลำดับ <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="0" onkeyup="applyExcelFilters('outTable')" class="excel-filter filter-input" placeholder="🔍..."></th>
-                                <th class="bg-purple-900 text-white w-32 cursor-pointer group hover:bg-purple-800"><div onclick="sortTable('outTable', 1)">วันที่ทำรายการ <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="1" onkeyup="applyExcelFilters('outTable')" class="excel-filter filter-input" placeholder="🔍..."></th>
-                                <th class="bg-purple-900 text-white cursor-pointer group hover:bg-purple-800"><div onclick="sortTable('outTable', 2)">สถานะเบิก (Auto-Save) <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="2" onkeyup="applyExcelFilters('outTable')" class="excel-filter filter-input" placeholder="🔍..."></th>
-                                <th class="bg-purple-900 text-white cursor-pointer group hover:bg-purple-800"><div onclick="sortTable('outTable', 3)">หมายเลขอะไหล่ <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="3" onkeyup="applyExcelFilters('outTable')" class="excel-filter filter-input" placeholder="🔍..."></th>
-                                <th class="bg-purple-900 text-white text-center w-24 cursor-pointer group hover:bg-purple-800"><div onclick="sortTable('outTable', 4)">จำนวน <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="4" onkeyup="applyExcelFilters('outTable')" class="excel-filter filter-input" placeholder="🔍..."></th>
-                                <th class="bg-purple-900 text-white cursor-pointer group hover:bg-purple-800"><div onclick="sortTable('outTable', 5)">ทะเบียน <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="5" onkeyup="applyExcelFilters('outTable')" class="excel-filter filter-input" placeholder="🔍..."></th>
-                                <th class="bg-slate-800 text-white cursor-pointer group hover:bg-slate-700"><div onclick="sortTable('outTable', 6)">QT <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="6" onkeyup="applyExcelFilters('outTable')" class="excel-filter filter-input" placeholder="🔍..."></th>
-                                <th class="bg-slate-800 text-white cursor-pointer group hover:bg-slate-700"><div onclick="sortTable('outTable', 7)">SO <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="7" onkeyup="applyExcelFilters('outTable')" class="excel-filter filter-input" placeholder="🔍..."></th>
-                                <th class="bg-blue-900 text-white cursor-pointer group hover:bg-blue-800"><div onclick="sortTable('outTable', 8)">ชิ้นส่วน <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="8" onkeyup="applyExcelFilters('outTable')" class="excel-filter filter-input" placeholder="🔍..."></th>
+                                <th class="bg-purple-900 text-white group hover:bg-purple-800 select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1 text-center" onclick="sortTable('outTable', 0)">ลำดับ <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'outTable', 0, 'ลำดับ')"></i></div></th>
+                                <th class="bg-purple-900 text-white group hover:bg-purple-800 select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('outTable', 1)">วันที่ทำรายการ <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'outTable', 1, 'วันที่ทำรายการ')"></i></div></th>
+                                <th class="bg-purple-900 text-white group hover:bg-purple-800 select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('outTable', 2)">สถานะการเบิก <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'outTable', 2, 'สถานะการเบิก')"></i></div></th>
+                                <th class="bg-purple-900 text-white group hover:bg-purple-800 select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('outTable', 3)">หมายเลขอะไหล่ <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'outTable', 3, 'หมายเลขอะไหล่')"></i></div></th>
+                                <th class="bg-purple-900 text-white group hover:bg-purple-800 select-none w-20"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1 text-center" onclick="sortTable('outTable', 4)">จำนวน <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'outTable', 4, 'จำนวน')"></i></div></th>
+                                <th class="bg-purple-900 text-white group hover:bg-purple-800 select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('outTable', 5)">ทะเบียน <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'outTable', 5, 'ทะเบียน')"></i></div></th>
+                                <th class="bg-slate-800 text-white group hover:bg-slate-700 select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('outTable', 6)">หมายเลข QT <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'outTable', 6, 'QT')"></i></div></th>
+                                <th class="bg-slate-800 text-white group hover:bg-slate-700 select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('outTable', 7)">หมายเลข SO <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'outTable', 7, 'SO')"></i></div></th>
+                                <th class="bg-blue-900 text-white group hover:bg-blue-800 select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('outTable', 8)">ชิ้นส่วน <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'outTable', 8, 'ชิ้นส่วน')"></i></div></th>
                                 <th class="bg-red-900 text-white text-center w-24">จัดการ</th>
                             </tr>
                         </thead>
@@ -221,13 +239,13 @@
                     <table class="modern-table" id="stockTable">
                         <thead>
                             <tr>
-                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('stockTable', 0)">หมายเลขอะไหล่ (Part 2) <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="0" onkeyup="applyExcelFilters('stockTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('stockTable', 1)">ชื่อชิ้นส่วน <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="1" onkeyup="applyExcelFilters('stockTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('stockTable', 2)">รุ่นรถที่รองรับ <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="2" onkeyup="applyExcelFilters('stockTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="text-center w-24 cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('stockTable', 3)">MAIN No. <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="3" onkeyup="applyExcelFilters('stockTable')" class="excel-filter filter-input" placeholder="🔍..."></th>
-                                <th class="text-center w-28 bg-slate-200 text-slate-800 cursor-pointer group hover:bg-slate-300"><div onclick="sortTable('stockTable', 4)">ยอดรวม <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="4" onkeyup="applyExcelFilters('stockTable')" class="excel-filter filter-input !bg-white/50 !text-slate-900" placeholder="🔍..."></th>
-                                <th class="text-center w-28 bg-amber-200 text-amber-900 cursor-pointer group hover:bg-amber-300"><div onclick="sortTable('stockTable', 5)">ติดจอง <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="5" onkeyup="applyExcelFilters('stockTable')" class="excel-filter filter-input !bg-white/50 !text-slate-900" placeholder="🔍..."></th>
-                                <th class="text-center w-28 bg-emerald-200 text-emerald-900 cursor-pointer group hover:bg-emerald-300"><div onclick="sortTable('stockTable', 6)">ยอดในคลัง <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="6" onkeyup="applyExcelFilters('stockTable')" class="excel-filter filter-input !bg-white/50 !text-slate-900" placeholder="🔍..."></th>
+                                <th class="group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('stockTable', 0)">หมายเลขอะไหล่ (Part 2) <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'stockTable', 0, 'บาร์โค้ด')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('stockTable', 1)">ชื่อชิ้นส่วน <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'stockTable', 1, 'ชื่อชิ้นส่วน')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('stockTable', 2)">รุ่นรถที่รองรับ <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'stockTable', 2, 'รุ่นรถ')"></i></div></th>
+                                <th class="text-center w-24 group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('stockTable', 3)">MAIN No. <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'stockTable', 3, 'MAIN No')"></i></div></th>
+                                <th class="text-center w-28 bg-slate-200 text-slate-800 group hover:bg-slate-300 select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('stockTable', 4)">ยอดรวม <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon text-slate-500 hover:text-[#00320D]" onclick="openExcelFilter(event, 'stockTable', 4, 'ยอดรวม')"></i></div></th>
+                                <th class="text-center w-28 bg-amber-200 text-amber-900 group hover:bg-amber-300 select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('stockTable', 5)">ติดจอง <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon text-amber-700 hover:text-red-600" onclick="openExcelFilter(event, 'stockTable', 5, 'ติดจอง')"></i></div></th>
+                                <th class="text-center w-28 bg-emerald-200 text-emerald-900 group hover:bg-emerald-300 select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('stockTable', 6)">ยอดในคลัง <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon text-emerald-700 hover:text-[#00320D]" onclick="openExcelFilter(event, 'stockTable', 6, 'ยอดในคลัง')"></i></div></th>
                             </tr>
                         </thead>
                         <tbody id="stock_table_body"></tbody>
@@ -241,19 +259,19 @@
             <div class="card-container border-t-4 border-slate-700">
                 <div class="px-5 py-4 bg-slate-50 border-b flex justify-between items-center">
                     <span class="text-sm font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-database text-slate-500"></i> ฐานข้อมูลมาสเตอร์แม่แบบอะไหล่ตัวถัง</span>
-                    <button onclick="openMasterModal()" class="text-xs bg-slate-800 text-white px-4 py-2 rounded-lg shadow-sm font-bold hover:bg-slate-900 transition flex items-center gap-2"><i class="fa-solid fa-plus"></i> เพิ่มอะไหล่มาสเตอร์</button>
+                    <button onclick="openMasterModal()" class="text-xs bg-slate-800 text-white px-4 py-2 rounded-lg shadow-sm font-bold hover:bg-slate-900 transition"><i class="fa-solid fa-plus"></i> เพิ่มอะไหล่มาสเตอร์</button>
                 </div>
                 <div class="overflow-x-auto h-[70vh] custom-scrollbar">
                     <table class="modern-table" id="masterTable">
                         <thead>
                             <tr>
-                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('masterTable', 0)">บาร์โค้ด (Part 2) <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="0" onkeyup="applyExcelFilters('masterTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('masterTable', 1)">ชื่อชิ้นส่วน <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="1" onkeyup="applyExcelFilters('masterTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('masterTable', 2)">MAIN No. <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="2" onkeyup="applyExcelFilters('masterTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('masterTable', 3)">รุ่นรถที่รองรับ <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="3" onkeyup="applyExcelFilters('masterTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('masterTable', 4)">หมวดหมู่ <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="4" onkeyup="applyExcelFilters('masterTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="text-right cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('masterTable', 5)">ราคา/หน่วย <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="5" onkeyup="applyExcelFilters('masterTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
-                                <th class="cursor-pointer group hover:bg-[#004a1f]"><div onclick="sortTable('masterTable', 6)">Location <i class="fa-solid fa-sort sort-icon"></i></div><input type="text" data-col="6" onkeyup="applyExcelFilters('masterTable')" class="excel-filter filter-input" placeholder="🔍 กรอง..."></th>
+                                <th class="group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('masterTable', 0)">บาร์โค้ด (Part 2) <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'masterTable', 0, 'บาร์โค้ด')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('masterTable', 1)">ชื่อชิ้นส่วน <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'masterTable', 1, 'ชื่อชิ้นส่วน')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('masterTable', 2)">MAIN No. <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'masterTable', 2, 'MAIN No.')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('masterTable', 3)">รุ่นรถที่รองรับ <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'masterTable', 3, 'รุ่นรถ')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('masterTable', 4)">หมวดหมู่ <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'masterTable', 4, 'หมวดหมู่')"></i></div></th>
+                                <th class="text-right group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('masterTable', 5)">ราคา/หน่วย <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'masterTable', 5, 'ราคา')"></i></div></th>
+                                <th class="group hover:bg-[#004a1f] select-none"><div class="flex justify-between items-center"><div class="cursor-pointer flex-1" onclick="sortTable('masterTable', 6)">Location <i class="fa-solid fa-sort sort-icon"></i></div><i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'masterTable', 6, 'Location')"></i></div></th>
                                 <th class="text-center w-24"><div>จัดการ</div></th>
                             </tr>
                         </thead>
@@ -265,7 +283,7 @@
 
     </main>
 
-    <!-- 🌟 ================= MODALS (คงเดิม ไม่แตะต้อง) ================= 🌟 -->
+    <!-- 🌟 ================= MODALS (ป๊อปอัปกรอกข้อมูล) ================= 🌟 -->
 
     <div id="alertModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden border-t-4 border-t-amber-500 flex flex-col max-h-[90vh]">
@@ -449,6 +467,10 @@
         
         let hideCompletedPO = true;
 
+        let activeFilters = {}; 
+        let currentFilterTable = '';
+        let currentFilterCol = -1;
+
         // 🌟 Helper: แจ้งเตือน Toast
         function showToast(msg, type='success') {
             const toast = document.getElementById('toastMsg');
@@ -463,12 +485,13 @@
             setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 2500);
         }
 
-        // 🌟 Helper: กรองเอาค่าดิบๆ มาใช้ในตารางเวลาเรียง/กรองข้อมูล
+        // 🌟 Helper: ดึงค่าดิบในตารางเพื่อนำมา Sort/Filter
         function getCellValue(cell) {
+            if(!cell) return '';
             const input = cell.querySelector('input, select');
             if (input) {
-                if (input.tagName === 'SELECT') return input.options[input.selectedIndex].text;
-                return input.value;
+                if (input.tagName === 'SELECT') return input.options[input.selectedIndex].text.trim();
+                return input.value.trim();
             }
             return cell.innerText.trim();
         }
@@ -497,6 +520,14 @@
             
             loadAllData();
             loadCarModelsGrid(); 
+
+            // ปิด Modal Filter เมื่อคลิกที่อื่น
+            document.addEventListener('click', (e) => {
+                const modal = document.getElementById('excelFilterModal');
+                if (!modal.contains(e.target) && !e.target.closest('.filter-icon') && !modal.classList.contains('hidden')) {
+                    closeExcelFilter();
+                }
+            });
         });
 
         function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
@@ -513,29 +544,133 @@
             document.getElementById('btn-' + tabId).classList.remove('border-transparent', 'text-slate-500');
         }
 
-        // 🌟 ฟังก์ชัน Filter (กรองทุกคอลัมน์)
-        function applyExcelFilters(tableId) {
-            const table = document.getElementById(tableId); if(!table) return;
+        // ================= 🌟 EXCEL FILTER LOGIC 🌟 =================
+        function openExcelFilter(e, tableId, colIndex, title) {
+            e.stopPropagation();
+            currentFilterTable = tableId;
+            currentFilterCol = colIndex;
+            document.getElementById('ef_col_name').innerText = title;
+            document.getElementById('ef_search').value = '';
+
+            if (!activeFilters[tableId]) activeFilters[tableId] = {};
+
+            const table = document.getElementById(tableId);
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            
+            const uniqueValues = new Set();
+            rows.forEach(row => {
+                if(row.cells.length === 1) return; // ข้ามแถวที่ขึ้นว่า "กำลังดึงข้อมูล"
+                uniqueValues.add(getCellValue(row.cells[colIndex]));
+            });
+
+            const sortedValues = [...uniqueValues].sort();
+            const listDiv = document.getElementById('ef_checkbox_list');
+            listDiv.innerHTML = '';
+            
+            const activeSet = activeFilters[tableId][colIndex];
+
+            sortedValues.forEach(val => {
+                const isChecked = activeSet ? activeSet.has(val) : true;
+                listDiv.innerHTML += `
+                    <label class="flex items-start gap-2 hover:bg-slate-200 p-1.5 rounded cursor-pointer ef-item transition">
+                        <input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''} class="ef-check accent-[#00320D] mt-0.5 cursor-pointer">
+                        <span class="text-slate-800 font-medium truncate w-full" title="${val}">${val === '' ? '(ว่าง)' : val}</span>
+                    </label>
+                `;
+            });
+
+            const allChecked = Array.from(document.querySelectorAll('.ef-check')).every(cb => cb.checked);
+            document.getElementById('ef_select_all').checked = allChecked;
+
+            const modal = document.getElementById('excelFilterModal');
+            const rect = e.target.getBoundingClientRect();
+            modal.style.top = (rect.bottom + window.scrollY + 8) + 'px';
+            
+            let leftPos = rect.left + window.scrollX;
+            if (leftPos + 260 > window.innerWidth) leftPos = window.innerWidth - 270;
+            modal.style.left = leftPos + 'px';
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeExcelFilter() {
+            const modal = document.getElementById('excelFilterModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function searchExcelFilter() {
+            const txt = document.getElementById('ef_search').value.toLowerCase();
+            document.querySelectorAll('.ef-item').forEach(label => {
+                const val = label.querySelector('.ef-check').value.toLowerCase();
+                label.style.display = val.includes(txt) ? 'flex' : 'none';
+            });
+        }
+
+        function toggleAllExcelFilters(checked) { 
+            document.querySelectorAll('.ef-item:not([style*="display: none"]) .ef-check').forEach(cb => cb.checked = checked); 
+        }
+
+        function applyExcelFilter() {
+            const checks = document.querySelectorAll('.ef-check');
+            const checkedVals = Array.from(checks).filter(cb => cb.checked).map(cb => cb.value);
+            
+            if (!activeFilters[currentFilterTable]) activeFilters[currentFilterTable] = {};
+
+            const table = document.getElementById(currentFilterTable);
+            const thIcon = table.querySelectorAll('th')[currentFilterCol].querySelector('.filter-icon');
+
+            if (checkedVals.length === checks.length || checkedVals.length === 0) {
+                delete activeFilters[currentFilterTable][currentFilterCol];
+                if(thIcon) { thIcon.classList.remove('text-amber-400'); thIcon.classList.add('text-slate-400'); }
+            } else {
+                activeFilters[currentFilterTable][currentFilterCol] = new Set(checkedVals);
+                if(thIcon) { thIcon.classList.remove('text-slate-400'); thIcon.classList.add('text-amber-400'); }
+            }
+            
+            closeExcelFilter(); 
+            runTableFilters(currentFilterTable);
+        }
+
+        function clearSpecificExcelFilter() {
+            if(activeFilters[currentFilterTable]) {
+                delete activeFilters[currentFilterTable][currentFilterCol];
+            }
+            const table = document.getElementById(currentFilterTable);
+            const thIcon = table.querySelectorAll('th')[currentFilterCol].querySelector('.filter-icon');
+            if(thIcon) { thIcon.classList.remove('text-amber-400'); thIcon.classList.add('text-slate-400'); }
+            
+            closeExcelFilter(); 
+            runTableFilters(currentFilterTable);
+        }
+
+        function runTableFilters(tableId) {
+            const table = document.getElementById(tableId);
+            if(!table) return;
             const rows = table.querySelector('tbody').getElementsByTagName('tr');
-            const inputs = table.querySelectorAll('.filter-input');
+            const tableFilters = activeFilters[tableId] || {};
+
             for (let i = 0; i < rows.length; i++) {
                 if(rows[i].cells.length === 1 && rows[i].cells[0].colSpan > 1) continue; 
                 let showRow = true;
-                inputs.forEach(input => {
-                    const colIndex = input.getAttribute('data-col'); const filterValue = input.value.toLowerCase();
-                    if(filterValue && colIndex !== null) {
-                        const cell = rows[i].getElementsByTagName('td')[colIndex];
-                        if(cell) { 
-                            const cellText = getCellValue(cell).toLowerCase();
-                            if(!cellText.includes(filterValue)) showRow = false; 
+                
+                for (const [colIndex, activeSet] of Object.entries(tableFilters)) {
+                    const cell = rows[i].getElementsByTagName('td')[colIndex];
+                    if(cell) {
+                        const cellVal = getCellValue(cell);
+                        if(!activeSet.has(cellVal)) {
+                            showRow = false;
+                            break;
                         }
                     }
-                });
+                }
                 rows[i].style.display = showRow ? "" : "none";
             }
         }
 
-        // 🌟 ฟังก์ชัน Sort (เรียงลำดับ A-Z / มาก-น้อย)
+        // 🌟 ฟังก์ชัน Sort ตาราง (น้อยไปมาก / มากไปน้อย)
         function sortTable(tableId, colIndex) {
             const table = document.getElementById(tableId);
             const tbody = table.querySelector('tbody');
@@ -543,7 +678,6 @@
             
             if (rows.length === 0 || (rows.length === 1 && rows[0].cells.length === 1)) return;
 
-            // รีเซ็ตไอคอนทั้งหมด
             table.querySelectorAll('.fa-sort, .fa-sort-up, .fa-sort-down').forEach(icon => {
                 icon.className = "fa-solid fa-sort sort-icon";
             });
@@ -551,17 +685,16 @@
             let dir = table.getAttribute(`data-dir-${colIndex}`) || 'asc';
             table.setAttribute(`data-dir-${colIndex}`, dir === 'asc' ? 'desc' : 'asc');
             
-            // เปลี่ยนไอคอนเฉพาะคอลัมน์ที่ถูกคลิก
-            const clickedIcon = table.querySelectorAll('th')[colIndex].querySelector('i');
+            const clickedIcon = table.querySelectorAll('th')[colIndex].querySelector('.sort-icon');
             if (clickedIcon) {
-                clickedIcon.className = dir === 'asc' ? "fa-solid fa-sort-down ml-1 text-amber-400" : "fa-solid fa-sort-up ml-1 text-amber-400";
+                clickedIcon.className = dir === 'asc' ? "fa-solid fa-sort-down ml-1 text-amber-400 opacity-100" : "fa-solid fa-sort-up ml-1 text-amber-400 opacity-100";
             }
 
             rows.sort((a, b) => {
                 let valA = getCellValue(a.cells[colIndex]);
                 let valB = getCellValue(b.cells[colIndex]);
                 
-                // ตรวจสอบวันที่ (YYYY-MM-DD)
+                // ตรวจสอบวันที่
                 let isDateA = valA.match(/^\d{4}-\d{2}-\d{2}$/);
                 let isDateB = valB.match(/^\d{4}-\d{2}-\d{2}$/);
                 if (isDateA && isDateB) {
@@ -569,14 +702,12 @@
                     if (!isNaN(dateA) && !isNaN(dateB)) return dir === 'asc' ? dateA - dateB : dateB - dateA;
                 }
 
-                // ตรวจสอบตัวเลข (ลบคอมม่าออกก่อนเทียบ)
+                // ตรวจสอบตัวเลข
                 let numA = parseFloat(valA.replace(/,/g, ''));
                 let numB = parseFloat(valB.replace(/,/g, ''));
-                if (!isNaN(numA) && !isNaN(numB)) {
-                    return dir === 'asc' ? numA - numB : numB - numA;
-                }
+                if (!isNaN(numA) && !isNaN(numB)) return dir === 'asc' ? numA - numB : numB - numA;
 
-                // เทียบตัวอักษรปกติ
+                // ตรวจอักษร
                 return dir === 'asc' ? valA.localeCompare(valB, 'th') : valB.localeCompare(valA, 'th');
             });
 
@@ -644,7 +775,7 @@
                     method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ field, value })
                 });
                 if(!res.ok) throw new Error();
-                showToast('อัปเดตสถานะใบสั่งซื้อเรียบร้อย!');
+                showToast('อัปเดตข้อมูลบนตารางเรียบร้อย!');
             } catch(e) { showToast('แก้ไขข้อมูลบนตารางไม่สำเร็จ', 'error'); loadAllData(); }
         }
         
@@ -900,13 +1031,13 @@
                 document.getElementById('alert_count').innerText = jobsRoutedToParts.length;
                 document.getElementById('alert_count').className = jobsRoutedToParts.length > 0 ? "bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full shadow-sm" : "hidden";
                 
-                if(jobsRoutedToParts.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-400 font-bold">✅ ไม่มีคิวรถในแผนกอะไหล่ขณะนี้</td></tr>`; return; }
+                if(jobsRoutedToParts.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-400 font-bold">✅ ไม่มีคิวรถในแผนกอะไหล่ขณะนี้</td></tr>`; runTableFilters('saTable'); return; }
 
                 tbody.innerHTML = jobsRoutedToParts.map(job => {
                     const carPartsItems = (allGlobalParts || []).filter(p => p.car_plate === job.car_plate);
                     const uniqueEPCs = [...new Set(carPartsItems.map(p => p.epc_no).filter(Boolean))];
-                    const displayEpc = uniqueEPCs.length > 0 ? uniqueEPCs.join('<br>') : (job.epc_no || '-');
-                    const arrivedDate = job.arrived_date ? String(job.arrived_date).split('T')[0] : '<span class="text-slate-400 text-[10px]">ยังไม่ระบุ</span>'; 
+                    const displayEpc = uniqueEPCs.length > 0 ? uniqueEPCs.join(', ') : (job.epc_no || '-');
+                    const arrivedDate = job.arrived_date ? String(job.arrived_date).split('T')[0] : '-'; 
 
                     let partsPreviewHTML = '';
                     if(carPartsItems.length === 0) { partsPreviewHTML = `<span class="text-slate-400 italic text-[11px]">⚠️ ไม่มีรายการอะไหล่</span>`; } 
@@ -941,6 +1072,7 @@
                         <td class="text-center"><button onclick="openCarPartsDetailsModal('${job.car_plate}', '${job.epc_no||'-'}')" class="bg-[#00320D] text-white font-black px-4 py-2.5 rounded-lg text-xs shadow-md hover:bg-black transition w-full"><i class="fa-solid fa-folder-open text-amber-400"></i> เปิดโต๊ะคีย์อะไหล่</button></td>
                     </tr>`;
                 }).join('');
+                runTableFilters('saTable');
             } catch(e){}
         }
 
@@ -965,7 +1097,7 @@
 
                 if (orderId && orderId !== 'undefined' && orderId !== 'null') {
                     const payload = { ...existingPart, car_plate: carPlate, part_no: existingPart.part_no || rawPartNo, part_name: existingPart.part_name || rawPartName, qty_ordered: existingPart.qty_ordered || rawQty, epc_no: partEpc || null, order_status: nextStatus, est_arrival_date: partEstDate || null, received_date: partRcvDate || null };
-                    promises.push( fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }).then(async res => { if(!res.ok) throw new Error('API ปฏิเสธ (Error ' + res.status + ')'); }) );
+                    promises.push( fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }).then(async res => { if(!res.ok) throw new Error('API ปฏิเสธ'); }) );
                 }
             });
 
@@ -1024,7 +1156,7 @@
                     // 🌟 Inline Edit สำหรับตาราง PO
                     renderedHTML += `
                     <tr>
-                        <td class="font-mono p-1"><input type="text" value="${o.epc_no || ''}" onchange="fastUpdatePO('${orderId}', 'epc_no', this.value)" class="inline-edit-input font-bold text-amber-700" placeholder="-"></td>
+                        <td class="font-mono p-1"><input type="text" value="${o.epc_no || ''}" onchange="fastUpdatePO('${orderId}', 'epc_no', this.value)" class="inline-edit-input font-bold text-amber-700 text-center" placeholder="-"></td>
                         <td class="font-mono font-bold text-blue-600 px-3">${o.part_no}</td>
                         <td><span class="bg-slate-200 px-2 py-0.5 rounded text-[10px]">${o.car_plate || '-'}</span></td>
                         <td class="p-1"><select onchange="fastUpdatePO('${orderId}', 'order_status', this.value)" class="inline-edit-select bg-slate-50 w-full">${dynamicOptionsHtml}</select></td>
@@ -1032,7 +1164,7 @@
                         <td class="text-center font-black text-emerald-600 px-3">${rcvQty}</td>
                         <td class="truncate max-w-[150px] px-3" title="${o.part_name}">${o.part_name}</td>
                         <td class="font-mono text-xs px-3">${o.order_date ? String(o.order_date).split('T')[0] : '-'}</td>
-                        <td class="font-mono p-1"><input type="date" value="${o.est_arrival_date ? String(o.est_arrival_date).split('T')[0] : ''}" onchange="fastUpdatePO('${orderId}', 'est_arrival_date', this.value)" class="inline-edit-input w-full"></td>
+                        <td class="font-mono p-1"><input type="date" value="${o.est_arrival_date ? String(o.est_arrival_date).split('T')[0] : ''}" onchange="fastUpdatePO('${orderId}', 'est_arrival_date', this.value)" class="inline-edit-input w-full text-center"></td>
                         <td class="font-mono text-[10px] text-slate-400 px-3">${o.part_main_no || '-'}</td>
                         <td class="text-center flex justify-center gap-1 px-3">
                             <button onclick="openPOModal('${orderId}')" class="text-blue-500 hover:text-blue-700 bg-blue-50 px-2 py-1 rounded" title="ขยาย"><i class="fa-solid fa-expand"></i></button>
@@ -1041,7 +1173,7 @@
                     </tr>`;
                 });
                 tbody.innerHTML = renderedHTML || `<tr><td colspan="11" class="text-center py-8 text-slate-400">รายการถูกซ่อนทั้งหมด (ไม่มีรายการค้าง)</td></tr>`;
-                applyExcelFilters('poTable');
+                runTableFilters('poTable');
             } catch(e) {}
         }
 
@@ -1077,7 +1209,7 @@
                     // 🌟 Inline Edit สำหรับตารางรับเข้า
                     return `
                     <tr class="hover:bg-slate-50">
-                        <td class="font-mono p-1"><input type="date" value="${String(d.received_date).split('T')[0]}" onchange="fastUpdateInbound('${inId}', 'received_date', this.value)" class="inline-edit-input text-slate-500 w-full"></td>
+                        <td class="font-mono p-1"><input type="date" value="${String(d.received_date).split('T')[0]}" onchange="fastUpdateInbound('${inId}', 'received_date', this.value)" class="inline-edit-input text-slate-500 w-full text-center"></td>
                         <td class="font-mono text-amber-600 font-bold px-3">${d.epc_no||'-'}</td>
                         <td class="font-mono font-bold text-emerald-600 px-3">${d.part_no}</td>
                         <td class="font-bold px-3">${d.part_name}</td>
@@ -1088,7 +1220,7 @@
                             <button onclick="deleteRow('/api/part-inbound/${inId}')" class="text-red-500 hover:text-red-700 bg-red-50 px-2 py-1 rounded" title="ลบ"><i class="fa-solid fa-trash"></i></button>
                         </td>
                     </tr>`}).join('');
-                applyExcelFilters('inTable');
+                runTableFilters('inTable');
             } catch(e){}
         }
 
@@ -1129,7 +1261,7 @@
                     return `
                     <tr class="hover:bg-slate-50">
                         <td class="text-center bg-purple-50 text-purple-900 font-bold px-3">${index + 1}</td>
-                        <td class="font-mono p-1"><input type="date" value="${d.issue_date ? String(d.issue_date).split('T')[0] : ''}" onchange="fastUpdateOutbound('${outId}', 'issue_date', this.value)" class="inline-edit-input text-slate-500 w-full"></td>
+                        <td class="font-mono p-1"><input type="date" value="${d.issue_date ? String(d.issue_date).split('T')[0] : ''}" onchange="fastUpdateOutbound('${outId}', 'issue_date', this.value)" class="inline-edit-input text-slate-500 w-full text-center"></td>
                         <td class="text-center p-1">
                             <select onchange="fastUpdateOutbound('${outId}', 'job_status', this.value)" class="inline-edit-select ${badgeColor} w-full font-black text-center">
                                 <option value="รอเข้าซ่อม" ${isBook ? 'selected' : ''}>⏳ จองอะไหล่</option>
@@ -1148,7 +1280,7 @@
                         </td>
                     </tr>`;
                 }).join('');
-                applyExcelFilters('outTable');
+                runTableFilters('outTable');
             } catch(e){}
         }
 
@@ -1164,7 +1296,7 @@
                 qt_no: document.getElementById('out_qt').value, so_no: document.getElementById('out_so').value,
                 part_main_no: document.getElementById('out_part_main').value, part_name: document.getElementById('out_part_name').value,
                 unit_price: parseFloat(document.getElementById('out_price').value) || 0, car_model: document.getElementById('out_model').value,
-                job_status: document.getElementById('out_job_status').value,
+                job_status: document.getElementById('out_job_status').value, 
                 part_type: document.getElementById('out_type').value, branch_name: currentBranch
             };
             try {
@@ -1197,7 +1329,7 @@
                             <td class="text-center font-black text-lg text-amber-600 bg-amber-50/50 border-l border-amber-200 px-3">${s.totalBooked}</td>
                             <td class="text-center font-black text-xl text-emerald-600 bg-emerald-50/80 border-l border-emerald-200 px-3">${s.availableStock}</td>
                         </tr>`).join('');
-                    applyExcelFilters('stockTable');
+                    runTableFilters('stockTable');
                 });
             } catch(e) {}
         }
@@ -1220,7 +1352,7 @@
                                 <button onclick="deleteRow('/api/parts/${p.part_id}')" class="text-red-500 hover:text-red-700 bg-red-50 px-2 py-1 rounded"><i class="fa-solid fa-trash"></i></button>
                             </td>
                         </tr>`).join('');
-                    applyExcelFilters('masterTable');
+                    runTableFilters('masterTable');
                 });
             } catch(e){}
         }
