@@ -10,7 +10,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
-    <!-- 🌟 โหลดกราฟ และ ปลั๊กอินโชว์ตัวเลขบนกราฟเค้กที่หายไป (ตัวต้นเหตุ!) 🌟 -->
+    <!-- 🌟 โหลดกราฟ และ ปลั๊กอินโชว์ตัวเลขบนกราฟเค้ก -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 
@@ -59,7 +59,7 @@
 <body class="text-gray-100 h-screen flex flex-col selection:bg-amber-500 selection:text-slate-900">
 
     <!-- 🔔 ป๊อปอัปแจ้งเตือนการ Auto-Save (Toast) -->
-    <div id="toastMsg" class="fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 translate-y-20 opacity-0 z-[200] flex items-center gap-2 border border-white/20">
+    <div id="toastMsg" class="fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 translate-y-20 opacity-0 z-[200] flex items-center gap-2 border border-slate-700">
         <span id="toastContent"><i class="fa-solid fa-circle-check text-xl"></i> บันทึกข้อมูลอัตโนมัติเรียบร้อย!</span>
     </div>
 
@@ -291,13 +291,12 @@
 
     <!-- Script ควบคุมระบบ -->
     <script>
-        // 🌟 ปลั๊กอินกลับมาทำงานได้ปกติแล้วครับ!
         Chart.register(ChartDataLabels);
 
         const API_BASE_URL = window.location.origin;
         let originalRepairJobs = []; 
-        let currentYear = 2026;
-        let currentMonth = 6; 
+        let currentYear = new Date().getFullYear(); // 🌟 อัปเกรดให้ใช้วัน/เวลา ปัจจุบันอัตโนมัติ
+        let currentMonth = new Date().getMonth(); 
         let chartInstance = null;
         let currentBranch = 'สำนักงานใหญ่';
 
@@ -372,27 +371,23 @@
             fetchJobList();
         });
 
+        // 🌟 ซ่อมการสลับแท็บให้สมบูรณ์ ใช้ .active แทน .block!
         function switchRepairSubTab(tabId) {
-            document.querySelectorAll('.repair-sub-tab').forEach(el => el.classList.remove('active', 'block'));
+            document.querySelectorAll('.repair-sub-tab').forEach(el => el.classList.remove('active'));
             
             ['btn-menu-list', 'btn-menu-calendar', 'btn-menu-cake'].forEach(id => {
-                document.getElementById(id).className = "px-6 py-3 bg-slate-800 text-gray-300 hover:text-white rounded-xl font-semibold flex items-center gap-2 transition whitespace-nowrap border border-slate-700";
+                document.getElementById(id).className = "px-6 py-3 text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-white flex items-center gap-2 whitespace-nowrap transition-all";
             });
             
             const btn = document.getElementById('btn-' + tabId);
-            btn.className = "px-6 py-3 bg-amber-500 text-slate-900 rounded-xl font-bold flex items-center gap-2 transition whitespace-nowrap shadow-[0_0_15px_rgba(245,158,11,0.3)]";
+            btn.className = "px-6 py-3 text-sm font-bold border-b-2 border-amber-500 text-amber-400 bg-slate-700/80 rounded-t-xl transition-all flex items-center gap-2 whitespace-nowrap";
             
             const tab = document.getElementById(tabId);
-            if(tabId === 'menu-list') {
-                tab.classList.add('active'); 
-            } else {
-                tab.classList.add('block');
-            }
+            tab.classList.add('active');
 
             if(tabId === 'menu-cake') renderPieChartAndList();
         }
 
-        // 🌟 สร้างหัวตาราง Excel Pro Max (Dark Mode)
         function buildTableHeaders() {
             const tr = document.getElementById('repair_head_row');
             let html = '';
@@ -485,7 +480,6 @@
             } catch (err) { console.error("โหลดข้อมูลพัง:", err); }
         }
 
-        // 🌟 อัปเดตวันที่ด่วนแบบ Inline Edit (เฉพาะเสร็จจริง)
         async function fastUpdateDate(id, field, value) {
             const today = getTodayString();
             if (value && value < today) {
@@ -511,9 +505,6 @@
             } catch(e) { showToast('อัปเดตไม่สำเร็จ', 'error'); }
         }
 
-        // ===============================================
-        // 📋 1. เรนเดอร์ตารางกระดานรถซ่อม 
-        // ===============================================
         function renderRepairListTable(data) {
             const tbody = document.getElementById('repair_list_body');
             if(!data || data.length === 0) {
@@ -675,7 +666,7 @@
         }
 
         // ===============================================
-        // 📅 2. ปฏิทินแสดง 3 แท่ง (Vertical Bar Chart - Dynamic Scale)
+        // 📅 2. ปฏิทินแสดง 3 แท่ง
         // ===============================================
         function renderCalendar() {
             const grid = document.getElementById('calendar_grid'); grid.innerHTML = '';
