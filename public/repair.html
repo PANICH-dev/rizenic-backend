@@ -9,7 +9,10 @@
     <title>RIZENIC ERP - Repair Station (Excel Pro Max)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- 🌟 โหลดกราฟ และ ปลั๊กอินโชว์ตัวเลขบนกราฟเค้กที่หายไป (ตัวต้นเหตุ!) 🌟 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 
     <style type="text/tailwindcss">
         @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap');
@@ -288,6 +291,7 @@
 
     <!-- Script ควบคุมระบบ -->
     <script>
+        // 🌟 ปลั๊กอินกลับมาทำงานได้ปกติแล้วครับ!
         Chart.register(ChartDataLabels);
 
         const API_BASE_URL = window.location.origin;
@@ -317,7 +321,7 @@
 
         function showToast(msg, type='success') {
             const toast = document.getElementById('toastMsg');
-            toast.className = `fixed bottom-5 right-5 font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 z-[200] flex items-center gap-2 border border-white/20 ${type === 'error' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'}`;
+            toast.className = `fixed bottom-5 right-5 font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 z-[200] flex items-center gap-2 border border-slate-700 ${type === 'error' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'}`;
             toast.innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-circle-xmark' : 'fa-circle-check'} text-xl"></i> ${msg}`;
             toast.classList.remove('translate-y-20', 'opacity-0');
             setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 2500);
@@ -343,7 +347,6 @@
                 alert('🚨 กรุณาเข้าสู่ระบบก่อนครับนาย!'); window.location.href = 'index.html'; return;
             }
 
-            // 🛡️ ยามเฝ้าประตู (สถานีช่าง) 
             const allowedPages = (sessionStorage.getItem('accessible_pages') || '').split(',');
             if (!allowedPages.includes('repair')) { 
                 alert('⛔ คุณไม่มีสิทธิ์เข้าถึงหน้านี้ครับ! กรุณาติดต่อแอดมินให้เพิ่มสิทธิ์ "สถานีช่าง" แล้วล็อกอินใหม่ครับ');
@@ -358,7 +361,6 @@
             document.getElementById('display_branch').innerText = currentBranch;
             document.getElementById('m_repair_date').setAttribute('min', getTodayString());
 
-            // ซ่อน Filter modal เมื่อคลิกที่อื่น
             document.addEventListener('click', (e) => {
                 const modal = document.getElementById('excelFilterModal');
                 if (!modal.contains(e.target) && !e.target.closest('.filter-icon') && !modal.classList.contains('hidden')) {
@@ -382,7 +384,7 @@
             
             const tab = document.getElementById(tabId);
             if(tabId === 'menu-list') {
-                tab.classList.add('active'); // Excel View ใช้ Flex Col
+                tab.classList.add('active'); 
             } else {
                 tab.classList.add('block');
             }
@@ -535,21 +537,21 @@
                     switch(col.key) {
                         case 'action':
                             cellData = `<button onclick="openModal('${j.id}')" class="mx-auto px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold rounded-lg transition shadow-md text-xs flex items-center justify-center gap-1 w-20"><i class="fa-solid fa-sliders"></i> อัปเดต</button>`;
-                            cellClass = "p-1 border border-slate-700 bg-slate-900/50 text-center";
+                            cellClass = "p-1 border-b border-slate-700 bg-slate-900/50 text-center";
                             break;
                         case 'car_plate':
                             cellData = `<div class="w-full text-center py-2"><span class="border px-2.5 py-1 rounded-md font-mono text-sm shadow-inner transition-all ${plateClass}">${isOverdue ? '<i class="fa-solid fa-fire text-red-500 mr-1"></i>' : ''}${j.car_plate || 'ไม่มีป้าย'}</span></div>`;
-                            cellClass = "border border-slate-700 text-center";
+                            cellClass = "border-b border-slate-700 text-center";
                             break;
-                        case 'car_brand': cellData = `<div class="px-3 py-2 font-semibold text-slate-200">${j.car_brand || '-'}</div>`; cellClass = "border border-slate-700"; break;
-                        case 'car_model': cellData = `<div class="px-3 py-2 font-semibold text-slate-200">${j.car_model || '-'}</div>`; cellClass = "border border-slate-700"; break;
-                        case 'vin_no': cellData = `<div class="px-3 py-2 font-mono text-[10px] text-slate-400">${j.vin_no || '-'}</div>`; cellClass = "border border-slate-700"; break;
-                        case 'calculated_station': cellData = `<div class="px-3 py-2"><span class="px-2 py-1 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-400 text-xs font-bold inline-flex items-center gap-1"><i class="fa-solid fa-wrench"></i> ${j.calculated_station}</span></div>`; cellClass = "border border-slate-700"; break;
-                        case 'job_status': cellData = `<div class="px-3 py-2 text-xs font-semibold text-slate-300"><i class="fa-solid fa-tag text-slate-500 mr-1"></i> ${j.job_status || '-'}</div>`; cellClass = "border border-slate-700"; break;
-                        case 'target_finish_date': cellData = `<div class="px-3 py-2 text-xs font-mono font-bold text-blue-400 text-center">${targetDateStr || '-'}${overdueWarning}</div>`; cellClass = "border border-slate-700 text-center"; break;
-                        case 'repair_finish_date': cellData = `<input type="date" min="${getTodayString()}" value="${finishDateStr}" onchange="fastUpdateDate('${j.id}', 'repair_finish_date', this.value)" class="inline-edit-input text-emerald-400 text-center cursor-pointer">`; cellClass = "border border-slate-700 p-0"; break;
-                        case 'delivery_date': cellData = `<div class="px-3 py-2 text-xs font-mono font-bold text-purple-400 text-center">${deliveryDateStr || '-'}</div>`; cellClass = "border border-slate-700 text-center"; break;
-                        case 'repair_notes': cellData = `<div class="px-3 py-2 text-slate-400 italic text-xs truncate" title="${j.repair_notes || ''}">${j.repair_notes || '-'}</div>`; cellClass = "border border-slate-700"; break;
+                        case 'car_brand': cellData = `<div class="px-3 py-2 font-semibold text-slate-200">${j.car_brand || '-'}</div>`; cellClass = "border-b border-slate-700"; break;
+                        case 'car_model': cellData = `<div class="px-3 py-2 font-semibold text-slate-200">${j.car_model || '-'}</div>`; cellClass = "border-b border-slate-700"; break;
+                        case 'vin_no': cellData = `<div class="px-3 py-2 font-mono text-[10px] text-slate-400">${j.vin_no || '-'}</div>`; cellClass = "border-b border-slate-700"; break;
+                        case 'calculated_station': cellData = `<div class="px-3 py-2"><span class="px-2 py-1 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-400 text-xs font-bold inline-flex items-center gap-1"><i class="fa-solid fa-wrench"></i> ${j.calculated_station}</span></div>`; cellClass = "border-b border-slate-700"; break;
+                        case 'job_status': cellData = `<div class="px-3 py-2 text-xs font-semibold text-slate-300"><i class="fa-solid fa-tag text-slate-500 mr-1"></i> ${j.job_status || '-'}</div>`; cellClass = "border-b border-slate-700"; break;
+                        case 'target_finish_date': cellData = `<div class="px-3 py-2 text-xs font-mono font-bold text-blue-400 text-center">${targetDateStr || '-'}${overdueWarning}</div>`; cellClass = "border-b border-slate-700 text-center"; break;
+                        case 'repair_finish_date': cellData = `<input type="date" min="${getTodayString()}" value="${finishDateStr}" onchange="fastUpdateDate('${j.id}', 'repair_finish_date', this.value)" class="inline-edit-input text-emerald-400 text-center cursor-pointer">`; cellClass = "border-b border-slate-700 p-0"; break;
+                        case 'delivery_date': cellData = `<div class="px-3 py-2 text-xs font-mono font-bold text-purple-400 text-center">${deliveryDateStr || '-'}</div>`; cellClass = "border-b border-slate-700 text-center"; break;
+                        case 'repair_notes': cellData = `<div class="px-3 py-2 text-slate-400 italic text-xs truncate" title="${j.repair_notes || ''}">${j.repair_notes || '-'}</div>`; cellClass = "border-b border-slate-700"; break;
                     }
                     rowHtml += `<td class="${cellClass}">${cellData}</td>`;
                 });
@@ -800,7 +802,7 @@
                             </div>
                         </div>
                         <div class="shrink-0 w-full sm:w-auto">
-                            <button onclick="openModal('${j.id}')" class="px-5 py-2.5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white text-xs font-bold rounded-xl transition shadow-md w-full"><i class="fa-solid fa-sliders"></i> อัปเดตข้อมูล</button>
+                            <button onclick="openModal('${j.id}')" class="px-5 py-2.5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-900 text-xs font-bold rounded-xl transition shadow-md w-full"><i class="fa-solid fa-sliders"></i> อัปเดตข้อมูล</button>
                         </div>
                     </div>
                 `;
@@ -855,10 +857,10 @@
                 options: { 
                     responsive: true, maintainAspectRatio: false, 
                     plugins: { 
-                        legend: { position: 'right', labels: { color: '#e2e8f0', font: { family: 'Noto Sans Thai', size: 12 } } },
+                        legend: { position: 'right', labels: { color: '#e2e8f0', font: { family: 'Kanit', size: 12 } } },
                         datalabels: {
                             color: '#ffffff',
-                            font: { family: 'Noto Sans Thai', weight: 'bold', size: 12 },
+                            font: { family: 'Kanit', weight: 'bold', size: 12 },
                             textAlign: 'center',
                             formatter: (val, context) => {
                                 return val > 0 ? context.chart.data.labels[context.dataIndex] + '\n' + val + ' คัน' : '';
@@ -871,14 +873,23 @@
                             const index = elements[0].index;
                             const labelName = chartInstance.data.labels[index];
                             switchRepairSubTab('menu-list');
-                            const selectEl = document.getElementById('filter_station');
-                            if(selectEl) {
-                                for(let i=0; i<selectEl.options.length; i++) {
-                                    if(selectEl.options[i].value.includes(labelName)) {
-                                        selectEl.selectedIndex = i; break;
-                                    }
-                                }
-                            }
+                            const filterVal = labelName === 'รอส่งมอบ' ? '13.รอส่งมอบ' : 
+                                            labelName === 'พักซ่อม' ? '12.พักซ่อม' :
+                                            labelName === 'ฟิล์ม' ? '11.ฟิล์ม' :
+                                            labelName === 'กระจก' ? '10.กระจก' :
+                                            labelName === 'ซ่อมแม็ก' ? '09.ซ่อมแม็ก' :
+                                            labelName === 'เก็บงาน' ? '08.เก็บงาน' :
+                                            labelName === 'ขัดสี' ? '06.ขัดสี' :
+                                            labelName === 'ประกอบ' ? '05.ประกอบ' :
+                                            labelName === 'พ่นสี' ? '04.พ่นสี' :
+                                            labelName === 'เตรียมพื้น' ? '03.เตรียมพื้น' :
+                                            labelName === 'โป๊ว' ? '02.โป๊ว' :
+                                            labelName === 'เคาะ' ? '01.เคาะ' : 'ยังไม่ระบุสถานี';
+                            
+                            activeFilters = { 5: new Set([filterVal]) };
+                            const thIcon = document.querySelectorAll('#repairTable th')[5].querySelector('.filter-icon');
+                            if(thIcon) { thIcon.classList.remove('text-slate-400'); thIcon.classList.add('text-amber-400'); }
+                            runTableFilters();
                         }
                     }
                 }
@@ -906,7 +917,7 @@
                         listHTML += `
                             <div class="px-4 py-3 flex flex-col lg:flex-row justify-between items-start lg:items-center hover:bg-slate-800 transition gap-3 ${isOverdue ? 'bg-red-900/10' : ''}">
                                 <div>
-                                    <span class="text-white font-mono font-bold px-1.5 py-0.5 rounded text-xs mr-2 shadow-inner ${isOverdue ? 'overdue-fire' : 'bg-slate-900'}">
+                                    <span class="text-slate-900 font-mono font-bold px-1.5 py-0.5 rounded text-xs mr-2 shadow-inner ${isOverdue ? 'overdue-fire' : 'bg-amber-400'}">
                                         ${isOverdue ? '<i class="fa-solid fa-fire text-red-500 mr-1"></i>' : ''}${j.car_plate || '-'}
                                     </span>
                                     <span class="text-slate-300 text-xs font-semibold">${j.car_brand} ${j.car_model || ''}</span>
