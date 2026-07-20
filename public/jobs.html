@@ -104,10 +104,18 @@
                 <input type="text" id="search_input" onkeyup="applyFilters()" class="minimal-input w-44" placeholder="พิมพ์ค้นหาทุกช่อง...">
             </div>
             
+            <!-- 🌟 เพิ่มตัวกรองสาขาด่วน 🌟 -->
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-building text-emerald-600"></i> สาขา:</span>
+                <select id="branch_filter_select" onchange="applyFilters()" class="minimal-input w-40 bg-emerald-50/50 border-emerald-300 text-emerald-900 cursor-pointer">
+                    <option value="ALL">-- ทุกสาขา --</option>
+                </select>
+            </div>
+
             <div class="flex items-center gap-2">
                 <span class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-user-tie text-blue-600"></i> กรอง SA ด่วน:</span>
-                <select id="sa_filter_select" onchange="applyFilters()" class="minimal-input w-48 bg-blue-50/50 border-blue-300 text-blue-900 cursor-pointer">
-                    <option value="">-- แสดง SA ทั้งหมด --</option>
+                <select id="sa_filter_select" onchange="applyFilters()" class="minimal-input w-40 bg-blue-50/50 border-blue-300 text-blue-900 cursor-pointer">
+                    <option value="">-- SA ทั้งหมด --</option>
                 </select>
             </div>
         </div>
@@ -220,7 +228,6 @@
         let currentFilterKey = -1;
         let hiddenCols = new Set([11, 14, 17]); // ซ่อนเบอร์โทร, VIN, EPC เป็นค่าเริ่มต้น
 
-        // 🌟 Helper: แจ้งเตือน Toast
         function showToast(msg, type='success') {
             const toast = document.getElementById('toastMsg');
             const icon = type === 'error' ? 'fa-circle-xmark' : 'fa-circle-check';
@@ -254,7 +261,6 @@
             initColumns();
             loadJobsData();
 
-            // ปิด Modal Filter เมื่อคลิกที่อื่น
             document.addEventListener('click', (e) => {
                 const modal = document.getElementById('excelFilterModal');
                 if (!modal.contains(e.target) && !e.target.closest('.filter-icon') && !modal.classList.contains('hidden')) {
@@ -302,7 +308,6 @@
             setTimeout(initResizableColumns, 300);
         }
 
-        // 🌟 ระบบยืดหดขยายคอลัมน์ (Resizable Columns)
         function initResizableColumns() {
             const cols = document.querySelectorAll('#jobsTable th');
             cols.forEach(col => {
@@ -349,7 +354,6 @@
             try {
                 document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-10 text-slate-400 font-mono"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังดึงข้อมูล...</td></tr>`;
                 
-                // โหลด Status Master เผื่อไว้ทำ Dropdown
                 const sRes = await fetch(`${API_BASE_URL}/api/statuses`);
                 if(sRes.ok) globalStatuses = await sRes.json();
 
@@ -360,9 +364,25 @@
                 else allJobsData = data.filter(d => d.branch_name === userBranch);
                 
                 buildSADropdown();
+                buildBranchDropdown(); // 🌟 เรียกสร้าง Dropdown สาขา
                 applyFilters(); 
             } catch (error) {
                 document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-10 text-red-500 font-bold">⚠️ ไม่สามารถเชื่อมต่อฐานข้อมูลได้</td></tr>`;
+            }
+        }
+
+        // 🌟 ฟังก์ชันสร้าง Dropdown สาขา
+        function buildBranchDropdown() {
+            const branchSelect = document.getElementById('branch_filter_select');
+            const savedValue = branchSelect.value;
+            if (['Manager', 'Admin', 'BA', 'แอดมิน'].includes(userRole)) {
+                const uniqueBranches = [...new Set(allJobsData.map(j => j.branch_name).filter(Boolean))].sort();
+                branchSelect.innerHTML = '<option value="ALL">-- ทุกสาขา --</option>';
+                uniqueBranches.forEach(b => { branchSelect.innerHTML += `<option value="${b}">${b}</option>`; });
+                if(savedValue && savedValue !== 'ALL' && uniqueBranches.includes(savedValue)) branchSelect.value = savedValue;
+            } else {
+                branchSelect.innerHTML = `<option value="${userBranch}">${userBranch}</option>`;
+                branchSelect.disabled = true;
             }
         }
 
@@ -375,7 +395,6 @@
             if(savedValue) saSelect.value = savedValue;
         }
 
-        // ⚡ Fast Edit API Caller (Auto-Save)
         async function fastUpdateJob(jobId, field, value) {
             try {
                 const res = await fetch(`${API_BASE_URL}/api/report/${jobId}/fast-date`, {
@@ -398,7 +417,6 @@
             } catch (e) { showToast('เกิดข้อผิดพลาดในการลบ', 'error'); }
         }
 
-        // ================= 🌟 EXCEL FILTER LOGIC 🌟 =================
         function openExcelFilter(e, colIndex, title) {
             e.stopPropagation();
             currentFilterKey = colIndex;
@@ -490,6 +508,12 @@
             activeFilters = {}; 
             document.getElementById('search_input').value = '';
             document.getElementById('sa_filter_select').value = ''; 
+            
+            // 🌟 ล้างตัวกรองสาขาถ้าเป็นแอดมิน
+            if (['Manager', 'Admin', 'BA', 'แอดมิน'].includes(userRole)) {
+                document.getElementById('branch_filter_select').value = 'ALL';
+            }
+            
             document.querySelectorAll('.filter-icon').forEach(icon => { icon.classList.remove('text-amber-400'); icon.classList.add('text-slate-400'); });
             applyFilters();
         }
@@ -497,6 +521,7 @@
         function applyFilters() {
             const searchTxt = document.getElementById('search_input').value.toLowerCase();
             const saSelectedTxt = document.getElementById('sa_filter_select').value; 
+            const branchSelectedTxt = document.getElementById('branch_filter_select').value; // 🌟 รับค่าสาขา
             
             const filteredData = allJobsData.filter(job => {
                 if (searchTxt) {
@@ -505,7 +530,9 @@
                 }
                 if (saSelectedTxt && job.sa_owner !== saSelectedTxt) return false;
                 
-                // ตรวจสอบกับ Active Excel Filters (เปรียบเทียบกับค่าที่จะถูกเรนเดอร์ในตาราง)
+                // 🌟 กรองข้อมูลตามสาขา
+                if (branchSelectedTxt && branchSelectedTxt !== 'ALL' && job.branch_name !== branchSelectedTxt) return false;
+
                 for (let key in activeFilters) {
                     const colDef = columnsDef[key];
                     let rawVal = job[colDef.key] || '';
@@ -521,7 +548,6 @@
             document.getElementById('row_count').innerText = filteredData.length;
         }
 
-        // 🌟 ฟังก์ชัน Sort
         function sortTable(colIndex) {
             const table = document.getElementById('jobsTable');
             const tbody = table.querySelector('tbody');
