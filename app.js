@@ -312,7 +312,7 @@ app.post('/api/report', async (req, res) => {
       target_finish_date, actual_finish_date, delivery_date,
       contact_date, arrived_date, car_plate,
       epc_no, part_status, order_part_date, est_part_date, ordered_part_names,
-      department_routing
+      department_routing, is_parked // 🎯 1. ดักจับตัวแปรจากหน้าเว็บ
     } = req.body;
 
     const queryText = `
@@ -323,9 +323,10 @@ app.post('/api/report', async (req, res) => {
         cost_part, cost_external, notes, job_status,
         target_finish_date, actual_finish_date, delivery_date,
         contact_date, arrived_date, car_plate,
-        epc_no, part_status, order_part_date, est_part_date, ordered_part_names, department_routing
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34)
-      RETURNING id;
+        epc_no, part_status, order_part_date, est_part_date, ordered_part_names, department_routing,
+        is_parked -- 🎯 2. เพิ่มคอลัมน์ในฐานข้อมูล
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35)
+      RETURNING id; -- 🎯 แก้เป็น 35 ตัวแปร
     `;
 
     const values = [
@@ -336,7 +337,8 @@ app.post('/api/report', async (req, res) => {
       notes || null, job_status || null, target_finish_date || null, actual_finish_date || null, delivery_date || null,
       contact_date || null, arrived_date || null, car_plate || null,
       epc_no || null, part_status || null, order_part_date || null, est_part_date || null, ordered_part_names || null,
-      department_routing || 'รอดำเนินการ'
+      department_routing || 'รอดำเนินการ',
+      is_parked || 'ไม่จอดซ่อม' // 🎯 3. โยนค่าลงฐานข้อมูล (ถ้าไม่มีให้เป็น ไม่จอดซ่อม)
     ];
 
     const result = await pool.query(queryText, values);
@@ -357,7 +359,7 @@ app.put('/api/report/:id', async (req, res) => {
       station_qc, station_mag, station_kraj, station_film, station_pak, station_ready,
       repair_notes, repair_finish_date,
       epc_no, part_status, order_part_date, est_part_date, ordered_part_names,
-      department_routing
+      department_routing, is_parked // 🎯 1. ดักจับตัวแปรจากหน้าเว็บ
     } = req.body;
 
     const queryText = `
@@ -372,8 +374,9 @@ app.put('/api/report/:id', async (req, res) => {
         station_qc=$35, station_mag=$36, station_kraj=$37, station_film=$38, station_pak=$39, station_ready=$40,
         repair_notes=$41, repair_finish_date=$42,
         epc_no=$43, part_status=$44, order_part_date=$45, est_part_date=$46, ordered_part_names=$47,
-        department_routing=$48
-      WHERE id=$49;
+        department_routing=$48,
+        is_parked=$49 -- 🎯 2. สั่งอัปเดตช่องนี้ด้วย (เลื่อน id ไปเป็น 50)
+      WHERE id=$50;
     `;
 
     const values = [
@@ -388,7 +391,8 @@ app.put('/api/report/:id', async (req, res) => {
       repair_notes || null, repair_finish_date || null,
       epc_no || null, part_status || null, order_part_date || null, est_part_date || null, ordered_part_names || null,
       department_routing || 'รอดำเนินการ',
-      req.params.id
+      is_parked || 'ไม่จอดซ่อม', // 🎯 3. โยนค่าลงตัวแปรที่ 49
+      req.params.id // 🎯 4. id ถูกดันมาเป็นตัวที่ 50
     ];
 
     await pool.query(queryText, values);
