@@ -827,45 +827,52 @@
         }
         function closeOutboundModal() { const m = document.getElementById('outboundModal'); m.classList.add('hidden'); m.classList.remove('flex'); }
 
-        function openMasterModal(partNo = null) {
-    document.getElementById('master_part_main').value = ''; document.getElementById('master_part_no').value = '';
-    document.getElementById('master_part_name').value = ''; document.getElementById('master_location').value = '';
-    document.getElementById('master_price').value = '0.00'; document.getElementById('master_safety').value = '0';
-    
-    // 🎯 ล้างค่าติ๊กถูกออกให้หมดก่อนเคลียร์หน้าจอ
-    document.querySelectorAll('.master-car-model-checkbox').forEach(cb => cb.checked = false);
-    
-    if(partNo) {
-        // กรณีแก้ไขอะไหล่เดิม
-        const part = allMasterPartsData.find(p => p.part_no === partNo);
-        if(part) {
-            document.getElementById('master_part_no').value = part.part_no; document.getElementById('master_part_name').value = part.part_name;
-            document.getElementById('master_part_main').value = part.part_main_no || ''; document.getElementById('master_category').value = part.part_category || 'อะไหล่หลัก';
-            document.getElementById('master_price').value = part.unit_price || 0; document.getElementById('master_location').value = part.location || '';
-            document.getElementById('master_safety').value = part.safety_stock || 0; document.getElementById('edit_master_id').value = part.part_id;
+       function openMasterModal(partNo = null) {
+            document.getElementById('master_part_main').value = ''; document.getElementById('master_part_no').value = '';
+            document.getElementById('master_part_name').value = ''; document.getElementById('master_location').value = '';
+            document.getElementById('master_price').value = '0.00'; document.getElementById('master_safety').value = '0';
             
-            // ดึงข้อมูลเก่ามาติ๊กถูกให้
-            if(part.car_model) {
-                const savedModels = part.car_model.split(',').map(m => m.trim());
-                document.querySelectorAll('.master-car-model-checkbox').forEach(cb => { 
-                    if(savedModels.includes(cb.value)) cb.checked = true; 
+            // 🎯 ล้างค่าติ๊กถูกออกให้หมดก่อนเคลียร์หน้าจอ
+            document.querySelectorAll('.master-car-model-checkbox').forEach(cb => cb.checked = false);
+            
+            if(partNo) {
+                // กรณีแก้ไขอะไหล่เดิม
+                const part = allMasterPartsData.find(p => p.part_no === partNo);
+                if(part) {
+                    document.getElementById('master_part_no').value = part.part_no; document.getElementById('master_part_name').value = part.part_name;
+                    document.getElementById('master_part_main').value = part.part_main_no || ''; document.getElementById('master_category').value = part.part_category || 'อะไหล่หลัก';
+                    document.getElementById('master_price').value = part.unit_price || 0; document.getElementById('master_location').value = part.location || '';
+                    document.getElementById('master_safety').value = part.safety_stock || 0; document.getElementById('edit_master_id').value = part.part_id;
+                    
+                    // ดึงข้อมูลเก่ามาติ๊กถูกให้
+                    if(part.car_model) {
+                        const savedModels = part.car_model.split(',').map(m => m.trim());
+                        document.querySelectorAll('.master-car-model-checkbox').forEach(cb => { 
+                            if(savedModels.includes(cb.value)) cb.checked = true; 
+                        });
+                    }
+                }
+            } else { 
+                // 🎯 กรณีเปิดหน้าต่าง "เพิ่มอะไหล่ใหม่"
+                document.getElementById('edit_master_id').value = ''; 
+                
+                // สั่งให้ติ๊กรุ่นรถที่เป็น TESLA รอไว้ให้เลย!
+                document.querySelectorAll('.master-car-model-checkbox').forEach(cb => {
+                    const brand = cb.getAttribute('data-brand') || '';
+                    if(brand && brand.toUpperCase() === 'TESLA') {
+                        cb.checked = true;
+                    }
                 });
             }
+            const m = document.getElementById('masterModal'); m.classList.remove('hidden'); m.classList.add('flex');
         }
-    } else { 
-        // 🎯 กรณีเปิดหน้าต่าง "เพิ่มอะไหล่ใหม่"
-        document.getElementById('edit_master_id').value = ''; 
-        
-        // สั่งให้ติ๊กรุ่นรถที่เป็น TESLA รอไว้ให้เลย!
-        document.querySelectorAll('.master-car-model-checkbox').forEach(cb => {
-            const brand = cb.getAttribute('data-brand') || '';
-            if(brand.toUpperCase() === 'TESLA') {
-                cb.checked = true;
-            }
-        });
-    }
-    const m = document.getElementById('masterModal'); m.classList.remove('hidden'); m.classList.add('flex');
-}
+
+        // 🎯 ฟังก์ชันปิดหน้าต่าง แยกห้องออกมาอยู่ข้างนอกอย่างถูกต้องแล้ว!
+        function closeMasterModal() { 
+            const m = document.getElementById('masterModal'); 
+            m.classList.add('hidden'); 
+            m.classList.remove('flex'); 
+        }
 
         // ================= RENDERING TABLES CONTENT =================
         function loadSAOrders() {
@@ -1033,64 +1040,66 @@
         }
 
         function loadMasterParts() {
-    try {
-        // 🎯 ส่ง branch พ่วงไปด้วย
-        fetch(`${API_BASE_URL}/api/parts?branch=${encodeURIComponent(currentBranch)}`).then(res => res.json()).then(data => {
-            allMasterPartsData = data;
-            document.getElementById('master_table_body').innerHTML = data.map(p => `
-                <tr>
-                    <td class="font-mono font-bold text-blue-600 px-2">${p.part_no}</td>
-                    <td class="font-bold px-2 truncate">${p.part_name}</td>
-                    <td class="font-mono text-slate-400 text-xs px-2">${p.part_main_no||'-'}</td>
-                    <td class="text-xs text-slate-600 font-bold px-2 truncate" title="${p.car_model}">${p.car_model||'-'}</td>
-                    <td class="text-[10px] font-bold text-slate-500 uppercase px-2"><span class="bg-slate-100 px-1.5 py-0.5 rounded border">${p.part_category||'-'}</span></td>
-                    <td class="font-mono text-right font-bold text-emerald-700 px-2">${parseFloat(p.unit_price||0).toFixed(2)}</td>
-                    <td class="font-mono text-xs text-center px-2">${p.location||'-'}</td>
-                    <td class="text-center flex justify-center gap-1 py-1">
-                        <button onclick="openMasterModal('${p.part_no}')" class="text-blue-500 hover:text-blue-700 bg-blue-50 px-2 py-0.5 rounded"><i class="fa-solid fa-pen"></i></button>
-                        <button onclick="deleteRow('/api/parts/${p.part_id}')" class="text-red-500 hover:text-red-700 bg-red-50 px-2 py-0.5 rounded"><i class="fa-solid fa-trash"></i></button>
-                    </td>
-                </tr>`).join('');
-            runTableFilters('masterTable');
-        });
-    } catch(e){}
-}
-// 🎯 ฟังก์ชันโหลดรายชื่อรุ่นรถมาสร้างเป็น Checkbox
-async function loadCarModelsGrid() {
-    try {
-        const res = await fetch(`${API_BASE_URL}/api/car-models`);
-        if (!res.ok) throw new Error('Failed to load car models');
-        allCarModelsFromDB = await res.json();
-        
-        // จัดกลุ่มตามยี่ห้อรถ (Brand)
-        const grouped = {};
-        allCarModelsFromDB.forEach(item => {
-            const brand = item.car_brand || 'ทั่วไป';
-            if (!grouped[brand]) grouped[brand] = [];
-            grouped[brand].push(item.car_model);
-        });
-
-        const container = document.getElementById('master_car_models_container');
-        let html = '';
-        for (const [brand, models] of Object.entries(grouped)) {
-            html += `
-            <div class="mb-3">
-                <p class="text-[11px] font-black text-slate-500 uppercase border-b border-slate-200 pb-1 mb-2">${brand}</p>
-                <div class="grid grid-cols-2 gap-2">
-                    ${models.map(m => `
-                        <label class="flex items-center gap-2 cursor-pointer hover:bg-white p-1 rounded transition border border-transparent hover:border-slate-200">
-                            <input type="checkbox" value="${m}" data-brand="${brand}" class="master-car-model-checkbox accent-[#00320D] w-4 h-4 cursor-pointer">
-                            <span class="text-xs font-bold text-slate-700">${m}</span>
-                        </label>
-                    `).join('')}
-                </div>
-            </div>`;
+            try {
+                // 🎯 ส่ง branch พ่วงไปด้วย
+                fetch(`${API_BASE_URL}/api/parts?branch=${encodeURIComponent(currentBranch)}`).then(res => res.json()).then(data => {
+                    allMasterPartsData = data;
+                    document.getElementById('master_table_body').innerHTML = data.map(p => `
+                        <tr>
+                            <td class="font-mono font-bold text-blue-600 px-2">${p.part_no}</td>
+                            <td class="font-bold px-2 truncate">${p.part_name}</td>
+                            <td class="font-mono text-slate-400 text-xs px-2">${p.part_main_no||'-'}</td>
+                            <td class="text-xs text-slate-600 font-bold px-2 truncate" title="${p.car_model}">${p.car_model||'-'}</td>
+                            <td class="text-[10px] font-bold text-slate-500 uppercase px-2"><span class="bg-slate-100 px-1.5 py-0.5 rounded border">${p.part_category||'-'}</span></td>
+                            <td class="font-mono text-right font-bold text-emerald-700 px-2">${parseFloat(p.unit_price||0).toFixed(2)}</td>
+                            <td class="font-mono text-xs text-center px-2">${p.location||'-'}</td>
+                            <td class="text-center flex justify-center gap-1 py-1">
+                                <button onclick="openMasterModal('${p.part_no}')" class="text-blue-500 hover:text-blue-700 bg-blue-50 px-2 py-0.5 rounded"><i class="fa-solid fa-pen"></i></button>
+                                <button onclick="deleteRow('/api/parts/${p.part_id}')" class="text-red-500 hover:text-red-700 bg-red-50 px-2 py-0.5 rounded"><i class="fa-solid fa-trash"></i></button>
+                            </td>
+                        </tr>`).join('');
+                    runTableFilters('masterTable');
+                });
+            } catch(e){}
         }
-        container.innerHTML = html || '<p class="text-xs text-slate-400">ยังไม่มีข้อมูลรุ่นรถในระบบ</p>';
-    } catch (e) {
-        console.error("Error loading car models:", e);
-    }
-}
+
+        // 🎯 ฟังก์ชันโหลดรายชื่อรุ่นรถมาสร้างเป็น Checkbox
+        async function loadCarModelsGrid() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/car-models`);
+                if (!res.ok) throw new Error('Failed to load car models');
+                allCarModelsFromDB = await res.json();
+                
+                // จัดกลุ่มตามยี่ห้อรถ (Brand)
+                const grouped = {};
+                allCarModelsFromDB.forEach(item => {
+                    const brand = item.car_brand || 'ทั่วไป';
+                    if (!grouped[brand]) grouped[brand] = [];
+                    grouped[brand].push(item.car_model);
+                });
+
+                const container = document.getElementById('master_car_models_container');
+                let html = '';
+                for (const [brand, models] of Object.entries(grouped)) {
+                    html += `
+                    <div class="mb-3">
+                        <p class="text-[11px] font-black text-slate-500 uppercase border-b border-slate-200 pb-1 mb-2">${brand}</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            ${models.map(m => `
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-white p-1 rounded transition border border-transparent hover:border-slate-200">
+                                    <input type="checkbox" value="${m}" data-brand="${brand}" class="master-car-model-checkbox accent-[#00320D] w-4 h-4 cursor-pointer">
+                                    <span class="text-xs font-bold text-slate-700">${m}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>`;
+                }
+                container.innerHTML = html || '<p class="text-xs text-slate-400">ยังไม่มีข้อมูลรุ่นรถในระบบ</p>';
+            } catch (e) {
+                console.error("Error loading car models:", e);
+            }
+        }
+
         // บันทึกฟอร์มต่างๆ คงเดิมตามสัญญาลอจิกหลังบ้าน
         async function submitPO(e) {
             e.preventDefault(); const editId = document.getElementById('edit_po_id').value;
@@ -1137,34 +1146,31 @@ async function loadCarModelsGrid() {
             } catch(e) { showToast('เกิดข้อผิดพลาดเบิก/จอง', 'error'); }
         }
 
-  async function saveMasterPart() {
-    const checkedModels = Array.from(document.querySelectorAll('.master-car-model-checkbox:checked')).map(cb => cb.value);
-    const editId = document.getElementById('edit_master_id').value;
-    const method = editId ? 'PUT' : 'POST'; const url = editId ? `${API_BASE_URL}/api/parts/${editId}` : `${API_BASE_URL}/api/parts`;
-    const payload = { 
-        part_main_no: document.getElementById('master_part_main').value, part_no: document.getElementById('master_part_no').value, 
-        part_category: document.getElementById('master_category').value, part_name: document.getElementById('master_part_name').value,
-        car_model: checkedModels.join(', ') || null, location: document.getElementById('master_location').value,
-        safety_stock: parseInt(document.getElementById('master_safety').value) || 0, unit_price: parseFloat(document.getElementById('master_price').value) || 0.00,
-        branch_name: currentBranch 
-    };
-    try {
-        const res = await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-        
-        // 🎯 ถ้าเซิร์ฟเวอร์ตอบกลับว่ามี Error ให้ดึงข้อความ Error จริงๆ ออกมา
-        if(!res.ok) {
-            const errData = await res.json();
-            throw new Error(errData.error || 'Unknown Error');
+        async function saveMasterPart() {
+            const checkedModels = Array.from(document.querySelectorAll('.master-car-model-checkbox:checked')).map(cb => cb.value);
+            const editId = document.getElementById('edit_master_id').value;
+            const method = editId ? 'PUT' : 'POST'; const url = editId ? `${API_BASE_URL}/api/parts/${editId}` : `${API_BASE_URL}/api/parts`;
+            const payload = { 
+                part_main_no: document.getElementById('master_part_main').value, part_no: document.getElementById('master_part_no').value, 
+                part_category: document.getElementById('master_category').value, part_name: document.getElementById('master_part_name').value,
+                car_model: checkedModels.join(', ') || null, location: document.getElementById('master_location').value,
+                safety_stock: parseInt(document.getElementById('master_safety').value) || 0, unit_price: parseFloat(document.getElementById('master_price').value) || 0.00,
+                branch_name: currentBranch 
+            };
+            try {
+                const res = await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                
+                if(!res.ok) {
+                    const errData = await res.json();
+                    throw new Error(errData.error || 'Unknown Error');
+                }
+                
+                showToast('บันทึกมาสเตอร์สำเร็จ!'); closeMasterModal(); loadAllData();
+            } catch(e) { 
+                alert('🚨 สาเหตุที่บันทึกไม่ได้:\n' + e.message);
+                showToast('บันทึกไม่สำเร็จ', 'error'); 
+            }
         }
-        
-        showToast('บันทึกมาสเตอร์สำเร็จ!'); closeMasterModal(); loadAllData();
-    } catch(e) { 
-        // 🎯 สั่งให้ Alert ฟ้องสาเหตุตรงๆ เลยว่าฐานข้อมูลติดปัญหาอะไร
-        alert('🚨 สาเหตุที่บันทึกไม่ได้:\n' + e.message);
-        showToast('บันทึกไม่สำเร็จ', 'error'); 
-    }
-}
-
 
         async function deleteRow(endpoint) {
             if(confirm('🚨 ยืนยันการลบข้อมูลรายการนี้แบบถาวร?')) {
