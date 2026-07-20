@@ -21,62 +21,71 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; border: 2px solid transparent; background-clip: padding-box; }
         .custom-scrollbar::-webkit-scrollbar-track { background-color: transparent; }
         
+        /* 🌟 ปรับปรุงการ์ดให้มีมิติ */
         .card-box { @apply bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden transition-all duration-300; }
-        .stat-card { @apply p-5 flex items-center justify-between bg-white rounded-2xl shadow-sm border border-slate-200 transition hover:shadow-md cursor-pointer hover:-translate-y-1; }
+        .stat-card { @apply p-6 flex items-center justify-between bg-white rounded-2xl shadow-sm border border-slate-200 transition-all hover:shadow-lg cursor-pointer hover:-translate-y-1 relative overflow-hidden; }
         
-        .calendar-cell { @apply bg-white border border-slate-200 rounded-xl p-2 min-h-[110px] flex flex-col justify-between hover:border-[#00320D] transition-all cursor-pointer hover:shadow-md; }
+        /* 🌟 ตกแต่งปฏิทินใหม่ */
+        .calendar-cell { @apply bg-white border border-slate-200 rounded-xl p-3 min-h-[120px] flex flex-col justify-between hover:border-amber-400 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer relative overflow-hidden; }
+        .calendar-cell.today { @apply border-2 border-amber-500 bg-amber-50/30; }
+        .calendar-day-label { @apply text-sm font-black text-slate-400 font-mono mb-2 self-start transition-colors; }
+        .calendar-cell.today .calendar-day-label { @apply text-amber-600 bg-amber-100 px-2 py-0.5 rounded shadow-sm; }
+        .calendar-cell:hover .calendar-day-label { @apply text-amber-500; }
         
         .modal-fade { animation: fadeIn 0.2s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 
-        /* Excel-like Table for Parked Cars */
-        .excel-table { @apply w-full text-left border-collapse whitespace-nowrap text-[12px] bg-white; }
-        .excel-table thead th { @apply px-3 py-2 bg-[#00320D] text-white border border-[#004a1f] font-bold sticky top-0 z-10 shadow-sm align-middle; }
-        .excel-table tbody td { @apply px-3 py-2 border border-slate-200 text-slate-700 align-middle; }
-        .excel-table tbody tr:hover td { @apply bg-green-50/60 transition-colors; }
+        /* 🌟 ตารางแบบ Excel พรีเมียม (หัวเข้ม-อักษรขาว) */
+        .excel-table { @apply w-full text-left border-collapse whitespace-nowrap text-sm bg-white rounded-lg overflow-hidden; }
+        .excel-table thead th { @apply px-4 py-3.5 bg-[#00320D] text-white border-b-2 border-green-900 font-bold sticky top-0 z-10 align-middle tracking-wide shadow-sm; }
+        .excel-table tbody td { @apply px-4 py-3 border-b border-slate-100 text-slate-700 align-middle font-medium; }
+        .excel-table tbody tr:hover td { @apply bg-emerald-50/60 transition-colors; }
     </style>
 </head>
 <body class="text-slate-800 min-h-screen selection:bg-[#00320D] selection:text-white flex flex-col">
 
-    <header class="bg-rizenic-green text-white shadow-md z-50 shrink-0">
-        <div class="px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-4">
+    <header class="bg-rizenic-green text-white shadow-lg z-50 shrink-0 border-b-4 border-amber-500">
+        <div class="px-6 py-3 flex flex-col sm:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-3">
-                <i class="fa-solid fa-chart-line text-white text-xl"></i>
-                <h1 class="text-lg font-bold tracking-wider">RIZENIC <span class="text-amber-400 font-black">DASHBOARD</span></h1>
+                <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/20 shadow-inner">
+                    <i class="fa-solid fa-chart-line text-amber-400 text-lg"></i>
+                </div>
+                <h1 class="text-xl font-bold tracking-widest">RIZENIC <span class="text-amber-400 font-black">DASHBOARD</span></h1>
             </div>
             
             <nav class="flex items-center gap-3">
                 <div class="text-right hidden sm:flex border-r border-green-700 pr-4 items-center gap-2">
                     <div>
-                        <p class="text-xs font-bold text-white" id="display_emp_name">SA Name</p>
+                        <p class="text-xs font-bold text-white flex items-center justify-end gap-2"><i class="fa-solid fa-circle-user text-amber-400"></i> <span id="display_emp_name">SA Name</span></p>
                         <p class="text-[10px] text-green-300">สาขา: <span id="display_branch">Branch</span></p>
                     </div>
                 </div>
-                <div class="flex flex-wrap gap-1">
-                    <button class="px-3.5 py-2 rounded bg-white text-[#00320D] font-bold shadow-sm transition-all text-xs border border-transparent"><i class="fa-solid fa-chart-pie mr-1"></i> แดชบอร์ด</button>
-                    <a href="index.html" class="px-3.5 py-2 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs"><i class="fa-solid fa-file-invoice mr-1"></i> เปิดบิลซ่อม</a>
-                    <a href="jobs.html" class="px-3.5 py-2 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs"><i class="fa-solid fa-table-list mr-1"></i> บอร์ดใบงาน</a>
-                    <a href="repair.html" class="px-3.5 py-2 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs"><i class="fa-solid fa-screwdriver-wrench mr-1"></i> สถานีช่าง</a>
-                    <a href="parts.html" class="px-3.5 py-2 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs border border-white/10"><i class="fa-solid fa-boxes-stacked mr-1"></i> แผนกอะไหล่</a>
-                    <a href="finance.html" class="px-3.5 py-2 rounded bg-[#004a1f] text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs border border-white/10"><i class="fa-solid fa-file-invoice-dollar mr-1"></i> แผนกบัญชี</a>
-                    <a href="admin.html" id="nav_admin" class="px-3.5 py-2 rounded bg-amber-600 text-[#00320D] font-black hover:bg-amber-500 transition-all text-xs shadow-sm hidden"><i class="fa-solid fa-gear mr-1"></i> แอดมิน</a>
-                    <button onclick="logout()" class="px-2.5 py-2 text-white hover:text-red-400 transition-all text-xs ml-1"><i class="fa-solid fa-power-off"></i></button>
+                <div class="flex flex-wrap gap-1.5">
+                    <button class="px-4 py-2 rounded-lg bg-white text-[#00320D] font-bold shadow-md transition-all text-xs"><i class="fa-solid fa-chart-pie mr-1"></i> แดชบอร์ด</button>
+                    <a href="index.html" class="px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs border border-white/20"><i class="fa-solid fa-file-invoice mr-1"></i> เปิดบิลซ่อม</a>
+                    <a href="jobs.html" class="px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs border border-white/20"><i class="fa-solid fa-table-list mr-1"></i> บอร์ดใบงาน</a>
+                    <a href="repair.html" class="px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs border border-white/20"><i class="fa-solid fa-screwdriver-wrench mr-1"></i> สถานีช่าง</a>
+                    <a href="parts.html" class="px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs border border-white/20"><i class="fa-solid fa-boxes-stacked mr-1"></i> แผนกอะไหล่</a>
+                    <a href="finance.html" class="px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs border border-white/20"><i class="fa-solid fa-file-invoice-dollar mr-1"></i> แผนกบัญชี</a>
+                    <!-- 🌟 ปุ่มแอดมินซ่อนไว้ จะแสดงเฉพาะ Role ที่กำหนด -->
+                    <a href="admin.html" id="nav_admin" class="px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-[#00320D] font-black hover:from-amber-400 hover:to-amber-500 transition-all text-xs shadow-md hidden border border-amber-400"><i class="fa-solid fa-gear mr-1"></i> แอดมิน</a>
+                    <button onclick="logout()" class="px-3 py-2 text-white hover:text-red-400 hover:bg-red-500/20 rounded-lg transition-all text-xs ml-1"><i class="fa-solid fa-power-off"></i></button>
                 </div>
             </nav>
         </div>
     </header>
 
     <!-- 🌟 Global Filters 🌟 -->
-    <div class="bg-white border-b border-slate-200 z-40 shrink-0 shadow-sm px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-3">
+    <div class="bg-white border-b border-slate-200 z-40 shrink-0 shadow-sm px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
         <div class="flex items-center gap-3">
-            <span class="text-sm font-black text-slate-800 uppercase tracking-widest"><i class="fa-solid fa-earth-americas text-blue-500"></i> สาขา:</span>
-            <select id="branchFilter" onchange="applyFilters()" class="bg-slate-50 border border-slate-300 text-slate-800 text-sm font-bold rounded-lg px-3 py-1.5 outline-none cursor-pointer hover:bg-slate-100 transition shadow-sm min-w-[150px]">
+            <span class="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2"><div class="w-2 h-2 bg-blue-500 rounded-full"></div> สาขา:</span>
+            <select id="branchFilter" onchange="applyFilters()" class="bg-slate-50 border border-slate-300 text-slate-800 text-sm font-bold rounded-lg px-4 py-2 outline-none cursor-pointer hover:bg-slate-100 transition shadow-sm min-w-[180px]">
                 <option value="all">-- ทุกสาขา --</option>
             </select>
         </div>
-        <div class="flex items-center gap-2">
-            <span class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-calendar text-amber-500"></i> ช่วงเวลา:</span>
-            <select id="month_filter_select" onchange="applyFilters()" class="px-3 py-1.5 bg-amber-50 border border-amber-300 text-amber-900 rounded-lg outline-none text-xs font-bold cursor-pointer shadow-sm">
+        <div class="flex items-center gap-3 bg-slate-50 p-1.5 rounded-xl border border-slate-200 shadow-inner">
+            <span class="text-xs font-bold text-slate-500 uppercase px-2"><i class="fa-solid fa-calendar-day text-amber-500"></i> ช่วงเวลา:</span>
+            <select id="month_filter_select" onchange="applyFilters()" class="px-3 py-2 bg-white border border-slate-200 text-slate-800 rounded-lg outline-none text-xs font-bold cursor-pointer shadow-sm hover:border-amber-400">
                 <option value="01">มกราคม (01)</option>
                 <option value="02">กุมภาพันธ์ (02)</option>
                 <option value="03">มีนาคม (03)</option>
@@ -90,62 +99,74 @@
                 <option value="11">พฤศจิกายน (11)</option>
                 <option value="12">ธันวาคม (12)</option>
             </select>
-            <select id="year_filter_select" onchange="applyFilters()" class="px-3 py-1.5 bg-amber-50 border border-amber-300 text-amber-900 rounded-lg outline-none text-xs font-bold cursor-pointer shadow-sm">
+            <select id="year_filter_select" onchange="applyFilters()" class="px-3 py-2 bg-white border border-slate-200 text-slate-800 rounded-lg outline-none text-xs font-bold cursor-pointer shadow-sm hover:border-amber-400">
                 <!-- เจนปีอัตโนมัติ -->
             </select>
-            <button onclick="fetchDashboardData()" class="px-4 py-1.5 bg-[#00320D] text-white font-bold rounded-lg text-xs shadow hover:bg-black transition ml-2"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
+            <button onclick="fetchDashboardData()" class="px-4 py-2 bg-[#00320D] text-white font-bold rounded-lg text-xs shadow-md hover:bg-black transition flex items-center gap-2"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
         </div>
     </div>
 
-    <main class="flex-1 overflow-auto custom-scrollbar p-6 space-y-6">
+    <main class="flex-1 overflow-auto custom-scrollbar p-6 space-y-8 max-w-[1600px] mx-auto w-full">
         
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-l-4 border-amber-500 pl-3 gap-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-l-4 border-amber-500 pl-4 gap-4">
             <div>
-                <h2 class="text-2xl font-black text-[#00320D]">Executive Dashboard</h2>
-                <p class="text-sm text-slate-500 font-medium mt-0.5">ภาพรวมประสิทธิภาพงานซ่อมและติดตามอะไหล่ (<span id="chartBranchLabel" class="text-amber-500 font-bold">ทุกสาขา</span>)</p>
+                <h2 class="text-2xl font-black text-[#00320D] tracking-tight">Executive Dashboard</h2>
+                <p class="text-sm text-slate-500 font-bold mt-1">ภาพรวมประสิทธิภาพงานซ่อมและติดตามอะไหล่ (<span id="chartBranchLabel" class="text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">ทุกสาขา</span>)</p>
             </div>
-            <div class="flex items-center gap-2 text-sm font-bold text-slate-600 bg-white px-4 py-2 rounded-lg border shadow-sm">
-                <i class="fa-regular fa-calendar text-rizenic-green"></i> <span id="current_date_display"></span>
+            <div class="flex items-center gap-2 text-sm font-bold text-slate-700 bg-white px-5 py-2.5 rounded-xl border border-slate-200 shadow-sm">
+                <i class="fa-regular fa-clock text-rizenic-green"></i> วันที่ปัจจุบัน: <span id="current_date_display" class="text-[#00320D]"></span>
             </div>
         </div>
 
         <!-- 📊 1. การ์ดสรุปยอดด่วน -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="stat-card bg-gradient-to-br from-blue-50 to-white" onclick="openFilteredModal('arrived')">
-                <div><p class="text-[11px] font-black text-blue-800 uppercase tracking-widest"><i class="fa-solid fa-car-side"></i> ยอดรถเข้ารวม</p>
-                <h3 class="text-4xl font-black text-blue-700 mt-1" id="stat_arrived">0</h3></div>
-                <div class="text-blue-200 text-5xl opacity-50"><i class="fa-solid fa-right-to-bracket"></i></div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="stat-card bg-gradient-to-br from-blue-50 to-white border-blue-100" onclick="openFilteredModal('arrived')">
+                <div class="absolute -right-4 -bottom-4 text-blue-100 text-8xl opacity-40 rotate-12 transition-transform group-hover:scale-110"><i class="fa-solid fa-car-side"></i></div>
+                <div class="z-10">
+                    <p class="text-[11px] font-black text-blue-800 uppercase tracking-widest mb-1 opacity-80">ยอดรถเข้ารวม</p>
+                    <h3 class="text-4xl font-black text-blue-700" id="stat_arrived">0</h3>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xl shadow-sm z-10"><i class="fa-solid fa-arrow-right-to-bracket"></i></div>
             </div>
-            <div class="stat-card bg-gradient-to-br from-amber-50 to-white" onclick="openFilteredModal('finished')">
-                <div><p class="text-[11px] font-black text-amber-800 uppercase tracking-widest"><i class="fa-solid fa-hammer"></i> ยอดซ่อมเสร็จรวม</p>
-                <h3 class="text-4xl font-black text-amber-600 mt-1" id="stat_repaired">0</h3></div>
-                <div class="text-amber-200 text-5xl opacity-50"><i class="fa-solid fa-check"></i></div>
+            <div class="stat-card bg-gradient-to-br from-amber-50 to-white border-amber-100" onclick="openFilteredModal('finished')">
+                <div class="absolute -right-4 -bottom-4 text-amber-100 text-8xl opacity-40 rotate-12 transition-transform group-hover:scale-110"><i class="fa-solid fa-hammer"></i></div>
+                <div class="z-10">
+                    <p class="text-[11px] font-black text-amber-800 uppercase tracking-widest mb-1 opacity-80">ยอดซ่อมเสร็จรวม</p>
+                    <h3 class="text-4xl font-black text-amber-600" id="stat_repaired">0</h3>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-xl shadow-sm z-10"><i class="fa-solid fa-check"></i></div>
             </div>
-            <div class="stat-card bg-gradient-to-br from-emerald-50 to-white" onclick="openFilteredModal('delivered')">
-                <div><p class="text-[11px] font-black text-emerald-800 uppercase tracking-widest"><i class="fa-solid fa-check-double"></i> ยอดส่งมอบรวม</p>
-                <h3 class="text-4xl font-black text-emerald-600 mt-1" id="stat_delivered">0</h3></div>
-                <div class="text-emerald-200 text-5xl opacity-50"><i class="fa-solid fa-flag-checkered"></i></div>
+            <div class="stat-card bg-gradient-to-br from-emerald-50 to-white border-emerald-100" onclick="openFilteredModal('delivered')">
+                <div class="absolute -right-4 -bottom-4 text-emerald-100 text-8xl opacity-40 rotate-12 transition-transform group-hover:scale-110"><i class="fa-solid fa-flag-checkered"></i></div>
+                <div class="z-10">
+                    <p class="text-[11px] font-black text-emerald-800 uppercase tracking-widest mb-1 opacity-80">ยอดส่งมอบรวม</p>
+                    <h3 class="text-4xl font-black text-emerald-600" id="stat_delivered">0</h3>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl shadow-sm z-10"><i class="fa-solid fa-check-double"></i></div>
             </div>
-            <div class="stat-card bg-gradient-to-br from-purple-50 to-white" onclick="window.location.href='parts.html'">
-                <div><p class="text-[11px] font-black text-purple-800 uppercase tracking-widest"><i class="fa-solid fa-box-open"></i> อะไหล่ค้างสั่ง/ค้างรับ</p>
-                <h3 class="text-4xl font-black text-purple-600 mt-1" id="stat_backorder">0</h3></div>
-                <div class="text-purple-200 text-5xl opacity-50"><i class="fa-solid fa-boxes-stacked"></i></div>
+            <div class="stat-card bg-gradient-to-br from-purple-50 to-white border-purple-100" onclick="window.location.href='parts.html'">
+                <div class="absolute -right-4 -bottom-4 text-purple-100 text-8xl opacity-40 rotate-12 transition-transform group-hover:scale-110"><i class="fa-solid fa-box-open"></i></div>
+                <div class="z-10">
+                    <p class="text-[11px] font-black text-purple-800 uppercase tracking-widest mb-1 opacity-80">อะไหล่ค้างสั่ง/รับ</p>
+                    <h3 class="text-4xl font-black text-purple-600" id="stat_backorder">0</h3>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xl shadow-sm z-10"><i class="fa-solid fa-boxes-stacked"></i></div>
             </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- 📈 2. กราฟภาพรวมสถานะหลัก -->
             <div class="card-box lg:col-span-2">
-                <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
-                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-chart-simple text-blue-600"></i> ปริมาณรถจำแนกตามสถานะ (จากแอดมิน)</h3>
+                <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                    <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-chart-simple text-blue-600"></i> ปริมาณรถจำแนกตามสถานะ (ERP)</h3>
                 </div>
                 <div class="w-full h-[280px]"><canvas id="statusChart"></canvas></div>
             </div>
 
             <!-- 🍩 3. สัดส่วนประกันภัย -->
             <div class="card-box">
-                <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
-                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-shield-halved text-purple-500"></i> สัดส่วนประเภทลูกค้า</h3>
+                <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                    <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-shield-halved text-purple-500"></i> สัดส่วนประเภทลูกค้า</h3>
                 </div>
                 <div class="w-full h-[250px]"><canvas id="insuranceChart"></canvas></div>
             </div>
@@ -153,78 +174,71 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- 🍩 4. ภาพรวมบัญชี -->
-            <div class="card-box cursor-pointer hover:border-[#00320D] transition-colors shadow-sm hover:shadow-md" onclick="window.location.href='finance.html'">
-                <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
-                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-invoice-dollar text-[#00320D]"></i> ภาพรวมการออกบิล (บัญชี)</h3>
+            <div class="card-box cursor-pointer hover:border-[#00320D] transition-colors shadow-sm hover:shadow-lg" onclick="window.location.href='finance.html'">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-4">
+                    <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-invoice-dollar text-[#00320D]"></i> สถานะการออกบิล (บัญชี)</h3>
                 </div>
                 <div class="w-full h-[220px]"><canvas id="financeChart"></canvas></div>
             </div>
 
             <!-- 👥 5. ยอดงานรายบุคคล (SA) -->
             <div class="card-box">
-                <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
-                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-users-gear text-amber-600"></i> ยอดงานรายบุคคล (SA)</h3>
+                <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-4">
+                    <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-users-gear text-amber-600"></i> ยอดงานรายบุคคล (SA)</h3>
                 </div>
                 <div class="overflow-y-auto h-[220px] custom-scrollbar pr-2 space-y-3" id="sa_list_container"></div>
             </div>
 
             <!-- 🛠️ 6. จำนวนงานแต่ละสถานีช่าง -->
             <div class="card-box">
-                <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
-                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-wrench text-orange-500"></i> ปริมาณงานแยกตามสถานี</h3>
-                    <button onclick="window.location.href='repair.html'" class="text-[10px] bg-orange-50 text-orange-600 px-2 py-1 rounded font-bold hover:bg-orange-100 transition shadow-sm border border-orange-200"><i class="fa-solid fa-arrow-up-right-from-square"></i> ไปสถานีช่าง</button>
+                <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-4">
+                    <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-wrench text-orange-500"></i> ปริมาณงานแยกสถานีช่าง</h3>
+                    <button onclick="window.location.href='repair.html'" class="text-xs bg-orange-50 text-orange-600 px-3 py-1.5 rounded-lg font-bold hover:bg-orange-100 transition shadow-sm border border-orange-200 flex items-center gap-1"><i class="fa-solid fa-arrow-up-right-from-square"></i> ไปสถานี</button>
                 </div>
-                <div class="grid grid-cols-2 gap-2 h-[220px] overflow-y-auto custom-scrollbar pr-2" id="station_list_container">
+                <div class="grid grid-cols-2 gap-3 h-[220px] overflow-y-auto custom-scrollbar pr-2" id="station_list_container">
                     <!-- JS Injects Here -->
                 </div>
             </div>
         </div>
 
-        <!-- 📦 7. ตารางติดตามใบสั่งอะไหล่ (Parts Tracking) -->
-        <div class="card-box !p-0">
-            <div class="p-5 border-b border-slate-200 flex justify-between items-center bg-blue-50/50">
-                <h3 class="text-lg font-black text-blue-900 flex items-center gap-2"><i class="fa-solid fa-boxes-stacked text-blue-600"></i> แจ้งเตือนและติดตามสถานะใบสั่งอะไหล่ (Parts Tracking)</h3>
-                <button onclick="window.location.href='parts.html'" class="text-xs bg-white text-blue-600 px-3 py-1.5 rounded font-bold hover:bg-blue-100 transition shadow-sm border border-blue-200"><i class="fa-solid fa-arrow-up-right-from-square"></i> ไปแผนกอะไหล่</button>
+        <!-- 🗓️ 9. ปฏิทินปฏิบัติงาน (อัปเกรดความพรีเมียม) -->
+        <div class="card-box shadow-md border-t-4 border-[#00320D]">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-slate-200 pb-5">
+                <h3 class="text-xl font-black text-slate-800 flex items-center gap-3"><i class="fa-regular fa-calendar-days text-blue-600 bg-blue-50 p-2 rounded-lg"></i> แผนปฏิบัติงานประจำเดือน (Monthly View)</h3>
+                <div class="flex flex-wrap gap-4 text-xs font-bold px-4 py-2 bg-slate-50 rounded-xl border border-slate-200 shadow-inner">
+                    <div class="flex items-center gap-2"><div class="w-3.5 h-3.5 bg-gradient-to-t from-blue-600 to-blue-400 rounded-sm shadow-sm"></div> <span class="text-slate-600">เข้าจอด</span></div>
+                    <div class="flex items-center gap-2"><div class="w-3.5 h-3.5 bg-gradient-to-t from-amber-500 to-amber-300 rounded-sm shadow-sm"></div> <span class="text-slate-600">เป้าเสร็จ</span></div>
+                    <div class="flex items-center gap-2"><div class="w-3.5 h-3.5 bg-gradient-to-t from-emerald-500 to-emerald-300 rounded-sm shadow-sm"></div> <span class="text-slate-600">ส่งมอบ</span></div>
+                </div>
             </div>
-            <div class="overflow-x-auto h-[350px] custom-scrollbar">
-                <table class="excel-table w-full">
-                    <thead>
-                        <tr>
-                            <th class="w-32 text-center !bg-blue-900">สถานะอะไหล่</th>
-                            <th class="w-32 !bg-blue-900">ทะเบียนรถ</th>
-                            <th class="w-24 !bg-blue-900">SA</th>
-                            <th class="w-32 !bg-blue-900">หมายเลขอะไหล่</th>
-                            <th class="w-48 !bg-blue-900">รายการชิ้นส่วน</th>
-                            <th class="w-24 text-center !bg-blue-900">สั่ง / รับ</th>
-                            <th class="w-32 text-center !bg-blue-900">กำหนดของเข้า</th>
-                        </tr>
-                    </thead>
-                    <tbody id="parts_tracking_body">
-                        <!-- JS Injects Here -->
-                    </tbody>
-                </table>
+
+            <!-- 🌟 หัวตารางปฏิทินแบบสีเข้ม พรีเมียม -->
+            <div class="grid grid-cols-7 gap-3 text-center text-xs font-bold text-white uppercase tracking-widest mb-3 bg-[#00320D] rounded-xl py-3 shadow-md">
+                <div class="text-red-400">อาทิตย์</div><div>จันทร์</div><div>อังคาร</div><div>พุธ</div><div>พฤหัสฯ</div><div>ศุกร์</div><div class="text-blue-400">เสาร์</div>
             </div>
+            
+            <div id="calendar_grid" class="grid grid-cols-7 gap-3 min-h-[500px]"></div>
         </div>
 
-        <!-- 🚗 8. ตารางรถจอดซ่อม (อัปเกรดคอลัมน์) -->
-        <div class="card-box !p-0">
-            <div class="p-5 border-b border-slate-200 flex justify-between items-center bg-amber-50">
-                <h3 class="text-lg font-black text-[#00320D] flex items-center gap-2"><i class="fa-solid fa-car text-amber-500"></i> ตารางรถกำลังจอดซ่อม (ยังไม่ส่งมอบ)</h3>
+        <!-- 🚗 8. ตารางรถจอดซ่อม (อัปเกรดคอลัมน์สีเข้ม) -->
+        <div class="card-box !p-0 shadow-md">
+            <div class="p-6 border-b border-slate-200 flex justify-between items-center bg-amber-50/50">
+                <h3 class="text-lg font-black text-[#00320D] flex items-center gap-2"><i class="fa-solid fa-car text-amber-500 bg-amber-100 p-2 rounded-lg"></i> รายการรถกำลังจอดซ่อมในศูนย์ (ยัังไม่ส่งมอบ)</h3>
             </div>
-            <div class="overflow-x-auto h-[600px] custom-scrollbar">
+            <div class="overflow-x-auto h-[600px] custom-scrollbar p-0">
                 <table class="excel-table w-full">
                     <thead>
                         <tr>
-                            <th class="w-16 text-center !bg-[#00320D]">จอด (วัน)</th>
-                            <th class="w-28 !bg-[#00320D]">ทะเบียนรถ</th>
-                            <th class="w-40 !bg-[#00320D]">ยี่ห้อ / รุ่น</th>
-                            <th class="w-32 !bg-[#00320D]">ชื่อลูกค้า</th>
-                            <th class="w-32 !bg-[#00320D]">สถานีช่าง</th>
-                            <th class="w-24 text-center !bg-[#00320D]">เป้าซ่อมเสร็จ</th>
-                            <th class="w-24 text-center !bg-[#00320D]">เสร็จจริง</th>
-                            <th class="w-24 text-center !bg-[#00320D]">กำหนดส่งมอบ</th>
-                            <th class="w-40 !bg-[#00320D]">สถานะ (ERP)</th>
-                            <th class="w-20 text-center !bg-[#00320D]">จัดการ</th>
+                            <th class="w-16 text-center">จอด (วัน)</th>
+                            <th class="w-32">ทะเบียนรถ</th>
+                            <th class="w-40">ยี่ห้อ / รุ่น</th>
+                            <th class="w-40">ชื่อลูกค้า</th>
+                            <th class="w-32">สถานีช่างล่าสุด</th>
+                            <th class="w-24 text-center">เป้าซ่อมเสร็จ</th>
+                            <th class="w-24 text-center">เสร็จจริง</th>
+                            <th class="w-24 text-center">กำหนดส่งมอบ</th>
+                            <th class="w-40">สถานะหลัก (ERP)</th>
+                            <th class="w-20 text-center">จัดการ</th>
                         </tr>
                     </thead>
                     <tbody id="parked_cars_body">
@@ -234,48 +248,67 @@
             </div>
         </div>
 
-        <!-- 🗓️ 9. ปฏิทินปฏิบัติงาน (อัปเกรดแท่งแนวตั้ง) -->
-        <div class="card-box">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-slate-100 pb-4">
-                <h3 class="text-lg font-black text-slate-800 flex items-center gap-2"><i class="fa-regular fa-calendar-days text-blue-600"></i> ปฏิทินภาพรวม (เข้าจอด / เป้าเสร็จ / ส่งมอบ)</h3>
-                <div class="flex flex-wrap gap-4 text-xs font-bold px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200 shadow-inner">
-                    <div class="flex items-center gap-1.5"><div class="w-3 h-3 bg-blue-500 rounded-sm"></div> <span class="text-slate-600">เข้าจอด</span></div>
-                    <div class="flex items-center gap-1.5"><div class="w-3 h-3 bg-amber-500 rounded-sm"></div> <span class="text-slate-600">กำหนดเสร็จ</span></div>
-                    <div class="flex items-center gap-1.5"><div class="w-3 h-3 bg-emerald-500 rounded-sm"></div> <span class="text-slate-600">ส่งมอบ</span></div>
-                </div>
+        <!-- 📦 7. ตารางติดตามใบสั่งอะไหล่ (Parts Tracking) -->
+        <div class="card-box !p-0 shadow-md">
+            <div class="p-6 border-b border-slate-200 flex justify-between items-center bg-blue-50/50">
+                <h3 class="text-lg font-black text-blue-900 flex items-center gap-2"><i class="fa-solid fa-boxes-stacked text-blue-600 bg-blue-100 p-2 rounded-lg"></i> แจ้งเตือนและติดตามสถานะใบสั่งอะไหล่ (PO Tracking)</h3>
+                <button onclick="window.location.href='parts.html'" class="text-xs bg-white text-blue-600 px-4 py-2 rounded-lg font-bold hover:bg-blue-600 hover:text-white transition shadow-sm border border-blue-200 flex items-center gap-2"><i class="fa-solid fa-arrow-up-right-from-square"></i> ไปแผนกอะไหล่</button>
             </div>
-
-            <div class="grid grid-cols-7 gap-2 text-center text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 bg-slate-50 rounded-lg py-2 border border-slate-200">
-                <div>อาทิตย์</div><div>จันทร์</div><div>อังคาร</div><div>พุธ</div><div>พฤหัสฯ</div><div>ศุกร์</div><div>เสาร์</div>
+            <div class="overflow-x-auto h-[400px] custom-scrollbar p-0">
+                <table class="excel-table w-full">
+                    <thead>
+                        <tr>
+                            <th class="w-32 text-center !bg-blue-900 !border-blue-800">สถานะอะไหล่</th>
+                            <th class="w-32 !bg-blue-900 !border-blue-800">ทะเบียนรถ</th>
+                            <th class="w-24 !bg-blue-900 !border-blue-800">SA รับผิดชอบ</th>
+                            <th class="w-32 !bg-blue-900 !border-blue-800">หมายเลขอะไหล่</th>
+                            <th class="w-48 !bg-blue-900 !border-blue-800">รายการชิ้นส่วน</th>
+                            <th class="w-24 text-center !bg-blue-900 !border-blue-800">สั่ง / รับ</th>
+                            <th class="w-32 text-center !bg-blue-900 !border-blue-800">กำหนดของเข้า</th>
+                        </tr>
+                    </thead>
+                    <tbody id="parts_tracking_body">
+                        <!-- JS Injects Here -->
+                    </tbody>
+                </table>
             </div>
-            
-            <div id="calendar_grid" class="grid grid-cols-7 gap-2 min-h-[500px]"></div>
         </div>
 
     </main>
 
-    <!-- 🌟 Modal: แสดงรายการรถเมื่อคลิก (ดีไซน์ใหม่สวยงาม CI Green) 🌟 -->
-    <div id="jobListModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[120] flex items-center justify-center hidden p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden modal-fade border-t-4 border-[#00320D] flex flex-col max-h-[90vh]">
-            <div class="bg-[#00320D] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md z-10 relative">
-                <h2 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-list-ul text-amber-400"></i> รายการรถ | <span id="modal_status_name" class="text-amber-400 font-black tracking-wide"></span></h2>
-                <button onclick="closeModal('jobListModal')" class="hover:text-red-400 transition text-2xl"><i class="fa-solid fa-xmark"></i></button>
+    <!-- 🌟 Modal: แสดงรายการรถ (หัวตารางสีเข้ม) 🌟 -->
+    <div id="jobListModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden modal-fade border border-[#00320D] flex flex-col max-h-[90vh]">
+            <div class="bg-[#00320D] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md z-20 relative border-b-4 border-amber-500">
+                <h2 class="font-bold text-lg flex items-center gap-3"><div class="bg-white/10 p-1.5 rounded"><i class="fa-solid fa-list-ul text-amber-400"></i></div> รายการรถ | <span id="modal_status_name" class="text-amber-400 font-black tracking-wide"></span></h2>
+                <button onclick="closeModal('jobListModal')" class="hover:text-red-400 bg-white/5 hover:bg-red-500/20 w-8 h-8 rounded-full flex items-center justify-center transition-colors text-lg"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div class="flex-1 overflow-auto custom-scrollbar p-0 bg-slate-50">
-                <table class="excel-table w-full">
-                    <thead class="bg-slate-200 text-slate-700 text-xs uppercase sticky top-0 shadow-sm border-b border-slate-300">
+            <div class="flex-1 overflow-auto custom-scrollbar p-0 bg-slate-50 relative">
+                <table class="excel-table w-full border-none">
+                    <thead class="bg-[#00320D] text-white text-xs uppercase sticky top-0 shadow-sm border-b border-green-900">
                         <tr>
-                            <th class="px-5 py-3 !bg-slate-200 !text-slate-800">ทะเบียนรถ</th>
-                            <th class="px-5 py-3 !bg-slate-200 !text-slate-800">ยี่ห้อ/รุ่น</th>
-                            <th class="px-5 py-3 !bg-slate-200 !text-slate-800">ลูกค้า</th>
-                            <th class="px-5 py-3 !bg-slate-200 !text-slate-800">SA รับผิดชอบ</th>
-                            <th class="px-5 py-3 !bg-slate-200 !text-slate-800">สถานะ</th>
-                            <th class="px-5 py-3 !bg-slate-200 !text-slate-800 text-center">จัดการ</th>
+                            <th class="px-5 py-3 !border-x-0 !border-b-green-900">ทะเบียนรถ</th>
+                            <th class="px-5 py-3 !border-x-0 !border-b-green-900">ยี่ห้อ/รุ่น</th>
+                            <th class="px-5 py-3 !border-x-0 !border-b-green-900">ลูกค้า</th>
+                            <th class="px-5 py-3 !border-x-0 !border-b-green-900">SA รับผิดชอบ</th>
+                            <th class="px-5 py-3 !border-x-0 !border-b-green-900">สถานะ</th>
+                            <th class="px-5 py-3 !border-x-0 !border-b-green-900 text-center">จัดการ</th>
                         </tr>
                     </thead>
                     <tbody id="modal_job_table" class="text-sm divide-y divide-slate-200 bg-white"></tbody>
                 </table>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal 1: สำหรับ SA Status -->
+    <div id="saStatusModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[110] flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden modal-fade border border-[#00320D]">
+            <div class="bg-rizenic-green px-6 py-4 flex justify-between items-center text-white border-b-4 border-amber-500">
+                <h2 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-user-tie text-amber-400 bg-white/10 p-1.5 rounded"></i> สถานะงานของ SA: <span id="modal_sa_name" class="text-amber-400 font-black"></span></h2>
+                <button onclick="closeModal('saStatusModal')" class="hover:text-red-400 bg-white/5 hover:bg-red-500/20 w-8 h-8 rounded-full flex items-center justify-center transition-colors text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar bg-slate-50" id="sa_status_list"></div>
         </div>
     </div>
 
@@ -450,7 +483,7 @@
                 type: 'bar',
                 data: {
                     labels: labels.map(l => l.substring(3)), 
-                    datasets: [{ label: 'จำนวน (คัน)', data: data, backgroundColor: '#3b82f6', borderRadius: 4, barPercentage: 0.7 }]
+                    datasets: [{ label: 'จำนวน (คัน)', data: data, backgroundColor: '#00320D', borderRadius: 4, barPercentage: 0.6, hoverBackgroundColor: '#f59e0b' }]
                 },
                 options: { 
                     responsive: true, maintainAspectRatio: false, 
@@ -491,12 +524,12 @@
                 type: 'doughnut',
                 data: {
                     labels: ['ประกันภัย', 'เงินสด / อื่นๆ'],
-                    datasets: [{ data: [insCount, cashCount], backgroundColor: ['#a855f7', '#fbbf24'], borderWidth: 0, hoverOffset: 5 }]
+                    datasets: [{ data: [insCount, cashCount], backgroundColor: ['#a855f7', '#fbbf24'], borderWidth: 0, hoverOffset: 8 }]
                 },
                 options: {
-                    responsive: true, maintainAspectRatio: false, cutout: '60%',
+                    responsive: true, maintainAspectRatio: false, cutout: '65%',
                     plugins: { 
-                        legend: { position: 'bottom', labels: { font: { family: 'Kanit' } } },
+                        legend: { position: 'bottom', labels: { font: { family: 'Kanit', weight: 'bold' } } },
                         datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 14 } }
                     }
                 }
@@ -519,12 +552,12 @@
                 type: 'doughnut',
                 data: {
                     labels: ['ยังไม่ออกบิล (รอจัดการ)', 'ออกบิลแล้ว (จัดการแล้ว)'],
-                    datasets: [{ data: [unmanaged, managed], backgroundColor: ['#ef4444', '#10b981'], borderWidth: 0, hoverOffset: 5 }]
+                    datasets: [{ data: [unmanaged, managed], backgroundColor: ['#ef4444', '#10b981'], borderWidth: 0, hoverOffset: 8 }]
                 },
                 options: {
-                    responsive: true, maintainAspectRatio: false, cutout: '60%',
+                    responsive: true, maintainAspectRatio: false, cutout: '65%',
                     plugins: { 
-                        legend: { position: 'bottom', labels: { font: { family: 'Kanit' } } },
+                        legend: { position: 'bottom', labels: { font: { family: 'Kanit', weight: 'bold' } } },
                         datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 14 } }
                     }
                 }
@@ -542,12 +575,12 @@
             const sortedSAs = Object.keys(saCounts).sort((a, b) => saCounts[b] - saCounts[a]);
             const container = document.getElementById('sa_list_container');
             container.innerHTML = sortedSAs.map(sa => `
-                <div onclick="openSAModal('${sa}')" class="bg-white border border-slate-200 rounded-xl p-3 flex justify-between items-center cursor-pointer hover:border-amber-500 hover:shadow-md transition-all">
+                <div onclick="openSAModal('${sa}')" class="bg-slate-50 border border-slate-200 rounded-xl p-3 flex justify-between items-center cursor-pointer hover:border-amber-500 hover:shadow-md hover:bg-white transition-all">
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center font-black"><i class="fa-solid fa-user-tie"></i></div>
-                        <div><p class="text-sm font-bold text-slate-800">${sa}</p><p class="text-[10px] text-slate-400">คลิกดูคิวรถ</p></div>
+                        <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-black shadow-inner"><i class="fa-solid fa-user-tie"></i></div>
+                        <div><p class="text-sm font-bold text-slate-800">${sa}</p><p class="text-[10px] text-slate-500">คลิกดูคิวรถ</p></div>
                     </div>
-                    <div class="text-right"><span class="text-lg font-black text-amber-600">${saCounts[sa]}</span> <span class="text-xs text-slate-500">คัน</span></div>
+                    <div class="text-right"><span class="text-lg font-black text-amber-600">${saCounts[sa]}</span> <span class="text-xs text-slate-500 font-bold">คัน</span></div>
                 </div>
             `).join('');
         }
@@ -586,9 +619,9 @@
 
             const container = document.getElementById('station_list_container');
             container.innerHTML = Object.keys(stCounts).map(st => `
-                <div onclick="openStationModal('${st}')" class="bg-white border border-slate-200 rounded-lg p-2.5 flex justify-between items-center cursor-pointer hover:border-orange-500 hover:shadow transition-all group">
-                    <span class="text-[11px] font-bold text-slate-700 group-hover:text-orange-600 transition-colors truncate" title="${st}">${st.replace(/[0-9.]/g, '')}</span>
-                    <span class="bg-orange-100 text-orange-800 px-2 py-0.5 rounded text-[10px] font-black shadow-sm">${stCounts[st]}</span>
+                <div onclick="openStationModal('${st}')" class="bg-slate-50 border border-slate-200 rounded-xl p-3 flex justify-between items-center cursor-pointer hover:border-orange-500 hover:shadow hover:bg-white transition-all group">
+                    <span class="text-xs font-bold text-slate-700 group-hover:text-orange-600 transition-colors truncate" title="${st}">${st.replace(/[0-9.]/g, '')}</span>
+                    <span class="bg-orange-100 text-orange-800 px-2 py-0.5 rounded border border-orange-200 text-xs font-black shadow-sm">${stCounts[st]}</span>
                 </div>
             `).join('');
         }
@@ -604,7 +637,7 @@
         function renderPartsTracking() {
             const tbody = document.getElementById('parts_tracking_body');
             if (filteredPartOrders.length === 0) { 
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-400 font-bold">ไม่มีรายการใบสั่งอะไหล่ 🎉</td></tr>`; 
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-400 font-bold bg-slate-50">ไม่มีรายการใบสั่งอะไหล่ 🎉</td></tr>`; 
                 return; 
             }
 
@@ -612,20 +645,20 @@
 
             tbody.innerHTML = sortedParts.map(o => {
                 const isComplete = o.order_status === 'อะไหล่มาครบแล้ว' || o.order_status === 'อะไหล่ครบ';
-                const statusBadge = isComplete ? 'bg-green-100 text-green-700 border-green-300' : (o.order_status === 'รอสั่งซื้อ' || o.order_status === 'รออะไหล่' || o.order_status === 'ติด Back Order' ? 'bg-red-100 text-red-700 border-red-300 animate-pulse' : 'bg-amber-100 text-amber-700 border-amber-300');
+                const statusBadge = isComplete ? 'bg-emerald-100 text-emerald-800 border-emerald-400 font-black' : (o.order_status === 'รอสั่งซื้อ' || o.order_status === 'รออะไหล่' || o.order_status === 'ติด Back Order' ? 'bg-red-100 text-red-800 border-red-400 font-black animate-pulse' : 'bg-amber-100 text-amber-800 border-amber-400 font-bold');
                 
                 const jobMatch = allJobs.find(j => j.car_plate === o.car_plate);
                 const saName = jobMatch ? (jobMatch.sa_owner || 'ไม่ระบุ') : 'ไม่ระบุ';
 
                 return `
-                    <tr class="hover:bg-slate-50 transition cursor-pointer" onclick="window.location.href='parts.html'">
-                        <td class="text-center"><span class="px-2 py-0.5 rounded font-bold border text-[10px] shadow-sm ${statusBadge}">${o.order_status || 'รออัปเดต'}</span></td>
-                        <td class="font-black text-[#00320D]"><span class="bg-slate-100 border border-slate-200 px-2 py-0.5 rounded font-mono text-xs">${o.car_plate || '-'}</span></td>
-                        <td class="text-xs font-bold text-slate-600">${saName}</td>
+                    <tr class="cursor-pointer" onclick="window.location.href='parts.html'">
+                        <td class="text-center"><span class="px-2.5 py-1 rounded-lg border text-[10px] shadow-sm ${statusBadge}">${o.order_status || 'รออัปเดต'}</span></td>
+                        <td class="font-black text-[#00320D]"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded text-xs shadow-inner">${o.car_plate || '-'}</span></td>
+                        <td class="text-xs font-bold text-slate-700">${saName}</td>
                         <td class="font-mono font-bold text-blue-700 text-xs">${o.part_no || '-'}</td>
                         <td class="text-xs font-bold text-slate-700 truncate max-w-[200px]" title="${o.part_name || '-'}">${o.part_name || '-'}</td>
-                        <td class="text-center text-xs"><span class="text-amber-600 font-bold">${o.qty_ordered}</span> / <span class="text-green-600 font-bold">${o.qty_received || 0}</span></td>
-                        <td class="text-center font-mono text-[11px] text-slate-500 font-bold">${o.est_arrival_date ? o.est_arrival_date.split('T')[0] : '-'}</td>
+                        <td class="text-center text-xs"><span class="text-amber-600 font-black">${o.qty_ordered}</span> <span class="text-slate-400 mx-1">/</span> <span class="text-emerald-600 font-black">${o.qty_received || 0}</span></td>
+                        <td class="text-center font-mono text-xs text-slate-500 font-bold">${o.est_arrival_date ? o.est_arrival_date.split('T')[0] : '-'}</td>
                     </tr>
                 `;
             }).join('');
@@ -637,7 +670,7 @@
             const parkedCars = filteredJobs.filter(j => j.arrived_date && j.job_status !== '12.ส่งมอบแล้ว');
             
             if(parkedCars.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="10" class="text-center py-10 text-slate-400 font-bold">ไม่มีรถจอดซ่อมในศูนย์ขณะนี้ 🎉</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="10" class="text-center py-10 text-slate-400 font-bold bg-slate-50">ไม่มีรถจอดซ่อมในศูนย์ขณะนี้ 🎉</td></tr>`;
                 return;
             }
 
@@ -651,7 +684,7 @@
                 const diffTime = Math.abs(today - arrDate);
                 const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
                 
-                let dayBadge = diffDays > 14 ? 'bg-red-100 text-red-700 border-red-300 animate-pulse' : (diffDays > 7 ? 'bg-amber-100 text-amber-700 border-amber-300' : 'bg-slate-100 text-slate-700 border-slate-300');
+                let dayBadge = diffDays > 14 ? 'bg-red-100 text-red-700 border-red-400 font-black shadow-sm animate-pulse' : (diffDays > 7 ? 'bg-amber-100 text-amber-700 border-amber-400 font-bold shadow-sm' : 'bg-slate-100 text-slate-700 border-slate-300 font-bold shadow-sm');
                 
                 const target = j.target_finish_date ? j.target_finish_date.split('T')[0] : '-';
                 const actual = j.repair_finish_date ? j.repair_finish_date.split('T')[0] : '-';
@@ -660,31 +693,30 @@
 
                 return `
                     <tr class="cursor-pointer" onclick="editJobFromDashboard('${j.id}')">
-                        <td class="text-center"><span class="px-3 py-1 rounded-full font-black border shadow-sm ${dayBadge}">${diffDays}</span></td>
-                        <td class="font-black text-amber-700"><span class="bg-amber-50 px-2 py-0.5 rounded border border-amber-200">${j.car_plate || '-'}</span></td>
-                        <td class="font-bold text-slate-700">${j.car_brand} ${j.car_model || ''}</td>
-                        <td class="truncate max-w-[150px]" title="${j.customer_name}">${j.customer_name || '-'}</td>
-                        <td class="font-bold text-orange-600 text-[11px]"><i class="fa-solid fa-wrench"></i> ${station}</td>
+                        <td class="text-center"><span class="px-3 py-1 rounded-lg border ${dayBadge}">${diffDays}</span></td>
+                        <td class="font-black text-amber-700"><span class="bg-amber-50 px-2.5 py-1 rounded border border-amber-300 shadow-inner">${j.car_plate || '-'}</span></td>
+                        <td class="font-bold text-slate-800">${j.car_brand} ${j.car_model || ''}</td>
+                        <td class="truncate max-w-[150px] font-medium text-slate-700" title="${j.customer_name}">${j.customer_name || '-'}</td>
+                        <td class="font-bold text-orange-600 text-xs"><i class="fa-solid fa-wrench"></i> ${station}</td>
                         <td class="font-mono text-xs text-blue-600 text-center font-bold">${target}</td>
                         <td class="font-mono text-xs text-emerald-600 text-center font-bold">${actual}</td>
                         <td class="font-mono text-xs text-purple-600 text-center font-bold">${delivery}</td>
-                        <td class="font-bold text-slate-600 text-[11px]"><i class="fa-solid fa-tag text-slate-400 mr-1"></i> ${j.job_status || '-'}</td>
-                        <td class="text-center"><button class="bg-[#00320D] text-white px-3 py-1 rounded text-xs hover:bg-black transition shadow-sm"><i class="fa-solid fa-pen"></i> ดูข้อมูล</button></td>
+                        <td class="font-bold text-slate-600 text-[11px]"><span class="bg-slate-100 border border-slate-200 px-2 py-1 rounded shadow-sm">${j.job_status || '-'}</span></td>
+                        <td class="text-center"><button class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full"><i class="fa-solid fa-pen"></i> ดูข้อมูล</button></td>
                     </tr>
                 `;
             }).join('');
         }
 
-        // ================= 🗓️ 9. ปฏิทินแบบกราฟแท่งแนวตั้ง =================
+        // ================= 🗓️ 9. ปฏิทินแบบกราฟแท่ง (Premium Style) =================
         function renderCalendar(fMonth, fYear) {
             const grid = document.getElementById('calendar_grid'); grid.innerHTML = '';
             
-            const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
             const m = parseInt(fMonth) - 1;
             const y = parseInt(fYear);
             
             if(isNaN(m) || isNaN(y)) {
-                grid.innerHTML = `<div class="col-span-7 text-center py-10 text-slate-400 font-bold">กรุณาเลือกเดือนและปีบนหัวตารางให้ครบถ้วนครับ</div>`;
+                grid.innerHTML = `<div class="col-span-7 text-center py-10 text-slate-400 font-bold bg-slate-50 rounded-xl">กรุณาเลือกเดือนและปีบนหัวตารางให้ครบถ้วนครับ</div>`;
                 return;
             }
 
@@ -704,49 +736,49 @@
                 daysData.push({ day, dateStr, arrJobs: arrived, tarJobs: target, delJobs: delivery });
             }
 
-            for(let i = 0; i < firstDay; i++) { grid.innerHTML += `<div class="bg-transparent rounded-xl border border-transparent"></div>`; }
+            for(let i = 0; i < firstDay; i++) { grid.innerHTML += `<div class="bg-slate-50/50 rounded-xl border border-transparent"></div>`; }
 
             daysData.forEach(d => {
                 const arrCount = d.arrJobs.length; const tarCount = d.tarJobs.length; const delCount = d.delJobs.length;
                 let barBlock = '';
                 
                 if(arrCount > 0 || tarCount > 0 || delCount > 0) {
-                    barBlock = `<div class="flex items-end justify-center gap-1.5 w-full h-[60px] mt-auto pb-1">`;
+                    barBlock = `<div class="flex items-end justify-center gap-2 w-full h-[65px] mt-auto pb-1">`;
                     if(arrCount > 0) {
                         const h = Math.max(25, (arrCount / maxCount) * 100);
                         barBlock += `
-                        <div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-4" onclick="openJobListModalCalendar('${d.dateStr}', 'arrived')" title="รถเข้าจอด: ${arrCount} คัน">
-                            <span class="text-[9px] font-bold text-blue-500 mb-0.5 z-10">${arrCount}</span>
-                            <div class="w-3 bg-blue-500 rounded-t-sm transition-all group-hover/bar:bg-blue-400 group-hover/bar:w-3.5 shadow-sm" style="height: ${h}%;"></div>
+                        <div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[18px]" onclick="openJobListModalCalendar('${d.dateStr}', 'arrived')" title="รถเข้าจอด: ${arrCount} คัน">
+                            <span class="text-[10px] font-black text-blue-600 mb-1 z-10 bg-white/80 rounded-full w-4 h-4 flex items-center justify-center shadow-sm opacity-0 group-hover/bar:opacity-100 transition-opacity">${arrCount}</span>
+                            <div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-blue-700/20" style="height: ${h}%;"></div>
                         </div>`;
                     }
                     if(tarCount > 0) {
                         const h = Math.max(25, (tarCount / maxCount) * 100);
                         barBlock += `
-                        <div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-4" onclick="openJobListModalCalendar('${d.dateStr}', 'target')" title="เป้าซ่อมเสร็จ: ${tarCount} คัน">
-                            <span class="text-[9px] font-bold text-amber-500 mb-0.5 z-10">${tarCount}</span>
-                            <div class="w-3 bg-amber-500 rounded-t-sm transition-all group-hover/bar:bg-amber-400 group-hover/bar:w-3.5 shadow-sm" style="height: ${h}%;"></div>
+                        <div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[18px]" onclick="openJobListModalCalendar('${d.dateStr}', 'target')" title="เป้าซ่อมเสร็จ: ${tarCount} คัน">
+                            <span class="text-[10px] font-black text-amber-600 mb-1 z-10 bg-white/80 rounded-full w-4 h-4 flex items-center justify-center shadow-sm opacity-0 group-hover/bar:opacity-100 transition-opacity">${tarCount}</span>
+                            <div class="w-full bg-gradient-to-t from-amber-500 to-amber-300 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-amber-600/20" style="height: ${h}%;"></div>
                         </div>`;
                     }
                     if(delCount > 0) {
                         const h = Math.max(25, (delCount / maxCount) * 100);
                         barBlock += `
-                        <div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-4" onclick="openJobListModalCalendar('${d.dateStr}', 'delivery')" title="นัดส่งมอบ: ${delCount} คัน">
-                            <span class="text-[9px] font-bold text-emerald-500 mb-0.5 z-10">${delCount}</span>
-                            <div class="w-3 bg-emerald-500 rounded-t-sm transition-all group-hover/bar:bg-emerald-400 group-hover/bar:w-3.5 shadow-sm" style="height: ${h}%;"></div>
+                        <div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[18px]" onclick="openJobListModalCalendar('${d.dateStr}', 'delivery')" title="นัดส่งมอบ: ${delCount} คัน">
+                            <span class="text-[10px] font-black text-emerald-600 mb-1 z-10 bg-white/80 rounded-full w-4 h-4 flex items-center justify-center shadow-sm opacity-0 group-hover/bar:opacity-100 transition-opacity">${delCount}</span>
+                            <div class="w-full bg-gradient-to-t from-emerald-500 to-emerald-300 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-emerald-600/20" style="height: ${h}%;"></div>
                         </div>`;
                     }
                     barBlock += `</div>`;
                 } else {
-                    barBlock = `<div class="flex items-center justify-center h-[60px] w-full mt-auto"><span class="text-[10px] font-semibold text-slate-400">ว่าง</span></div>`;
+                    barBlock = `<div class="flex items-center justify-center h-[65px] w-full mt-auto"><span class="text-[10px] font-bold text-slate-300">ว่าง</span></div>`;
                 }
 
                 const todayStr = new Date().toISOString().split('T')[0];
                 const isToday = d.dateStr === todayStr;
 
                 grid.innerHTML += `
-                    <div class="calendar-cell ${isToday ? 'border-amber-400 shadow-md bg-amber-50/20' : ''}">
-                        <span class="text-xs font-black ${isToday ? 'text-amber-600 bg-amber-100 px-2 py-0.5 rounded' : 'text-slate-400'} font-mono mb-2 self-start">${d.day}</span>
+                    <div class="calendar-cell ${isToday ? 'today' : ''}">
+                        <span class="calendar-day-label">${d.day}</span>
                         <div class="flex-1 flex flex-col justify-end w-full">${barBlock}</div>
                     </div>
                 `;
@@ -759,12 +791,12 @@
             else if(type === 'target') { typeLabel = "กำหนดเสร็จ"; jobsToShow = filteredJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr); }
             else if(type === 'delivery') { typeLabel = "วันส่งมอบ"; jobsToShow = filteredJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr); }
 
-            document.getElementById('modal_status_name').innerText = `วันที่ ${dateStr} (${typeLabel})`;
+            document.getElementById('modal_status_name').innerText = `วันที่ ${new Date(dateStr).toLocaleDateString('th-TH')} (${typeLabel})`;
             renderJobTableInModal(jobsToShow);
             document.getElementById('jobListModal').classList.remove('hidden');
         }
 
-        // ================= 📝 Modal Table Renderer (ดีไซน์ใหม่) =================
+        // ================= 📝 Modal Table Renderer =================
         function renderJobTableInModal(jobs) {
             const tbody = document.getElementById('modal_job_table');
             if (jobs.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-500 font-bold">ไม่มีข้อมูล</td></tr>`; return; }
@@ -772,13 +804,13 @@
             tbody.innerHTML = jobs.map(j => {
                 const saName = j.sa_owner || 'ไม่ระบุ';
                 return `
-                    <tr class="hover:bg-green-50/50 transition cursor-pointer border-b border-slate-100" onclick="editJobFromDashboard('${j.id}')">
-                        <td class="px-4 py-3"><span class="bg-[#00320D] text-white px-2 py-1 rounded font-mono text-xs shadow-sm">${j.car_plate || '-'}</span></td>
-                        <td class="px-4 py-3 font-semibold text-slate-800">${j.car_brand} ${j.car_model || ''}</td>
-                        <td class="px-4 py-3 text-slate-600 truncate max-w-[150px]" title="${j.customer_name}">${j.customer_name || '-'}</td>
-                        <td class="px-4 py-3 font-bold text-amber-600 text-xs"><i class="fa-solid fa-user-tie"></i> ${saName}</td>
-                        <td class="px-4 py-3 text-[11px] font-bold text-slate-700"><span class="bg-slate-100 px-2 py-1 rounded border">${j.job_status || '-'}</span></td>
-                        <td class="px-4 py-3 text-center"><button class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full"><i class="fa-solid fa-pen"></i> เปิด</button></td>
+                    <tr class="hover:bg-emerald-50/50 transition cursor-pointer" onclick="editJobFromDashboard('${j.id}')">
+                        <td class="px-5 py-3 font-bold text-[#00320D]"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded font-mono text-xs shadow-inner mr-1">${j.car_plate || '-'}</span></td>
+                        <td class="px-5 py-3 font-bold text-slate-800">${j.car_brand} <span class="text-slate-500 font-medium">${j.car_model || ''}</span></td>
+                        <td class="px-5 py-3 text-slate-700 font-medium truncate max-w-[150px]" title="${j.customer_name}">${j.customer_name || '-'}</td>
+                        <td class="px-5 py-3 font-bold text-amber-600 text-xs"><i class="fa-solid fa-user-tie"></i> ${saName}</td>
+                        <td class="px-5 py-3 text-[11px] font-bold text-slate-700"><span class="bg-slate-100 px-2.5 py-1 rounded-lg border shadow-sm">${j.job_status || '-'}</span></td>
+                        <td class="px-5 py-3 text-center"><button class="bg-[#00320D] text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full"><i class="fa-solid fa-pen"></i> เปิดใบงาน</button></td>
                     </tr>
                 `;
             }).join('');
