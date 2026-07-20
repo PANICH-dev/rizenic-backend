@@ -188,53 +188,115 @@ app.delete('/api/customer-types/:id', async (req, res) => {
 });
 
 // ==========================================
-// ⚙️ API Masters อะไหล่ (rizenicpartsmaster)
+// ⚙️ API Masters อะไหล่ (แยกตาราง Master & Location ตามสาขา)
 // ==========================================
+
+// ดึงข้อมูลอะไหล่ทั้งหมด (รวม Location ตามสาขาที่ร้องขอ)
 app.get('/api/parts', async (req, res) => {
-  try { res.json((await pool.query('SELECT * FROM rizenicpartsmaster ORDER BY part_name ASC')).rows); } 
-  catch (e) { res.status(500).json({ error: e.message }); }
+  try {
+    const branch = req.query.branch || 'สำนักงานใหญ่';
+    const queryText = `
+      SELECT m.*, l.location, l.safety_stock
+      FROM rizenicpartsmaster m
+      LEFT JOIN rizenic_part_locations l ON m.part_no = l.part_no AND l.branch_name = $1
+      ORDER BY m.part_name ASC
+    `;
+    const result = await pool.query(queryText, [branch]);
+    res.json(result.rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// เช็กบาร์โค้ดอะไหล่ (ดึง Location ตามสาขา)
 app.get('/api/parts/check/:part_no', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM rizenicpartsmaster WHERE part_no = $1 LIMIT 1', [req.params.part_no]);
+    const branch = req.query.branch || 'สำนักงานใหญ่';
+    const queryText = `
+      SELECT m.*, l.location, l.safety_stock 
+      FROM rizenicpartsmaster m 
+      LEFT JOIN rizenic_part_locations l ON m.part_no = l.part_no AND l.branch_name = $2
+      WHERE m.part_no = $1 LIMIT 1
+    `;
+    const result = await pool.query(queryText, [req.params.part_no, branch]);
     res.json(result.rows[0] || null); 
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// บันทึก/อัปเดตอะไหล่ใหม่ (บันทึกลง 2 ตารางพร้อมกัน)
 app.post('/api/parts', async (req, res) => {
+  const client = await pool.connect();
   try {
-    const { part_main_no, part_no, part_name, car_model, part_category, unit_price, location, safety_stock } = req.body;
-    const queryText = `
-      INSERT INTO rizenicpartsmaster (part_main_no, part_no, part_name, car_model, part_category, unit_price, location, safety_stock) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    const { part_main_no, part_no, part_name, car_model, part_category, unit_price, location, safety_stock, branch_name } = req.body;
+    const branch = branch_name || 'สำนักงานใหญ่';
+
+    await client.query('BEGIN'); // เริ่มคุ้มครองข้อมูล
+    
+    // 1. ลงตาราง Master
+    const masterSql = `
+      INSERT INTO rizenicpartsmaster (part_main_no, part_no, part_name, car_model, part_category, unit_price) 
+      VALUES ($1, $2, $3, $4, $5, $6)
       ON CONFLICT (part_no) DO UPDATE 
-      SET part_name = $3, car_model = $4, part_category = $5, unit_price = $6, location = $7, safety_stock = $8;
+      SET part_name = $3, car_model = $4, part_category = $5, unit_price = $6;
     `;
-    await pool.query(queryText, [
-      part_main_no || null, part_no, part_name, car_model || null, part_category || 'อะไหล่รอง', 
-      parseFloat(unit_price) || 0.00, location || null, parseInt(safety_stock) || 0
-    ]);
+    await client.query(masterSql, [part_main_no || null, part_no, part_name, car_model || null, part_category || 'อะไหล่ทั่วไป', parseFloat(unit_price) || 0.00]);
+
+    // 2. ลงตาราง Location เฉพาะสาขานั้นๆ
+    const locSql = `
+      INSERT INTO rizenic_part_locations (part_no, branch_name, location, safety_stock)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (part_no, branch_name) DO UPDATE
+      SET location = $3, safety_stock = $4;
+    `;
+    await client.query(locSql, [part_no, branch, location || null, parseInt(safety_stock) || 0]);
+
+    await client.query('COMMIT'); // บันทึกสำเร็จ
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { 
+    await client.query('ROLLBACK'); // พังตรงไหน ย้อนกลับทั้งหมด
+    res.status(500).json({ error: e.message }); 
+  } finally {
+    client.release();
+  }
 });
 
 app.put('/api/parts/:id', async (req, res) => {
+  const client = await pool.connect();
   try {
-    const { part_main_no, part_no, part_name, car_model, part_category, unit_price, location, safety_stock } = req.body;
-    const queryText = `
+    const { part_main_no, part_no, part_name, car_model, part_category, unit_price, location, safety_stock, branch_name } = req.body;
+    const branch = branch_name || 'สำนักงานใหญ่';
+
+    await client.query('BEGIN');
+    
+    const masterSql = `
       UPDATE rizenicpartsmaster SET 
-      part_main_no=$1, part_no=$2, part_name=$3, car_model=$4, part_category=$5, unit_price=$6, location=$7, safety_stock=$8 
-      WHERE part_id=$9;
+      part_main_no=$1, part_no=$2, part_name=$3, car_model=$4, part_category=$5, unit_price=$6 
+      WHERE part_id=$7;
     `;
-    await pool.query(queryText, [part_main_no || null, part_no, part_name, car_model || null, part_category, parseFloat(unit_price) || 0.00, location || null, parseInt(safety_stock) || 0, req.params.id]);
+    await client.query(masterSql, [part_main_no || null, part_no, part_name, car_model || null, part_category, parseFloat(unit_price) || 0.00, req.params.id]);
+
+    const locSql = `
+      INSERT INTO rizenic_part_locations (part_no, branch_name, location, safety_stock)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (part_no, branch_name) DO UPDATE
+      SET location = $3, safety_stock = $4;
+    `;
+    await client.query(locSql, [part_no, branch, location || null, parseInt(safety_stock) || 0]);
+
+    await client.query('COMMIT');
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { 
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: e.message }); 
+  } finally {
+    client.release();
+  }
 });
 
 app.delete('/api/parts/:id', async (req, res) => {
-  try { await pool.query('DELETE FROM rizenicpartsmaster WHERE part_id = $1', [req.params.id]); res.json({ success: true }); } 
-  catch (e) { res.status(500).json({ error: e.message }); }
+  try { 
+    await pool.query('DELETE FROM rizenicpartsmaster WHERE part_id = $1', [req.params.id]); 
+    // หมายเหตุ: ใช้ลบแค่ Master ข้อมูล Location จะถือเป็น Orphan ซึ่งเก็บไว้ดูประวัติได้ หรือจะสั่ง CASCADE ภายหลังก็ได้ครับ
+    res.json({ success: true }); 
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ==========================================
