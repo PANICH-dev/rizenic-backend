@@ -1137,7 +1137,7 @@ async function loadCarModelsGrid() {
             } catch(e) { showToast('เกิดข้อผิดพลาดเบิก/จอง', 'error'); }
         }
 
-        async function saveMasterPart() {
+  async function saveMasterPart() {
     const checkedModels = Array.from(document.querySelectorAll('.master-car-model-checkbox:checked')).map(cb => cb.value);
     const editId = document.getElementById('edit_master_id').value;
     const method = editId ? 'PUT' : 'POST'; const url = editId ? `${API_BASE_URL}/api/parts/${editId}` : `${API_BASE_URL}/api/parts`;
@@ -1146,13 +1146,25 @@ async function loadCarModelsGrid() {
         part_category: document.getElementById('master_category').value, part_name: document.getElementById('master_part_name').value,
         car_model: checkedModels.join(', ') || null, location: document.getElementById('master_location').value,
         safety_stock: parseInt(document.getElementById('master_safety').value) || 0, unit_price: parseFloat(document.getElementById('master_price').value) || 0.00,
-        branch_name: currentBranch // 🎯 เพิ่มตัวแปรสาขาตรงนี้
+        branch_name: currentBranch 
     };
     try {
         const res = await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-        if(!res.ok) throw new Error(); showToast('บันทึกมาสเตอร์สำเร็จ!'); closeMasterModal(); loadAllData();
-    } catch(e) { showToast('บันทึกไม่สำเร็จ', 'error'); }
+        
+        // 🎯 ถ้าเซิร์ฟเวอร์ตอบกลับว่ามี Error ให้ดึงข้อความ Error จริงๆ ออกมา
+        if(!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.error || 'Unknown Error');
+        }
+        
+        showToast('บันทึกมาสเตอร์สำเร็จ!'); closeMasterModal(); loadAllData();
+    } catch(e) { 
+        // 🎯 สั่งให้ Alert ฟ้องสาเหตุตรงๆ เลยว่าฐานข้อมูลติดปัญหาอะไร
+        alert('🚨 สาเหตุที่บันทึกไม่ได้:\n' + e.message);
+        showToast('บันทึกไม่สำเร็จ', 'error'); 
+    }
 }
+
 
         async function deleteRow(endpoint) {
             if(confirm('🚨 ยืนยันการลบข้อมูลรายการนี้แบบถาวร?')) {
