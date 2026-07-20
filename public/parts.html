@@ -828,26 +828,44 @@
         function closeOutboundModal() { const m = document.getElementById('outboundModal'); m.classList.add('hidden'); m.classList.remove('flex'); }
 
         function openMasterModal(partNo = null) {
-            document.getElementById('master_part_main').value = ''; document.getElementById('master_part_no').value = '';
-            document.getElementById('master_part_name').value = ''; document.getElementById('master_location').value = '';
-            document.getElementById('master_price').value = '0.00'; document.getElementById('master_safety').value = '0';
-            document.querySelectorAll('.master-car-model-checkbox').forEach(cb => cb.checked = false);
-            if(partNo) {
-                const part = allMasterPartsData.find(p => p.part_no === partNo);
-                if(part) {
-                    document.getElementById('master_part_no').value = part.part_no; document.getElementById('master_part_name').value = part.part_name;
-                    document.getElementById('master_part_main').value = part.part_main_no || ''; document.getElementById('master_category').value = part.part_category || 'อะไหล่หลัก';
-                    document.getElementById('master_price').value = part.unit_price || 0; document.getElementById('master_location').value = part.location || '';
-                    document.getElementById('master_safety').value = part.safety_stock || 0; document.getElementById('edit_master_id').value = part.part_id;
-                    if(part.car_model) {
-                        const savedModels = part.car_model.split(',').map(m => m.trim());
-                        document.querySelectorAll('.master-car-model-checkbox').forEach(cb => { if(savedModels.includes(cb.value)) cb.checked = true; });
-                    }
-                }
-            } else { document.getElementById('edit_master_id').value = ''; }
-            const m = document.getElementById('masterModal'); m.classList.remove('hidden'); m.classList.add('flex');
+    document.getElementById('master_part_main').value = ''; document.getElementById('master_part_no').value = '';
+    document.getElementById('master_part_name').value = ''; document.getElementById('master_location').value = '';
+    document.getElementById('master_price').value = '0.00'; document.getElementById('master_safety').value = '0';
+    
+    // 🎯 ล้างค่าติ๊กถูกออกให้หมดก่อนเคลียร์หน้าจอ
+    document.querySelectorAll('.master-car-model-checkbox').forEach(cb => cb.checked = false);
+    
+    if(partNo) {
+        // กรณีแก้ไขอะไหล่เดิม
+        const part = allMasterPartsData.find(p => p.part_no === partNo);
+        if(part) {
+            document.getElementById('master_part_no').value = part.part_no; document.getElementById('master_part_name').value = part.part_name;
+            document.getElementById('master_part_main').value = part.part_main_no || ''; document.getElementById('master_category').value = part.part_category || 'อะไหล่หลัก';
+            document.getElementById('master_price').value = part.unit_price || 0; document.getElementById('master_location').value = part.location || '';
+            document.getElementById('master_safety').value = part.safety_stock || 0; document.getElementById('edit_master_id').value = part.part_id;
+            
+            // ดึงข้อมูลเก่ามาติ๊กถูกให้
+            if(part.car_model) {
+                const savedModels = part.car_model.split(',').map(m => m.trim());
+                document.querySelectorAll('.master-car-model-checkbox').forEach(cb => { 
+                    if(savedModels.includes(cb.value)) cb.checked = true; 
+                });
+            }
         }
-        function closeMasterModal() { const m = document.getElementById('masterModal'); m.classList.add('hidden'); m.classList.remove('flex'); }
+    } else { 
+        // 🎯 กรณีเปิดหน้าต่าง "เพิ่มอะไหล่ใหม่"
+        document.getElementById('edit_master_id').value = ''; 
+        
+        // สั่งให้ติ๊กรุ่นรถที่เป็น TESLA รอไว้ให้เลย!
+        document.querySelectorAll('.master-car-model-checkbox').forEach(cb => {
+            const brand = cb.getAttribute('data-brand') || '';
+            if(brand.toUpperCase() === 'TESLA') {
+                cb.checked = true;
+            }
+        });
+    }
+    const m = document.getElementById('masterModal'); m.classList.remove('hidden'); m.classList.add('flex');
+}
 
         // ================= RENDERING TABLES CONTENT =================
         function loadSAOrders() {
@@ -1037,7 +1055,42 @@
         });
     } catch(e){}
 }
+// 🎯 ฟังก์ชันโหลดรายชื่อรุ่นรถมาสร้างเป็น Checkbox
+async function loadCarModelsGrid() {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/car-models`);
+        if (!res.ok) throw new Error('Failed to load car models');
+        allCarModelsFromDB = await res.json();
+        
+        // จัดกลุ่มตามยี่ห้อรถ (Brand)
+        const grouped = {};
+        allCarModelsFromDB.forEach(item => {
+            const brand = item.car_brand || 'ทั่วไป';
+            if (!grouped[brand]) grouped[brand] = [];
+            grouped[brand].push(item.car_model);
+        });
 
+        const container = document.getElementById('master_car_models_container');
+        let html = '';
+        for (const [brand, models] of Object.entries(grouped)) {
+            html += `
+            <div class="mb-3">
+                <p class="text-[11px] font-black text-slate-500 uppercase border-b border-slate-200 pb-1 mb-2">${brand}</p>
+                <div class="grid grid-cols-2 gap-2">
+                    ${models.map(m => `
+                        <label class="flex items-center gap-2 cursor-pointer hover:bg-white p-1 rounded transition border border-transparent hover:border-slate-200">
+                            <input type="checkbox" value="${m}" data-brand="${brand}" class="master-car-model-checkbox accent-[#00320D] w-4 h-4 cursor-pointer">
+                            <span class="text-xs font-bold text-slate-700">${m}</span>
+                        </label>
+                    `).join('')}
+                </div>
+            </div>`;
+        }
+        container.innerHTML = html || '<p class="text-xs text-slate-400">ยังไม่มีข้อมูลรุ่นรถในระบบ</p>';
+    } catch (e) {
+        console.error("Error loading car models:", e);
+    }
+}
         // บันทึกฟอร์มต่างๆ คงเดิมตามสัญญาลอจิกหลังบ้าน
         async function submitPO(e) {
             e.preventDefault(); const editId = document.getElementById('edit_po_id').value;
