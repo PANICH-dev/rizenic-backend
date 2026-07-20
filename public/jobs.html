@@ -18,7 +18,7 @@
         .bg-rizenic-green { background-color: #00320D; }
         .text-rizenic-green { color: #00320D; }
         
-        .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar { height: 10px; width: 10px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; border: 2px solid #f1f5f9; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
@@ -181,7 +181,7 @@
                 <div class="flex-1 overflow-auto custom-scrollbar">
                     <table class="w-full text-left border-collapse whitespace-nowrap text-xs">
                         <thead class="bg-slate-100 sticky top-0 z-10 shadow-sm">
-                            <tr><th class="px-4 py-2 border-b">จอด (วัน)</th><th class="px-4 py-2 border-b">ทะเบียนรถ</th><th class="px-4 py-2 border-b">ยี่ห้อ/รุ่น</th><th class="px-4 py-2 border-b">ลูกค้า</th><th class="px-4 py-2 border-b">สถานะงาน</th></tr>
+                            <tr><th class="px-4 py-2 border-b text-center">จอด (วัน)</th><th class="px-4 py-2 border-b">ทะเบียนรถ</th><th class="px-4 py-2 border-b">ยี่ห้อ/รุ่น</th><th class="px-4 py-2 border-b">ลูกค้า</th><th class="px-4 py-2 border-b">สถานะงาน</th><th class="px-4 py-2 border-b text-center">จัดการ</th></tr>
                         </thead>
                         <tbody id="sa_parked_body"></tbody>
                     </table>
@@ -235,7 +235,6 @@
             </div>
         </div>
 
-        <!-- แผงซ่อน/แสดงคอลัมน์ (ย้ายมาไว้ข้างใน Tab Excel) -->
         <div id="colManagerPanel" class="hidden bg-white border-b border-slate-200 p-4 shrink-0 shadow-inner z-30">
             <h3 class="text-xs font-bold text-slate-700 mb-2 uppercase border-b pb-1">ติ๊กออกเพื่อซ่อนคอลัมน์</h3>
             <div class="flex flex-wrap gap-2" id="col_toggles_container"></div>
@@ -299,7 +298,7 @@
 
     <!-- 🌟 Modal: แสดงรายการรถ (สำหรับกดดูจาก SA Dashboard) 🌟 -->
     <div id="jobListModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center hidden p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden modal-fade border border-[#00320D] flex flex-col max-h-[90vh]">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden modal-fade border border-[#00320D] flex flex-col max-h-[90vh]">
             <div class="bg-[#00320D] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md z-20 relative border-b-4 border-amber-500">
                 <h2 class="font-bold text-lg flex items-center gap-3"><div class="bg-white/10 p-1.5 rounded"><i class="fa-solid fa-list-ul text-amber-400"></i></div> รายการรถ | <span id="modal_status_name" class="text-amber-400 font-black tracking-wide"></span></h2>
                 <button onclick="closeModal('jobListModal')" class="hover:text-red-400 bg-white/5 hover:bg-red-500/20 w-8 h-8 rounded-full flex items-center justify-center transition-colors text-lg"><i class="fa-solid fa-xmark"></i></button>
@@ -308,12 +307,13 @@
                 <table class="excel-table w-full border-none">
                     <thead class="bg-[#00320D] text-white text-xs uppercase sticky top-0 shadow-sm border-b border-green-900">
                         <tr>
-                            <th class="px-5 py-3 !border-x-0 !border-b-green-900">ทะเบียนรถ</th>
-                            <th class="px-5 py-3 !border-x-0 !border-b-green-900">ยี่ห้อ/รุ่น</th>
-                            <th class="px-5 py-3 !border-x-0 !border-b-green-900">ลูกค้า</th>
-                            <th class="px-5 py-3 !border-x-0 !border-b-green-900">ความเสียหาย</th>
-                            <th class="px-5 py-3 !border-x-0 !border-b-green-900">สถานะหลัก</th>
-                            <th class="px-5 py-3 !border-x-0 !border-b-green-900 text-center">จัดการ</th>
+                            <th class="px-4 py-3 !border-x-0 !border-b-green-900">ทะเบียนรถ</th>
+                            <th class="px-4 py-3 !border-x-0 !border-b-green-900">ยี่ห้อ/รุ่น</th>
+                            <th class="px-4 py-3 !border-x-0 !border-b-green-900">ลูกค้า / SA</th>
+                            <th class="px-4 py-3 !border-x-0 !border-b-green-900">ความเสียหาย</th>
+                            <th class="px-4 py-3 !border-x-0 !border-b-green-900">สถานะอะไหล่</th>
+                            <th class="px-4 py-3 !border-x-0 !border-b-green-900">สถานะซ่อม (ERP)</th>
+                            <th class="px-4 py-3 !border-x-0 !border-b-green-900 text-center">จัดการ</th>
                         </tr>
                     </thead>
                     <tbody id="modal_job_table" class="text-sm divide-y divide-slate-200 bg-white"></tbody>
@@ -329,9 +329,8 @@
         let globalStatuses = [];
         let userRole = '';
         let userBranch = '';
-        let currentViewSA = ''; // ตัวแปรเก็บว่ากำลังดู SA คนไหนอยู่
+        let currentViewSA = ''; 
 
-        // สถานะที่ถือว่าจอดซ่อมในศูนย์
         const parkedStatuses = [
             "09.จอดรอเข้าซ่อม", "10.กำลังซ่อม", "11.รถซ่อมเสร็จรอส่งมอบ", 
             "12.ส่งมอบ", "13.วางบิลประกัน", "14.ชำระเงินสด", 
@@ -431,7 +430,7 @@
             activeBtn.classList.add('border-[#00320D]', 'text-[#00320D]', 'bg-blue-50/80');
 
             if(tabId === 'tab-sa') {
-                backToSAList(); // รีเซ็ตไปหน้ารายการ SA เสมอตอนกดเข้าแท็บ
+                backToSAList();
                 renderSAList();
             }
         }
@@ -523,7 +522,6 @@
                 const sRes = await fetch(`${API_BASE_URL}/api/statuses`);
                 if(sRes.ok) globalStatuses = await sRes.json();
 
-                // 🌟 โหลดข้อมูล PO สำหรับ SA Dashboard
                 const poRes = await fetch(`${API_BASE_URL}/api/part-orders`).catch(()=>null);
                 if(poRes && poRes.ok) allPartOrders = await poRes.json();
 
@@ -536,9 +534,8 @@
                 buildSADropdown();
                 buildBranchDropdown(); 
                 
-                // ตรวจสอบว่ากำลังอยู่แท็บไหน
                 if(document.getElementById('tab-sa').classList.contains('active')) {
-                    if(currentViewSA) openSADetail(currentViewSA); // ถ้ารีเฟรชตอนดู SA คนเดิมอยู่
+                    if(currentViewSA) openSADetail(currentViewSA); 
                     else renderSAList();
                 } else {
                     applyFilters(); 
@@ -576,8 +573,6 @@
             const container = document.getElementById('sa_cards_container');
             const saCounts = {};
             
-            // นับงานที่ค้างอยู่ (ไม่นับพวกส่งมอบ/ปิดบิลแล้ว เพื่อให้เห็นงานในมือจริงๆ) หรือจะนับทั้งหมดก็ได้
-            // ขอเลือกนับทั้งหมด แล้วไปแจกแจงข้างใน
             allJobsData.forEach(job => {
                 const sa = job.sa_owner || "ไม่ระบุ SA";
                 saCounts[sa] = (saCounts[sa] || 0) + 1;
@@ -637,7 +632,6 @@
             const today = new Date();
             today.setHours(0,0,0,0);
 
-            // Helper to sort by date
             const sortByDate = (a, b, key) => {
                 if(!a[key]) return 1; if(!b[key]) return -1;
                 return new Date(a[key]) - new Date(b[key]);
@@ -657,8 +651,8 @@
                     const rawDate = j[dateKey] ? j[dateKey].split('T')[0] : '';
                     const jDate = new Date(rawDate); jDate.setHours(0,0,0,0);
                     let dateClass = 'text-slate-600';
-                    if (jDate < today) dateClass = 'text-red-500 font-black animate-pulse'; // เลยกำหนด
-                    else if (jDate.getTime() === today.getTime()) dateClass = 'text-amber-500 font-black'; // วันนี้
+                    if (jDate < today) dateClass = 'text-red-500 font-black animate-pulse'; 
+                    else if (jDate.getTime() === today.getTime()) dateClass = 'text-amber-500 font-black';
 
                     return `
                         <tr onclick="goToEditJob('${j.id}')">
@@ -681,11 +675,9 @@
 
             jobs.forEach(job => {
                 const st = job.job_status || "ไม่ระบุสถานะ";
-                // นับบิลแยก
                 if (job.billing_date || st.includes('ออกบิลแล้ว')) {
                     billedCount++;
                 } else {
-                    // ถือว่าเป็นงานค้าง
                     statusCounts[st] = (statusCounts[st] || 0) + 1;
                 }
             });
@@ -732,7 +724,7 @@
             document.getElementById('count_parked').innerText = parkedCars.length;
 
             if(parkedCars.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีรถจอดซ่อมในศูนย์</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีรถจอดซ่อมในศูนย์</td></tr>`;
                 return;
             }
 
@@ -745,7 +737,6 @@
                 const diffDays = j.arrived_date ? Math.floor(diffTime / (1000 * 60 * 60 * 24)) : 0;
                 
                 let dayBadge = diffDays > 14 ? 'text-red-600 font-black' : (diffDays > 7 ? 'text-amber-600 font-bold' : 'text-slate-600 font-bold');
-                const damageColor = j.damage_level === 'หนัก' ? 'text-red-500' : (j.damage_level === 'กลาง' ? 'text-amber-500' : 'text-emerald-500');
 
                 return `
                     <tr onclick="goToEditJob('${j.id}')">
@@ -756,6 +747,7 @@
                         <td>
                             <div class="text-[10px] font-bold text-slate-600 bg-slate-100 border px-2 py-0.5 rounded shadow-sm inline-block truncate max-w-[150px]">${j.job_status || '-'}</div>
                         </td>
+                        <td class="text-center"><button onclick="goToEditJob('${j.id}'); event.stopPropagation();" class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full"><i class="fa-solid fa-pen"></i> ดูข้อมูล</button></td>
                     </tr>
                 `;
             }).join('');
@@ -790,18 +782,24 @@
         // ================= 🌟 MODAL LIST LOGIC 🌟 =================
         function renderJobTableInModal(jobs) {
             const tbody = document.getElementById('modal_job_table');
-            if (jobs.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-500 font-bold">ไม่มีข้อมูล</td></tr>`; return; }
+            if (jobs.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-500 font-bold">ไม่มีข้อมูล</td></tr>`; return; }
 
             tbody.innerHTML = jobs.map(j => {
+                const saName = j.sa_owner || 'ไม่ระบุ';
                 const damageColor = j.damage_level === 'หนัก' ? 'text-red-600' : (j.damage_level === 'กลาง' ? 'text-amber-500' : 'text-emerald-600');
+                
                 return `
-                    <tr class="hover:bg-emerald-50/50 transition cursor-pointer border-b border-slate-100" onclick="editJobFromDashboard('${j.id}')">
-                        <td class="px-5 py-3 font-bold text-[#00320D]"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded font-mono text-xs shadow-inner mr-1">${j.car_plate || '-'}</span></td>
-                        <td class="px-5 py-3 font-bold text-slate-800">${j.car_brand} <span class="text-slate-500 font-medium">${j.car_model || ''}</span></td>
-                        <td class="px-5 py-3 text-slate-700 font-medium truncate max-w-[150px]" title="${j.customer_name}">${j.customer_name || '-'}</td>
-                        <td class="px-5 py-3 text-xs font-bold ${damageColor}">${j.damage_level || '-'}</td>
-                        <td class="px-5 py-3 text-[11px] font-bold text-slate-700"><span class="bg-slate-100 px-2.5 py-1 rounded-lg border shadow-sm">${j.job_status || '-'}</span></td>
-                        <td class="px-5 py-3 text-center"><button class="bg-[#00320D] text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full"><i class="fa-solid fa-pen"></i> เปิดบิล</button></td>
+                    <tr class="hover:bg-emerald-50/50 transition cursor-pointer border-b border-slate-100" onclick="goToEditJob('${j.id}')">
+                        <td class="px-4 py-3 font-bold text-[#00320D]"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded font-mono text-xs shadow-inner whitespace-nowrap">${j.car_plate || '-'}</span></td>
+                        <td class="px-4 py-3 font-bold text-slate-800 text-[11px] leading-tight">${j.car_brand} <br><span class="text-slate-500 font-medium">${j.car_model || ''}</span></td>
+                        <td class="px-4 py-3 text-[11px] leading-tight">
+                            <div class="font-bold text-slate-700 truncate max-w-[150px]" title="${j.customer_name}">${j.customer_name || '-'}</div>
+                            <div class="text-[10px] text-amber-600 font-bold mt-0.5"><i class="fa-solid fa-user-tie"></i> ${saName}</div>
+                        </td>
+                        <td class="px-4 py-3 text-xs font-bold ${damageColor}">${j.damage_level || '-'}</td>
+                        <td class="px-4 py-3 text-[10px] font-bold text-purple-700"><span class="bg-purple-50 px-2 py-1 rounded-lg border border-purple-200 shadow-sm">${j.part_status || '-'}</span></td>
+                        <td class="px-4 py-3 text-[10px] font-bold text-slate-700"><span class="bg-slate-100 px-2 py-1 rounded-lg border shadow-sm">${j.job_status || '-'}</span></td>
+                        <td class="px-4 py-3 text-center"><button onclick="goToEditJob('${j.id}'); event.stopPropagation();" class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full whitespace-nowrap"><i class="fa-solid fa-pen"></i> เปิดบิล</button></td>
                     </tr>
                 `;
             }).join('');
@@ -810,6 +808,8 @@
         function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
 
         // ================= 🌟 EXISTING EXCEL LOGIC (FAST EDIT) 🌟 =================
+        function goToEditJob(jobId) { sessionStorage.setItem('edit_job_id', jobId); window.location.href = 'index.html'; }
+
         async function fastUpdateJob(jobId, field, value) {
             try {
                 const res = await fetch(`${API_BASE_URL}/api/report/${jobId}/fast-date`, {
@@ -895,8 +895,6 @@
             });
             rows.forEach(row => tbody.appendChild(row));
         }
-
-        function goToEditJob(jobId) { sessionStorage.setItem('edit_job_id', jobId); window.location.href = 'index.html'; }
 
         function renderTable(data) {
             const tbody = document.getElementById('jobs_table_body');
