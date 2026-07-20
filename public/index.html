@@ -191,20 +191,29 @@
                 </div>
 
                 <!-- 👁️ บล็อก 6: สถานะช่าง (Read-Only) -->
-                <div class="card-container bg-slate-50/50">
-                    <div class="section-header">
-                        <h3 class="section-title"><i class="fa-solid fa-eye section-icon"></i> 6. ความคืบหน้าจากสถานีช่าง</h3>
-                    </div>
-                    <div class="flex flex-wrap gap-3" id="station_badges_container">
-                        <span id="badge_st_kho" class="px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-500 border border-slate-200 shadow-sm">1. เคาะ</span>
-                        <span id="badge_st_pou" class="px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-500 border border-slate-200 shadow-sm">2. โป๊ว</span>
-                        <span id="badge_st_puan" class="px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-500 border border-slate-200 shadow-sm">3. พื้น</span>
-                        <span id="badge_st_pon" class="px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-500 border border-slate-200 shadow-sm">4. พ่นสี</span>
-                        <span id="badge_st_prak" class="px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-500 border border-slate-200 shadow-sm">5. ประกอบ</span>
-                        <span id="badge_st_qc" class="px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-500 border border-slate-200 shadow-sm">6. QC</span>
-                    </div>
-                </div>
-
+<div class="card-container bg-slate-50/50">
+    <div class="section-header">
+        <h3 class="section-title"><i class="fa-solid fa-eye section-icon"></i> 6. ความคืบหน้าจากสถานีช่าง</h3>
+    </div>
+    <div class="flex flex-wrap gap-2" id="station_badges_container">
+        <span id="badge_st_kho" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">01. เคาะ</span>
+        <span id="badge_st_pou" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">02. โป๊ว</span>
+        <span id="badge_st_puan" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">03. เตรียมพื้น</span>
+        <span id="badge_st_pon" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">04. พ่นสี</span>
+        <span id="badge_st_prak" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">05. ประกอบ</span>
+        <span id="badge_st_kat" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">06. ขัดสี</span>
+        <span id="badge_st_qc" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">07. เก็บงาน/QC</span>
+        <span id="badge_st_mag" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">08. ซ่อมแม็ก</span>
+        <span id="badge_st_kraj" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">09. กระจก</span>
+        <span id="badge_st_film" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">10. ฟิล์ม</span>
+        <span id="badge_st_pak" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">11. พักซ่อม</span>
+        <span id="badge_st_ready" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">12. รอส่งมอบ</span>
+    </div>
+    <!-- กล่องแสดงข้อความหมายเหตุจากช่างถึง SA -->
+    <div id="repair_note_display" class="mt-3 text-xs text-amber-700 font-bold hidden bg-amber-50 p-2.5 rounded-lg border border-amber-200 shadow-inner">
+        <i class="fa-solid fa-comment-dots text-amber-500 mr-1"></i> หมายเหตุจากช่าง: <span id="repair_note_text" class="text-slate-700 font-medium"></span>
+    </div>
+</div>
                 <!-- 🗓️ บล็อก 7/8 (Timeline & Submit) -->
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
                     <!-- 🌟 🏢 7. กำหนดการนัดหมาย -->
@@ -792,6 +801,51 @@
                 btnSubmit.disabled = false;
             }
         }
+
+        /// ================= 🛠️ ฟังก์ชันแสดงสถานะช่าง =================
+function updateStationProgress(job) {
+    const stations = [
+        { id: 'badge_st_kho', val: job?.station_kho },
+        { id: 'badge_st_pou', val: job?.station_pou },
+        { id: 'badge_st_puan', val: job?.station_puan },
+        { id: 'badge_st_pon', val: job?.station_pon },
+        { id: 'badge_st_prak', val: job?.station_prak },
+        { id: 'badge_st_kat', val: job?.station_kat },
+        { id: 'badge_st_qc', val: job?.station_qc },
+        { id: 'badge_st_mag', val: job?.station_mag },
+        { id: 'badge_st_kraj', val: job?.station_kraj },
+        { id: 'badge_st_film', val: job?.station_film },
+        { id: 'badge_st_pak', val: job?.station_pak },
+        { id: 'badge_st_ready', val: job?.station_ready }
+    ];
+
+    stations.forEach(st => {
+        const el = document.getElementById(st.id);
+        if (!el) return;
+        
+        // ล้างคลาสเก่าทิ้งทั้งหมดก่อน
+        el.className = 'px-3 py-1.5 rounded-lg text-[11px] font-bold shadow-sm transition-all border';
+        el.innerHTML = el.innerHTML.replace('<i class="fa-solid fa-circle-check mr-1"></i> ', ''); // ลบไอคอนเก่า
+        
+        if (st.val) {
+            // 🟢 สีเขียว: ช่างทำเสร็จแล้ว
+            el.classList.add('bg-emerald-100', 'text-emerald-700', 'border-emerald-300');
+            el.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> ' + el.innerHTML;
+        } else {
+            // ⚪ สีเทา: ยังไม่ถึงคิว หรือยังทำไม่เสร็จ
+            el.classList.add('bg-white', 'text-slate-400', 'border-slate-200');
+        }
+    });
+
+    // แสดงหมายเหตุจากช่าง (ถ้ามี)
+    const noteContainer = document.getElementById('repair_note_display');
+    if (job && job.repair_notes && job.repair_notes.trim() !== "") {
+        document.getElementById('repair_note_text').innerText = job.repair_notes;
+        noteContainer.classList.remove('hidden');
+    } else {
+        noteContainer.classList.add('hidden');
+    }
+}
     </script>
 </body>
 </html>

@@ -80,9 +80,8 @@
         </div>
         <div class="flex items-center gap-3 bg-slate-50 p-1.5 rounded-xl border border-slate-200 shadow-inner">
             <span class="text-xs font-bold text-slate-500 uppercase px-2"><i class="fa-solid fa-calendar-day text-amber-500"></i> ช่วงเวลา:</span>
-            <!-- 🌟 ค่าเริ่มต้นเปลี่ยนเป็น ทุกเดือน -->
             <select id="month_filter_select" onchange="applyFilters()" class="px-3 py-2 bg-white border border-slate-200 text-slate-800 rounded-lg outline-none text-xs font-bold cursor-pointer shadow-sm hover:border-amber-400">
-                <option value="all" selected>-- ทุกเดือน --</option>
+                <option value="all">-- ทุกเดือน --</option>
                 <option value="01">มกราคม (01)</option>
                 <option value="02">กุมภาพันธ์ (02)</option>
                 <option value="03">มีนาคม (03)</option>
@@ -367,7 +366,9 @@
             document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name');
             document.getElementById('display_branch').innerText = userBranch;
             
+            // 🌟 ตั้งค่าเริ่มต้น วันที่ ให้เป็นเดือนปัจจุบัน
             const today = new Date();
+            document.getElementById('month_filter_select').value = String(today.getMonth() + 1).padStart(2, '0');
             document.getElementById('current_date_display').innerText = today.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
 
             setupBranchDropdown();
@@ -399,14 +400,21 @@
                 if(statRes && statRes.ok) { allStatuses = await statRes.json(); }
 
                 const yearSelect = document.getElementById('year_filter_select');
-                const savedYear = yearSelect.value;
+                let savedYear = yearSelect.value;
+                if (!savedYear) savedYear = new Date().getFullYear().toString(); // default to current year
+                
                 const years = new Set([new Date().getFullYear()]);
                 allJobs.forEach(j => {
                     if(j.arrived_date) { const y = new Date(j.arrived_date).getFullYear(); if(!isNaN(y)) years.add(y); }
                 });
                 yearSelect.innerHTML = '<option value="all">-- ทุกปี --</option>';
                 [...years].sort((a,b)=>b-a).forEach(y => yearSelect.innerHTML += `<option value="${y}">${y}</option>`);
-                if(savedYear && savedYear !== 'all' && years.has(parseInt(savedYear))) yearSelect.value = savedYear;
+                
+                if(savedYear && savedYear !== 'all' && years.has(parseInt(savedYear))) {
+                    yearSelect.value = savedYear;
+                } else {
+                    yearSelect.value = new Date().getFullYear().toString(); // Default fallback
+                }
 
                 const rStr = String(userRole).toLowerCase();
                 if (rStr.includes('admin') || rStr.includes('แอดมิน') || rStr.includes('manager') || rStr.includes('ba')) {
@@ -443,7 +451,7 @@
             renderFinanceChart(filterMonth, filterYear);
             renderSASection();
             renderStationSection();
-            renderSAAlerts(); // 🌟 อัปเดตตารางแจ้งเตือนอะไหล่ใหม่
+            renderSAAlerts(); 
             renderPartsTracking();
             renderParkedCars();
             renderCalendar(filterMonth, filterYear);
