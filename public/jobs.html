@@ -6,7 +6,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RIZENIC ERP - Job Tracking Board (Excel View)</title>
+    <title>RIZENIC ERP - Job Tracking Board & SA Overview</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -18,7 +18,7 @@
         .bg-rizenic-green { background-color: #00320D; }
         .text-rizenic-green { color: #00320D; }
         
-        .custom-scrollbar::-webkit-scrollbar { height: 10px; width: 10px; }
+        .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; border: 2px solid #f1f5f9; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
@@ -45,32 +45,24 @@
         .bulk-table td { @apply p-0 border border-slate-300 bg-white; }
         .bulk-input { @apply w-full h-full px-3 py-2 outline-none bg-transparent focus:bg-blue-50 focus:ring-2 focus:ring-blue-500 font-mono text-sm; }
         .copy-down-btn { @apply text-[10px] text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-200 hover:bg-blue-600 hover:text-white transition-colors cursor-pointer block text-center mt-1 w-full shadow-sm; }
+
+        .main-tab-content { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .main-tab-content.active { display: flex; flex-direction: column; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ตารางใน Dashboard SA */
+        .sa-dash-table { @apply w-full text-left border-collapse whitespace-nowrap text-xs; }
+        .sa-dash-table th { @apply px-3 py-2 bg-slate-100 text-slate-700 font-bold border-b border-slate-200 sticky top-0; }
+        .sa-dash-table td { @apply px-3 py-2 border-b border-slate-100 text-slate-600 font-medium; }
+        .sa-dash-table tr:hover { @apply bg-slate-50 cursor-pointer; }
     </style>
     <style id="dynamic-col-styles"></style>
 </head>
 <body class="text-slate-800 h-screen flex flex-col selection:bg-[#00320D] selection:text-white">
 
-    <!-- 🔔 ป๊อปอัปแจ้งเตือนการ Auto-Save (Toast) -->
+    <!-- 🔔 Toast -->
     <div id="toastMsg" class="fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 translate-y-20 opacity-0 z-[200] flex items-center gap-2 border border-white/20">
         <span id="toastContent"><i class="fa-solid fa-circle-check text-xl"></i> บันทึกข้อมูลอัตโนมัติเรียบร้อย!</span>
-    </div>
-
-    <!-- 🔍 Excel Filter Modal -->
-    <div id="excelFilterModal" class="absolute bg-white border border-slate-200 shadow-2xl rounded-xl p-3 z-[200] w-64 text-sm hidden flex-col transition-all">
-        <div class="flex justify-between items-center border-b pb-2 mb-2">
-            <span class="font-bold text-[#00320D] text-xs"><i class="fa-solid fa-filter mr-1"></i> ตัวกรอง: <span id="ef_col_name" class="text-amber-600"></span></span>
-            <button onclick="closeExcelFilter()" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <input type="text" id="ef_search" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none focus:border-amber-500 bg-slate-50" placeholder="🔍 ค้นหาในตัวกรอง..." onkeyup="searchExcelFilter()">
-        <div class="flex items-center gap-2 mt-2 px-1 pb-1 border-b">
-            <input type="checkbox" id="ef_select_all" checked onchange="toggleAllExcelFilters(this.checked)" class="w-3.5 h-3.5 cursor-pointer accent-[#00320D]">
-            <label for="ef_select_all" class="text-xs font-bold text-[#00320D] cursor-pointer select-none">เลือกทั้งหมด</label>
-        </div>
-        <div id="ef_checkbox_list" class="max-h-48 overflow-y-auto space-y-1 mt-2 p-1 rounded custom-scrollbar"></div>
-        <div class="flex gap-2 mt-3 pt-2 border-t">
-            <button onclick="applyExcelFilter()" class="flex-1 bg-[#00320D] text-white text-xs font-bold py-2 rounded-lg hover:bg-black transition shadow-md"><i class="fa-solid fa-check"></i> ตกลง</button>
-            <button onclick="clearSpecificExcelFilter()" class="flex-1 bg-slate-100 text-slate-700 text-xs font-bold py-2 rounded-lg hover:bg-slate-200 transition border border-slate-300"><i class="fa-solid fa-eraser"></i> ล้าง</button>
-        </div>
     </div>
 
     <header class="bg-rizenic-green text-white shadow-md z-50 shrink-0 border-b border-green-800">
@@ -79,7 +71,6 @@
                 <i class="fa-solid fa-table-list text-amber-400 text-xl"></i>
                 <h1 class="text-lg font-black tracking-wider text-white">RIZENIC <span class="text-green-400">TRACKING</span></h1>
             </div>
-            
             <nav class="flex flex-col sm:flex-row items-center gap-3">
                 <div class="text-right border-r border-green-700 pr-4 hidden sm:block">
                     <p class="text-xs font-bold text-white" id="display_emp_name">Staff Name</p>
@@ -97,53 +88,170 @@
         </div>
     </header>
 
-    <div class="bg-white border-b border-slate-200 p-3 shrink-0 shadow-sm z-40 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        <div class="flex flex-wrap gap-3 items-center w-full lg:w-auto">
-            <div class="flex items-center gap-2">
-                <span class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-search"></i> ค้นหาด่วน:</span>
-                <input type="text" id="search_input" onkeyup="applyFilters()" class="minimal-input w-44" placeholder="พิมพ์ค้นหาทุกช่อง...">
-            </div>
-            
-            <!-- 🌟 เพิ่มตัวกรองสาขาด่วน 🌟 -->
-            <div class="flex items-center gap-2">
-                <span class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-building text-emerald-600"></i> สาขา:</span>
-                <select id="branch_filter_select" onchange="applyFilters()" class="minimal-input w-40 bg-emerald-50/50 border-emerald-300 text-emerald-900 cursor-pointer">
-                    <option value="ALL">-- ทุกสาขา --</option>
-                </select>
-            </div>
+    <!-- 🌟 ระบบ Tab Navigation 🌟 -->
+    <div class="bg-white border-b border-slate-200 z-40 shrink-0 shadow-sm flex overflow-x-auto px-2 pt-2">
+        <button onclick="switchMainTab('tab-sa')" id="btn-tab-sa" class="px-6 py-3.5 text-sm font-bold border-b-2 border-[#00320D] text-[#00320D] flex items-center gap-2 bg-blue-50/80 rounded-t-xl transition-all"><i class="fa-solid fa-users text-blue-600"></i> 1. ภาพรวมทีมบริการ (SA)</button>
+        <button onclick="switchMainTab('tab-excel')" id="btn-tab-excel" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 rounded-t-xl transition-all"><i class="fa-solid fa-file-excel text-emerald-600"></i> 2. ตารางใบงานทั้งหมด (Excel Mode)</button>
+    </div>
 
-            <div class="flex items-center gap-2">
-                <span class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-user-tie text-blue-600"></i> กรอง SA ด่วน:</span>
-                <select id="sa_filter_select" onchange="applyFilters()" class="minimal-input w-40 bg-blue-50/50 border-blue-300 text-blue-900 cursor-pointer">
-                    <option value="">-- SA ทั้งหมด --</option>
-                </select>
-            </div>
-        </div>
+    <!-- ==================== TAB 1: SA OVERVIEW ==================== -->
+    <main id="tab-sa" class="main-tab-content active flex-1 overflow-y-auto custom-scrollbar bg-slate-100 p-4 relative">
         
-        <div class="flex items-center justify-end gap-2 w-full lg:w-auto">
-            <span class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg border mr-2">พบ: <span id="row_count" class="text-blue-600 font-black text-sm">0</span> คัน</span>
-            
-            <button onclick="openBulkModal()" class="px-4 py-2 bg-emerald-600 text-white font-bold rounded-lg text-xs shadow-md hover:bg-emerald-700 transition animate-pulse mr-2"><i class="fa-solid fa-bolt mr-1"></i> เพิ่มด่วน (PDI)</button>
-            <button onclick="toggleColManager()" class="px-3 py-2 bg-indigo-50 text-indigo-700 font-bold rounded-lg text-xs border border-indigo-200 hover:bg-indigo-100 transition shadow-sm"><i class="fa-solid fa-eye-slash mr-1"></i> ซ่อนคอลัมน์</button>
-            <button onclick="clearAllFilters()" class="px-3 py-2 bg-slate-100 text-slate-600 font-bold rounded-lg text-xs border border-slate-300 hover:bg-slate-200 transition shadow-sm"><i class="fa-solid fa-filter-circle-xmark mr-1"></i> ล้างฟิลเตอร์</button>
-            <button onclick="loadJobsData()" class="px-3 py-2 bg-[#00320D] text-white font-bold rounded-lg text-xs shadow hover:bg-black transition"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
+        <!-- เลเวล 1: รายการ SA ทั้งหมด -->
+        <div id="sa_list_view" class="max-w-[1400px] mx-auto w-full">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-black text-[#00320D] border-l-4 border-amber-500 pl-3">รายชื่อ Service Advisor (SA)</h2>
+                <button onclick="loadJobsData()" class="px-4 py-2 bg-white text-slate-700 font-bold border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 transition"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6" id="sa_cards_container">
+                <!-- JS Inject SA Cards -->
+                <div class="col-span-full text-center py-10 text-slate-400 font-bold"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังโหลดข้อมูล SA...</div>
+            </div>
         </div>
-    </div>
 
-    <!-- แผงซ่อน/แสดงคอลัมน์ -->
-    <div id="colManagerPanel" class="hidden bg-white border-b border-slate-200 p-4 shrink-0 shadow-inner z-30">
-        <h3 class="text-xs font-bold text-slate-700 mb-2 uppercase border-b pb-1">ติ๊กออกเพื่อซ่อนคอลัมน์</h3>
-        <div class="flex flex-wrap gap-2" id="col_toggles_container"></div>
-    </div>
+        <!-- เลเวล 2: ภาพรวมรายบุคคล (SA Dashboard) -->
+        <div id="sa_detail_view" class="hidden max-w-[1500px] mx-auto w-full space-y-6 pb-10">
+            <div class="flex items-center gap-4 border-b border-slate-200 pb-4">
+                <button onclick="backToSAList()" class="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-xl font-bold hover:bg-slate-100 transition shadow-sm"><i class="fa-solid fa-arrow-left"></i> กลับ</button>
+                <div>
+                    <h2 class="text-2xl font-black text-[#00320D]">ภาพรวมงาน: <span id="current_sa_name" class="text-amber-600">SA Name</span></h2>
+                    <p class="text-sm font-bold text-slate-500">ติดตามสถานะงาน, การนัดหมาย และใบสั่งอะไหล่</p>
+                </div>
+            </div>
 
-    <main class="flex-1 overflow-auto custom-scrollbar bg-slate-100 p-2 relative" id="tableContainer">
-        <table class="excel-table" id="jobsTable">
-            <thead id="jobs_table_head"></thead>
-            <tbody id="jobs_table_body">
-                <tr><td colspan="34" class="text-center py-10 text-slate-400 font-mono text-sm"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังโหลดข้อมูล...</td></tr>
-            </tbody>
-        </table>
+            <!-- 1. ตาราง 3 แท่ง: นัดหมาย -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- รถเข้าจอด -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[300px]">
+                    <div class="bg-blue-50 px-4 py-3 border-b border-blue-100 flex justify-between items-center">
+                        <h3 class="font-black text-blue-800"><i class="fa-solid fa-truck-ramp-box text-blue-500"></i> นัดหมายเข้าซ่อม (Arriving)</h3>
+                        <span class="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full font-bold" id="count_arr">0</span>
+                    </div>
+                    <div class="flex-1 overflow-auto custom-scrollbar">
+                        <table class="sa-dash-table">
+                            <tbody id="sa_dash_arr"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <!-- เป้าซ่อมเสร็จ -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[300px]">
+                    <div class="bg-amber-50 px-4 py-3 border-b border-amber-100 flex justify-between items-center">
+                        <h3 class="font-black text-amber-800"><i class="fa-solid fa-screwdriver-wrench text-amber-500"></i> กำหนดซ่อมเสร็จ (Target Finish)</h3>
+                        <span class="bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full font-bold" id="count_tgt">0</span>
+                    </div>
+                    <div class="flex-1 overflow-auto custom-scrollbar">
+                        <table class="sa-dash-table">
+                            <tbody id="sa_dash_tgt"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <!-- ส่งมอบ -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[300px]">
+                    <div class="bg-emerald-50 px-4 py-3 border-b border-emerald-100 flex justify-between items-center">
+                        <h3 class="font-black text-emerald-800"><i class="fa-solid fa-key text-emerald-500"></i> นัดหมายส่งมอบ (Delivery)</h3>
+                        <span class="bg-emerald-600 text-white text-xs px-2 py-0.5 rounded-full font-bold" id="count_del">0</span>
+                    </div>
+                    <div class="flex-1 overflow-auto custom-scrollbar">
+                        <table class="sa-dash-table">
+                            <tbody id="sa_dash_del"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. สถานะค้าง & ปิดบิล -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                    <h3 class="font-black text-slate-800 mb-4 border-b pb-2"><i class="fa-solid fa-chart-pie text-purple-500"></i> สรุปงานค้างแยกตามสถานะ (Active Jobs)</h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3" id="sa_status_grid"></div>
+                </div>
+                <div class="bg-emerald-50 rounded-xl shadow-sm border border-emerald-200 p-6 flex flex-col justify-center items-center cursor-pointer hover:bg-emerald-100 transition" onclick="openSAFilteredModal('Billed')">
+                    <i class="fa-solid fa-file-invoice-dollar text-5xl text-emerald-300 mb-3"></i>
+                    <h3 class="text-emerald-800 font-bold text-lg text-center">งานที่ปิดบิลแล้ว<br><span class="text-[10px] text-emerald-600">(ยอดสะสมทั้งหมดของ SA คนนี้)</span></h3>
+                    <span class="text-5xl font-black text-emerald-600 mt-2" id="sa_billed_count">0</span>
+                </div>
+            </div>
+
+            <!-- 3. รถจอดซ่อม -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[350px]">
+                <div class="bg-slate-50 px-5 py-3.5 border-b border-slate-200 flex justify-between items-center">
+                    <h3 class="font-black text-[#00320D]"><i class="fa-solid fa-car text-amber-500"></i> รายการรถกำลังจอดซ่อมในศูนย์ (ตามสถานะ ERP)</h3>
+                    <span class="bg-slate-200 text-slate-600 text-xs px-2 py-1 rounded font-bold">ยอดรวม: <span id="count_parked">0</span> คัน</span>
+                </div>
+                <div class="flex-1 overflow-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse whitespace-nowrap text-xs">
+                        <thead class="bg-slate-100 sticky top-0 z-10 shadow-sm">
+                            <tr><th class="px-4 py-2 border-b">จอด (วัน)</th><th class="px-4 py-2 border-b">ทะเบียนรถ</th><th class="px-4 py-2 border-b">ยี่ห้อ/รุ่น</th><th class="px-4 py-2 border-b">ลูกค้า</th><th class="px-4 py-2 border-b">สถานะงาน</th></tr>
+                        </thead>
+                        <tbody id="sa_parked_body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 4. PO Tracking -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[350px]">
+                <div class="bg-blue-50 px-5 py-3.5 border-b border-blue-100 flex justify-between items-center">
+                    <h3 class="font-black text-blue-900"><i class="fa-solid fa-boxes-stacked text-blue-600"></i> ติดตามสถานะใบสั่งอะไหล่ (PO Tracking ของ SA)</h3>
+                </div>
+                <div class="flex-1 overflow-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse whitespace-nowrap text-xs">
+                        <thead class="bg-blue-100/50 sticky top-0 z-10 shadow-sm border-b border-blue-200">
+                            <tr><th class="px-4 py-2">สถานะ</th><th class="px-4 py-2">ทะเบียนรถ</th><th class="px-4 py-2">บาร์โค้ด</th><th class="px-4 py-2">รายการอะไหล่</th><th class="px-4 py-2 text-center">สั่ง/รับ</th><th class="px-4 py-2">กำหนดเข้า</th></tr>
+                        </thead>
+                        <tbody id="sa_po_body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
     </main>
+
+    <!-- ==================== TAB 2: EXCEL MODE ==================== -->
+    <main id="tab-excel" class="main-tab-content flex-1 flex flex-col relative overflow-hidden hidden">
+        
+        <!-- Filter Bar สำหรับ Excel Mode -->
+        <div class="bg-white border-b border-slate-200 p-3 shrink-0 shadow-sm z-40 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div class="flex flex-wrap gap-3 items-center w-full lg:w-auto">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-search"></i> ค้นหาด่วน:</span>
+                    <input type="text" id="search_input" onkeyup="applyFilters()" class="minimal-input w-44" placeholder="พิมพ์ค้นหาทุกช่อง...">
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-building text-emerald-600"></i> สาขา:</span>
+                    <select id="branch_filter_select" onchange="applyFilters()" class="minimal-input w-40 bg-emerald-50/50 border-emerald-300 text-emerald-900 cursor-pointer"><option value="ALL">-- ทุกสาขา --</option></select>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-user-tie text-blue-600"></i> กรอง SA ด่วน:</span>
+                    <select id="sa_filter_select" onchange="applyFilters()" class="minimal-input w-40 bg-blue-50/50 border-blue-300 text-blue-900 cursor-pointer"><option value="">-- SA ทั้งหมด --</option></select>
+                </div>
+            </div>
+            
+            <div class="flex items-center justify-end gap-2 w-full lg:w-auto">
+                <span class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg border mr-2">พบ: <span id="row_count" class="text-blue-600 font-black text-sm">0</span> คัน</span>
+                <button onclick="openBulkModal()" class="px-4 py-2 bg-emerald-600 text-white font-bold rounded-lg text-xs shadow-md hover:bg-emerald-700 transition animate-pulse mr-2"><i class="fa-solid fa-bolt mr-1"></i> เพิ่มด่วน (PDI)</button>
+                <button onclick="toggleColManager()" class="px-3 py-2 bg-indigo-50 text-indigo-700 font-bold rounded-lg text-xs border border-indigo-200 hover:bg-indigo-100 transition shadow-sm"><i class="fa-solid fa-eye-slash mr-1"></i> ซ่อนคอลัมน์</button>
+                <button onclick="clearAllFilters()" class="px-3 py-2 bg-slate-100 text-slate-600 font-bold rounded-lg text-xs border border-slate-300 hover:bg-slate-200 transition shadow-sm"><i class="fa-solid fa-filter-circle-xmark mr-1"></i> ล้างฟิลเตอร์</button>
+                <button onclick="loadJobsData()" class="px-3 py-2 bg-[#00320D] text-white font-bold rounded-lg text-xs shadow hover:bg-black transition"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
+            </div>
+        </div>
+
+        <!-- แผงซ่อน/แสดงคอลัมน์ (ย้ายมาไว้ข้างใน Tab Excel) -->
+        <div id="colManagerPanel" class="hidden bg-white border-b border-slate-200 p-4 shrink-0 shadow-inner z-30">
+            <h3 class="text-xs font-bold text-slate-700 mb-2 uppercase border-b pb-1">ติ๊กออกเพื่อซ่อนคอลัมน์</h3>
+            <div class="flex flex-wrap gap-2" id="col_toggles_container"></div>
+        </div>
+
+        <div class="flex-1 overflow-auto custom-scrollbar bg-slate-100 p-2 relative" id="tableContainer">
+            <table class="excel-table" id="jobsTable">
+                <thead id="jobs_table_head"></thead>
+                <tbody id="jobs_table_body">
+                    <tr><td colspan="34" class="text-center py-10 text-slate-400 font-mono text-sm"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังโหลดข้อมูล...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- ==================== MODALS ==================== -->
 
     <!-- Modal เพิ่มข้อมูลด่วน (PDI Excel Mode) -->
     <div id="bulkModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
@@ -160,7 +268,6 @@
                     <button onclick="closeBulkModal()" class="text-white hover:text-red-300 transition text-2xl ml-4"><i class="fa-solid fa-xmark"></i></button>
                 </div>
             </div>
-            
             <div class="flex-1 overflow-auto custom-scrollbar p-4 bg-slate-50">
                 <table class="bulk-table">
                     <thead>
@@ -180,7 +287,6 @@
                 </table>
                 <button onclick="addBulkRow()" class="mt-4 px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg text-sm hover:bg-slate-300 transition shadow-sm border border-slate-300">+ เพิ่มแถวใหม่ (Manual)</button>
             </div>
-
             <div class="bg-white border-t border-slate-200 p-4 shrink-0 flex justify-between items-center">
                 <span class="text-xs text-red-500 font-bold">* ระบบจะบันทึกเฉพาะแถวที่มีการกรอก "ทะเบียนรถ" เท่านั้น</span>
                 <div class="flex gap-3">
@@ -191,12 +297,47 @@
         </div>
     </div>
 
+    <!-- 🌟 Modal: แสดงรายการรถ (สำหรับกดดูจาก SA Dashboard) 🌟 -->
+    <div id="jobListModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden modal-fade border border-[#00320D] flex flex-col max-h-[90vh]">
+            <div class="bg-[#00320D] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md z-20 relative border-b-4 border-amber-500">
+                <h2 class="font-bold text-lg flex items-center gap-3"><div class="bg-white/10 p-1.5 rounded"><i class="fa-solid fa-list-ul text-amber-400"></i></div> รายการรถ | <span id="modal_status_name" class="text-amber-400 font-black tracking-wide"></span></h2>
+                <button onclick="closeModal('jobListModal')" class="hover:text-red-400 bg-white/5 hover:bg-red-500/20 w-8 h-8 rounded-full flex items-center justify-center transition-colors text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-auto custom-scrollbar p-0 bg-slate-50 relative">
+                <table class="excel-table w-full border-none">
+                    <thead class="bg-[#00320D] text-white text-xs uppercase sticky top-0 shadow-sm border-b border-green-900">
+                        <tr>
+                            <th class="px-5 py-3 !border-x-0 !border-b-green-900">ทะเบียนรถ</th>
+                            <th class="px-5 py-3 !border-x-0 !border-b-green-900">ยี่ห้อ/รุ่น</th>
+                            <th class="px-5 py-3 !border-x-0 !border-b-green-900">ลูกค้า</th>
+                            <th class="px-5 py-3 !border-x-0 !border-b-green-900">ความเสียหาย</th>
+                            <th class="px-5 py-3 !border-x-0 !border-b-green-900">สถานะหลัก</th>
+                            <th class="px-5 py-3 !border-x-0 !border-b-green-900 text-center">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal_job_table" class="text-sm divide-y divide-slate-200 bg-white"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_BASE_URL = window.location.origin;
         let allJobsData = [];
+        let allPartOrders = [];
         let globalStatuses = [];
         let userRole = '';
         let userBranch = '';
+        let currentViewSA = ''; // ตัวแปรเก็บว่ากำลังดู SA คนไหนอยู่
+
+        // สถานะที่ถือว่าจอดซ่อมในศูนย์
+        const parkedStatuses = [
+            "09.จอดรอเข้าซ่อม", "10.กำลังซ่อม", "11.รถซ่อมเสร็จรอส่งมอบ", 
+            "12.ส่งมอบ", "13.วางบิลประกัน", "14.ชำระเงินสด", 
+            "15.วางบิล Tesla", "16.วางบิล EV ME", "17.รอออกบิล", 
+            "19.ออกบิลแล้ว", "20.จอดซ่อม TC", "21.พักซ่อม"
+        ];
 
         const columnsDef = [
             { idx: 1, key: 'action', title: 'จัดการ', width: 90 },
@@ -226,7 +367,7 @@
 
         let activeFilters = {}; 
         let currentFilterKey = -1;
-        let hiddenCols = new Set([11, 14, 17]); // ซ่อนเบอร์โทร, VIN, EPC เป็นค่าเริ่มต้น
+        let hiddenCols = new Set([11, 14, 17]); 
 
         function showToast(msg, type='success') {
             const toast = document.getElementById('toastMsg');
@@ -271,6 +412,31 @@
 
         function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
 
+        // ================= 🌟 TAB SWITCHING 🌟 =================
+        function switchMainTab(tabId) {
+            document.querySelectorAll('.main-tab-content').forEach(el => {
+                el.classList.remove('active');
+                el.classList.add('hidden');
+            });
+            const targetTab = document.getElementById(tabId);
+            targetTab.classList.remove('hidden');
+            targetTab.classList.add('active');
+            
+            document.querySelectorAll('[id^="btn-tab-"]').forEach(btn => {
+                btn.classList.remove('border-[#00320D]', 'text-[#00320D]', 'bg-blue-50/80');
+                btn.classList.add('border-transparent', 'text-slate-500');
+            });
+            const activeBtn = document.getElementById('btn-' + tabId);
+            activeBtn.classList.remove('border-transparent', 'text-slate-500');
+            activeBtn.classList.add('border-[#00320D]', 'text-[#00320D]', 'bg-blue-50/80');
+
+            if(tabId === 'tab-sa') {
+                backToSAList(); // รีเซ็ตไปหน้ารายการ SA เสมอตอนกดเข้าแท็บ
+                renderSAList();
+            }
+        }
+
+        // ================= 🌟 EXCEL TABLE INIT 🌟 =================
         function initColumns() {
             const thead = document.getElementById('jobs_table_head');
             let trHtml = '<tr>';
@@ -357,6 +523,10 @@
                 const sRes = await fetch(`${API_BASE_URL}/api/statuses`);
                 if(sRes.ok) globalStatuses = await sRes.json();
 
+                // 🌟 โหลดข้อมูล PO สำหรับ SA Dashboard
+                const poRes = await fetch(`${API_BASE_URL}/api/part-orders`).catch(()=>null);
+                if(poRes && poRes.ok) allPartOrders = await poRes.json();
+
                 const res = await fetch(`${API_BASE_URL}/api/reports`);
                 const data = await res.json();
                 
@@ -364,14 +534,20 @@
                 else allJobsData = data.filter(d => d.branch_name === userBranch);
                 
                 buildSADropdown();
-                buildBranchDropdown(); // 🌟 เรียกสร้าง Dropdown สาขา
-                applyFilters(); 
+                buildBranchDropdown(); 
+                
+                // ตรวจสอบว่ากำลังอยู่แท็บไหน
+                if(document.getElementById('tab-sa').classList.contains('active')) {
+                    if(currentViewSA) openSADetail(currentViewSA); // ถ้ารีเฟรชตอนดู SA คนเดิมอยู่
+                    else renderSAList();
+                } else {
+                    applyFilters(); 
+                }
             } catch (error) {
                 document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-10 text-red-500 font-bold">⚠️ ไม่สามารถเชื่อมต่อฐานข้อมูลได้</td></tr>`;
             }
         }
 
-        // 🌟 ฟังก์ชันสร้าง Dropdown สาขา
         function buildBranchDropdown() {
             const branchSelect = document.getElementById('branch_filter_select');
             const savedValue = branchSelect.value;
@@ -395,6 +571,245 @@
             if(savedValue) saSelect.value = savedValue;
         }
 
+        // ================= 🌟 SA DASHBOARD LOGIC 🌟 =================
+        function renderSAList() {
+            const container = document.getElementById('sa_cards_container');
+            const saCounts = {};
+            
+            // นับงานที่ค้างอยู่ (ไม่นับพวกส่งมอบ/ปิดบิลแล้ว เพื่อให้เห็นงานในมือจริงๆ) หรือจะนับทั้งหมดก็ได้
+            // ขอเลือกนับทั้งหมด แล้วไปแจกแจงข้างใน
+            allJobsData.forEach(job => {
+                const sa = job.sa_owner || "ไม่ระบุ SA";
+                saCounts[sa] = (saCounts[sa] || 0) + 1;
+            });
+
+            const sortedSAs = Object.keys(saCounts).sort((a, b) => saCounts[b] - saCounts[a]);
+            
+            if(sortedSAs.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-10 text-slate-400 font-bold bg-white rounded-xl border border-slate-200">ยังไม่มีข้อมูล SA ในระบบ</div>`;
+                return;
+            }
+
+            container.innerHTML = sortedSAs.map(sa => `
+                <div onclick="openSADetail('${sa}')" class="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between cursor-pointer hover:border-amber-500 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden group">
+                    <div class="absolute -right-4 -bottom-4 text-slate-100 text-6xl opacity-30 rotate-12 transition-transform group-hover:scale-110"><i class="fa-solid fa-user-tie"></i></div>
+                    <div class="flex items-center gap-4 mb-4 relative z-10">
+                        <div class="w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-xl font-black shadow-md"><i class="fa-solid fa-user-tie"></i></div>
+                        <div>
+                            <p class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-0.5">Service Advisor</p>
+                            <h3 class="text-lg font-black text-[#00320D] leading-tight truncate max-w-[150px]" title="${sa}">${sa}</h3>
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 rounded-xl p-3 border border-slate-100 flex justify-between items-center relative z-10">
+                        <span class="text-xs font-bold text-slate-600">รวมงานรับผิดชอบ</span>
+                        <div class="text-right">
+                            <span class="text-2xl font-black text-blue-600 leading-none">${saCounts[sa]}</span> 
+                            <span class="text-xs text-slate-500 font-bold">คัน</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function backToSAList() {
+            currentViewSA = '';
+            document.getElementById('sa_detail_view').classList.add('hidden');
+            document.getElementById('sa_list_view').classList.remove('hidden');
+        }
+
+        function openSADetail(saName) {
+            currentViewSA = saName;
+            document.getElementById('sa_list_view').classList.add('hidden');
+            document.getElementById('sa_detail_view').classList.remove('hidden');
+            document.getElementById('current_sa_name').innerText = saName;
+
+            const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === saName);
+            const saPlateList = saJobs.map(j => j.car_plate);
+            const saPOs = allPartOrders.filter(po => saPlateList.includes(po.car_plate));
+
+            renderSAAppointments(saJobs);
+            renderSAStatuses(saJobs);
+            renderSAParkedCars(saJobs);
+            renderSAPOTracking(saPOs);
+        }
+
+        function renderSAAppointments(jobs) {
+            const today = new Date();
+            today.setHours(0,0,0,0);
+
+            // Helper to sort by date
+            const sortByDate = (a, b, key) => {
+                if(!a[key]) return 1; if(!b[key]) return -1;
+                return new Date(a[key]) - new Date(b[key]);
+            };
+
+            const arrJobs = jobs.filter(j => j.arrived_date && !j.job_status?.includes('ส่งมอบแล้ว') && !j.job_status?.includes('ยกเลิก')).sort((a,b) => sortByDate(a,b,'arrived_date'));
+            const tgtJobs = jobs.filter(j => j.target_finish_date && !j.job_status?.includes('ส่งมอบแล้ว') && !j.job_status?.includes('ยกเลิก')).sort((a,b) => sortByDate(a,b,'target_finish_date'));
+            const delJobs = jobs.filter(j => j.delivery_date && !j.job_status?.includes('ส่งมอบแล้ว') && !j.job_status?.includes('ยกเลิก')).sort((a,b) => sortByDate(a,b,'delivery_date'));
+
+            document.getElementById('count_arr').innerText = arrJobs.length;
+            document.getElementById('count_tgt').innerText = tgtJobs.length;
+            document.getElementById('count_del').innerText = delJobs.length;
+
+            const generateRows = (dataList, dateKey) => {
+                if(dataList.length === 0) return `<tr><td colspan="3" class="text-center py-8 text-slate-400 font-bold bg-white">ไม่มีกำหนดการ</td></tr>`;
+                return dataList.map(j => {
+                    const rawDate = j[dateKey] ? j[dateKey].split('T')[0] : '';
+                    const jDate = new Date(rawDate); jDate.setHours(0,0,0,0);
+                    let dateClass = 'text-slate-600';
+                    if (jDate < today) dateClass = 'text-red-500 font-black animate-pulse'; // เลยกำหนด
+                    else if (jDate.getTime() === today.getTime()) dateClass = 'text-amber-500 font-black'; // วันนี้
+
+                    return `
+                        <tr onclick="goToEditJob('${j.id}')">
+                            <td class="font-mono ${dateClass}">${rawDate}</td>
+                            <td class="font-black text-[#00320D]">${j.car_plate || '-'}</td>
+                            <td class="text-[10px]"><span class="bg-slate-100 border px-1.5 py-0.5 rounded truncate max-w-[100px] inline-block" title="${j.job_status}">${j.job_status || '-'}</span></td>
+                        </tr>
+                    `;
+                }).join('');
+            };
+
+            document.getElementById('sa_dash_arr').innerHTML = generateRows(arrJobs, 'arrived_date');
+            document.getElementById('sa_dash_tgt').innerHTML = generateRows(tgtJobs, 'target_finish_date');
+            document.getElementById('sa_dash_del').innerHTML = generateRows(delJobs, 'delivery_date');
+        }
+
+        function renderSAStatuses(jobs) {
+            const statusCounts = {};
+            let billedCount = 0;
+
+            jobs.forEach(job => {
+                const st = job.job_status || "ไม่ระบุสถานะ";
+                // นับบิลแยก
+                if (job.billing_date || st.includes('ออกบิลแล้ว')) {
+                    billedCount++;
+                } else {
+                    // ถือว่าเป็นงานค้าง
+                    statusCounts[st] = (statusCounts[st] || 0) + 1;
+                }
+            });
+
+            document.getElementById('sa_billed_count').innerText = billedCount;
+
+            const grid = document.getElementById('sa_status_grid');
+            const sortedStatuses = Object.keys(statusCounts).sort();
+            
+            if(sortedStatuses.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-4 text-slate-400 font-bold">ไม่มีงานค้าง 🎉</div>`;
+                return;
+            }
+
+            grid.innerHTML = sortedStatuses.map(st => `
+                <div onclick="openSAFilteredModal('${st}')" class="bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex justify-between items-center cursor-pointer hover:border-purple-400 hover:shadow-sm transition group">
+                    <span class="text-[10px] font-bold text-slate-600 group-hover:text-purple-700 truncate w-3/4" title="${st}">${st.replace(/[0-9.]/g, '')}</span>
+                    <span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-black shadow-inner">${statusCounts[st]}</span>
+                </div>
+            `).join('');
+        }
+
+        function openSAFilteredModal(statusType) {
+            let jobsToShow = [];
+            if (statusType === 'Billed') {
+                jobsToShow = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA && (j.billing_date || (j.job_status||'').includes('ออกบิลแล้ว')));
+                document.getElementById('modal_status_name').innerText = `งานที่ปิดบิลแล้ว (SA: ${currentViewSA})`;
+            } else {
+                jobsToShow = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA && j.job_status === statusType);
+                document.getElementById('modal_status_name').innerText = `สถานะ: ${statusType} (SA: ${currentViewSA})`;
+            }
+            
+            renderJobTableInModal(jobsToShow);
+            document.getElementById('jobListModal').classList.remove('hidden');
+        }
+
+        function renderSAParkedCars(jobs) {
+            const tbody = document.getElementById('sa_parked_body');
+            const parkedCars = jobs.filter(j => {
+                const st = j.job_status || '';
+                return parkedStatuses.some(p => st.includes(p) || p.includes(st));
+            });
+            
+            document.getElementById('count_parked').innerText = parkedCars.length;
+
+            if(parkedCars.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีรถจอดซ่อมในศูนย์</td></tr>`;
+                return;
+            }
+
+            const today = new Date(); today.setHours(0,0,0,0);
+            parkedCars.sort((a,b) => new Date(a.arrived_date) - new Date(b.arrived_date)); 
+
+            tbody.innerHTML = parkedCars.map(j => {
+                const arrDate = new Date(j.arrived_date); arrDate.setHours(0,0,0,0);
+                const diffTime = Math.abs(today - arrDate);
+                const diffDays = j.arrived_date ? Math.floor(diffTime / (1000 * 60 * 60 * 24)) : 0;
+                
+                let dayBadge = diffDays > 14 ? 'text-red-600 font-black' : (diffDays > 7 ? 'text-amber-600 font-bold' : 'text-slate-600 font-bold');
+                const damageColor = j.damage_level === 'หนัก' ? 'text-red-500' : (j.damage_level === 'กลาง' ? 'text-amber-500' : 'text-emerald-500');
+
+                return `
+                    <tr onclick="goToEditJob('${j.id}')">
+                        <td class="text-center ${dayBadge}">${diffDays}</td>
+                        <td class="font-black text-amber-700">${j.car_plate || '-'}</td>
+                        <td class="font-bold text-slate-800">${j.car_brand} <span class="text-slate-500 font-medium">${j.car_model || ''}</span></td>
+                        <td class="truncate max-w-[150px]" title="${j.customer_name}">${j.customer_name || '-'}</td>
+                        <td>
+                            <div class="text-[10px] font-bold text-slate-600 bg-slate-100 border px-2 py-0.5 rounded shadow-sm inline-block truncate max-w-[150px]">${j.job_status || '-'}</div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderSAPOTracking(pos) {
+            const tbody = document.getElementById('sa_po_body');
+            if (pos.length === 0) { 
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีประวัติการสั่งซื้ออะไหล่</td></tr>`; 
+                return; 
+            }
+
+            const sortedParts = [...pos].sort((a,b) => b.order_id - a.order_id);
+
+            tbody.innerHTML = sortedParts.map(o => {
+                const isComplete = o.order_status === 'อะไหล่มาครบแล้ว' || o.order_status === 'อะไหล่ครบ';
+                const statusBadge = isComplete ? 'bg-emerald-100 text-emerald-800 border-emerald-400' : (o.order_status === 'รอสั่งซื้อ' || o.order_status === 'รออะไหล่' || o.order_status === 'ติด Back Order' ? 'bg-red-100 text-red-800 border-red-400 animate-pulse' : 'bg-amber-100 text-amber-800 border-amber-400');
+                
+                return `
+                    <tr class="hover:bg-blue-50/50 cursor-pointer" onclick="window.location.href='parts.html'">
+                        <td class="text-center"><span class="px-2 py-0.5 rounded border text-[10px] font-bold shadow-sm ${statusBadge}">${o.order_status || 'รออัปเดต'}</span></td>
+                        <td class="font-black text-[#00320D]">${o.car_plate || '-'}</td>
+                        <td class="font-mono font-bold text-blue-700">${o.part_no || '-'}</td>
+                        <td class="font-bold text-slate-700 truncate max-w-[150px]" title="${o.part_name || '-'}">${o.part_name || '-'}</td>
+                        <td class="text-center"><span class="text-amber-600 font-black">${o.qty_ordered}</span> / <span class="text-emerald-600 font-black">${o.qty_received || 0}</span></td>
+                        <td class="font-mono text-slate-500 font-bold">${o.est_arrival_date ? o.est_arrival_date.split('T')[0] : '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ================= 🌟 MODAL LIST LOGIC 🌟 =================
+        function renderJobTableInModal(jobs) {
+            const tbody = document.getElementById('modal_job_table');
+            if (jobs.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-500 font-bold">ไม่มีข้อมูล</td></tr>`; return; }
+
+            tbody.innerHTML = jobs.map(j => {
+                const damageColor = j.damage_level === 'หนัก' ? 'text-red-600' : (j.damage_level === 'กลาง' ? 'text-amber-500' : 'text-emerald-600');
+                return `
+                    <tr class="hover:bg-emerald-50/50 transition cursor-pointer border-b border-slate-100" onclick="editJobFromDashboard('${j.id}')">
+                        <td class="px-5 py-3 font-bold text-[#00320D]"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded font-mono text-xs shadow-inner mr-1">${j.car_plate || '-'}</span></td>
+                        <td class="px-5 py-3 font-bold text-slate-800">${j.car_brand} <span class="text-slate-500 font-medium">${j.car_model || ''}</span></td>
+                        <td class="px-5 py-3 text-slate-700 font-medium truncate max-w-[150px]" title="${j.customer_name}">${j.customer_name || '-'}</td>
+                        <td class="px-5 py-3 text-xs font-bold ${damageColor}">${j.damage_level || '-'}</td>
+                        <td class="px-5 py-3 text-[11px] font-bold text-slate-700"><span class="bg-slate-100 px-2.5 py-1 rounded-lg border shadow-sm">${j.job_status || '-'}</span></td>
+                        <td class="px-5 py-3 text-center"><button class="bg-[#00320D] text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full"><i class="fa-solid fa-pen"></i> เปิดบิล</button></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
+
+        // ================= 🌟 EXISTING EXCEL LOGIC (FAST EDIT) 🌟 =================
         async function fastUpdateJob(jobId, field, value) {
             try {
                 const res = await fetch(`${API_BASE_URL}/api/report/${jobId}/fast-date`, {
@@ -417,103 +832,11 @@
             } catch (e) { showToast('เกิดข้อผิดพลาดในการลบ', 'error'); }
         }
 
-        function openExcelFilter(e, colIndex, title) {
-            e.stopPropagation();
-            currentFilterKey = colIndex;
-            document.getElementById('ef_col_name').innerText = title;
-            document.getElementById('ef_search').value = '';
-
-            const tbody = document.getElementById('jobs_table_body');
-            const rows = Array.from(tbody.querySelectorAll('tr'));
-            
-            const uniqueValues = new Set();
-            rows.forEach(row => {
-                if(row.cells.length === 1) return;
-                uniqueValues.add(getCellValue(row.cells[colIndex]));
-            });
-
-            const sortedValues = [...uniqueValues].sort();
-            const listDiv = document.getElementById('ef_checkbox_list');
-            listDiv.innerHTML = '';
-            
-            const activeSet = activeFilters[colIndex];
-
-            sortedValues.forEach(val => {
-                const isChecked = activeSet ? activeSet.has(val) : true;
-                listDiv.innerHTML += `
-                    <label class="flex items-start gap-2 hover:bg-slate-200 p-1.5 rounded cursor-pointer ef-item transition">
-                        <input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''} class="ef-check accent-[#00320D] mt-0.5 cursor-pointer">
-                        <span class="text-slate-800 font-medium truncate w-full" title="${val}">${val === '' ? '(ว่าง)' : val}</span>
-                    </label>
-                `;
-            });
-
-            const allChecked = Array.from(document.querySelectorAll('.ef-check')).every(cb => cb.checked);
-            document.getElementById('ef_select_all').checked = allChecked;
-
-            const modal = document.getElementById('excelFilterModal');
-            const rect = e.target.closest('th').getBoundingClientRect();
-            modal.style.top = (rect.bottom + window.scrollY + 8) + 'px';
-            
-            let leftPos = rect.left + window.scrollX;
-            if (leftPos + 260 > window.innerWidth) leftPos = window.innerWidth - 270;
-            modal.style.left = leftPos + 'px';
-            
-            modal.classList.remove('hidden'); modal.classList.add('flex');
-        }
-
-        function closeExcelFilter() {
-            const modal = document.getElementById('excelFilterModal');
-            modal.classList.add('hidden'); modal.classList.remove('flex');
-        }
-
-        function searchExcelFilter() {
-            const txt = document.getElementById('ef_search').value.toLowerCase();
-            document.querySelectorAll('.ef-item').forEach(label => {
-                const val = label.querySelector('.ef-check').value.toLowerCase();
-                label.style.display = val.includes(txt) ? 'flex' : 'none';
-            });
-        }
-
-        function toggleAllExcelFilters(checked) { document.querySelectorAll('.ef-item:not([style*="display: none"]) .ef-check').forEach(cb => cb.checked = checked); }
-
-        function applyExcelFilter() {
-            const checks = document.querySelectorAll('.ef-check');
-            const checkedVals = Array.from(checks).filter(cb => cb.checked).map(cb => cb.value);
-            
-            const thIcon = document.querySelectorAll('#jobsTable th')[currentFilterKey].querySelector('.filter-icon');
-
-            if (checkedVals.length === checks.length || checkedVals.length === 0) {
-                delete activeFilters[currentFilterKey];
-                if(thIcon) { thIcon.classList.remove('text-amber-400'); thIcon.classList.add('text-slate-400'); }
-            } else {
-                activeFilters[currentFilterKey] = new Set(checkedVals);
-                if(thIcon) { thIcon.classList.remove('text-slate-400'); thIcon.classList.add('text-amber-400'); }
-            }
-            
-            closeExcelFilter(); 
-            applyFilters();
-        }
-
-        function clearSpecificExcelFilter() {
-            delete activeFilters[currentFilterKey];
-            const thIcon = document.querySelectorAll('#jobsTable th')[currentFilterKey].querySelector('.filter-icon');
-            if(thIcon) { thIcon.classList.remove('text-amber-400'); thIcon.classList.add('text-slate-400'); }
-            
-            closeExcelFilter(); 
-            applyFilters();
-        }
-
         function clearAllFilters() {
             activeFilters = {}; 
             document.getElementById('search_input').value = '';
             document.getElementById('sa_filter_select').value = ''; 
-            
-            // 🌟 ล้างตัวกรองสาขาถ้าเป็นแอดมิน
-            if (['Manager', 'Admin', 'BA', 'แอดมิน'].includes(userRole)) {
-                document.getElementById('branch_filter_select').value = 'ALL';
-            }
-            
+            if (['Manager', 'Admin', 'BA', 'แอดมิน'].includes(userRole)) { document.getElementById('branch_filter_select').value = 'ALL'; }
             document.querySelectorAll('.filter-icon').forEach(icon => { icon.classList.remove('text-amber-400'); icon.classList.add('text-slate-400'); });
             applyFilters();
         }
@@ -521,7 +844,7 @@
         function applyFilters() {
             const searchTxt = document.getElementById('search_input').value.toLowerCase();
             const saSelectedTxt = document.getElementById('sa_filter_select').value; 
-            const branchSelectedTxt = document.getElementById('branch_filter_select').value; // 🌟 รับค่าสาขา
+            const branchSelectedTxt = document.getElementById('branch_filter_select').value; 
             
             const filteredData = allJobsData.filter(job => {
                 if (searchTxt) {
@@ -529,8 +852,6 @@
                     if(!matchStr.includes(searchTxt)) return false;
                 }
                 if (saSelectedTxt && job.sa_owner !== saSelectedTxt) return false;
-                
-                // 🌟 กรองข้อมูลตามสาขา
                 if (branchSelectedTxt && branchSelectedTxt !== 'ALL' && job.branch_name !== branchSelectedTxt) return false;
 
                 for (let key in activeFilters) {
@@ -552,39 +873,26 @@
             const table = document.getElementById('jobsTable');
             const tbody = table.querySelector('tbody');
             const rows = Array.from(tbody.querySelectorAll('tr'));
-            
             if (rows.length === 0 || (rows.length === 1 && rows[0].cells.length === 1)) return;
 
-            table.querySelectorAll('.fa-sort, .fa-sort-up, .fa-sort-down').forEach(icon => {
-                icon.className = "fa-solid fa-sort sort-icon";
-            });
-
+            table.querySelectorAll('.fa-sort, .fa-sort-up, .fa-sort-down').forEach(icon => { icon.className = "fa-solid fa-sort sort-icon"; });
             let dir = table.getAttribute(`data-dir-${colIndex}`) || 'asc';
             table.setAttribute(`data-dir-${colIndex}`, dir === 'asc' ? 'desc' : 'asc');
             
             const clickedIcon = table.querySelectorAll('th')[colIndex].querySelector('.sort-icon');
-            if (clickedIcon) {
-                clickedIcon.className = dir === 'asc' ? "fa-solid fa-sort-down ml-1 text-amber-400 opacity-100" : "fa-solid fa-sort-up ml-1 text-amber-400 opacity-100";
-            }
+            if (clickedIcon) clickedIcon.className = dir === 'asc' ? "fa-solid fa-sort-down ml-1 text-amber-400 opacity-100" : "fa-solid fa-sort-up ml-1 text-amber-400 opacity-100";
 
             rows.sort((a, b) => {
-                let valA = getCellValue(a.cells[colIndex]);
-                let valB = getCellValue(b.cells[colIndex]);
-                
-                let isDateA = valA.match(/^\d{4}-\d{2}-\d{2}$/);
-                let isDateB = valB.match(/^\d{4}-\d{2}-\d{2}$/);
+                let valA = getCellValue(a.cells[colIndex]); let valB = getCellValue(b.cells[colIndex]);
+                let isDateA = valA.match(/^\d{4}-\d{2}-\d{2}$/); let isDateB = valB.match(/^\d{4}-\d{2}-\d{2}$/);
                 if (isDateA && isDateB) {
                     let dateA = new Date(valA); let dateB = new Date(valB);
                     if (!isNaN(dateA) && !isNaN(dateB)) return dir === 'asc' ? dateA - dateB : dateB - dateA;
                 }
-
-                let numA = parseFloat(valA.replace(/,/g, ''));
-                let numB = parseFloat(valB.replace(/,/g, ''));
+                let numA = parseFloat(valA.replace(/,/g, '')); let numB = parseFloat(valB.replace(/,/g, ''));
                 if (!isNaN(numA) && !isNaN(numB)) return dir === 'asc' ? numA - numB : numB - numA;
-
                 return dir === 'asc' ? valA.localeCompare(valB, 'th') : valB.localeCompare(valA, 'th');
             });
-
             rows.forEach(row => tbody.appendChild(row));
         }
 
@@ -618,11 +926,8 @@
                         case 'job_status': 
                             let safeStatus = job.job_status || '';
                             let safeOptions = dynamicOptionsHtml;
-                            if(!safeOptions.includes(`value="${safeStatus}"`)) {
-                                safeOptions = `<option value="${safeStatus}" selected>${safeStatus}</option>` + safeOptions;
-                            } else {
-                                safeOptions = safeOptions.replace(`value="${safeStatus}"`, `value="${safeStatus}" selected`);
-                            }
+                            if(!safeOptions.includes(`value="${safeStatus}"`)) { safeOptions = `<option value="${safeStatus}" selected>${safeStatus}</option>` + safeOptions; } 
+                            else { safeOptions = safeOptions.replace(`value="${safeStatus}"`, `value="${safeStatus}" selected`); }
                             cellData = `<select onchange="fastUpdateJob('${job.id}', 'job_status', this.value)" class="inline-edit-select bg-slate-50">${safeOptions}</select>`; 
                             break;
                         case 'damage_level':

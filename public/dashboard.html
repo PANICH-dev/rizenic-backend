@@ -79,7 +79,7 @@
             </select>
         </div>
         <div class="flex items-center gap-3 bg-slate-50 p-1.5 rounded-xl border border-slate-200 shadow-inner">
-            <span class="text-xs font-bold text-slate-500 uppercase px-2"><i class="fa-solid fa-calendar-day text-amber-500"></i> ช่วงเวลา:</span>
+            <span class="text-xs font-bold text-slate-500 uppercase px-2"><i class="fa-solid fa-calendar-day text-amber-500"></i> ตัวกรองด่วน (รวม):</span>
             <select id="month_filter_select" onchange="applyFilters()" class="px-3 py-2 bg-white border border-slate-200 text-slate-800 rounded-lg outline-none text-xs font-bold cursor-pointer shadow-sm hover:border-amber-400">
                 <option value="all">-- ทุกเดือน --</option>
                 <option value="01">มกราคม (01)</option>
@@ -150,13 +150,20 @@
             </div>
         </div>
 
-        <!-- 📋 RIZENIC Report ประจำวัน -->
+        <!-- 📋 RIZENIC Report ประจำวัน (เพิ่มตัวกรองช่วงเวลา) -->
         <div class="card-box shadow-md !p-0">
-            <div class="p-5 border-b border-slate-200 flex justify-between items-center bg-emerald-50/60">
+            <div class="p-4 border-b border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center bg-emerald-50/60 gap-3">
                 <h3 class="text-lg font-black text-[#00320D] flex items-center gap-2">
                     <i class="fa-solid fa-clipboard-list text-emerald-600 bg-emerald-100 p-2 rounded-lg"></i> 
-                    RIZENIC Report: <span id="report_current_date" class="text-emerald-700"></span>
+                    RIZENIC Report
                 </h3>
+                <div class="flex items-center gap-2 bg-white p-1.5 rounded-lg border border-slate-200 shadow-sm flex-wrap">
+                    <span class="text-xs font-bold text-slate-500 px-2"><i class="fa-solid fa-calendar-days text-emerald-500"></i> ช่วงเวลา:</span>
+                    <input type="date" id="report_start_date" class="px-2 py-1 bg-slate-50 border border-slate-200 rounded text-xs font-mono outline-none focus:border-emerald-500 cursor-pointer">
+                    <span class="text-xs text-slate-400 font-bold">-</span>
+                    <input type="date" id="report_end_date" class="px-2 py-1 bg-slate-50 border border-slate-200 rounded text-xs font-mono outline-none focus:border-emerald-500 cursor-pointer">
+                    <button onclick="renderDailyReport()" class="bg-[#00320D] hover:bg-black text-white px-3 py-1.5 rounded text-xs font-bold transition shadow-sm"><i class="fa-solid fa-search"></i> ค้นหา</button>
+                </div>
             </div>
             <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-8 divide-y md:divide-y-0 md:divide-x divide-slate-200">
                 
@@ -326,7 +333,7 @@
 
     </main>
 
-    <!-- 🌟 Modal: แสดงรายการรถ (หัวตารางใหม่ตามที่ขอ) 🌟 -->
+    <!-- 🌟 Modal: แสดงรายการรถ 🌟 -->
     <div id="jobListModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center hidden p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden modal-fade border border-[#00320D] flex flex-col max-h-[90vh]">
             <div class="bg-[#00320D] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md z-20 relative border-b-4 border-amber-500">
@@ -380,51 +387,11 @@
         let userRole = '';
         let userBranch = '';
 
-        // 🌟 ตั้งค่า Report Def สำหรับตารางประจำวัน
+        // 🌟 Helper Functions สำหรับวันที่
         function getTodayString() {
             const d = new Date();
             return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         }
-        function getThisMonthString() {
-            const d = new Date();
-            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-        }
-
-        const reportDef = {
-            customers: [
-                { label: "ลูกค้าเข้ามาติดต่อประจำวัน", icon: "👥", filter: j => j.contact_date && j.contact_date.startsWith(getTodayString()) },
-                { label: "ลูกค้าเข้ามาติดต่อประจำเดือน", icon: "👥", filter: j => j.contact_date && j.contact_date.startsWith(getThisMonthString()) },
-                { label: "PDI", icon: "👥", filter: j => (j.customer_type||'').toUpperCase().includes('PDI') },
-                { label: "Tesla", icon: "👥", filter: j => (j.car_brand||'').toUpperCase().includes('TESLA') },
-                { label: "EV ME", icon: "👥", filter: j => (j.customer_type||'').toUpperCase().includes('EV ME') || (j.customer_type||'').toUpperCase().includes('EVME') },
-                { label: "ลูกค้าทั่วไป", icon: "👥", filter: j => !(j.customer_type||'').toUpperCase().includes('PDI') && !(j.customer_type||'').toUpperCase().includes('EV ME') && !(j.customer_type||'').toUpperCase().includes('EVME') && !(j.car_brand||'').toUpperCase().includes('TESLA') }
-            ],
-            workStatus: [
-                { label: "รอเสนอประกัน", icon: "⏳", filter: j => (j.job_status||'').includes('รอเสนอประกัน') },
-                { label: "รอประกันอนุมัติ", icon: "📝", filter: j => (j.job_status||'').includes('รอประกันอนุมัติ') },
-                { label: "รอลูกค้าอนุมัติ (เงินสด)", icon: "💵", filter: j => (j.job_status||'').includes('รอลูกค้าอนุมัติ') },
-                { label: "อนุมัติแล้ว", icon: "✅", filter: j => (j.job_status||'').includes('อนุมัติแล้ว') },
-                { label: "สั่งอะไหล่", icon: "🛠️", filter: j => (j.job_status||'').includes('สั่งอะไหล่') },
-                { label: "รอนัดหมายเข้าซ่อม", icon: "📅", filter: j => (j.job_status||'').includes('รอนัดหมายเข้าซ่อม') },
-                { label: "นัดหมายแล้วรอเข้าซ่อม", icon: "🕒", filter: j => (j.job_status||'').includes('นัดหมายแล้วรอเข้าซ่อม') },
-                { label: "จอดรอเข้าซ่อม", icon: "🚗", filter: j => (j.job_status||'').includes('จอดรอเข้าซ่อม') },
-                { label: "กำลังซ่อม", icon: "🔧", filter: j => (j.job_status||'').includes('กำลังซ่อม') },
-                { label: "ซ่อมTC", icon: "🏷️", filter: j => (j.job_status||'').includes('ซ่อม TC') || (j.job_status||'').includes('ซ่อมTC') },
-                { label: "รถซ่อมเสร็จรอส่งมอบ", icon: "🎁", filter: j => (j.job_status||'').includes('ซ่อมเสร็จรอส่งมอบ') },
-                { label: "ส่งมอบ", icon: "🚚", filter: j => (j.job_status||'').includes('ส่งมอบ') && !(j.job_status||'').includes('ซ่อมเสร็จรอส่งมอบ') },
-                { label: "พักซ่อม", icon: "👥", filter: j => (j.job_status||'').includes('พักซ่อม') }
-            ],
-            finance: [
-                { label: "วางบิลประกัน", icon: "💳", filter: j => (j.job_status||'').includes('วางบิลประกัน') },
-                { label: "ชำระเงินสด", icon: "💵", filter: j => (j.job_status||'').includes('ชำระเงินสด') },
-                { label: "วางบิล Tesla", icon: "🏎️", filter: j => (j.job_status||'').includes('วางบิล Tesla') },
-                { label: "วางบิล EV ME", icon: "⚡", filter: j => (j.job_status||'').includes('วางบิล EV ME') || (j.job_status||'').includes('วางบิล EVME') },
-                { label: "รอออกบิล", icon: "⏳", filter: j => (j.job_status||'').includes('รอออกบิล') },
-                { label: "ลูกค้ายกเลิก", icon: "❌", filter: j => (j.job_status||'').includes('ยกเลิก') },
-                { label: "ออกบิลแล้ว", icon: "📄", filter: j => (j.job_status||'').includes('ออกบิลแล้ว') },
-                { label: "สรุปออกบิลรวม", icon: "📄", filter: j => (j.billing_date != null && j.billing_date.trim() !== '') || (j.job_status||'').includes('ออกบิลแล้ว') }
-            ]
-        };
 
         document.addEventListener('DOMContentLoaded', () => {
             if(sessionStorage.getItem('isLoggedIn') !== 'true') {
@@ -443,9 +410,15 @@
             document.getElementById('display_branch').innerText = userBranch;
             
             const today = new Date();
+            const todayStr = getTodayString();
+            
+            // ตั้งค่า Filter ทั่วไป (เดือน/ปี)
             document.getElementById('month_filter_select').value = String(today.getMonth() + 1).padStart(2, '0');
             document.getElementById('current_date_display').innerText = today.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
-            document.getElementById('report_current_date').innerText = today.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            
+            // 🌟 ตั้งค่าเริ่มต้น Date Range สำหรับ RIZENIC Report เป็น "วันนี้"
+            document.getElementById('report_start_date').value = todayStr;
+            document.getElementById('report_end_date').value = todayStr;
 
             setupBranchDropdown();
             fetchDashboardData();
@@ -522,7 +495,7 @@
             }
             
             renderKPIs(filterMonth, filterYear);
-            renderDailyReport(); // 🌟 อัปเดต RIZENIC Report
+            renderDailyReport(); // 🌟 อัปเดต RIZENIC Report อัตโนมัติด้วย
             renderStatusChart();
             renderInsuranceChart();
             renderFinanceChart(filterMonth, filterYear);
@@ -555,8 +528,53 @@
             document.getElementById('stat_backorder').innerText = backorders;
         }
 
-        // 🌟 1.5 ฟังก์ชันเรนเดอร์ RIZENIC Report
+        // 🌟 1.5 ฟังก์ชันเรนเดอร์ RIZENIC Report (พร้อม Date Range)
         function renderDailyReport() {
+            const start = document.getElementById('report_start_date').value || getTodayString();
+            const end = document.getElementById('report_end_date').value || getTodayString();
+            
+            // ดึงเดือนปัจจุบันออกมาจาก Start Date เพื่อใช้ในเงื่อนไขการเงิน/ส่งมอบ
+            const reportMonth = start.substring(0, 7); // Format: YYYY-MM
+
+            const reportDef = {
+                customers: [
+                    { label: "ลูกค้าเข้ามาติดต่อช่วงเวลาที่เลือก", icon: "👥", filter: j => j.contact_date && j.contact_date.split('T')[0] >= start && j.contact_date.split('T')[0] <= end },
+                    { label: "ลูกค้าเข้ามาติดต่อประจำเดือน", icon: "👥", filter: j => j.contact_date && j.contact_date.startsWith(reportMonth) },
+                    { label: "PDI", icon: "👥", filter: j => (j.customer_type||'').toUpperCase().includes('PDI') && j.contact_date && j.contact_date.split('T')[0] >= start && j.contact_date.split('T')[0] <= end },
+                    { label: "Tesla", icon: "👥", filter: j => ((j.customer_type||'').toUpperCase().includes('TESLA') || (j.car_brand||'').toUpperCase().includes('TESLA')) && j.contact_date && j.contact_date.split('T')[0] >= start && j.contact_date.split('T')[0] <= end },
+                    { label: "EV ME", icon: "👥", filter: j => ((j.customer_type||'').toUpperCase().includes('EV ME') || (j.customer_type||'').toUpperCase().includes('EVME')) && j.contact_date && j.contact_date.split('T')[0] >= start && j.contact_date.split('T')[0] <= end },
+                    { label: "ลูกค้าทั่วไป", icon: "👥", filter: j => !(j.customer_type||'').toUpperCase().includes('PDI') && !(j.customer_type||'').toUpperCase().includes('EV ME') && !(j.customer_type||'').toUpperCase().includes('EVME') && !(j.customer_type||'').toUpperCase().includes('TESLA') && !(j.car_brand||'').toUpperCase().includes('TESLA') && j.contact_date && j.contact_date.split('T')[0] >= start && j.contact_date.split('T')[0] <= end }
+                ],
+                workStatus: [
+                    { label: "รอเสนอประกัน", icon: "⏳", filter: j => (j.job_status||'').includes('รอเสนอประกัน') },
+                    { label: "รอประกันอนุมัติ", icon: "📝", filter: j => (j.job_status||'').includes('รอประกันอนุมัติ') },
+                    { label: "รอลูกค้าอนุมัติ (เงินสด)", icon: "💵", filter: j => (j.job_status||'').includes('รอลูกค้าอนุมัติ') },
+                    { label: "อนุมัติแล้ว", icon: "✅", filter: j => (j.job_status||'').includes('อนุมัติแล้ว') },
+                    { label: "สั่งอะไหล่", icon: "🛠️", filter: j => (j.job_status||'').includes('สั่งอะไหล่') },
+                    { label: "รอนัดหมายเข้าซ่อม", icon: "📅", filter: j => (j.job_status||'').includes('รอนัดหมายเข้าซ่อม') },
+                    { label: "นัดหมายแล้วรอเข้าซ่อม", icon: "🕒", filter: j => (j.job_status||'').includes('นัดหมายแล้วรอเข้าซ่อม') },
+                    { label: "จอดรอเข้าซ่อม", icon: "🚗", filter: j => (j.job_status||'').includes('จอดรอเข้าซ่อม') },
+                    { label: "กำลังซ่อม", icon: "🔧", filter: j => (j.job_status||'').includes('กำลังซ่อม') },
+                    { label: "ซ่อมTC", icon: "🏷️", filter: j => (j.job_status||'').includes('ซ่อม TC') || (j.job_status||'').includes('ซ่อมTC') },
+                    { label: "รถซ่อมเสร็จรอส่งมอบ", icon: "🎁", filter: j => (j.job_status||'').includes('ซ่อมเสร็จรอส่งมอบ') },
+                    { label: "ส่งมอบ (ในเดือนนี้)", icon: "🚚", filter: j => (j.job_status||'').includes('ส่งมอบ') && !(j.job_status||'').includes('ซ่อมเสร็จรอส่งมอบ') && j.delivery_date && j.delivery_date.startsWith(reportMonth) },
+                    { label: "พักซ่อม", icon: "👥", filter: j => (j.job_status||'').includes('พักซ่อม') }
+                ],
+                finance: [
+                    { label: "วางบิลประกัน (ในเดือนนี้)", icon: "💳", filter: j => (j.job_status||'').includes('วางบิลประกัน') && j.billing_date && j.billing_date.startsWith(reportMonth) },
+                    { label: "ชำระเงินสด (ในเดือนนี้)", icon: "💵", filter: j => (j.job_status||'').includes('ชำระเงินสด') && j.billing_date && j.billing_date.startsWith(reportMonth) },
+                    { label: "วางบิล Tesla (ในเดือนนี้)", icon: "🏎️", filter: j => (j.job_status||'').includes('วางบิล Tesla') && j.billing_date && j.billing_date.startsWith(reportMonth) },
+                    { label: "วางบิล EV ME (ในเดือนนี้)", icon: "⚡", filter: j => ((j.job_status||'').includes('วางบิล EV ME') || (j.job_status||'').includes('วางบิล EVME')) && j.billing_date && j.billing_date.startsWith(reportMonth) },
+                    { label: "รอออกบิล (รวม)", icon: "⏳", filter: j => (j.job_status||'').includes('รอออกบิล') },
+                    { label: "ลูกค้ายกเลิก", icon: "❌", filter: j => (j.job_status||'').includes('ยกเลิก') },
+                    { label: "ออกบิลแล้ว (ในเดือนนี้)", icon: "📄", filter: j => (j.job_status||'').includes('ออกบิลแล้ว') && j.billing_date && j.billing_date.startsWith(reportMonth) },
+                    { label: "สรุปออกบิลรวม (ในเดือนนี้)", icon: "📄", filter: j => j.billing_date && j.billing_date.startsWith(reportMonth) }
+                ]
+            };
+
+            // บันทึกเงื่อนไขไว้ให้ Modal เรียกใช้
+            window.currentReportDef = reportDef;
+
             ['customers', 'workStatus', 'finance'].forEach((cat, colIdx) => {
                 const containerId = colIdx === 0 ? 'report_col_customers' : (colIdx === 1 ? 'report_col_status' : 'report_col_finance');
                 const container = document.getElementById(containerId);
@@ -575,7 +593,7 @@
 
         // 🌟 ฟังก์ชันเปิด Modal จาก RIZENIC Report
         function openReportModal(cat, itemIdx) {
-            const item = reportDef[cat][itemIdx];
+            const item = window.currentReportDef[cat][itemIdx];
             const jobsToShow = filteredJobs.filter(item.filter);
             document.getElementById('modal_status_name').innerText = `รายงาน: ${item.label}`;
             renderJobTableInModal(jobsToShow);
@@ -954,7 +972,7 @@
             document.getElementById('jobListModal').classList.remove('hidden');
         }
 
-        // 🌟 ฟังก์ชัน Render Modal อัปเดตใหม่ตามที่ขอ (มีข้อมูลครบถ้วน)
+        // 🌟 ฟังก์ชัน Render Modal อัปเดตใหม่
         function renderJobTableInModal(jobs) {
             const tbody = document.getElementById('modal_job_table');
             if (jobs.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-500 font-bold">ไม่มีข้อมูล</td></tr>`; return; }
