@@ -196,35 +196,36 @@
                 <div class="overflow-x-auto border rounded-lg shadow-sm"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3 w-16 text-center">ID</th><th class="p-3 font-bold text-purple-700">ข้อความสถานะที่นำไปแสดงในแผนกอะไหล่</th><th class="p-3 text-center w-32">ลบ</th></tr></thead><tbody id="status_table_body" class="divide-y divide-slate-100 bg-white"></tbody></table></div>
             </div>
 
-            <!-- 📈 7. โควต้าสาขาและชิ้นงาน -->
+            <!-- 📈 7. โควต้าสาขาและชิ้นงาน (อัปเดตใหม่ แยก Main/Sub) -->
             <div id="quota-panel" class="admin-panel">
                 <h2 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2"><i class="fa-solid fa-chart-pie text-rizenic-green mr-2"></i> ตั้งเป้าหมาย/โควต้า (รถซ่อม & ชิ้นงานทำสี)</h2>
-                <div class="bg-slate-50 p-5 rounded-xl border mb-6 grid grid-cols-1 md:grid-cols-4 gap-4 items-end shadow-sm">
+                <div class="bg-slate-50 p-5 rounded-xl border mb-6 grid grid-cols-1 md:grid-cols-5 gap-4 items-end shadow-sm">
                     <input type="hidden" id="edit_quota_id">
                     <div>
                         <label class="label-text">ประเภทเป้าหมาย</label>
                         <select id="quota_type_input" class="minimal-input" onchange="toggleQuotaDate()">
-                            <option value="default">เป้าหมายประจำวัน (ตั้งต้น)</option>
-                            <option value="special">เป้าหมายวันพิเศษ (ระบุวันที่)</option>
+                            <option value="default">ประจำวัน (ตั้งต้น)</option>
+                            <option value="special">วันพิเศษ (ระบุวันที่)</option>
                         </select>
                     </div>
                     <div><label class="label-text">วันที่ (เฉพาะวันพิเศษ)</label><input type="date" id="quota_date_input" class="minimal-input font-mono bg-slate-100" disabled></div>
                     
                     <div>
                         <label class="label-text">สาขา (Branch)</label>
-                        <input type="text" id="quota_branch_input" list="branch_list_quota" class="minimal-input" placeholder="เลือกหรือพิมพ์สาขา...">
+                        <input type="text" id="quota_branch_input" list="branch_list_quota" class="minimal-input" placeholder="เลือกสาขา...">
                         <datalist id="branch_list_quota"><option value="สำนักงานใหญ่"><option value="สาขารามอินทรา"><option value="สาขาบางนา"></datalist>
                     </div>
-                    <div class="hidden md:block"></div> <!-- Spacer -->
+                    <div class="hidden md:block col-span-2"></div> <!-- Spacer -->
 
-                    <div><label class="label-text text-blue-600">เป้ารถเข้าซ่อม (คัน)</label><input type="number" id="quota_arrived_input" class="minimal-input font-bold" value="0"></div>
+                    <div><label class="label-text text-blue-600">เป้ารถเข้า (คัน)</label><input type="number" id="quota_arrived_input" class="minimal-input font-bold" value="0"></div>
                     <div><label class="label-text text-amber-600">เป้าซ่อมเสร็จ (คัน)</label><input type="number" id="quota_target_input" class="minimal-input font-bold" value="0"></div>
-                    <div><label class="label-text text-green-600">เป้าส่งมอบลูกค้า (คัน)</label><input type="number" id="quota_delivery_input" class="minimal-input font-bold" value="0"></div>
+                    <div><label class="label-text text-green-600">เป้าส่งมอบ (คัน)</label><input type="number" id="quota_delivery_input" class="minimal-input font-bold" value="0"></div>
                     
-                    <!-- 🌟 ช่องใหม่: โควต้าชิ้นงานทำสี -->
-                    <div><label class="label-text text-purple-600"><i class="fa-solid fa-spray-can"></i> โควต้าชิ้นงานทำสี (ชิ้น)</label><input type="number" id="quota_color_parts_input" class="minimal-input font-black text-purple-700 bg-purple-50 border-purple-300 focus:border-purple-500" value="0" placeholder="0 = ไม่จำกัด"></div>
+                    <!-- 🌟 แยกโควต้าชิ้นหลัก / ชิ้นรอง -->
+                    <div><label class="label-text text-blue-700"><i class="fa-solid fa-layer-group"></i> โควต้าชิ้นหลัก (Main)</label><input type="number" id="quota_main_parts_input" class="minimal-input font-black text-blue-800 bg-blue-50 border-blue-300 focus:border-blue-500" value="0" placeholder="0 = ไม่จำกัด"></div>
+                    <div><label class="label-text text-amber-700"><i class="fa-solid fa-puzzle-piece"></i> โควต้าชิ้นรอง (Sub)</label><input type="number" id="quota_sub_parts_input" class="minimal-input font-black text-amber-800 bg-amber-50 border-amber-300 focus:border-amber-500" value="0" placeholder="0 = ไม่จำกัด"></div>
                     
-                    <div class="md:col-span-4 flex justify-end gap-2 mt-2 pt-4 border-t border-slate-200">
+                    <div class="md:col-span-5 flex justify-end gap-2 mt-2 pt-4 border-t border-slate-200">
                         <button onclick="saveQuota()" id="btn_save_quota" class="px-8 py-2.5 bg-[#00320D] text-white font-bold rounded-lg text-sm shadow hover:bg-black"><i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกโควต้า</button>
                         <button onclick="resetQuotaForm()" class="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50">ล้างฟอร์ม</button>
                     </div>
@@ -239,7 +240,8 @@
                                 <th class="p-3 text-center text-blue-600">รถเข้า</th>
                                 <th class="p-3 text-center text-amber-600">ซ่อมเสร็จ</th>
                                 <th class="p-3 text-center text-green-600">ส่งมอบ</th>
-                                <th class="p-3 text-center text-purple-600 border-l border-slate-300"><i class="fa-solid fa-spray-can"></i> ชิ้นงานสี</th>
+                                <th class="p-3 text-center text-blue-700 border-l border-slate-300"><i class="fa-solid fa-layer-group"></i> ชิ้นหลัก</th>
+                                <th class="p-3 text-center text-amber-700"><i class="fa-solid fa-puzzle-piece"></i> ชิ้นรอง</th>
                                 <th class="p-3 text-center">จัดการ</th>
                             </tr>
                         </thead>
@@ -405,15 +407,16 @@
                 const res = await fetch(`${API_BASE_URL}/api/quotas`); const data = await res.json();
                 document.getElementById('quota_table_body').innerHTML = data.map(q => `
                     <tr>
-                        <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-bold ${q.quota_type==='default'?'bg-slate-200 text-slate-700':'bg-blue-100 text-blue-700'}">${q.quota_type==='default'?'ประจำวัน':'วันพิเศษ'}</span></td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-bold ${q.quota_type==='default'?'bg-slate-200 text-slate-700':'bg-slate-800 text-white'}">${q.quota_type==='default'?'ประจำวัน':'วันพิเศษ'}</span></td>
                         <td class="p-3 font-bold">${q.branch_name}</td>
                         <td class="p-3 font-mono">${q.quota_date?q.quota_date.split('T')[0]:'-'}</td>
                         <td class="p-3 text-center font-bold text-blue-600">${q.quota_arrived}</td>
                         <td class="p-3 text-center font-bold text-amber-600">${q.quota_target}</td>
                         <td class="p-3 text-center font-bold text-green-600">${q.quota_delivery}</td>
-                        <td class="p-3 text-center font-black text-purple-600 border-l border-slate-200 bg-purple-50/30">${q.quota_color_parts || 0}</td>
+                        <td class="p-3 text-center font-black text-blue-700 border-l border-slate-200 bg-blue-50/50">${q.quota_main_parts || 0}</td>
+                        <td class="p-3 text-center font-black text-amber-700 bg-amber-50/50">${q.quota_sub_parts || 0}</td>
                         <td class="p-3 text-center">
-                            <button onclick="editQuota('${q.id}','${q.quota_type}','${q.quota_date?q.quota_date.split('T')[0]:''}','${q.branch_name}','${q.quota_arrived}','${q.quota_target}','${q.quota_delivery}', '${q.quota_color_parts||0}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="editQuota('${q.id}','${q.quota_type}','${q.quota_date?q.quota_date.split('T')[0]:''}','${q.branch_name}','${q.quota_arrived}','${q.quota_target}','${q.quota_delivery}', '${q.quota_main_parts||0}', '${q.quota_sub_parts||0}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button>
                             <button onclick="deleteData('/api/quotas/${q.id}', loadQuota)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button>
                         </td>
                     </tr>
@@ -421,7 +424,7 @@
             } catch(e){}
         }
 
-        function editQuota(id, type, date, branch, arr, tgt, del, color_parts) { 
+        function editQuota(id, type, date, branch, arr, tgt, del, main_parts, sub_parts) { 
             document.getElementById('edit_quota_id').value = id; 
             document.getElementById('quota_type_input').value = type; 
             toggleQuotaDate(); 
@@ -430,7 +433,8 @@
             document.getElementById('quota_arrived_input').value = arr; 
             document.getElementById('quota_target_input').value = tgt; 
             document.getElementById('quota_delivery_input').value = del; 
-            document.getElementById('quota_color_parts_input').value = color_parts; // 🌟 เติมช่องนี้
+            document.getElementById('quota_main_parts_input').value = main_parts; 
+            document.getElementById('quota_sub_parts_input').value = sub_parts; 
             
             document.getElementById('btn_save_quota').innerHTML = '<i class="fa-solid fa-pen-to-square mr-1"></i> อัปเดต'; 
             document.getElementById('btn_save_quota').classList.replace('bg-[#00320D]', 'bg-blue-600'); 
@@ -443,7 +447,8 @@
             document.getElementById('quota_arrived_input').value = 0; 
             document.getElementById('quota_target_input').value = 0; 
             document.getElementById('quota_delivery_input').value = 0; 
-            document.getElementById('quota_color_parts_input').value = 0; // 🌟 เคลียร์ช่องนี้
+            document.getElementById('quota_main_parts_input').value = 0; 
+            document.getElementById('quota_sub_parts_input').value = 0; 
 
             document.getElementById('btn_save_quota').innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกโควต้า'; 
             document.getElementById('btn_save_quota').classList.replace('bg-blue-600', 'bg-[#00320D]'); 
@@ -458,7 +463,8 @@
                 quota_arrived: document.getElementById('quota_arrived_input').value, 
                 quota_target: document.getElementById('quota_target_input').value, 
                 quota_delivery: document.getElementById('quota_delivery_input').value,
-                quota_color_parts: document.getElementById('quota_color_parts_input').value // 🌟 ส่งตัวนี้ไปบันทึก
+                quota_main_parts: document.getElementById('quota_main_parts_input').value,
+                quota_sub_parts: document.getElementById('quota_sub_parts_input').value 
             };
 
             await fetch(`${API_BASE_URL}${id ? '/api/quotas/'+id : '/api/quotas'}`, { 

@@ -42,6 +42,13 @@
         .modern-table th { @apply px-4 py-3 bg-slate-100 text-[#00320D] font-black uppercase text-[11px] tracking-wider border-b-2 border-slate-300; }
         .modern-table td { @apply px-4 py-3 border-b border-slate-100 text-slate-800 font-medium; }
         .modern-table tr:hover { @apply bg-green-50/40 transition-colors; }
+        
+        /* 🌟 Custom Styles for Schedule Calendar */
+        .sched-cell { @apply bg-white border border-slate-200 rounded-xl p-2 min-h-[135px] flex flex-col justify-between hover:border-blue-500 transition-all cursor-pointer hover:shadow-md; }
+        .quota-bar { @apply h-1.5 rounded-full bg-slate-200 overflow-hidden mt-0.5; }
+        .quota-fill { @apply h-full transition-all duration-500; }
+        .modal-fade { animation: fadeIn 0.2s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
     </style>
 </head>
 <body class="text-slate-800 min-h-screen relative selection:bg-[#00320D] selection:text-white">
@@ -191,35 +198,38 @@
                 </div>
 
                 <!-- 👁️ บล็อก 6: สถานะช่าง (Read-Only) -->
-<div class="card-container bg-slate-50/50">
-    <div class="section-header">
-        <h3 class="section-title"><i class="fa-solid fa-eye section-icon"></i> 6. ความคืบหน้าจากสถานีช่าง</h3>
-    </div>
-    <div class="flex flex-wrap gap-2" id="station_badges_container">
-        <span id="badge_st_kho" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">01. เคาะ</span>
-        <span id="badge_st_pou" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">02. โป๊ว</span>
-        <span id="badge_st_puan" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">03. เตรียมพื้น</span>
-        <span id="badge_st_pon" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">04. พ่นสี</span>
-        <span id="badge_st_prak" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">05. ประกอบ</span>
-        <span id="badge_st_kat" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">06. ขัดสี</span>
-        <span id="badge_st_qc" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">07. เก็บงาน/QC</span>
-        <span id="badge_st_mag" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">08. ซ่อมแม็ก</span>
-        <span id="badge_st_kraj" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">09. กระจก</span>
-        <span id="badge_st_film" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">10. ฟิล์ม</span>
-        <span id="badge_st_pak" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">11. พักซ่อม</span>
-        <span id="badge_st_ready" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">12. รอส่งมอบ</span>
-    </div>
-    <!-- กล่องแสดงข้อความหมายเหตุจากช่างถึง SA -->
-    <div id="repair_note_display" class="mt-3 text-xs text-amber-700 font-bold hidden bg-amber-50 p-2.5 rounded-lg border border-amber-200 shadow-inner">
-        <i class="fa-solid fa-comment-dots text-amber-500 mr-1"></i> หมายเหตุจากช่าง: <span id="repair_note_text" class="text-slate-700 font-medium"></span>
-    </div>
-</div>
+                <div class="card-container bg-slate-50/50">
+                    <div class="section-header">
+                        <h3 class="section-title"><i class="fa-solid fa-eye section-icon"></i> 6. ความคืบหน้าจากสถานีช่าง</h3>
+                    </div>
+                    <div class="flex flex-wrap gap-2" id="station_badges_container">
+                        <span id="badge_st_kho" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">01. เคาะ</span>
+                        <span id="badge_st_pou" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">02. โป๊ว</span>
+                        <span id="badge_st_puan" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">03. เตรียมพื้น</span>
+                        <span id="badge_st_pon" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">04. พ่นสี</span>
+                        <span id="badge_st_prak" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">05. ประกอบ</span>
+                        <span id="badge_st_kat" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">06. ขัดสี</span>
+                        <span id="badge_st_qc" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">07. เก็บงาน/QC</span>
+                        <span id="badge_st_mag" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">08. ซ่อมแม็ก</span>
+                        <span id="badge_st_kraj" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">09. กระจก</span>
+                        <span id="badge_st_film" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">10. ฟิล์ม</span>
+                        <span id="badge_st_pak" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">11. พักซ่อม</span>
+                        <span id="badge_st_ready" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">12. รอส่งมอบ</span>
+                    </div>
+                    <div id="repair_note_display" class="mt-3 text-xs text-amber-700 font-bold hidden bg-amber-50 p-2.5 rounded-lg border border-amber-200 shadow-inner">
+                        <i class="fa-solid fa-comment-dots text-amber-500 mr-1"></i> หมายเหตุจากช่าง: <span id="repair_note_text" class="text-slate-700 font-medium"></span>
+                    </div>
+                </div>
+
                 <!-- 🗓️ บล็อก 7/8 (Timeline & Submit) -->
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+                    
                     <!-- 🌟 🏢 7. กำหนดการนัดหมาย -->
                     <div class="card-container lg:col-span-5 flex flex-col gap-3 !mb-0">
                         <div class="section-header">
                             <h3 class="section-title"><i class="fa-regular fa-calendar-days section-icon"></i> 7. กำหนดการนัดหมาย</h3>
+                            <!-- 🌟 ปุ่มเปิดปฏิทินคิวว่าง -->
+                            <button type="button" onclick="openScheduleCalendar()" class="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl shadow-md hover:bg-blue-700 transition-all border border-blue-700 w-full sm:w-auto mt-2 sm:mt-0"><i class="fa-solid fa-calendar-check mr-1"></i> เช็คตารางคิว & โควต้า</button>
                         </div>
                         <div class="timeline-row">
                             <span class="text-xs font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-phone text-blue-500 w-5 text-center text-sm"></i> 1. ติดต่อสอบถาม</span>
@@ -227,7 +237,7 @@
                         </div>
                         <div class="timeline-row">
                             <span class="text-xs font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-truck-ramp-box text-emerald-600 w-5 text-center text-sm"></i> 2. รถเข้าจอดอู่</span>
-                            <input type="date" id="arrived_date" class="minimal-input sm:w-40 py-2 !bg-white">
+                            <input type="date" id="arrived_date" class="minimal-input sm:w-40 py-2 !bg-white focus:ring-emerald-500/30">
                         </div>
                         <div class="timeline-row">
                             <span class="text-xs font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-car-tunnel text-amber-500 w-5 text-center text-sm"></i> 3. กำหนดซ่อมเสร็จ</span>
@@ -262,7 +272,6 @@
                             </div>
 
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 border-t border-slate-200 pt-5">
-                                <!-- 🌟 เพิ่มเมนูจอดซ่อม -->
                                 <div>
                                     <label class="label-text">ประเภทการรับรถ <span class="text-red-500">*</span></label>
                                     <select id="park_status" class="minimal-input bg-blue-50 font-bold border-blue-200 text-blue-900 focus:bg-white" required>
@@ -301,12 +310,40 @@
         </main>
     </div>
 
+    <!-- 🌟 Modal: ปฏิทินคิวรถและโควต้า -->
+    <div id="scheduleCalendarModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[120] flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden modal-fade border-t-4 border-blue-600 flex flex-col max-h-[90vh]">
+            <div class="bg-[#00320D] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md z-10 relative">
+                <h2 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-calendar-days text-blue-400"></i> ตารางคิวรถ และ โควต้าชิ้นงานทำสี</h2>
+                <button type="button" onclick="closeModal('scheduleCalendarModal')" class="hover:text-red-400 transition text-2xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-auto custom-scrollbar p-6 bg-slate-50">
+                <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                    <div class="flex flex-wrap items-center gap-3 text-[11px] font-bold bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm">
+                        <span class="text-emerald-600 flex items-center"><div class="w-3 h-3 rounded-full bg-emerald-500 mr-1.5"></div> รถเข้าจอด</span>
+                        <span class="text-amber-600 flex items-center"><div class="w-3 h-3 rounded-full bg-amber-500 mr-1.5"></div> นัดซ่อมเสร็จ</span>
+                        <span class="text-blue-600 flex items-center"><div class="w-3 h-3 rounded-full bg-blue-500 mr-1.5"></div> ส่งมอบ</span>
+                    </div>
+                    <div class="flex items-center gap-4 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm">
+                        <button type="button" onclick="changeSchedMonth(-1)" class="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold transition-colors"><i class="fa-solid fa-chevron-left"></i></button>
+                        <h2 id="sched_month_title" class="text-sm font-black text-[#00320D] min-w-[140px] text-center">เดือน...</h2>
+                        <button type="button" onclick="changeSchedMonth(1)" class="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold transition-colors"><i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-7 gap-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 bg-white py-2 rounded-xl border border-slate-200 shadow-sm">
+                    <div>อาทิตย์</div><div>จันทร์</div><div>อังคาร</div><div>พุธ</div><div>พฤหัสฯ</div><div>ศุกร์</div><div>เสาร์</div>
+                </div>
+                <div id="sched_calendar_grid" class="grid grid-cols-7 gap-2 min-h-[400px]"></div>
+                <p class="text-center text-xs text-slate-500 mt-4 font-medium"><i class="fa-solid fa-circle-info text-blue-400"></i> คลิกที่วันที่เพื่อนำไปใส่อัตโนมัติในช่อง "วันที่รถเข้าจอดอู่"</p>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_BASE_URL = window.location.origin;
         let globalCarData = [];
         let globalStatuses = [];
 
-        // ลิสต์สถานะที่ถือว่าจอดซ่อม
         const parkedStatuses = [
             "09.จอดรอเข้าซ่อม", "10.กำลังซ่อม", "11.รถซ่อมเสร็จรอส่งมอบ", 
             "12.ส่งมอบ", "13.วางบิลประกัน", "14.ชำระเงินสด", 
@@ -353,7 +390,6 @@
                         sessionStorage.clear(); return;
                     }
 
-                    // 🌟 ถ้าล็อกอินผ่าน เด้งเข้า Dashboard เป็นหน้าแรก
                     if (pagesArray.includes('dashboard')) { window.location.href = 'dashboard.html'; }
                     else if (pagesArray.includes('index')) { enterApp(); } 
                     else { window.location.href = pagesArray[0] + '.html'; }
@@ -386,7 +422,6 @@
             const routeSelect = document.getElementById('department_routing');
             if(mapping && mapping.department) { routeSelect.value = mapping.department; }
             
-            // 🌟 เช็คและเซ็ต "จอดซ่อม / ไม่จอดซ่อม" อัตโนมัติ
             const isParked = parkedStatuses.some(st => selectedStatus.includes(st) || st.includes(selectedStatus));
             document.getElementById('park_status').value = isParked ? 'จอดซ่อม' : 'ไม่จอดซ่อม';
         }
@@ -597,15 +632,9 @@
                         if (job.department_routing) document.getElementById('department_routing').value = job.department_routing;
                         else autoMapRouting();
 
-                        /// ดึงข้อมูลเข้าช่อง notes ปกติ
-document.getElementById('notes').value = job.notes || '';
-
-// ดึงสถานะจอดซ่อมจากคอลัมน์ is_parked โดยตรง
-if (job.is_parked) {
-    document.getElementById('park_status').value = job.is_parked;
-} else {
-    autoMapRouting(); // ให้ระบบคำนวณอัตโนมัติตามสถานะใบงาน
-}
+                        document.getElementById('notes').value = job.notes || '';
+                        if (job.is_parked) document.getElementById('park_status').value = job.is_parked;
+                        else autoMapRouting(); 
                     }
                 }, 800);
                 
@@ -704,7 +733,7 @@ if (job.is_parked) {
             selectDamage('เบา');
             document.getElementById('department_routing').value = 'รอดำเนินการ';
             document.getElementById('park_status').value = 'ไม่จอดซ่อม';
-       updateStationProgress(null);
+            updateStationProgress(null);
         }
 
         async function submitSaForm(event) {
@@ -713,7 +742,7 @@ if (job.is_parked) {
             const requiredFields = [
                 { id: 'customer_name', name: 'ชื่อลูกค้า' },
                 { id: 'car_plate', name: 'ทะเบียนรถ' },
-                { id: 'job_status', name: 'สถานะใบงาน (21 สเตป)' }
+                { id: 'job_status', name: 'สถานะใบงาน' }
             ];
             
             let missingFields = [];
@@ -734,27 +763,23 @@ if (job.is_parked) {
 
             const routingDept = document.getElementById('department_routing').value || 'รอดำเนินการ';
             
-            // ดึงข้อมูลสถานะและหมายเหตุแยกกัน
-const formData = {
-    sa_owner: sessionStorage.getItem('emp_name'), branch_name: sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่',
-    customer_name: document.getElementById('customer_name').value, phone_number: document.getElementById('phone_number').value,
-    customer_type: document.getElementById('customer_type').value, car_brand: document.getElementById('car_brand').value,
-    car_model: document.getElementById('car_model').value, vin_no: document.getElementById('vin_no').value,
-    qt_no: qtArr.join(', '), so_no: soArr.join(', '), bl_no: blArr.join(', '),
-    payment_type: document.getElementById('payment_type').value, damage_level: document.getElementById('damage_level').value,
-    contact_date: document.getElementById('contact_date').value || null, arrived_date: document.getElementById('arrived_date').value || null,
-    target_finish_date: document.getElementById('target_finish_date').value || null, actual_finish_date: document.getElementById('actual_finish_date').value || null,
-    delivery_date: document.getElementById('delivery_date').value || null, 
-    
-    // 🎯 ส่งหมายเหตุแบบปกติ (ไม่เอาวงเล็บไปปนแล้ว)
-    notes: document.getElementById('notes').value, 
-    
-    // 🎯 เพิ่มฟิลด์ใหม่ยิงเข้าฐานข้อมูล Neon คอลัมน์ is_parked โดยตรง
-    is_parked: document.getElementById('park_status').value, 
-    
-    job_status: document.getElementById('job_status').value, car_plate: document.getElementById('car_plate').value,
-    department_routing: routingDept
-};
+            const formData = {
+                sa_owner: sessionStorage.getItem('emp_name'), branch_name: sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่',
+                customer_name: document.getElementById('customer_name').value, phone_number: document.getElementById('phone_number').value,
+                customer_type: document.getElementById('customer_type').value, car_brand: document.getElementById('car_brand').value,
+                car_model: document.getElementById('car_model').value, vin_no: document.getElementById('vin_no').value,
+                qt_no: qtArr.join(', '), so_no: soArr.join(', '), bl_no: blArr.join(', '),
+                payment_type: document.getElementById('payment_type').value, damage_level: document.getElementById('damage_level').value,
+                contact_date: document.getElementById('contact_date').value || null, arrived_date: document.getElementById('arrived_date').value || null,
+                target_finish_date: document.getElementById('target_finish_date').value || null, actual_finish_date: document.getElementById('actual_finish_date').value || null,
+                delivery_date: document.getElementById('delivery_date').value || null, 
+                notes: document.getElementById('notes').value, 
+                is_parked: document.getElementById('park_status').value, 
+                job_status: document.getElementById('job_status').value, car_plate: document.getElementById('car_plate').value,
+                department_routing: routingDept,
+                main_part_qty: selectedBodyParts.main.length,
+                sub_part_qty: selectedBodyParts.sub.length
+            };
             
             const url = editId ? `${API_BASE_URL}/api/report/${editId}` : `${API_BASE_URL}/api/report`;
             const method = editId ? 'PUT' : 'POST';
@@ -768,7 +793,7 @@ const formData = {
                 const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
                 if (!response.ok) {
                     const errData = await response.json();
-                    alert('❌ บันทึกล้มเหลว:\n' + (errData.error || 'โปรดตรวจสอบอีกครั้ง'));
+                    alert('❌ บันทึกล้มเหลว (อาจเกินโควต้า):\n\n' + (errData.error || 'โปรดตรวจสอบอีกครั้ง'));
                     btnSubmit.innerHTML = oldBtnText; btnSubmit.disabled = false; return;
                 }
 
@@ -805,50 +830,138 @@ const formData = {
             }
         }
 
-        /// ================= 🛠️ ฟังก์ชันแสดงสถานะช่าง =================
-function updateStationProgress(job) {
-    const stations = [
-        { id: 'badge_st_kho', val: job?.station_kho },
-        { id: 'badge_st_pou', val: job?.station_pou },
-        { id: 'badge_st_puan', val: job?.station_puan },
-        { id: 'badge_st_pon', val: job?.station_pon },
-        { id: 'badge_st_prak', val: job?.station_prak },
-        { id: 'badge_st_kat', val: job?.station_kat },
-        { id: 'badge_st_qc', val: job?.station_qc },
-        { id: 'badge_st_mag', val: job?.station_mag },
-        { id: 'badge_st_kraj', val: job?.station_kraj },
-        { id: 'badge_st_film', val: job?.station_film },
-        { id: 'badge_st_pak', val: job?.station_pak },
-        { id: 'badge_st_ready', val: job?.station_ready }
-    ];
+        function updateStationProgress(job) {
+            const stations = [
+                { id: 'badge_st_kho', val: job?.station_kho }, { id: 'badge_st_pou', val: job?.station_pou }, { id: 'badge_st_puan', val: job?.station_puan },
+                { id: 'badge_st_pon', val: job?.station_pon }, { id: 'badge_st_prak', val: job?.station_prak }, { id: 'badge_st_kat', val: job?.station_kat },
+                { id: 'badge_st_qc', val: job?.station_qc }, { id: 'badge_st_mag', val: job?.station_mag }, { id: 'badge_st_kraj', val: job?.station_kraj },
+                { id: 'badge_st_film', val: job?.station_film }, { id: 'badge_st_pak', val: job?.station_pak }, { id: 'badge_st_ready', val: job?.station_ready }
+            ];
 
-    stations.forEach(st => {
-        const el = document.getElementById(st.id);
-        if (!el) return;
-        
-        // ล้างคลาสเก่าทิ้งทั้งหมดก่อน
-        el.className = 'px-3 py-1.5 rounded-lg text-[11px] font-bold shadow-sm transition-all border';
-        el.innerHTML = el.innerHTML.replace('<i class="fa-solid fa-circle-check mr-1"></i> ', ''); // ลบไอคอนเก่า
-        
-        if (st.val) {
-            // 🟢 สีเขียว: ช่างทำเสร็จแล้ว
-            el.classList.add('bg-emerald-100', 'text-emerald-700', 'border-emerald-300');
-            el.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> ' + el.innerHTML;
-        } else {
-            // ⚪ สีเทา: ยังไม่ถึงคิว หรือยังทำไม่เสร็จ
-            el.classList.add('bg-white', 'text-slate-400', 'border-slate-200');
+            stations.forEach(st => {
+                const el = document.getElementById(st.id); if (!el) return;
+                el.className = 'px-3 py-1.5 rounded-lg text-[11px] font-bold shadow-sm transition-all border';
+                el.innerHTML = el.innerHTML.replace('<i class="fa-solid fa-circle-check mr-1"></i> ', ''); 
+                if (st.val) { el.classList.add('bg-emerald-100', 'text-emerald-700', 'border-emerald-300'); el.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> ' + el.innerHTML; } 
+                else { el.classList.add('bg-white', 'text-slate-400', 'border-slate-200'); }
+            });
+
+            const noteContainer = document.getElementById('repair_note_display');
+            if (job && job.repair_notes && job.repair_notes.trim() !== "") { document.getElementById('repair_note_text').innerText = job.repair_notes; noteContainer.classList.remove('hidden'); } 
+            else { noteContainer.classList.add('hidden'); }
         }
-    });
 
-    // แสดงหมายเหตุจากช่าง (ถ้ามี)
-    const noteContainer = document.getElementById('repair_note_display');
-    if (job && job.repair_notes && job.repair_notes.trim() !== "") {
-        document.getElementById('repair_note_text').innerText = job.repair_notes;
-        noteContainer.classList.remove('hidden');
-    } else {
-        noteContainer.classList.add('hidden');
-    }
-}
+        // ================= 🌟 ฟังก์ชันปฏิทินคิวว่าง & โควต้าชิ้นงาน (แยก Main/Sub) =================
+        let currentSchedMonth = new Date().getMonth();
+        let currentSchedYear = new Date().getFullYear();
+        let allSchedJobs = [];
+        let allSchedQuotas = [];
+
+        async function openScheduleCalendar() {
+            document.getElementById('scheduleCalendarModal').classList.remove('hidden');
+            try {
+                const b = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+                const [resJobs, resQuotas] = await Promise.all([
+                    fetch(`${API_BASE_URL}/api/reports`),
+                    fetch(`${API_BASE_URL}/api/quotas`)
+                ]);
+                const rawJobs = await resJobs.json();
+                allSchedJobs = rawJobs.filter(j => j.branch_name === b);
+                
+                const rawQuotas = await resQuotas.json();
+                allSchedQuotas = rawQuotas.filter(q => q.branch_name === b);
+                
+                renderSchedCalendar();
+            } catch (e) { console.error('โหลดข้อมูลปฏิทินล้มเหลว', e); }
+        }
+
+        function changeSchedMonth(direction) {
+            currentSchedMonth += direction;
+            if (currentSchedMonth > 11) { currentSchedMonth = 0; currentSchedYear++; }
+            if (currentSchedMonth < 0) { currentSchedMonth = 11; currentSchedYear--; }
+            renderSchedCalendar();
+        }
+
+        function renderSchedCalendar() {
+            const grid = document.getElementById('sched_calendar_grid'); grid.innerHTML = '';
+            const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+            document.getElementById('sched_month_title').innerText = `${monthNames[currentSchedMonth]} ${currentSchedYear}`;
+
+            const firstDay = new Date(currentSchedYear, currentSchedMonth, 1).getDay();
+            const totalDays = new Date(currentSchedYear, currentSchedMonth + 1, 0).getDate();
+
+            for(let i = 0; i < firstDay; i++) { grid.innerHTML += `<div class="bg-transparent rounded-xl"></div>`; }
+
+            for(let day = 1; day <= totalDays; day++) {
+                const dateStr = `${currentSchedYear}-${String(currentSchedMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                
+                const arrCount = allSchedJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length;
+                const tarCount = allSchedJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).length;
+                const delCount = allSchedJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
+
+                // 🌟 คำนวณชิ้นส่วนหลัก และ ชิ้นส่วนรอง (แยกกัน)
+                const mainPartsSum = allSchedJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).reduce((sum, j) => sum + (parseInt(j.main_part_qty)||0), 0);
+                const subPartsSum = allSchedJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).reduce((sum, j) => sum + (parseInt(j.sub_part_qty)||0), 0);
+
+                const specialQuota = allSchedQuotas.find(q => q.quota_type === 'special' && q.quota_date && q.quota_date.split('T')[0] === dateStr);
+                const defaultQuota = allSchedQuotas.find(q => q.quota_type === 'default');
+                
+                const maxMain = specialQuota ? (parseInt(specialQuota.quota_main_parts)||0) : (defaultQuota ? (parseInt(defaultQuota.quota_main_parts)||0) : 0);
+                const maxSub = specialQuota ? (parseInt(specialQuota.quota_sub_parts)||0) : (defaultQuota ? (parseInt(defaultQuota.quota_sub_parts)||0) : 0);
+
+                let badgeHTML = '';
+                if(arrCount > 0) badgeHTML += `<div class="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5 w-full flex justify-between items-center"><i class="fa-solid fa-car-side"></i> <span>${arrCount} คัน</span></div>`;
+                if(tarCount > 0) badgeHTML += `<div class="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 w-full flex justify-between items-center"><i class="fa-solid fa-hammer"></i> <span>${tarCount} คัน</span></div>`;
+                if(delCount > 0) badgeHTML += `<div class="text-[9px] font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5 w-full flex justify-between items-center"><i class="fa-solid fa-flag-checkered"></i> <span>${delCount} คัน</span></div>`;
+
+                // 🌟 วาดหลอดพลัง 2 เส้น
+                let quotaHTML = '';
+                if (maxMain > 0 || maxSub > 0) {
+                    quotaHTML += `<div class="mt-auto w-full pt-1 flex flex-col gap-1.5">`;
+                    
+                    if (maxMain > 0) {
+                        let pct = Math.min((mainPartsSum / maxMain) * 100, 100);
+                        let color = pct >= 100 ? 'bg-rose-600' : (pct >= 80 ? 'bg-amber-500' : 'bg-blue-500');
+                        quotaHTML += `
+                        <div>
+                            <div class="flex justify-between text-[8px] font-black text-slate-500 mb-0.5"><span>ชิ้นหลัก</span><span class="${pct>=100?'text-rose-600':''}">${mainPartsSum}/${maxMain}</span></div>
+                            <div class="quota-bar"><div class="quota-fill ${color}" style="width: ${pct}%"></div></div>
+                        </div>`;
+                    }
+                    if (maxSub > 0) {
+                        let pct = Math.min((subPartsSum / maxSub) * 100, 100);
+                        let color = pct >= 100 ? 'bg-rose-600' : (pct >= 80 ? 'bg-amber-500' : 'bg-amber-400');
+                        quotaHTML += `
+                        <div>
+                            <div class="flex justify-between text-[8px] font-black text-slate-500 mb-0.5"><span>ชิ้นรอง</span><span class="${pct>=100?'text-rose-600':''}">${subPartsSum}/${maxSub}</span></div>
+                            <div class="quota-bar"><div class="quota-fill ${color}" style="width: ${pct}%"></div></div>
+                        </div>`;
+                    }
+                    quotaHTML += `</div>`;
+                } else {
+                    quotaHTML = `<div class="mt-auto w-full pt-2 text-[8px] font-bold text-slate-400 text-center">ไม่จำกัดโควต้าสี</div>`;
+                }
+
+                grid.innerHTML += `
+                    <div class="sched-cell hover:bg-blue-50/30" onclick="selectDateFromCalendar('${dateStr}')">
+                        <span class="text-xs font-black text-slate-400 font-mono mb-1.5">${day}</span>
+                        <div class="flex flex-col gap-1 w-full flex-1">${badgeHTML}</div>
+                        ${quotaHTML}
+                    </div>
+                `;
+            }
+        }
+
+        function selectDateFromCalendar(dateStr) {
+            document.getElementById('arrived_date').value = dateStr;
+            closeModal('scheduleCalendarModal');
+            
+            const arrivedInput = document.getElementById('arrived_date');
+            arrivedInput.classList.add('ring-4', 'ring-emerald-500/30', 'border-emerald-500');
+            setTimeout(() => { arrivedInput.classList.remove('ring-4', 'ring-emerald-500/30', 'border-emerald-500'); }, 1500);
+        }
+
+        function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
     </script>
 </body>
 </html>
