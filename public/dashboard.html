@@ -24,7 +24,6 @@
         .card-box { @apply bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden transition-all duration-300; }
         .stat-card { @apply p-6 flex items-center justify-between bg-white rounded-2xl shadow-sm border border-slate-200 transition-all hover:shadow-lg cursor-pointer hover:-translate-y-1 relative overflow-hidden; }
         
-        /* 🌟 ขยายความสูงเซลล์ปฏิทินให้ใส่หลอดโควต้าได้สวยๆ */
         .calendar-cell { @apply bg-white border border-slate-200 rounded-xl p-3 min-h-[150px] flex flex-col justify-start hover:border-amber-400 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer relative overflow-hidden; }
         .calendar-cell.today { @apply border-2 border-amber-500 bg-amber-50/30; }
         .calendar-day-label { @apply text-sm font-black text-slate-400 font-mono mb-2 self-start transition-colors; }
@@ -313,7 +312,7 @@
             </div>
         </div>
 
-        <!-- 🗓️ 9. ปฏิทินปฏิบัติงาน (อัปเกรดความพรีเมียม + หลอดโควต้าสี) -->
+        <!-- 🗓️ 9. ปฏิทินปฏิบัติงาน (อัปเกรดความพรีเมียม + โชว์ตัวเลขทันที) -->
         <div class="card-box shadow-md border-t-4 border-[#00320D]">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-slate-200 pb-5">
                 <h3 class="text-xl font-black text-slate-800 flex items-center gap-3"><i class="fa-regular fa-calendar-days text-blue-600 bg-blue-50 p-2 rounded-lg"></i> แผนปฏิบัติงานประจำเดือน (พร้อมแสดงยอดโควต้าชิ้นงาน)</h3>
@@ -872,6 +871,7 @@
             }).join('');
         }
 
+        // 🌟 9. ฟังก์ชันปฏิทินปฏิบัติงาน (อัปเกรดโชว์ตัวเลขถาวร)
         function renderCalendar(fMonth, fYear) {
             const grid = document.getElementById('calendar_grid'); grid.innerHTML = '';
             
@@ -911,26 +911,29 @@
                 if(arrCount > 0 || tarCount > 0 || delCount > 0) {
                     barBlock = `<div class="flex items-end justify-center gap-2 w-full h-[60px] mt-auto pb-1">`;
                     if(arrCount > 0) {
-                        const h = Math.max(25, (arrCount / maxCount) * 100);
+                        const h = Math.max(20, (arrCount / maxCount) * 100);
                         barBlock += `
                         <div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[18px]" onclick="openJobListModalCalendar('${d.dateStr}', 'arrived')" title="รถเข้าจอด: ${arrCount} คัน">
-                            <span class="text-[10px] font-black text-blue-600 mb-1 z-10 bg-white/80 rounded-full w-4 h-4 flex items-center justify-center shadow-sm opacity-0 group-hover/bar:opacity-100 transition-opacity">${arrCount}</span>
+                            <!-- 🌟 โชว์เลขถาวรตรงนี้ (เอา opacity-0 ออกแล้ว) -->
+                            <span class="text-[9px] font-black text-blue-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-blue-200">${arrCount}</span>
                             <div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-blue-700/20" style="height: ${h}%;"></div>
                         </div>`;
                     }
                     if(tarCount > 0) {
-                        const h = Math.max(25, (tarCount / maxCount) * 100);
+                        const h = Math.max(20, (tarCount / maxCount) * 100);
                         barBlock += `
                         <div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[18px]" onclick="openJobListModalCalendar('${d.dateStr}', 'target')" title="เป้าซ่อมเสร็จ: ${tarCount} คัน">
-                            <span class="text-[10px] font-black text-amber-600 mb-1 z-10 bg-white/80 rounded-full w-4 h-4 flex items-center justify-center shadow-sm opacity-0 group-hover/bar:opacity-100 transition-opacity">${tarCount}</span>
+                            <!-- 🌟 โชว์เลขถาวรตรงนี้ -->
+                            <span class="text-[9px] font-black text-amber-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-amber-200">${tarCount}</span>
                             <div class="w-full bg-gradient-to-t from-amber-500 to-amber-300 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-amber-600/20" style="height: ${h}%;"></div>
                         </div>`;
                     }
                     if(delCount > 0) {
-                        const h = Math.max(25, (delCount / maxCount) * 100);
+                        const h = Math.max(20, (delCount / maxCount) * 100);
                         barBlock += `
                         <div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[18px]" onclick="openJobListModalCalendar('${d.dateStr}', 'delivery')" title="นัดส่งมอบ: ${delCount} คัน">
-                            <span class="text-[10px] font-black text-emerald-600 mb-1 z-10 bg-white/80 rounded-full w-4 h-4 flex items-center justify-center shadow-sm opacity-0 group-hover/bar:opacity-100 transition-opacity">${delCount}</span>
+                            <!-- 🌟 โชว์เลขถาวรตรงนี้ -->
+                            <span class="text-[9px] font-black text-emerald-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-emerald-200">${delCount}</span>
                             <div class="w-full bg-gradient-to-t from-emerald-500 to-emerald-300 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-emerald-600/20" style="height: ${h}%;"></div>
                         </div>`;
                     }
@@ -939,7 +942,6 @@
                     barBlock = `<div class="flex items-center justify-center h-[60px] w-full mt-auto"><span class="text-[10px] font-bold text-slate-300">ว่าง</span></div>`;
                 }
 
-                // 🌟 คำนวณโควต้าและยอดรวมชิ้นงาน
                 let maxMain = 0; let maxSub = 0;
                 branchesToCheck.forEach(b => {
                     const branchQuotas = allQuotas.filter(q => q.branch_name === b);
