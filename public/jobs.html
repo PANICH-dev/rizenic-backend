@@ -51,7 +51,7 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
         /* ปฏิทิน */
-        .calendar-cell { @apply bg-white border border-slate-200 rounded-xl p-2 min-h-[90px] flex flex-col justify-between hover:border-amber-400 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer relative overflow-hidden; }
+        .calendar-cell { @apply bg-white border border-slate-200 rounded-xl p-2 min-h-[90px] flex flex-col justify-start hover:border-amber-400 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer relative overflow-hidden; }
         .calendar-cell.today { @apply border-2 border-amber-500 bg-amber-50/30; }
         .calendar-day-label { @apply text-xs font-black text-slate-400 font-mono mb-1 self-start transition-colors; }
         .calendar-cell.today .calendar-day-label { @apply text-amber-600 bg-amber-100 px-2 py-0.5 rounded shadow-sm; }
@@ -111,6 +111,9 @@
     <div class="bg-white border-b border-slate-200 z-40 shrink-0 shadow-sm flex overflow-x-auto px-2 pt-2">
         <button onclick="switchMainTab('tab-sa')" id="btn-tab-sa" class="px-6 py-3.5 text-sm font-bold border-b-2 border-[#00320D] text-[#00320D] flex items-center gap-2 bg-blue-50/80 rounded-t-xl transition-all"><i class="fa-solid fa-users text-blue-600"></i> 1. ภาพรวมทีมบริการ (SA)</button>
         <button onclick="switchMainTab('tab-excel')" id="btn-tab-excel" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 rounded-t-xl transition-all"><i class="fa-solid fa-file-excel text-emerald-600"></i> 2. ตารางใบงานทั้งหมด (Excel Mode)</button>
+        
+        <!-- 🌟 แท็บที่ 3: เช็คประวัติรถ (Vehicle History) -->
+        <button onclick="switchMainTab('tab-history')" id="btn-tab-history" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 rounded-t-xl transition-all"><i class="fa-solid fa-clock-rotate-left text-purple-600"></i> 3. เช็คประวัติรถ (History)</button>
     </div>
 
     <!-- ==================== TAB 1: SA OVERVIEW ==================== -->
@@ -257,6 +260,55 @@
                     <tr><td colspan="34" class="text-center py-10 text-slate-400 font-mono text-sm"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังโหลดข้อมูล...</td></tr>
                 </tbody>
             </table>
+        </div>
+    </main>
+
+    <!-- ==================== TAB 3: VEHICLE HISTORY (ค้นหาประวัติรถ) ==================== -->
+    <main id="tab-history" class="main-tab-content flex-1 flex flex-col relative overflow-y-auto custom-scrollbar hidden bg-slate-50 p-6">
+        <div class="max-w-5xl mx-auto w-full">
+            <div class="text-center mb-8">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-purple-100 text-purple-600 mb-4 shadow-inner border border-purple-200">
+                    <i class="fa-solid fa-magnifying-glass text-2xl"></i>
+                </div>
+                <h2 class="text-3xl font-black text-[#00320D]">ค้นหาประวัติงานซ่อม <span class="text-purple-600">(Vehicle History)</span></h2>
+                <p class="text-slate-500 font-medium mt-2">กรอก ทะเบียนรถ หรือ หมายเลขตัวถัง (VIN) เพื่อดูประวัติการเข้าศูนย์และทำสี</p>
+            </div>
+            
+            <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200 flex flex-col sm:flex-row gap-4 justify-center items-end mb-8">
+                <div class="w-full sm:w-96">
+                    <label class="text-xs font-bold text-slate-500 uppercase mb-1 block">ทะเบียนรถ / เลขตัวถัง (VIN)</label>
+                    <input type="text" id="history_search_input" class="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl outline-none font-black text-lg text-center uppercase focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm" placeholder="เช่น กข 1234 หรือ VIN...">
+                </div>
+                <button onclick="searchVehicleHistory()" class="w-full sm:w-auto px-8 py-3 bg-[#00320D] text-white font-black rounded-xl shadow-lg shadow-green-900/30 hover:bg-black transition-all transform hover:-translate-y-1"><i class="fa-solid fa-search mr-2"></i> ค้นหาประวัติ</button>
+            </div>
+            
+            <div id="history_results_container" class="space-y-6 hidden">
+                <!-- Profile Car -->
+                <div class="bg-gradient-to-r from-[#00320D] to-green-800 rounded-2xl p-6 shadow-md text-white flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center text-2xl font-black shadow-inner border border-white/20"><i class="fa-solid fa-car"></i></div>
+                        <div>
+                            <h3 class="text-2xl font-black tracking-widest uppercase" id="hist_car_plate">กข 1234</h3>
+                            <p class="text-green-300 font-medium text-sm" id="hist_car_model">Tesla Model 3</p>
+                        </div>
+                    </div>
+                    <div class="bg-white/10 px-4 py-2 rounded-lg border border-white/20 text-right w-full sm:w-auto">
+                        <p class="text-xs text-green-200 font-bold uppercase tracking-wider mb-0.5">รวมประวัติเข้าซ่อม</p>
+                        <p class="text-xl font-black"><span id="hist_total_visits">0</span> <span class="text-sm font-medium">ครั้ง</span></p>
+                    </div>
+                </div>
+                
+                <!-- Timeline List -->
+                <div class="relative border-l-2 border-purple-200 ml-4 md:ml-8 space-y-8 pb-10" id="history_timeline_list">
+                    <!-- Items injected via JS -->
+                </div>
+            </div>
+            
+            <!-- Empty State -->
+            <div id="history_empty_state" class="text-center py-16 hidden">
+                <i class="fa-solid fa-car-burst text-6xl text-slate-200 mb-4"></i>
+                <h3 class="text-xl font-bold text-slate-400">ไม่พบประวัติการซ่อมของรถคันนี้ในระบบ</h3>
+            </div>
         </div>
     </main>
 
@@ -414,7 +466,6 @@
             document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name');
             document.getElementById('display_branch').innerText = userBranch;
 
-            // Set Initial Month for SA Calendar
             const today = new Date();
             document.getElementById('sa_cal_month').value = String(today.getMonth() + 1).padStart(2, '0');
 
@@ -426,6 +477,11 @@
                 if (!modal.contains(e.target) && !e.target.closest('.filter-icon') && !modal.classList.contains('hidden')) {
                     closeExcelFilter();
                 }
+            });
+            
+            // ให้กด Enter ค้นหาประวัติรถได้
+            document.getElementById('history_search_input').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') searchVehicleHistory();
             });
         });
 
@@ -450,10 +506,12 @@
             activeBtn.classList.add('border-[#00320D]', 'text-[#00320D]', 'bg-blue-50/80');
 
             if(tabId === 'tab-sa') {
-                if(currentViewSA) openSADetail(currentViewSA); // คงหน้าที่ SA คนเดิม
+                if(currentViewSA) openSADetail(currentViewSA); 
                 else { backToSAList(); renderSAList(); }
-            } else {
+            } else if (tabId === 'tab-excel') {
                 applyFilters();
+            } else if (tabId === 'tab-history') {
+                document.getElementById('history_search_input').focus();
             }
         }
 
@@ -561,7 +619,6 @@
                 buildSADropdown();
                 buildBranchDropdown(); 
                 
-                // Build Calendar Year Dropdown
                 const yearSelect = document.getElementById('sa_cal_year');
                 const years = new Set([new Date().getFullYear()]);
                 allJobsData.forEach(j => {
@@ -575,7 +632,7 @@
                 if(document.getElementById('tab-sa').classList.contains('active')) {
                     if(currentViewSA) openSADetail(currentViewSA); 
                     else renderSAList();
-                } else {
+                } else if(document.getElementById('tab-excel').classList.contains('active')) {
                     applyFilters(); 
                 }
             } catch (error) {
@@ -660,13 +717,13 @@
             const saPlateList = saJobs.map(j => j.car_plate);
             const saPOs = allPartOrders.filter(po => saPlateList.includes(po.car_plate));
 
-            refreshSACalendar(); // เรนเดอร์ปฏิทินแบบกราฟแท่ง
+            refreshSACalendar(); 
             renderSAStatuses(saJobs);
             renderSAParkedCars(saJobs);
             renderSAPOTracking(saPOs);
         }
 
-        // 🌟 ปฏิทินกราฟแท่ง (แทนตารางเดิม) 🌟
+        // 🌟 ปฏิทินกราฟแท่ง (แทนตารางเดิม - อัปเกรดโชว์ตัวเลขค้างไว้) 🌟
         function refreshSACalendar() {
             if(!currentViewSA) return;
             const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
@@ -691,11 +748,8 @@
             for(let day = 1; day <= totalDays; day++) {
                 const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
                 
-                // 🌟 เงื่อนไขที่ 1: เข้าซ่อม (หายเมื่อจอด >= 09 หรือยกเลิก)
                 const arrJobs = jobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr && !j.job_status?.match(/09|10|11|12|13|14|15|16|17|19|20|21/) && !j.job_status?.includes('ยกเลิก'));
-                // 🌟 เงื่อนไขที่ 2: เป้าเสร็จ (หายเมื่อส่งมอบ=12 หรือยกเลิก)
                 const tgtJobs = jobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr && !j.job_status?.includes('12.ส่งมอบ') && !j.job_status?.includes('ยกเลิก'));
-                // 🌟 เงื่อนไขที่ 3: ส่งมอบ (โชว์เฉพาะสถานะ 01-12 ก่อนหน้าการจ่ายเงิน)
                 const delJobs = jobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr && j.job_status?.match(/01|02|03|04|05|06|07|08|09|10|11|12/) && !j.job_status?.includes('ยกเลิก'));
 
                 const dayMax = Math.max(arrJobs.length, tgtJobs.length, delJobs.length);
@@ -717,7 +771,7 @@
                         const h = Math.max(25, (arrCount / maxCount) * 100);
                         barBlock += `
                         <div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[14px]" onclick="openSAJobListModalCalendar('${d.dateStr}', 'arrived')" title="รถเข้าจอด: ${arrCount} คัน">
-                            <span class="text-[9px] font-black text-blue-600 mb-0.5 z-10 bg-white/90 rounded-full w-3.5 h-3.5 flex items-center justify-center shadow-sm opacity-0 group-hover/bar:opacity-100 transition-opacity">${arrCount}</span>
+                            <span class="text-[9px] font-black text-blue-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-blue-200">${arrCount}</span>
                             <div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-sm transition-all group-hover/bar:brightness-110 shadow-sm" style="height: ${h}%;"></div>
                         </div>`;
                     }
@@ -725,7 +779,7 @@
                         const h = Math.max(25, (tarCount / maxCount) * 100);
                         barBlock += `
                         <div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[14px]" onclick="openSAJobListModalCalendar('${d.dateStr}', 'target')" title="เป้าซ่อมเสร็จ: ${tarCount} คัน">
-                            <span class="text-[9px] font-black text-amber-600 mb-0.5 z-10 bg-white/90 rounded-full w-3.5 h-3.5 flex items-center justify-center shadow-sm opacity-0 group-hover/bar:opacity-100 transition-opacity">${tarCount}</span>
+                            <span class="text-[9px] font-black text-amber-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-amber-200">${tarCount}</span>
                             <div class="w-full bg-gradient-to-t from-amber-500 to-amber-300 rounded-sm transition-all group-hover/bar:brightness-110 shadow-sm" style="height: ${h}%;"></div>
                         </div>`;
                     }
@@ -733,7 +787,7 @@
                         const h = Math.max(25, (delCount / maxCount) * 100);
                         barBlock += `
                         <div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[14px]" onclick="openSAJobListModalCalendar('${d.dateStr}', 'delivery')" title="นัดส่งมอบ: ${delCount} คัน">
-                            <span class="text-[9px] font-black text-emerald-600 mb-0.5 z-10 bg-white/90 rounded-full w-3.5 h-3.5 flex items-center justify-center shadow-sm opacity-0 group-hover/bar:opacity-100 transition-opacity">${delCount}</span>
+                            <span class="text-[9px] font-black text-emerald-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-emerald-200">${delCount}</span>
                             <div class="w-full bg-gradient-to-t from-emerald-500 to-emerald-300 rounded-sm transition-all group-hover/bar:brightness-110 shadow-sm" style="height: ${h}%;"></div>
                         </div>`;
                     }
@@ -836,7 +890,6 @@
                 
                 let dayBadge = diffDays > 14 ? 'text-red-600 font-black' : (diffDays > 7 ? 'text-amber-600 font-bold' : 'text-slate-600 font-bold');
 
-                // 🌟 สร้าง Dropdown เปลี่ยนสถานะ (Inline Edit)
                 let safeStatus = j.job_status || '';
                 let safeOpts = globalStatusOptionsHtml;
                 if(!safeOpts.includes(`value="${safeStatus}"`)) safeOpts = `<option value="${safeStatus}">${safeStatus}</option>` + safeOpts;
@@ -857,7 +910,6 @@
             }).join('');
         }
 
-        // ฟังก์ชันกดกระโดดไป Excel Tab พร้อมตั้ง Filter ทะเบียนรถ
         function goToExcelTabFilterPlate(plate) {
             switchMainTab('tab-excel');
             clearAllFilters();
@@ -891,6 +943,82 @@
             }).join('');
         }
 
+        // ================= 🌟 TAB 3: VEHICLE HISTORY LOGIC 🌟 =================
+        function searchVehicleHistory() {
+            const searchTxt = document.getElementById('history_search_input').value.trim().toLowerCase();
+            const container = document.getElementById('history_results_container');
+            const emptyState = document.getElementById('history_empty_state');
+            
+            if(!searchTxt) {
+                container.classList.add('hidden');
+                emptyState.classList.add('hidden');
+                return;
+            }
+            
+            const results = allJobsData.filter(j => 
+                (j.car_plate && j.car_plate.toLowerCase().includes(searchTxt)) || 
+                (j.vin_no && j.vin_no.toLowerCase().includes(searchTxt))
+            );
+            
+            if(results.length === 0) {
+                container.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            
+            emptyState.classList.add('hidden');
+            container.classList.remove('hidden');
+            
+            // เรียงลำดับจากงานล่าสุดไปอดีต
+            results.sort((a,b) => new Date(b.arrived_date || b.contact_date || 0) - new Date(a.arrived_date || a.contact_date || 0));
+            
+            const latest = results[0];
+            document.getElementById('hist_car_plate').innerText = latest.car_plate || 'ไม่ระบุทะเบียน';
+            document.getElementById('hist_car_model').innerText = `${latest.car_brand || ''} ${latest.car_model || ''} | VIN: ${latest.vin_no || '-'}`;
+            document.getElementById('hist_total_visits').innerText = results.length;
+            
+            const timeline = document.getElementById('history_timeline_list');
+            timeline.innerHTML = results.map((j, idx) => {
+                const dDate = j.arrived_date ? j.arrived_date.split('T')[0] : (j.contact_date ? j.contact_date.split('T')[0] : 'ไม่ระบุวันที่');
+                const damageColor = j.damage_level === 'หนัก' ? 'text-red-600' : (j.damage_level === 'กลาง' ? 'text-amber-500' : 'text-emerald-600');
+                
+                return `
+                    <div class="relative pl-8 md:pl-10">
+                        <div class="absolute -left-3 top-0 w-6 h-6 rounded-full bg-purple-500 border-4 border-white shadow-sm flex items-center justify-center text-white text-[10px] font-black">${results.length - idx}</div>
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 hover:border-purple-300 transition-colors">
+                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 border-b border-slate-100 pb-3">
+                                <div>
+                                    <p class="text-xs font-bold text-purple-600 mb-1"><i class="fa-regular fa-calendar"></i> วันที่เข้ารับบริการ: ${dDate}</p>
+                                    <h4 class="text-lg font-black text-slate-800">ลูกค้านำรถเข้าซ่อม (SA: ${j.sa_owner || '-'})</h4>
+                                </div>
+                                <span class="px-3 py-1 bg-slate-100 border border-slate-200 text-slate-600 text-xs font-bold rounded-lg shadow-sm">${j.job_status || '-'}</span>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <p class="text-xs text-slate-500 font-bold uppercase mb-1">รายละเอียดงาน</p>
+                                    <ul class="text-sm font-medium text-slate-700 space-y-1">
+                                        <li><i class="fa-solid fa-caret-right text-purple-400 mr-2"></i> ความเสียหาย: <span class="font-bold ${damageColor}">${j.damage_level || '-'}</span></li>
+                                        <li><i class="fa-solid fa-caret-right text-purple-400 mr-2"></i> ประเภทรับงาน: <span class="font-bold">${j.payment_type || '-'}</span></li>
+                                        <li><i class="fa-solid fa-caret-right text-purple-400 mr-2"></i> ชิ้นส่วนทำสีหลัก: <span class="font-bold">${j.main_part_qty || 0} ชิ้น</span></li>
+                                        <li><i class="fa-solid fa-caret-right text-purple-400 mr-2"></i> ชิ้นส่วนทำสีรอง: <span class="font-bold">${j.sub_part_qty || 0} ชิ้น</span></li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-slate-500 font-bold uppercase mb-1">หมายเหตุ / ความต้องการลูกค้า</p>
+                                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-sm text-slate-700 h-full">
+                                        ${j.notes || '<span class="text-slate-400 italic">ไม่มีหมายเหตุระบุไว้</span>'}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-4 pt-3 border-t border-slate-100 text-right">
+                                <button onclick="goToEditJob('${j.id}')" class="text-xs font-bold text-blue-600 hover:text-blue-800 transition bg-blue-50 px-3 py-1.5 rounded border border-blue-200"><i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดดูใบงานนี้</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
         // ================= 🌟 MODAL LIST LOGIC 🌟 =================
         function renderJobTableInModal(jobs) {
             const tbody = document.getElementById('modal_job_table');
@@ -901,7 +1029,7 @@
                 const damageColor = j.damage_level === 'หนัก' ? 'text-red-600' : (j.damage_level === 'กลาง' ? 'text-amber-500' : 'text-emerald-600');
                 
                 return `
-                    <tr class="hover:bg-emerald-50/50 transition border-b border-slate-100">
+                    <tr class="hover:bg-emerald-50/50 transition cursor-pointer border-b border-slate-100" onclick="editJobFromDashboard('${j.id}')">
                         <td class="px-4 py-3 font-bold text-[#00320D]"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded font-mono text-xs shadow-inner whitespace-nowrap">${j.car_plate || '-'}</span></td>
                         <td class="px-4 py-3 font-bold text-slate-800 text-[11px] leading-tight">${j.car_brand} <br><span class="text-slate-500 font-medium">${j.car_model || ''}</span></td>
                         <td class="px-4 py-3 text-[11px] leading-tight">
@@ -911,10 +1039,7 @@
                         <td class="px-4 py-3 text-xs font-bold ${damageColor}">${j.damage_level || '-'}</td>
                         <td class="px-4 py-3 text-[10px] font-bold text-purple-700"><span class="bg-purple-50 px-2 py-1 rounded-lg border border-purple-200 shadow-sm">${j.part_status || '-'}</span></td>
                         <td class="px-4 py-3 text-[10px] font-bold text-slate-700"><span class="bg-slate-100 px-2 py-1 rounded-lg border shadow-sm">${j.job_status || '-'}</span></td>
-                        <td class="px-4 py-3 text-center">
-                            <button onclick="goToEditJob('${j.id}');" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold hover:bg-emerald-700 transition shadow-sm whitespace-nowrap mr-1"><i class="fa-solid fa-pen"></i> เปิดบิล</button>
-                            <button onclick="goToExcelTabFilterPlate('${j.car_plate}')" class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-[11px] font-bold hover:bg-black transition shadow-sm whitespace-nowrap"><i class="fa-solid fa-table-list"></i> ดูตารางหลัก</button>
-                        </td>
+                        <td class="px-4 py-3 text-center"><button class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full whitespace-nowrap"><i class="fa-solid fa-pen"></i> เปิด</button></td>
                     </tr>
                 `;
             }).join('');
@@ -935,7 +1060,6 @@
                     if(jobIndex > -1) allJobsData[jobIndex][field] = value;
                     showToast('อัปเดตข้อมูลอัตโนมัติสำเร็จ!');
                     
-                    // ถ้ายืนอยู่หน้า SA Dashboard ให้รีเฟรชค่าตารางให้ด้วย
                     if(document.getElementById('tab-sa').classList.contains('active') && currentViewSA) {
                         openSADetail(currentViewSA);
                     }
@@ -943,9 +1067,8 @@
             } catch (err) { showToast('บันทึกข้อมูลไม่สำเร็จ!', 'error'); loadJobsData(); }
         }
 
-        // 🌟 อัปเดตประเภทรับรถ (ซิงค์ลงช่อง Notes)
         async function updateParkStatus(jobId, newParkStatus, oldNote) {
-            let cleanNote = oldNote.replace(/^\[(.*?)\]\s*/, ''); // ตัดอันเก่าทิ้ง
+            let cleanNote = oldNote.replace(/^\[(.*?)\]\s*/, ''); 
             let finalNote = `[${newParkStatus}] ${cleanNote}`;
             await fastUpdateJob(jobId, 'notes', finalNote);
         }
