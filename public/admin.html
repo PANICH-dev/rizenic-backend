@@ -1,15 +1,14 @@
 <!DOCTYPE html>
 <html lang="th">
-<<head>
+<head>
     <meta charset="UTF-8">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RIZENIC ERP - Job Tracking Board (Excel View)</title>
+    <title>RIZENIC ERP - Admin Panel</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    
     
     <style type="text/tailwindcss">
         @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap');
@@ -46,7 +45,7 @@
             <button onclick="switchPanel('main-status-panel')" id="btn-main-status-panel" class="nav-btn text-amber-300 hover:text-amber-100"><i class="fa-solid fa-bars-progress w-5 text-center"></i> สถานะหลัก (Routing)</button>
             <button onclick="switchPanel('status-panel')" id="btn-status-panel" class="nav-btn text-purple-300 hover:text-purple-100"><i class="fa-solid fa-tags w-5 text-center"></i> สเตตัสอะไหล่ (PO)</button>
             <div class="my-2 border-t border-green-800/50"></div>
-            <button onclick="switchPanel('quota-panel')" id="btn-quota-panel" class="nav-btn"><i class="fa-solid fa-chart-pie w-5 text-center"></i> โควต้าสาขา</button>
+            <button onclick="switchPanel('quota-panel')" id="btn-quota-panel" class="nav-btn"><i class="fa-solid fa-chart-pie w-5 text-center"></i> โควต้าสาขา & ชิ้นงาน</button>
         </div>
         <div class="p-4 border-t border-green-800">
             <a href="index.html" class="w-full block text-center py-2.5 bg-white text-[#00320D] font-bold text-sm rounded-lg hover:bg-slate-200 transition mb-2">กลับหน้า SA</a>
@@ -65,29 +64,16 @@
                     <div><label class="label-text">รหัสพนักงาน</label><input type="text" id="emp_code_input" class="minimal-input uppercase"></div>
                     <div><label class="label-text">ชื่อ - นามสกุล</label><input type="text" id="emp_name_input" class="minimal-input"></div>
                     
-                    <!-- 🌟 เปลี่ยนตำแหน่งให้เป็น Datalist (พิมพ์เองได้) -->
                     <div>
                         <label class="label-text">ตำแหน่ง (Role)</label>
                         <input type="text" id="emp_role_input" list="role_list" class="minimal-input" placeholder="เลือกหรือพิมพ์ตำแหน่งใหม่...">
-                        <datalist id="role_list">
-                            <option value="SA">
-                            <option value="Parts">
-                            <option value="Technician">
-                            <option value="Finance">
-                            <option value="Manager">
-                            <option value="Admin">
-                        </datalist>
+                        <datalist id="role_list"><option value="SA"><option value="Parts"><option value="Technician"><option value="Finance"><option value="Manager"><option value="Admin"></datalist>
                     </div>
 
-                    <!-- 🌟 เปลี่ยนสาขาให้เป็น Datalist (พิมพ์เองได้) -->
                     <div>
                         <label class="label-text">สาขา (Branch)</label>
                         <input type="text" id="emp_branch_input" list="branch_list" class="minimal-input" placeholder="เลือกหรือพิมพ์สาขาใหม่...">
-                        <datalist id="branch_list">
-                            <option value="สำนักงานใหญ่">
-                            <option value="สาขารามอินทรา">
-                            <option value="สาขาบางนา">
-                        </datalist>
+                        <datalist id="branch_list"><option value="สำนักงานใหญ่"><option value="สาขารามอินทรา"><option value="สาขาบางนา"></datalist>
                     </div>
 
                     <div><label class="label-text">Username (สำหรับ Login)</label><input type="text" id="emp_user_input" class="minimal-input font-mono"></div>
@@ -210,34 +196,56 @@
                 <div class="overflow-x-auto border rounded-lg shadow-sm"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3 w-16 text-center">ID</th><th class="p-3 font-bold text-purple-700">ข้อความสถานะที่นำไปแสดงในแผนกอะไหล่</th><th class="p-3 text-center w-32">ลบ</th></tr></thead><tbody id="status_table_body" class="divide-y divide-slate-100 bg-white"></tbody></table></div>
             </div>
 
-            <!-- 📈 7. โควต้าสาขา -->
+            <!-- 📈 7. โควต้าสาขาและชิ้นงาน -->
             <div id="quota-panel" class="admin-panel">
-                <h2 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2"><i class="fa-solid fa-chart-pie text-rizenic-green mr-2"></i> ตั้งเป้าหมาย/โควต้า (Quota)</h2>
+                <h2 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2"><i class="fa-solid fa-chart-pie text-rizenic-green mr-2"></i> ตั้งเป้าหมาย/โควต้า (รถซ่อม & ชิ้นงานทำสี)</h2>
                 <div class="bg-slate-50 p-5 rounded-xl border mb-6 grid grid-cols-1 md:grid-cols-4 gap-4 items-end shadow-sm">
                     <input type="hidden" id="edit_quota_id">
-                    <div><label class="label-text">ประเภทเป้าหมาย</label><select id="quota_type_input" class="minimal-input" onchange="toggleQuotaDate()"><option value="default">เป้าหมายประจำวัน (ตั้งต้น)</option><option value="special">เป้าหมายวันพิเศษ (ระบุวันที่)</option></select></div>
+                    <div>
+                        <label class="label-text">ประเภทเป้าหมาย</label>
+                        <select id="quota_type_input" class="minimal-input" onchange="toggleQuotaDate()">
+                            <option value="default">เป้าหมายประจำวัน (ตั้งต้น)</option>
+                            <option value="special">เป้าหมายวันพิเศษ (ระบุวันที่)</option>
+                        </select>
+                    </div>
                     <div><label class="label-text">วันที่ (เฉพาะวันพิเศษ)</label><input type="date" id="quota_date_input" class="minimal-input font-mono bg-slate-100" disabled></div>
                     
-                    <!-- 🌟 เปลี่ยนโควต้าสาขาให้เป็น Datalist พิมพ์เองได้ -->
                     <div>
                         <label class="label-text">สาขา (Branch)</label>
                         <input type="text" id="quota_branch_input" list="branch_list_quota" class="minimal-input" placeholder="เลือกหรือพิมพ์สาขา...">
-                        <datalist id="branch_list_quota">
-                            <option value="สำนักงานใหญ่">
-                            <option value="สาขารามอินทรา">
-                            <option value="สาขาบางนา">
-                        </datalist>
+                        <datalist id="branch_list_quota"><option value="สำนักงานใหญ่"><option value="สาขารามอินทรา"><option value="สาขาบางนา"></datalist>
                     </div>
+                    <div class="hidden md:block"></div> <!-- Spacer -->
 
                     <div><label class="label-text text-blue-600">เป้ารถเข้าซ่อม (คัน)</label><input type="number" id="quota_arrived_input" class="minimal-input font-bold" value="0"></div>
                     <div><label class="label-text text-amber-600">เป้าซ่อมเสร็จ (คัน)</label><input type="number" id="quota_target_input" class="minimal-input font-bold" value="0"></div>
                     <div><label class="label-text text-green-600">เป้าส่งมอบลูกค้า (คัน)</label><input type="number" id="quota_delivery_input" class="minimal-input font-bold" value="0"></div>
-                    <div class="md:col-span-2 flex justify-end gap-2 mt-2">
-                        <button onclick="saveQuota()" id="btn_save_quota" class="px-6 py-2.5 bg-[#00320D] text-white font-bold rounded-lg text-sm shadow hover:bg-black w-full"><i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกโควต้า</button>
-                        <button onclick="resetQuotaForm()" class="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50 w-1/3">ล้างฟอร์ม</button>
+                    
+                    <!-- 🌟 ช่องใหม่: โควต้าชิ้นงานทำสี -->
+                    <div><label class="label-text text-purple-600"><i class="fa-solid fa-spray-can"></i> โควต้าชิ้นงานทำสี (ชิ้น)</label><input type="number" id="quota_color_parts_input" class="minimal-input font-black text-purple-700 bg-purple-50 border-purple-300 focus:border-purple-500" value="0" placeholder="0 = ไม่จำกัด"></div>
+                    
+                    <div class="md:col-span-4 flex justify-end gap-2 mt-2 pt-4 border-t border-slate-200">
+                        <button onclick="saveQuota()" id="btn_save_quota" class="px-8 py-2.5 bg-[#00320D] text-white font-bold rounded-lg text-sm shadow hover:bg-black"><i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกโควต้า</button>
+                        <button onclick="resetQuotaForm()" class="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50">ล้างฟอร์ม</button>
                     </div>
                 </div>
-                <div class="overflow-x-auto border rounded-lg shadow-sm"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-slate-100 border-b"><tr><th class="p-3">ประเภท</th><th class="p-3">สาขา</th><th class="p-3">วันที่ (ถ้ามี)</th><th class="p-3 text-center text-blue-600">รถเข้า</th><th class="p-3 text-center text-amber-600">ซ่อมเสร็จ</th><th class="p-3 text-center text-green-600">ส่งมอบ</th><th class="p-3 text-center">จัดการ</th></tr></thead><tbody id="quota_table_body" class="divide-y divide-slate-100 bg-white"></tbody></table></div>
+                <div class="overflow-x-auto border rounded-lg shadow-sm">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-slate-100 border-b">
+                            <tr>
+                                <th class="p-3">ประเภท</th>
+                                <th class="p-3">สาขา</th>
+                                <th class="p-3">วันที่ (ถ้ามี)</th>
+                                <th class="p-3 text-center text-blue-600">รถเข้า</th>
+                                <th class="p-3 text-center text-amber-600">ซ่อมเสร็จ</th>
+                                <th class="p-3 text-center text-green-600">ส่งมอบ</th>
+                                <th class="p-3 text-center text-purple-600 border-l border-slate-300"><i class="fa-solid fa-spray-can"></i> ชิ้นงานสี</th>
+                                <th class="p-3 text-center">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="quota_table_body" class="divide-y divide-slate-100 bg-white"></tbody>
+                    </table>
+                </div>
             </div>
 
         </div>
@@ -251,7 +259,6 @@
                 alert('กรุณาเข้าสู่ระบบ!'); window.location.href = 'index.html'; return; 
             }
 
-            // 🛡️ ยามเฝ้าประตู (หน้าแอดมิน)
             const allowedPages = (sessionStorage.getItem('accessible_pages') || '').split(',');
             if (!allowedPages.includes('admin')) { 
                 alert('⛔ คุณไม่มีสิทธิ์เข้าถึงหน้า Admin!');
@@ -279,13 +286,7 @@
         }
 
         async function loadAllData() { 
-            loadEmp(); 
-            loadCar(); 
-            loadIns(); 
-            loadCtype(); 
-            loadMainStatus(); 
-            loadPartStatus(); 
-            loadQuota(); 
+            loadEmp(); loadCar(); loadIns(); loadCtype(); loadMainStatus(); loadPartStatus(); loadQuota(); 
         }
 
         // ================= 1. พนักงาน =================
@@ -310,64 +311,21 @@
                 }).join('');
             } catch(e){}
         }
-
         function editEmp(id, code, name, role, branch, user, pass, pages) {
-            document.getElementById('edit_emp_id').value = id; 
-            document.getElementById('emp_code_input').value = code; 
-            document.getElementById('emp_name_input').value = name; 
-            document.getElementById('emp_role_input').value = role; 
-            document.getElementById('emp_branch_input').value = branch; 
-            document.getElementById('emp_user_input').value = user; 
-            document.getElementById('emp_pass_input').value = pass;
-            
+            document.getElementById('edit_emp_id').value = id; document.getElementById('emp_code_input').value = code; document.getElementById('emp_name_input').value = name; document.getElementById('emp_role_input').value = role; document.getElementById('emp_branch_input').value = branch; document.getElementById('emp_user_input').value = user; document.getElementById('emp_pass_input').value = pass;
             document.querySelectorAll('.page-chk').forEach(c => c.checked = false);
-            if(pages) {
-                const pageArr = pages.split(',');
-                document.querySelectorAll('.page-chk').forEach(c => {
-                    if(pageArr.includes(c.value)) c.checked = true;
-                });
-            }
-
-            document.getElementById('btn_save_emp').innerHTML = '<i class="fa-solid fa-pen-to-square mr-1"></i> อัปเดตพนักงาน'; 
-            document.getElementById('btn_save_emp').classList.replace('bg-[#00320D]', 'bg-blue-600');
+            if(pages) { const pageArr = pages.split(','); document.querySelectorAll('.page-chk').forEach(c => { if(pageArr.includes(c.value)) c.checked = true; }); }
+            document.getElementById('btn_save_emp').innerHTML = '<i class="fa-solid fa-pen-to-square mr-1"></i> อัปเดตพนักงาน'; document.getElementById('btn_save_emp').classList.replace('bg-[#00320D]', 'bg-blue-600');
         }
-
         function resetEmpForm() { 
-            document.getElementById('edit_emp_id').value = ''; 
-            document.getElementById('emp_code_input').value = ''; 
-            document.getElementById('emp_name_input').value = ''; 
-            document.getElementById('emp_role_input').value = ''; 
-            document.getElementById('emp_branch_input').value = ''; 
-            document.getElementById('emp_user_input').value = ''; 
-            document.getElementById('emp_pass_input').value = ''; 
-            document.querySelectorAll('.page-chk').forEach(c => c.checked = false);
-
-            document.getElementById('btn_save_emp').innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกพนักงาน'; 
-            document.getElementById('btn_save_emp').classList.replace('bg-blue-600', 'bg-[#00320D]'); 
+            document.getElementById('edit_emp_id').value = ''; document.getElementById('emp_code_input').value = ''; document.getElementById('emp_name_input').value = ''; document.getElementById('emp_role_input').value = ''; document.getElementById('emp_branch_input').value = ''; document.getElementById('emp_user_input').value = ''; document.getElementById('emp_pass_input').value = ''; document.querySelectorAll('.page-chk').forEach(c => c.checked = false);
+            document.getElementById('btn_save_emp').innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกพนักงาน'; document.getElementById('btn_save_emp').classList.replace('bg-blue-600', 'bg-[#00320D]'); 
         }
-
         async function saveEmp() {
             const id = document.getElementById('edit_emp_id').value;
             const selectedPages = Array.from(document.querySelectorAll('.page-chk:checked')).map(c => c.value).join(',');
-
-            const payload = { 
-                employee_code: document.getElementById('emp_code_input').value, 
-                employee_name: document.getElementById('emp_name_input').value, 
-                employee_role: document.getElementById('emp_role_input').value, 
-                branch_name: document.getElementById('emp_branch_input').value, 
-                username: document.getElementById('emp_user_input').value, 
-                password: document.getElementById('emp_pass_input').value,
-                accessible_pages: selectedPages 
-            };
-
-            try {
-                await fetch(`${API_BASE_URL}${id ? '/api/employees/'+id : '/api/employees'}`, { 
-                    method: id ? 'PUT' : 'POST', 
-                    headers: {'Content-Type': 'application/json'}, 
-                    body: JSON.stringify(payload) 
-                }); 
-                resetEmpForm(); loadEmp();
-            } catch(e) { alert('❌ เซฟข้อมูลไม่ได้'); }
+            const payload = { employee_code: document.getElementById('emp_code_input').value, employee_name: document.getElementById('emp_name_input').value, employee_role: document.getElementById('emp_role_input').value, branch_name: document.getElementById('emp_branch_input').value, username: document.getElementById('emp_user_input').value, password: document.getElementById('emp_pass_input').value, accessible_pages: selectedPages };
+            try { await fetch(`${API_BASE_URL}${id ? '/api/employees/'+id : '/api/employees'}`, { method: id ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }); resetEmpForm(); loadEmp(); } catch(e) { alert('❌ เซฟข้อมูลไม่ได้'); }
         }
 
         // ================= 2. รุ่นรถยนต์ =================
@@ -403,7 +361,7 @@
         function resetCtypeForm() { document.getElementById('edit_ctype_id').value = ''; document.getElementById('ctype_name_input').value = ''; document.getElementById('btn_save_ctype').innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> บันทึก'; document.getElementById('btn_save_ctype').classList.replace('bg-blue-600', 'bg-[#00320D]'); }
         async function saveCtype() { const id = document.getElementById('edit_ctype_id').value; await fetch(`${API_BASE_URL}${id ? '/api/customer-types/'+id : '/api/customer-types'}`, { method: id ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ type_name: document.getElementById('ctype_name_input').value }) }); resetCtypeForm(); loadCtype(); }
 
-        // ================= 🟢 5. จัดการสถานะหลัก (Dynamic Routing) =================
+        // ================= 5. จัดการสถานะหลัก (Dynamic Routing) =================
         async function loadMainStatus() {
             try {
                 const res = await fetch(`${API_BASE_URL}/api/statuses`); const data = await res.json();
@@ -421,60 +379,9 @@
                 `).join('');
             } catch(e){}
         }
-
-        function editMainStatus(code, name, dept, route) {
-            document.getElementById('main_status_code_input').value = code;
-            document.getElementById('main_status_code_input').readOnly = true; 
-            document.getElementById('main_status_code_input').classList.add('bg-slate-100', 'text-slate-500');
-            document.getElementById('main_status_name_input').value = name;
-            document.getElementById('main_status_dept_input').value = dept || 'บริการ';
-            document.getElementById('main_status_route_input').value = route || 'jobs';
-            
-            const btn = document.getElementById('btn_save_main_status');
-            btn.innerHTML = '<i class="fa-solid fa-pen-to-square mr-1"></i> อัปเดตข้อมูล';
-            btn.classList.replace('bg-amber-600', 'bg-blue-600');
-            btn.classList.replace('hover:bg-amber-700', 'hover:bg-blue-700');
-        }
-
-        function resetMainStatusForm() {
-            document.getElementById('main_status_code_input').value = '';
-            document.getElementById('main_status_code_input').readOnly = false;
-            document.getElementById('main_status_code_input').classList.remove('bg-slate-100', 'text-slate-500');
-            document.getElementById('main_status_name_input').value = '';
-            document.getElementById('main_status_dept_input').value = 'บริการ';
-            document.getElementById('main_status_route_input').value = 'jobs';
-            
-            const btn = document.getElementById('btn_save_main_status');
-            btn.innerHTML = '<i class="fa-solid fa-save mr-1"></i> บันทึกข้อมูล';
-            btn.classList.replace('bg-blue-600', 'bg-amber-600');
-            btn.classList.replace('hover:bg-blue-700', 'hover:bg-amber-700');
-        }
-
-        async function saveMainStatus() {
-            const code = document.getElementById('main_status_code_input').value; 
-            const name = document.getElementById('main_status_name_input').value; 
-            const dept = document.getElementById('main_status_dept_input').value; 
-            const route = document.getElementById('main_status_route_input').value; 
-            
-            if(!code || !name) return alert('กรอกข้อมูลให้ครบถ้วน');
-            
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/statuses`, { 
-                    method: 'POST', 
-                    headers: {'Content-Type': 'application/json'}, 
-                    body: JSON.stringify({ status_code: code, status_name: name, department: dept, route_page: route }) 
-                });
-                if (!res.ok) {
-                    const err = await res.json();
-                    alert('❌ ระบบขัดข้อง: ' + err.error);
-                    return;
-                }
-                resetMainStatusForm();
-                loadMainStatus();
-            } catch (e) {
-                alert('❌ ติดต่อเซิร์ฟเวอร์ไม่ได้: ' + e.message);
-            }
-        }
+        function editMainStatus(code, name, dept, route) { document.getElementById('main_status_code_input').value = code; document.getElementById('main_status_code_input').readOnly = true; document.getElementById('main_status_code_input').classList.add('bg-slate-100', 'text-slate-500'); document.getElementById('main_status_name_input').value = name; document.getElementById('main_status_dept_input').value = dept || 'บริการ'; document.getElementById('main_status_route_input').value = route || 'jobs'; const btn = document.getElementById('btn_save_main_status'); btn.innerHTML = '<i class="fa-solid fa-pen-to-square mr-1"></i> อัปเดตข้อมูล'; btn.classList.replace('bg-amber-600', 'bg-blue-600'); btn.classList.replace('hover:bg-amber-700', 'hover:bg-blue-700'); }
+        function resetMainStatusForm() { document.getElementById('main_status_code_input').value = ''; document.getElementById('main_status_code_input').readOnly = false; document.getElementById('main_status_code_input').classList.remove('bg-slate-100', 'text-slate-500'); document.getElementById('main_status_name_input').value = ''; document.getElementById('main_status_dept_input').value = 'บริการ'; document.getElementById('main_status_route_input').value = 'jobs'; const btn = document.getElementById('btn_save_main_status'); btn.innerHTML = '<i class="fa-solid fa-save mr-1"></i> บันทึกข้อมูล'; btn.classList.replace('bg-blue-600', 'bg-amber-600'); btn.classList.replace('hover:bg-blue-700', 'hover:bg-amber-700'); }
+        async function saveMainStatus() { const code = document.getElementById('main_status_code_input').value; const name = document.getElementById('main_status_name_input').value; const dept = document.getElementById('main_status_dept_input').value; const route = document.getElementById('main_status_route_input').value; if(!code || !name) return alert('กรอกข้อมูลให้ครบถ้วน'); try { const res = await fetch(`${API_BASE_URL}/api/statuses`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ status_code: code, status_name: name, department: dept, route_page: route }) }); if (!res.ok) { const err = await res.json(); alert('❌ ระบบขัดข้อง: ' + err.error); return; } resetMainStatusForm(); loadMainStatus(); } catch (e) { alert('❌ ติดต่อเซิร์ฟเวอร์ไม่ได้: ' + e.message); } }
 
         // ================= 6. สเตตัสอะไหล่ (PO Status) =================
         async function loadPartStatus() {
@@ -483,23 +390,86 @@
                 document.getElementById('status_table_body').innerHTML = data.map(s => `<tr><td class="p-3 text-center font-mono text-slate-500">${s.status_id}</td><td class="p-3 font-bold text-purple-700">${s.status_name}</td><td class="p-3 text-center"><button onclick="deleteData('/api/part-statuses/${s.status_id}', loadPartStatus)" class="text-red-400 hover:text-red-600 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
             } catch(e){}
         }
-        async function savePartStatus() {
-            const name = document.getElementById('part_status_name_input').value; if(!name) return;
-            await fetch(`${API_BASE_URL}/api/part-statuses`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ status_name: name }) });
-            document.getElementById('part_status_name_input').value = ''; loadPartStatus();
+        async function savePartStatus() { const name = document.getElementById('part_status_name_input').value; if(!name) return; await fetch(`${API_BASE_URL}/api/part-statuses`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ status_name: name }) }); document.getElementById('part_status_name_input').value = ''; loadPartStatus(); }
+
+        // ================= 🌟 7. โควต้า & ชิ้นงานทำสี =================
+        function toggleQuotaDate() { 
+            const t = document.getElementById('quota_type_input').value; 
+            const d = document.getElementById('quota_date_input'); 
+            if(t==='special'){ d.disabled=false; d.classList.remove('bg-slate-100'); } 
+            else { d.disabled=true; d.classList.add('bg-slate-100'); d.value=''; } 
         }
 
-        // ================= 7. โควต้า =================
-        function toggleQuotaDate() { const t = document.getElementById('quota_type_input').value; const d = document.getElementById('quota_date_input'); if(t==='special'){ d.disabled=false; d.classList.remove('bg-slate-100'); } else { d.disabled=true; d.classList.add('bg-slate-100'); d.value=''; } }
         async function loadQuota() {
             try {
                 const res = await fetch(`${API_BASE_URL}/api/quotas`); const data = await res.json();
-                document.getElementById('quota_table_body').innerHTML = data.map(q => `<tr><td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-bold ${q.quota_type==='default'?'bg-slate-200 text-slate-700':'bg-blue-100 text-blue-700'}">${q.quota_type==='default'?'ประจำวัน':'วันพิเศษ'}</span></td><td class="p-3 font-bold">${q.branch_name}</td><td class="p-3 font-mono">${q.quota_date?q.quota_date.split('T')[0]:'-'}</td><td class="p-3 text-center font-bold text-blue-600">${q.quota_arrived}</td><td class="p-3 text-center font-bold text-amber-600">${q.quota_target}</td><td class="p-3 text-center font-bold text-green-600">${q.quota_delivery}</td><td class="p-3 text-center"><button onclick="editQuota('${q.id}','${q.quota_type}','${q.quota_date?q.quota_date.split('T')[0]:''}','${q.branch_name}','${q.quota_arrived}','${q.quota_target}','${q.quota_delivery}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteData('/api/quotas/${q.id}', loadQuota)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
+                document.getElementById('quota_table_body').innerHTML = data.map(q => `
+                    <tr>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-bold ${q.quota_type==='default'?'bg-slate-200 text-slate-700':'bg-blue-100 text-blue-700'}">${q.quota_type==='default'?'ประจำวัน':'วันพิเศษ'}</span></td>
+                        <td class="p-3 font-bold">${q.branch_name}</td>
+                        <td class="p-3 font-mono">${q.quota_date?q.quota_date.split('T')[0]:'-'}</td>
+                        <td class="p-3 text-center font-bold text-blue-600">${q.quota_arrived}</td>
+                        <td class="p-3 text-center font-bold text-amber-600">${q.quota_target}</td>
+                        <td class="p-3 text-center font-bold text-green-600">${q.quota_delivery}</td>
+                        <td class="p-3 text-center font-black text-purple-600 border-l border-slate-200 bg-purple-50/30">${q.quota_color_parts || 0}</td>
+                        <td class="p-3 text-center">
+                            <button onclick="editQuota('${q.id}','${q.quota_type}','${q.quota_date?q.quota_date.split('T')[0]:''}','${q.branch_name}','${q.quota_arrived}','${q.quota_target}','${q.quota_delivery}', '${q.quota_color_parts||0}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="deleteData('/api/quotas/${q.id}', loadQuota)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `).join('');
             } catch(e){}
         }
-        function editQuota(id, type, date, branch, arr, tgt, del) { document.getElementById('edit_quota_id').value = id; document.getElementById('quota_type_input').value = type; toggleQuotaDate(); if(type==='special') document.getElementById('quota_date_input').value = date; document.getElementById('quota_branch_input').value = branch; document.getElementById('quota_arrived_input').value = arr; document.getElementById('quota_target_input').value = tgt; document.getElementById('quota_delivery_input').value = del; document.getElementById('btn_save_quota').innerHTML = '<i class="fa-solid fa-pen-to-square mr-1"></i> อัปเดต'; document.getElementById('btn_save_quota').classList.replace('bg-[#00320D]', 'bg-blue-600'); }
-        function resetQuotaForm() { document.getElementById('edit_quota_id').value = ''; document.getElementById('quota_type_input').value = 'default'; toggleQuotaDate(); document.getElementById('quota_arrived_input').value = 0; document.getElementById('quota_target_input').value = 0; document.getElementById('quota_delivery_input').value = 0; document.getElementById('btn_save_quota').innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกโควต้า'; document.getElementById('btn_save_quota').classList.replace('bg-blue-600', 'bg-[#00320D]'); }
-        async function saveQuota() { const id = document.getElementById('edit_quota_id').value; await fetch(`${API_BASE_URL}${id ? '/api/quotas/'+id : '/api/quotas'}`, { method: id ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ quota_type: document.getElementById('quota_type_input').value, quota_date: document.getElementById('quota_date_input').value, branch_name: document.getElementById('quota_branch_input').value, quota_arrived: document.getElementById('quota_arrived_input').value, quota_target: document.getElementById('quota_target_input').value, quota_delivery: document.getElementById('quota_delivery_input').value }) }); resetQuotaForm(); loadQuota(); }
+
+        function editQuota(id, type, date, branch, arr, tgt, del, color_parts) { 
+            document.getElementById('edit_quota_id').value = id; 
+            document.getElementById('quota_type_input').value = type; 
+            toggleQuotaDate(); 
+            if(type==='special') document.getElementById('quota_date_input').value = date; 
+            document.getElementById('quota_branch_input').value = branch; 
+            document.getElementById('quota_arrived_input').value = arr; 
+            document.getElementById('quota_target_input').value = tgt; 
+            document.getElementById('quota_delivery_input').value = del; 
+            document.getElementById('quota_color_parts_input').value = color_parts; // 🌟 เติมช่องนี้
+            
+            document.getElementById('btn_save_quota').innerHTML = '<i class="fa-solid fa-pen-to-square mr-1"></i> อัปเดต'; 
+            document.getElementById('btn_save_quota').classList.replace('bg-[#00320D]', 'bg-blue-600'); 
+        }
+
+        function resetQuotaForm() { 
+            document.getElementById('edit_quota_id').value = ''; 
+            document.getElementById('quota_type_input').value = 'default'; 
+            toggleQuotaDate(); 
+            document.getElementById('quota_arrived_input').value = 0; 
+            document.getElementById('quota_target_input').value = 0; 
+            document.getElementById('quota_delivery_input').value = 0; 
+            document.getElementById('quota_color_parts_input').value = 0; // 🌟 เคลียร์ช่องนี้
+
+            document.getElementById('btn_save_quota').innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกโควต้า'; 
+            document.getElementById('btn_save_quota').classList.replace('bg-blue-600', 'bg-[#00320D]'); 
+        }
+
+        async function saveQuota() { 
+            const id = document.getElementById('edit_quota_id').value; 
+            const payload = { 
+                quota_type: document.getElementById('quota_type_input').value, 
+                quota_date: document.getElementById('quota_date_input').value, 
+                branch_name: document.getElementById('quota_branch_input').value, 
+                quota_arrived: document.getElementById('quota_arrived_input').value, 
+                quota_target: document.getElementById('quota_target_input').value, 
+                quota_delivery: document.getElementById('quota_delivery_input').value,
+                quota_color_parts: document.getElementById('quota_color_parts_input').value // 🌟 ส่งตัวนี้ไปบันทึก
+            };
+
+            await fetch(`${API_BASE_URL}${id ? '/api/quotas/'+id : '/api/quotas'}`, { 
+                method: id ? 'PUT' : 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify(payload) 
+            }); 
+            
+            resetQuotaForm(); 
+            loadQuota(); 
+        }
     </script>
 </body>
 </html>
