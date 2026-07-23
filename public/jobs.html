@@ -35,7 +35,7 @@
         .resizer { @apply absolute top-0 right-0 w-1.5 h-full cursor-col-resize z-20 hover:bg-amber-400 transition-colors; }
         
         .sort-icon { @apply ml-1 opacity-40 transition-opacity group-hover:opacity-100 text-[10px]; }
-        .filter-icon { @apply ml-2 text-slate-400 hover:text-amber-400 transition-colors p-1 rounded hover:bg-white/20 cursor-pointer; }
+        .filter-icon { @apply ml-2 text-slate-400 hover:text-amber-400 transition-colors p-1.5 rounded hover:bg-white/20 cursor-pointer; }
         
         .inline-edit-input { @apply w-full h-full border-0 bg-transparent px-3 py-2 outline-none font-medium text-slate-900 transition-colors hover:bg-slate-50 focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500; }
         .inline-edit-select { @apply w-full h-full border-0 bg-transparent px-2 py-2 outline-none font-bold text-slate-800 transition-colors cursor-pointer hover:bg-slate-50 focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500; }
@@ -66,21 +66,26 @@
         <span id="toastContent"><i class="fa-solid fa-circle-check text-xl"></i> บันทึกข้อมูลอัตโนมัติเรียบร้อย!</span>
     </div>
 
-    <!-- 🔍 Excel Filter Modal -->
-    <div id="excelFilterModal" class="absolute bg-white border border-slate-200 shadow-2xl rounded-xl p-3 z-[200] w-64 text-sm hidden flex-col transition-all">
-        <div class="flex justify-between items-center border-b pb-2 mb-2">
-            <span class="font-bold text-[#00320D] text-xs"><i class="fa-solid fa-filter mr-1"></i> ตัวกรอง: <span id="ef_col_name" class="text-amber-600"></span></span>
-            <button onclick="closeExcelFilter()" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
+    <!-- 🔍 Excel Filter Modal (🌟 ดีไซน์ใหม่ เรียบหรูแบบ Excel) -->
+    <div id="excelFilterModal" class="hidden fixed bg-white border border-slate-200 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] rounded-xl w-64 z-[9999] flex-col overflow-hidden">
+        <div class="bg-slate-50 border-b border-slate-200 px-3 py-2.5 flex justify-between items-center">
+            <span class="font-bold text-[#00320D] text-xs flex items-center gap-1.5"><i class="fa-solid fa-filter text-amber-500"></i> ตัวกรอง: <span id="ef_col_name" class="text-slate-600"></span></span>
+            <button onclick="closeExcelFilter()" class="text-slate-400 hover:text-red-500 transition-colors w-6 h-6 flex items-center justify-center rounded-md hover:bg-red-50"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <input type="text" id="ef_search" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none focus:border-amber-500 bg-slate-50" placeholder="🔍 ค้นหาในตัวกรอง..." onkeyup="searchExcelFilter()">
-        <div class="flex items-center gap-2 mt-2 px-1 pb-1 border-b">
-            <input type="checkbox" id="ef_select_all" checked onchange="toggleAllExcelFilters(this.checked)" class="w-3.5 h-3.5 cursor-pointer accent-[#00320D]">
-            <label for="ef_select_all" class="text-xs font-bold text-[#00320D] cursor-pointer select-none">เลือกทั้งหมด</label>
+        <div class="p-2.5 pb-1">
+            <div class="relative mb-2.5">
+                <i class="fa-solid fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" id="ef_search" class="w-full border border-slate-300 rounded-lg pl-8 pr-2 py-1.5 text-xs outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all bg-white placeholder-slate-400" placeholder="ค้นหา..." onkeyup="searchExcelFilter()">
+            </div>
+            <label class="flex items-center gap-2 px-1.5 py-1.5 border-b border-slate-100 hover:bg-slate-50 rounded cursor-pointer transition-colors mb-1">
+                <input type="checkbox" id="ef_select_all" checked onchange="toggleAllExcelFilters(this.checked)" class="w-3.5 h-3.5 cursor-pointer accent-[#00320D] rounded border-slate-300">
+                <span class="text-xs font-bold text-[#00320D] select-none">เลือกทั้งหมด</span>
+            </label>
+            <div id="ef_checkbox_list" class="max-h-40 overflow-y-auto space-y-0.5 custom-scrollbar pr-1"></div>
         </div>
-        <div id="ef_checkbox_list" class="max-h-48 overflow-y-auto space-y-1 mt-2 p-1 rounded custom-scrollbar"></div>
-        <div class="flex gap-2 mt-3 pt-2 border-t">
-            <button onclick="applyExcelFilter()" class="flex-1 bg-[#00320D] text-white text-xs font-bold py-2 rounded-lg hover:bg-black transition shadow-md"><i class="fa-solid fa-check"></i> ตกลง</button>
-            <button onclick="clearSpecificExcelFilter()" class="flex-1 bg-slate-100 text-slate-700 text-xs font-bold py-2 rounded-lg hover:bg-slate-200 transition border border-slate-300"><i class="fa-solid fa-eraser"></i> ล้าง</button>
+        <div class="bg-slate-50 border-t border-slate-200 p-2.5 flex gap-2">
+            <button onclick="applyExcelFilter()" class="flex-1 bg-[#00320D] text-white text-xs font-bold py-1.5 rounded-lg hover:bg-black transition shadow-sm flex items-center justify-center gap-1.5"><i class="fa-solid fa-check"></i> ตกลง</button>
+            <button onclick="clearSpecificExcelFilter()" class="flex-1 bg-white text-slate-600 border border-slate-300 text-xs font-bold py-1.5 rounded-lg hover:bg-slate-100 transition shadow-sm flex items-center justify-center gap-1.5"><i class="fa-solid fa-eraser"></i> ล้าง</button>
         </div>
     </div>
 
@@ -349,7 +354,7 @@
                 <button onclick="addBulkRow()" class="mt-4 px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg text-sm hover:bg-slate-300 transition shadow-sm border border-slate-300">+ เพิ่มแถวใหม่ (Manual)</button>
             </div>
             <div class="bg-white border-t border-slate-200 p-4 shrink-0 flex justify-between items-center">
-                <span class="text-xs text-red-500 font-bold">* ระบบจะบันทึกเฉพาะแถวที่มีการกรอก "ทะเบียนรถ" เท่านั้น</span>
+                <span class="text-xs text-red-500 font-bold">* ระบบจะบันทึกเฉพาะแถวที่มีการกรอก "ทะเบียนรถ"เท่านั้น</span>
                 <div class="flex gap-3">
                     <button onclick="closeBulkModal()" class="px-6 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition border border-slate-300">ยกเลิก</button>
                     <button onclick="saveBulkData()" id="btn_save_bulk" class="px-8 py-2.5 bg-emerald-600 text-white font-black rounded-xl hover:bg-emerald-700 transition shadow-lg shadow-emerald-600/30 flex items-center gap-2"><i class="fa-solid fa-save"></i> 3. บันทึกข้อมูลเข้าฐานข้อมูล</button>
@@ -479,7 +484,6 @@
                 }
             });
             
-            // ให้กด Enter ค้นหาประวัติรถได้
             document.getElementById('history_search_input').addEventListener('keypress', function (e) {
                 if (e.key === 'Enter') searchVehicleHistory();
             });
@@ -520,7 +524,8 @@
             const thead = document.getElementById('jobs_table_head');
             let trHtml = '<tr>';
             columnsDef.forEach(col => {
-                let filterIcon = col.key !== 'action' ? `<i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, ${col.idx - 1}, '${col.title}')"></i>` : '';
+                // 🛠️ โค้ดสร้างไอคอน Filter โดยส่ง col.idx ไปให้เปิดการกรอง
+                let filterIcon = col.key !== 'action' ? `<i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, ${col.idx}, '${col.title}')"></i>` : '';
                 let bgClass = col.key === 'car_plate' ? 'bg-amber-600 text-slate-900 border-amber-700' : (col.key === 'action' ? 'bg-blue-900 border-blue-800' : '');
                 
                 trHtml += `<th class="relative group hover:bg-[#004a1f] select-none ${bgClass}" id="th_${col.idx}" style="width: ${col.width}px; min-width: ${col.width}px;">
@@ -595,6 +600,93 @@
             styleTag.innerHTML = css;
         }
 
+        // ================= 🌟 EXCEL FILTER LOGIC 🌟 =================
+        function openExcelFilter(e, colIndex, title) {
+            e.stopPropagation(); 
+            currentFilterKey = colIndex; 
+            document.getElementById('ef_col_name').innerText = title; 
+            document.getElementById('ef_search').value = '';
+
+            const uniqueValues = new Set();
+            allJobsData.forEach(job => {
+                const colDef = columnsDef.find(c => c.idx === colIndex);
+                if(!colDef) return;
+                
+                let val = job[colDef.key] || '';
+                if(['contact_date', 'arrived_date', 'target_finish_date', 'actual_finish_date', 'delivery_date'].includes(colDef.key)) {
+                    val = val ? String(val).split('T')[0] : '';
+                } else { val = String(val).trim(); }
+                uniqueValues.add(val);
+            });
+
+            const sortedValues = [...uniqueValues].sort();
+            const listDiv = document.getElementById('ef_checkbox_list'); 
+            listDiv.innerHTML = '';
+            const activeSet = activeFilters[colIndex];
+
+            sortedValues.forEach(val => {
+                const isChecked = activeSet ? activeSet.has(val) : true;
+                listDiv.innerHTML += `
+                    <label class="flex items-start gap-2 hover:bg-slate-100 p-1.5 rounded cursor-pointer ef-item transition">
+                        <input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''} class="ef-check accent-[#00320D] mt-0.5 cursor-pointer rounded border-slate-300">
+                        <span class="text-slate-700 font-medium truncate w-full" title="${val}">${val === '' ? '(ว่าง)' : val}</span>
+                    </label>`;
+            });
+
+            document.getElementById('ef_select_all').checked = Array.from(document.querySelectorAll('.ef-check')).every(cb => cb.checked);
+            
+            const modal = document.getElementById('excelFilterModal'); 
+            const rect = e.target.closest('th').getBoundingClientRect();
+            modal.style.top = (rect.bottom + window.scrollY + 8) + 'px';
+            let leftPos = rect.left + window.scrollX;
+            if (leftPos + 260 > window.innerWidth) leftPos = window.innerWidth - 270;
+            modal.style.left = leftPos + 'px';
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+        }
+
+        function closeExcelFilter() { 
+            const modal = document.getElementById('excelFilterModal');
+            modal.classList.add('hidden'); modal.classList.remove('flex'); 
+        }
+        
+        function searchExcelFilter() {
+            const txt = document.getElementById('ef_search').value.toLowerCase();
+            document.querySelectorAll('.ef-item').forEach(l => {
+                l.style.display = l.querySelector('.ef-check').value.toLowerCase().includes(txt) ? 'flex' : 'none';
+            });
+        }
+        
+        function toggleAllExcelFilters(c) { 
+            document.querySelectorAll('.ef-item:not([style*="display: none"]) .ef-check').forEach(cb => cb.checked = c); 
+        }
+
+        function applyExcelFilter() {
+            const checks = document.querySelectorAll('.ef-check');
+            const checkedVals = Array.from(checks).filter(cb => cb.checked).map(cb => cb.value);
+            
+            // การหา element <th> อิงจาก idx - 1
+            const thIcon = document.querySelectorAll('#jobsTable th')[currentFilterKey - 1].querySelector('.filter-icon');
+
+            if (checkedVals.length === checks.length || checkedVals.length === 0) {
+                delete activeFilters[currentFilterKey];
+                if(thIcon) { thIcon.classList.remove('text-amber-400'); thIcon.classList.add('text-slate-400'); }
+            } else {
+                activeFilters[currentFilterKey] = new Set(checkedVals);
+                if(thIcon) { thIcon.classList.remove('text-slate-400'); thIcon.classList.add('text-amber-400'); }
+            }
+            closeExcelFilter(); 
+            applyFilters();
+        }
+
+        function clearSpecificExcelFilter() {
+            if(activeFilters[currentFilterKey]) delete activeFilters[currentFilterKey];
+            const thIcon = document.querySelectorAll('#jobsTable th')[currentFilterKey - 1].querySelector('.filter-icon');
+            if(thIcon) { thIcon.classList.remove('text-amber-400'); thIcon.classList.add('text-slate-400'); }
+            closeExcelFilter(); 
+            applyFilters();
+        }
+
+        // ================= 🌟 FETCH & RENDER DATA 🌟 =================
         async function loadJobsData() {
             try {
                 document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-10 text-slate-400 font-mono"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังดึงข้อมูล...</td></tr>`;
@@ -723,7 +815,6 @@
             renderSAPOTracking(saPOs);
         }
 
-        // 🌟 ปฏิทินกราฟแท่ง (แทนตารางเดิม - อัปเกรดโชว์ตัวเลขค้างไว้) 🌟
         function refreshSACalendar() {
             if(!currentViewSA) return;
             const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
@@ -1105,7 +1196,8 @@
                 if (branchSelectedTxt && branchSelectedTxt !== 'ALL' && job.branch_name !== branchSelectedTxt) return false;
 
                 for (let key in activeFilters) {
-                    const colDef = columnsDef[key];
+                    const colDef = columnsDef.find(c => c.idx === parseInt(key));
+                    if(!colDef) continue;
                     let rawVal = job[colDef.key] || '';
                     if (['contact_date', 'arrived_date', 'target_finish_date', 'actual_finish_date', 'delivery_date'].includes(colDef.key)) {
                         rawVal = rawVal ? String(rawVal).split('T')[0] : '';
@@ -1129,11 +1221,19 @@
             let dir = table.getAttribute(`data-dir-${colIndex}`) || 'asc';
             table.setAttribute(`data-dir-${colIndex}`, dir === 'asc' ? 'desc' : 'asc');
             
-            const clickedIcon = table.querySelectorAll('th')[colIndex].querySelector('.sort-icon');
-            if (clickedIcon) clickedIcon.className = dir === 'asc' ? "fa-solid fa-sort-down ml-1 text-amber-400 opacity-100" : "fa-solid fa-sort-up ml-1 text-amber-400 opacity-100";
+            // ใช้ colIndex เพื่อหาคอลัมน์ที่ตรงกับ idx
+            const thElements = Array.from(table.querySelectorAll('th'));
+            const clickedTh = thElements.find(th => th.id === `th_${colIndex}`);
+            if (clickedTh) {
+                const clickedIcon = clickedTh.querySelector('.sort-icon');
+                if (clickedIcon) clickedIcon.className = dir === 'asc' ? "fa-solid fa-sort-down ml-1 text-amber-400 opacity-100" : "fa-solid fa-sort-up ml-1 text-amber-400 opacity-100";
+            }
+
+            // หา column index ที่แท้จริงในตาราง HTML
+            const thIndex = thElements.findIndex(th => th.id === `th_${colIndex}`);
 
             rows.sort((a, b) => {
-                let valA = getCellValue(a.cells[colIndex]); let valB = getCellValue(b.cells[colIndex]);
+                let valA = getCellValue(a.cells[thIndex]); let valB = getCellValue(b.cells[thIndex]);
                 let isDateA = valA.match(/^\d{4}-\d{2}-\d{2}$/); let isDateB = valB.match(/^\d{4}-\d{2}-\d{2}$/);
                 if (isDateA && isDateB) {
                     let dateA = new Date(valA); let dateB = new Date(valB);
