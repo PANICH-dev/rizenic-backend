@@ -770,39 +770,133 @@
         }
 
         // ================= POP-UP CONTROLLERS =================
-        // ฟังก์ชันสำหรับเปิดหน้าต่างโต๊ะคีย์ (Modal: แจ้งเตือน SA)
-function openCarPartsDetailsModal(carPlate, epcNo) {
-    // 1. นำค่าทะเบียนรถและ EPC ไปใส่ไว้ใน hidden input ของ Modal
-    document.getElementById('modal_job_id').value = carPlate;
-    document.getElementById('modal_epc').value = epcNo !== '-' ? epcNo : '';
-    
-    // 2. เคลียร์ข้อมูลในตารางหรือเตรียมโหลดข้อมูลใหม่
-    const container = document.getElementById('modal_dynamic_table_container');
-    container.innerHTML = '<p class="text-center text-slate-500 py-10">กำลังโหลดโต๊ะคีย์ข้อมูลสำหรับทะเบียน ' + carPlate + '...</p>';
-    
-    // 3. สั่งให้เปิด Modal ขึ้นมา
-    const m = document.getElementById('alertModal');
-    m.classList.remove('hidden');
-    m.classList.add('flex');
-}
-
-// ฟังก์ชันสำหรับบันทึกข้อมูลเมื่อแก้ไขในโต๊ะคีย์เสร็จ
-async function saveSAAlertUpdate(e) {
-    e.preventDefault();
-    
-    const carPlate = document.getElementById('modal_job_id').value;
-    const epcNo = document.getElementById('modal_epc').value;
-    
-    try {
-        // คุณสามารถเพิ่ม Logic การ Fetch เพื่อบันทึกข้อมูลลงฐานข้อมูลได้ที่นี่
         
-        showToast('บันทึกข้อมูลโต๊ะคีย์เรียบร้อย!');
-        closeAlertModal();
-        loadAllData(); // รีเฟรชตารางหลัก
-    } catch(err) {
-        showToast('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
-    }
-}
+        // 🟢 1. ฟังก์ชันสร้างโต๊ะคีย์ (ดึงข้อมูลมาเรียงเป็น Excel)
+        function openCarPartsDetailsModal(carPlate, epcNo) {
+            document.getElementById('modal_job_id').value = carPlate;
+            document.getElementById('modal_epc').value = epcNo !== '-' ? epcNo : '';
+            
+            const container = document.getElementById('modal_dynamic_table_container');
+            
+            // กรองหาอะไหล่ของรถคันนี้จากข้อมูล Global ที่โหลดมาแล้ว
+            const carParts = (allGlobalParts || []).filter(p => p.car_plate === carPlate);
+            
+            if(carParts.length === 0) {
+                container.innerHTML = `<div class="flex flex-col items-center justify-center py-20 text-slate-400">
+                    <i class="fa-solid fa-box-open text-4xl mb-3"></i>
+                    <p class="font-bold">ไม่พบรายการสั่งซื้ออะไหล่สำหรับทะเบียน ${carPlate}</p>
+                </div>`;
+                document.getElementById('alertModal').classList.remove('hidden');
+                document.getElementById('alertModal').classList.add('flex');
+                return;
+            }
+
+            // สร้างโครงตารางสไตล์ Excel Pro Max
+            let html = `
+            <div class="overflow-x-auto border border-slate-300 shadow-sm rounded-xl bg-white">
+                <table class="excel-grid-table w-full">
+                    <thead class="sticky top-0 z-10 shadow-sm">
+                        <tr>
+                            <th class="excel-grid-th w-12 text-center bg-[#00320D] text-white">#</th>
+                            <th class="excel-grid-th w-32 bg-[#00320D] text-white">EPC No</th>
+                            <th class="excel-grid-th w-40 bg-[#00320D] text-white">บาร์โค้ด (Part 2)</th>
+                            <th class="excel-grid-th min-w-[250px] bg-[#00320D] text-white">ชื่อชิ้นส่วน</th>
+                            <th class="excel-grid-th w-24 text-center bg-[#00320D] text-white">ยอดสั่ง</th>
+                            <th class="excel-grid-th w-48 bg-[#00320D] text-white">สถานะมาร์คของ</th>
+                            <th class="excel-grid-th w-36 text-center bg-[#00320D] text-white">คาดการณ์ (ETA)</th>
+                            <th class="excel-grid-th w-48 bg-[#00320D] text-white">หมายเหตุ</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+            // วนลูปสร้างแถวอินพุต (Inline Edit)
+            carParts.forEach((p, idx) => {
+                const orderId = p.id || p.order_id;
+                
+                // สร้าง Dropdown สถานะ
+                const dropdownHtml = allPOStatuses.map(s => {
+                    const sName = getSafeStatusName(s);
+                    return `<option value="${sName}" ${p.order_status === sName ? 'selected' : ''}>${sName}</option>`;
+                }).join('');
+
+                html += `
+                <tr data-id="${orderId}" class="hover:bg-amber-50/50 transition-colors group">
+                    <td class="excel-cell text-center font-black text-slate-400 bg-slate-50">${idx + 1}</td>
+                    <td class="excel-cell"><input type="text" class="excel-input font-mono text-amber-700 font-bold po-epc" value="${p.epc_no || ''}" placeholder="EPC..."></td>
+                    <td class="excel-cell"><input type="text" class="excel-input font-mono font-bold text-blue-700 po-partno" value="${p.part_no || ''}"></td>
+                    <td class="excel-cell"><input type="text" class="excel-input font-medium po-partname" value="${p.part_name || ''}"></td>
+                    <td class="excel-cell"><input type="number" class="excel-input text-center font-black text-lg text-emerald-700 bg-emerald-50 focus:bg-white po-qty" value="${p.qty_ordered || 1}"></td>
+                    <td class="excel-cell"><select class="excel-select font-bold text-blue-900 bg-blue-50 focus:bg-white po-status">${dropdownHtml}</select></td>
+                    <td class="excel-cell"><input type="date" class="excel-input text-center font-mono text-slate-600 po-eta" value="${p.est_arrival_date ? String(p.est_arrival_date).split('T')[0] : ''}"></td>
+                    <td class="excel-cell"><input type="text" class="excel-input text-slate-500 po-note" value="${p.notes || ''}" placeholder="ระบุหมายเหตุ..."></td>
+                </tr>`;
+            });
+
+            html += `</tbody></table></div>`;
+            container.innerHTML = html;
+            
+            // แสดง Modal
+            const m = document.getElementById('alertModal');
+            m.classList.remove('hidden');
+            m.classList.add('flex');
+        }
+
+        // 🟢 2. ฟังก์ชันบันทึกโต๊ะคีย์ (Save Bulk Update)
+        async function saveSAAlertUpdate(e) {
+            e.preventDefault();
+            
+            // เปลี่ยนสถานะปุ่มตอนกำลังโหลด
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึกข้อมูล...';
+            submitBtn.disabled = true;
+
+            const rows = document.querySelectorAll('#modal_dynamic_table_container tbody tr');
+            let promises = [];
+
+            // วนลูปอ่านค่าจากตารางทีละแถว และจับยัดใส่ Promise Array
+            rows.forEach(row => {
+                const orderId = row.getAttribute('data-id');
+                if(!orderId) return;
+
+                const payload = {
+                    epc_no: row.querySelector('.po-epc').value,
+                    part_no: row.querySelector('.po-partno').value,
+                    part_name: row.querySelector('.po-partname').value,
+                    qty_ordered: parseInt(row.querySelector('.po-qty').value) || 1,
+                    order_status: row.querySelector('.po-status').value,
+                    est_arrival_date: row.querySelector('.po-eta').value || null,
+                    notes: row.querySelector('.po-note').value
+                };
+
+                // ยิง API แบบ PUT เพื่ออัปเดตข้อมูล
+                const request = fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                
+                promises.push(request);
+            });
+
+            try {
+                // รอให้ยิง API เสร็จครบทุกแถวพร้อมกัน (Bulk Processing)
+                await Promise.all(promises);
+                
+                showToast('บันทึกข้อมูลโต๊ะคีย์อะไหล่เรียบร้อย!');
+                closeAlertModal();
+                loadAllData(); // โหลดข้อมูลใหม่ทั้งหมดเพื่ออัปเดตตารางหลัก
+                
+            } catch(err) {
+                showToast('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
+                console.error(err);
+            } finally {
+                // คืนค่าปุ่มกลับเป็นเหมือนเดิม
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        }
+
         function closeAlertModal() { document.getElementById('alertModal').classList.replace('flex','hidden'); }
         function openPOModal(orderId = null) {
             document.getElementById('poForm').reset();
