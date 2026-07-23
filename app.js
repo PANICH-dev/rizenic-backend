@@ -24,56 +24,54 @@ const pool = new Pool({
 });
 
 // ==========================================
-// 📦 API รับข้อมูลอะไหล่จาก Google Sheets (Sync Master Parts)
+// 🚀 API สะพานเชื่อม Dynamic (รับได้ทุกตารางจาก Google Sheet)
 // ==========================================
-app.post('/api/sync-parts-master', async (req, res) => {
-    const { parts } = req.body;
-    
-    if (!parts || !Array.isArray(parts) || parts.length === 0) {
-        return res.status(400).json({ error: "ไม่พบข้อมูลอะไหล่ในส่วน Payload" });
+app.post('/api/sync-dynamic', async (req, res) => {
+    const { tableName, primaryKey, data } = req.body;
+
+    // เช็กว่าส่งข้อมูลมาครบไหม
+    if (!tableName || !data || !Array.isArray(data) || data.length === 0) {
+        return res.status(400).json({ error: "ข้อมูล Payload ไม่ถูกต้องครับนาย" });
     }
 
     const client = await pool.connect();
     try {
-        await client.query('BEGIN'); // เริ่มการทำงานแบบ Transaction (ล้มเหลวก็ Rollback หมด)
+        await client.query('BEGIN'); // เริ่ม Transaction
 
-        for (const item of parts) {
-            // ดึงค่าจาก Field ของ Google Sheet มาทำความสะอาด (Trim)
-            const partNo = String(item['บาร์โค้ด'] || item['part_no'] || '').trim();
-            const partName = String(item['รายการชิ้นส่วน'] || item['ชื่อชิ้นส่วน'] || item['part_name'] || '').trim();
-            const carModel = String(item['รุ่นรถ'] || item['car_model'] || '').trim();
-            const unitPrice = parseFloat(item['ราคา'] || item['unit_price'] || 0);
-            
-            // ข้ามแถวที่ไม่มีข้อมูลบาร์โค้ด
-            if (!partNo) continue;
+        for (const row of data) {
+            // ดึงเฉพาะคอลัมน์ที่มีข้อมูลส่งมา
+            const rowKeys = Object.keys(row);
+            if (rowKeys.length === 0) continue;
 
-            const query = `
-                INSERT INTO rizenicpartsmaster (part_no, part_name, car_model, unit_price, part_category)
-                VALUES ($1, $2, $3, $4, $5)
-                ON CONFLICT (part_no) 
-                DO UPDATE SET 
-                    part_name = EXCLUDED.part_name,
-                    car_model = EXCLUDED.car_model,
-                    unit_price = EXCLUDED.unit_price;
-            `;
+            const colsStr = rowKeys.join(', ');
+            const valuePlaceholders = rowKeys.map((_, idx) => `$${idx + 1}`).join(', ');
+            const values = rowKeys.map(k => row[k]);
 
-            const values = [
-                partNo,
-                partName,
-                carModel,
-                unitPrice,
-                'อะไหล่ทั่วไป' // หมวดหมู่ตั้งต้น (แก้ไขได้ภายหลังในระบบ)
-            ];
+            // สร้างคำสั่ง INSERT อัตโนมัติ
+            let sql = `INSERT INTO ${tableName} (${colsStr}) VALUES (${valuePlaceholders})`;
 
-            await client.query(query, values);
+            // ถ้ามี Primary Key ให้สร้างเงื่อนไข ON CONFLICT เพื่ออัปเดตข้อมูลทับของเดิม
+            if (primaryKey) {
+                // กรอง Primary Key และพวก ID ที่เป็น Auto Increment ออกจากการ Update
+                const updateCols = rowKeys.filter(col => col !== primaryKey && col !== 'id' && col !== 'part_id');
+                if (updateCols.length > 0) {
+                    const updateStr = updateCols.map(col => `${col} = EXCLUDED.${col}`).join(', ');
+                    sql += ` ON CONFLICT (${primaryKey}) DO UPDATE SET ${updateStr}`;
+                } else {
+                    sql += ` ON CONFLICT (${primaryKey}) DO NOTHING`;
+                }
+            }
+
+            // ยิงข้อมูลลง DB ทีละแถว
+            await client.query(sql, values);
         }
 
-        await client.query('COMMIT');
-        res.json({ status: "success", message: `ซิงค์ข้อมูลอะไหล่สำเร็จ ${parts.length} รายการ!` });
+        await client.query('COMMIT'); // ผ่านหมด บันทึกจริง
+        res.json({ success: true, message: `อัปโหลดเข้าตาราง ${tableName} สำเร็จ ${data.length} รายการ!` });
     } catch (err) {
-        await client.query('ROLLBACK');
-        console.error("Neon DB Sync Error:", err);
-        res.status(500).json({ error: "เกิดข้อผิดพลาดในการ Sync ข้อมูลลง Neon DB", details: err.message });
+        await client.query('ROLLBACK'); // ถ้าพัง ยกเลิกทั้งหมด
+        console.error(`Dynamic Sync Error [${tableName}]:`, err);
+        res.status(500).json({ error: err.message });
     } finally {
         client.release();
     }
