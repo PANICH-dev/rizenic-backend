@@ -30,10 +30,8 @@
         
         .resizer { @apply absolute top-0 right-0 w-1.5 h-full cursor-col-resize z-20 hover:bg-amber-400 transition-colors; }
         .sort-icon { @apply ml-1 opacity-40 transition-opacity group-hover:opacity-100 text-[10px]; }
-        .filter-icon { @apply ml-2 text-slate-400 hover:text-amber-400 transition-colors p-1 rounded hover:bg-white/20 cursor-pointer; }
+        .filter-icon { @apply ml-2 text-slate-400 hover:text-amber-400 transition-colors p-1.5 rounded hover:bg-white/20 cursor-pointer; }
         .inline-edit-input { @apply w-full h-full border-0 bg-transparent px-3 py-2 outline-none font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-[12px] cursor-pointer; }
-        
-        .excel-filter-modal { @apply absolute bg-white border border-slate-200 shadow-2xl rounded-xl p-3 z-[200] w-64 text-sm hidden flex-col transition-all; }
         
         .repair-sub-tab { display: none; animation: fadeIn 0.3s ease-in-out; }
         .repair-sub-tab.active { display: flex; flex-direction: column; height: 100%; }
@@ -54,21 +52,26 @@
         <span id="toastContent"><i class="fa-solid fa-circle-check text-xl"></i> บันทึกข้อมูลอัตโนมัติเรียบร้อย!</span>
     </div>
 
-    <!-- 🔍 Excel Filter Modal -->
-    <div id="excelFilterModal" class="excel-filter-modal">
-        <div class="flex justify-between items-center border-b border-slate-200 pb-2 mb-2">
-            <span class="font-bold text-[#00320D] text-xs"><i class="fa-solid fa-filter mr-1 text-amber-500"></i> ตัวกรอง: <span id="ef_col_name" class="text-amber-600"></span></span>
-            <button onclick="closeExcelFilter()" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
+    <!-- 🔍 Excel Filter Modal (🌟 ดีไซน์ใหม่ เรียบหรูแบบ Excel) -->
+    <div id="excelFilterModal" class="hidden fixed bg-white border border-slate-200 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] rounded-xl w-64 z-[9999] flex-col overflow-hidden">
+        <div class="bg-slate-50 border-b border-slate-200 px-3 py-2.5 flex justify-between items-center">
+            <span class="font-bold text-[#00320D] text-xs flex items-center gap-1.5"><i class="fa-solid fa-filter text-amber-500"></i> ตัวกรอง: <span id="ef_col_name" class="text-slate-600"></span></span>
+            <button onclick="closeExcelFilter()" class="text-slate-400 hover:text-red-500 transition-colors w-6 h-6 flex items-center justify-center rounded-md hover:bg-red-50"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <input type="text" id="ef_search" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none focus:border-amber-500 bg-slate-50 placeholder-slate-400" placeholder="🔍 ค้นหาในตัวกรอง..." onkeyup="searchExcelFilter()">
-        <div class="flex items-center gap-2 mt-2 px-1 pb-1 border-b border-slate-200">
-            <input type="checkbox" id="ef_select_all" checked onchange="toggleAllExcelFilters(this.checked)" class="w-3.5 h-3.5 cursor-pointer accent-[#00320D]">
-            <label for="ef_select_all" class="text-xs font-bold text-[#00320D] cursor-pointer select-none">เลือกทั้งหมด</label>
+        <div class="p-2.5 pb-1">
+            <div class="relative mb-2.5">
+                <i class="fa-solid fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" id="ef_search" class="w-full border border-slate-300 rounded-lg pl-8 pr-2 py-1.5 text-xs outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all bg-white placeholder-slate-400" placeholder="ค้นหา..." onkeyup="searchExcelFilter()">
+            </div>
+            <label class="flex items-center gap-2 px-1.5 py-1.5 border-b border-slate-100 hover:bg-slate-50 rounded cursor-pointer transition-colors mb-1">
+                <input type="checkbox" id="ef_select_all" checked onchange="toggleAllExcelFilters(this.checked)" class="w-3.5 h-3.5 cursor-pointer accent-[#00320D] rounded border-slate-300">
+                <span class="text-xs font-bold text-[#00320D] select-none">เลือกทั้งหมด</span>
+            </label>
+            <div id="ef_checkbox_list" class="max-h-40 overflow-y-auto space-y-0.5 custom-scrollbar pr-1"></div>
         </div>
-        <div id="ef_checkbox_list" class="max-h-48 overflow-y-auto space-y-1 mt-2 p-1 rounded custom-scrollbar"></div>
-        <div class="flex gap-2 mt-3 pt-2 border-t border-slate-200">
-            <button onclick="applyExcelFilter()" class="flex-1 bg-[#00320D] text-white text-xs font-bold py-2 rounded-lg hover:bg-black transition shadow-sm"><i class="fa-solid fa-check"></i> ตกลง</button>
-            <button onclick="clearSpecificExcelFilter()" class="flex-1 bg-slate-100 text-slate-700 text-xs font-bold py-2 rounded-lg hover:bg-slate-200 transition border border-slate-300"><i class="fa-solid fa-eraser"></i> ล้าง</button>
+        <div class="bg-slate-50 border-t border-slate-200 p-2.5 flex gap-2">
+            <button onclick="applyExcelFilter()" class="flex-1 bg-[#00320D] text-white text-xs font-bold py-1.5 rounded-lg hover:bg-black transition shadow-sm flex items-center justify-center gap-1.5"><i class="fa-solid fa-check"></i> ตกลง</button>
+            <button onclick="clearSpecificExcelFilter()" class="flex-1 bg-white text-slate-600 border border-slate-300 text-xs font-bold py-1.5 rounded-lg hover:bg-slate-100 transition shadow-sm flex items-center justify-center gap-1.5"><i class="fa-solid fa-eraser"></i> ล้าง</button>
         </div>
     </div>
 
@@ -113,7 +116,7 @@
             <button onclick="clearAllFilters()" class="px-3 py-1.5 bg-slate-100 text-slate-600 font-bold rounded-lg text-xs border border-slate-300 hover:bg-slate-200 transition shadow-sm"><i class="fa-solid fa-filter-circle-xmark mr-1"></i> ล้างฟิลเตอร์</button>
             
             <a href="repair_board.html" class="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm">
-                <i class="fa-solid fa-chalkboard"></i> บอร์ดคัมบัง
+                <i class="fa-solid fa-chalkboard"></i> บอร์ดคัมบัง (Kanban)
             </a>
             <button onclick="fetchJobList()" class="px-3 py-1.5 bg-white text-slate-700 font-bold rounded-lg text-xs shadow-sm hover:bg-slate-50 transition border border-slate-300"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
         </div>
@@ -121,13 +124,13 @@
 
     <!-- 🌟 พาเนลตั้งค่าซ่อนคอลัมน์ -->
     <div id="colManagerPanel" class="hidden bg-white border-b border-slate-200 p-4 shrink-0 shadow-inner z-30">
-        <h3 class="text-xs font-bold text-slate-700 mb-2 uppercase border-b pb-1">ติ๊กออกเพื่อซ่อนคอลัมน์</h3>
+        <h3 class="text-xs font-bold text-slate-700 mb-2 uppercase border-b border-slate-100 pb-2">ติ๊กออกเพื่อซ่อนคอลัมน์</h3>
         <div class="flex flex-wrap gap-2" id="col_toggles_container"></div>
     </div>
 
     <main class="flex-1 overflow-auto custom-scrollbar p-4 flex flex-col h-full bg-slate-50">
 
-        <!-- 📑 แท็บ 1: รายการรถ (ตารางแบบคลีนๆ) -->
+        <!-- 📑 แท็บ 1: รายการรถ (ตารางแบบคลีนๆ มี Filter Excel) -->
         <section id="menu-list" class="repair-sub-tab active">
             <div class="bg-white flex-1 flex flex-col rounded-xl overflow-hidden shadow-sm border border-slate-200 relative">
                 <div class="flex-1 overflow-auto custom-scrollbar" id="tableContainer">
@@ -206,7 +209,7 @@
         </div>
     </div>
 
-    <!-- Pop-up อัปเดตช่าง -->
+    <!-- Pop-up อัปเดตช่าง (🌟 ดีไซน์ใหม่ เรียบหรู & มีบล็อกอะไหล่) -->
     <div id="stationModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[110] flex items-center justify-center hidden p-4">
         <div class="bg-white rounded-2xl max-w-5xl w-full p-6 relative shadow-2xl max-h-[95vh] overflow-y-auto custom-scrollbar border-t-4 border-amber-500">
             <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-red-500 text-2xl transition"><i class="fa-solid fa-xmark"></i></button>
@@ -666,7 +669,7 @@
             modal.classList.remove('hidden'); modal.classList.add('flex');
         }
 
-        function closeExcelFilter() { document.getElementById('excelFilterModal').classList.add('hidden'); }
+        function closeExcelFilter() { document.getElementById('excelFilterModal').classList.add('hidden'); modal.classList.remove('flex'); }
         function searchExcelFilter() {
             const txt = document.getElementById('ef_search').value.toLowerCase();
             document.querySelectorAll('.ef-item').forEach(l => {
@@ -687,14 +690,16 @@
                 activeFilters[currentFilterCol] = new Set(checkedVals);
                 if(thIcon) { thIcon.classList.remove('text-slate-400'); thIcon.classList.add('text-amber-400'); }
             }
-            closeExcelFilter(); runTableFilters();
+            document.getElementById('excelFilterModal').classList.add('hidden'); document.getElementById('excelFilterModal').classList.remove('flex');
+            runTableFilters();
         }
 
         function clearSpecificExcelFilter() {
             if(activeFilters[currentFilterCol]) delete activeFilters[currentFilterCol];
             const thIcon = document.querySelectorAll('#repairTable th')[currentFilterCol].querySelector('.filter-icon');
             if(thIcon) { thIcon.classList.remove('text-amber-400'); thIcon.classList.add('text-slate-400'); }
-            closeExcelFilter(); runTableFilters();
+            document.getElementById('excelFilterModal').classList.add('hidden'); document.getElementById('excelFilterModal').classList.remove('flex');
+            runTableFilters();
         }
 
         function clearAllFilters() {
@@ -821,7 +826,6 @@
                     barBlock = `<div class="flex items-center justify-center h-[60px] w-full mt-auto"><span class="text-[10px] font-medium text-slate-400">ว่าง</span></div>`;
                 }
 
-                // 🌟 คำนวณชิ้นส่วนทำสีและโควต้า
                 const specialQ = branchQuotas.find(q => q.quota_type === 'special' && q.quota_date && q.quota_date.split('T')[0] === dateStr);
                 const defaultQ = branchQuotas.find(q => q.quota_type === 'default');
                 const maxMain = specialQ ? (parseInt(specialQ.quota_main_parts)||0) : (defaultQ ? (parseInt(defaultQ.quota_main_parts)||0) : 0);
