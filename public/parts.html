@@ -770,6 +770,39 @@
         }
 
         // ================= POP-UP CONTROLLERS =================
+        // ฟังก์ชันสำหรับเปิดหน้าต่างโต๊ะคีย์ (Modal: แจ้งเตือน SA)
+function openCarPartsDetailsModal(carPlate, epcNo) {
+    // 1. นำค่าทะเบียนรถและ EPC ไปใส่ไว้ใน hidden input ของ Modal
+    document.getElementById('modal_job_id').value = carPlate;
+    document.getElementById('modal_epc').value = epcNo !== '-' ? epcNo : '';
+    
+    // 2. เคลียร์ข้อมูลในตารางหรือเตรียมโหลดข้อมูลใหม่
+    const container = document.getElementById('modal_dynamic_table_container');
+    container.innerHTML = '<p class="text-center text-slate-500 py-10">กำลังโหลดโต๊ะคีย์ข้อมูลสำหรับทะเบียน ' + carPlate + '...</p>';
+    
+    // 3. สั่งให้เปิด Modal ขึ้นมา
+    const m = document.getElementById('alertModal');
+    m.classList.remove('hidden');
+    m.classList.add('flex');
+}
+
+// ฟังก์ชันสำหรับบันทึกข้อมูลเมื่อแก้ไขในโต๊ะคีย์เสร็จ
+async function saveSAAlertUpdate(e) {
+    e.preventDefault();
+    
+    const carPlate = document.getElementById('modal_job_id').value;
+    const epcNo = document.getElementById('modal_epc').value;
+    
+    try {
+        // คุณสามารถเพิ่ม Logic การ Fetch เพื่อบันทึกข้อมูลลงฐานข้อมูลได้ที่นี่
+        
+        showToast('บันทึกข้อมูลโต๊ะคีย์เรียบร้อย!');
+        closeAlertModal();
+        loadAllData(); // รีเฟรชตารางหลัก
+    } catch(err) {
+        showToast('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
+    }
+}
         function closeAlertModal() { document.getElementById('alertModal').classList.replace('flex','hidden'); }
         function openPOModal(orderId = null) {
             document.getElementById('poForm').reset();
