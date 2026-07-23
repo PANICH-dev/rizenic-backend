@@ -7,7 +7,7 @@ const app = express();
 const port = process.env.PORT || 3000; 
 
 app.use(cors()); 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' })); // 🌟 เพิ่ม Limit ป้องกันข้อมูล Excel เยอะเกิน
 
 // บังคับไม่ให้ Express และ Vercel จำ Cache ไฟล์ในโฟลเดอร์ public
 app.use(express.static(path.join(__dirname, 'public'), {
@@ -21,6 +21,62 @@ app.use(express.static(path.join(__dirname, 'public'), {
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
+});
+
+// ==========================================
+// 📦 API รับข้อมูลอะไหล่จาก Google Sheets (Sync Master Parts)
+// ==========================================
+app.post('/api/sync-parts-master', async (req, res) => {
+    const { parts } = req.body;
+    
+    if (!parts || !Array.isArray(parts) || parts.length === 0) {
+        return res.status(400).json({ error: "ไม่พบข้อมูลอะไหล่ในส่วน Payload" });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN'); // เริ่มการทำงานแบบ Transaction (ล้มเหลวก็ Rollback หมด)
+
+        for (const item of parts) {
+            // ดึงค่าจาก Field ของ Google Sheet มาทำความสะอาด (Trim)
+            const partNo = String(item['บาร์โค้ด'] || item['part_no'] || '').trim();
+            const partName = String(item['รายการชิ้นส่วน'] || item['ชื่อชิ้นส่วน'] || item['part_name'] || '').trim();
+            const carModel = String(item['รุ่นรถ'] || item['car_model'] || '').trim();
+            const unitPrice = parseFloat(item['ราคา'] || item['unit_price'] || 0);
+            
+            // ข้ามแถวที่ไม่มีข้อมูลบาร์โค้ด
+            if (!partNo) continue;
+
+            const query = `
+                INSERT INTO rizenicpartsmaster (part_no, part_name, car_model, unit_price, part_category)
+                VALUES ($1, $2, $3, $4, $5)
+                ON CONFLICT (part_no) 
+                DO UPDATE SET 
+                    part_name = EXCLUDED.part_name,
+                    car_model = EXCLUDED.car_model,
+                    unit_price = EXCLUDED.unit_price;
+            `;
+
+            const values = [
+                partNo,
+                partName,
+                carModel,
+                unitPrice,
+                'อะไหล่ทั่วไป' // หมวดหมู่ตั้งต้น (แก้ไขได้ภายหลังในระบบ)
+            ];
+
+            await client.query(query, values);
+        }
+
+        await client.query('COMMIT');
+        res.json({ status: "success", message: `ซิงค์ข้อมูลอะไหล่สำเร็จ ${parts.length} รายการ!` });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error("Neon DB Sync Error:", err);
+        res.status(500).json({ error: "เกิดข้อผิดพลาดในการ Sync ข้อมูลลง Neon DB", details: err.message });
+    } finally {
+        client.release();
+    }
 });
 
 // ==========================================
@@ -38,11 +94,11 @@ async function checkColorPartsQuota(branch_name, dateStr, newMainQty, newSubQty,
         ORDER BY quota_type DESC LIMIT 1
     `, [branch_name, targetDate]);
     
-    if (quotaRes.rows.length === 0) return null; // ไม่มีโควต้าให้ผ่าน
+    if (quotaRes.rows.length === 0) return null; 
     const maxMainParts = parseInt(quotaRes.rows[0].quota_main_parts) || 0;
     const maxSubParts = parseInt(quotaRes.rows[0].quota_sub_parts) || 0;
     
-    if (maxMainParts === 0 && maxSubParts === 0) return null; // ไม่ได้ตั้งจำกัดไว้ ให้ผ่าน
+    if (maxMainParts === 0 && maxSubParts === 0) return null; 
     
     // 2. ดึงยอดชิ้นส่วน "หลัก" และ "รอง" ที่รับไว้แล้วในวันนั้น
     let sumQuery = `
@@ -80,7 +136,7 @@ async function checkColorPartsQuota(branch_name, dateStr, newMainQty, newSubQty,
         return `โควต้าสำหรับวันที่ ${targetDate} สาขา ${branch_name}:\n` + errorMsg.join('\n');
     }
     
-    return null; // เซฟผ่าน
+    return null; 
 }
 
 
@@ -107,8 +163,8 @@ app.post('/api/quotas', async (req, res) => {
       parseInt(quota_arrived) || 0, 
       parseInt(quota_target) || 0, 
       parseInt(quota_delivery) || 0,
-      parseInt(quota_main_parts) || 0, // 🌟 เพิ่มเซฟชิ้นหลัก
-      parseInt(quota_sub_parts) || 0  // 🌟 เพิ่มเซฟชิ้นรอง
+      parseInt(quota_main_parts) || 0,
+      parseInt(quota_sub_parts) || 0  
     ];
     const result = await pool.query(queryText, values);
     res.status(201).json({ success: true, data: result.rows[0] });
@@ -129,8 +185,8 @@ app.put('/api/quotas/:id', async (req, res) => {
       parseInt(quota_arrived) || 0, 
       parseInt(quota_target) || 0, 
       parseInt(quota_delivery) || 0,
-      parseInt(quota_main_parts) || 0, // 🌟 อัปเดตชิ้นหลัก
-      parseInt(quota_sub_parts) || 0,  // 🌟 อัปเดตชิ้นรอง
+      parseInt(quota_main_parts) || 0, 
+      parseInt(quota_sub_parts) || 0,  
       req.params.id
     ];
     await pool.query(queryText, values);
