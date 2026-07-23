@@ -183,7 +183,7 @@
                             <tr id="out_head_row"></tr>
                         </thead>
                         <tbody id="outbound_table_body">
-                            <tr><td colspan="10" class="text-center py-8 text-slate-400">ยังไม่มีประวัติการเบิก/จองชิ้นส่วนอะไหล่</td></tr>
+                            <tr><td colspan="11" class="text-center py-8 text-slate-400">ยังไม่มีประวัติการเบิก/จองชิ้นส่วนอะไหล่</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -492,7 +492,7 @@
             document.getElementById('btn-' + tabId).classList.remove('border-transparent', 'text-slate-500');
         }
 
-        // 🌟 หัวตารางและขนาดพิกเซลสำหรับความกว้างคอลัมน์ (เพิ่ม part_received_all_date)
+        // 🌟 หัวตารางเพิ่ม MAIN No. เข้า Inbound และ Outbound
         const tablesStructure = {
             saTable: [
                 { key: 'car_plate', title: 'ทะเบียนรถ', w: 120, filter: true },
@@ -521,6 +521,7 @@
                 { key: 'received_date', title: 'วันที่ของเข้า', w: 130, filter: true },
                 { key: 'epc_no', title: 'EPC No', w: 130, filter: true },
                 { key: 'part_no', title: 'หมายเลขอะไหล่', w: 140, filter: true },
+                { key: 'part_main_no', title: 'MAIN No.', w: 120, filter: true },
                 { key: 'part_name', title: 'รายการชิ้นส่วน', w: 200, filter: true },
                 { key: 'qty', title: 'จำนวน', w: 90, filter: true },
                 { key: 'unit_price', title: 'ราคา/หน่วย', w: 110, filter: true },
@@ -531,6 +532,7 @@
                 { key: 'issue_date', title: 'วันที่ทำรายการ', w: 130, filter: true },
                 { key: 'job_status', title: 'สถานะเบิก (Auto-Save)', w: 160, filter: true },
                 { key: 'part_no', title: 'หมายเลขอะไหล่', w: 140, filter: true },
+                { key: 'part_main_no', title: 'MAIN No.', w: 120, filter: true },
                 { key: 'qty', title: 'จำนวน', w: 90, filter: true },
                 { key: 'car_plate', title: 'ทะเบียน', w: 120, filter: true },
                 { key: 'qt_no', title: 'หมายเลข QT', w: 120, filter: true },
@@ -746,6 +748,10 @@
             buildTableHeaders();
             try { 
                 const resIn = await fetch(`${API_BASE_URL}/api/part-inbound`); if(resIn.ok) allInbounds = await resIn.json(); 
+                
+                // 🚀 แก้ปัญหาข้อที่ 3: ดึงข้อมูล Outbound กลับมาแล้วครับ! 
+                const resOut = await fetch(`${API_BASE_URL}/api/part-outbound`); if(resOut.ok) allOutbounds = await resOut.json(); 
+
                 const resJobs = await fetch(`${API_BASE_URL}/api/reports`); if(resJobs.ok) allGlobalJobs = await resJobs.json();
                 const resParts = await fetch(`${API_BASE_URL}/api/part-orders`); if(resParts.ok) allGlobalParts = await resParts.json();
                 
@@ -785,6 +791,7 @@
                 return;
             }
 
+            // 🚀 แก้ปัญหาข้อที่ 2: เพิ่มคอลัมน์ MAIN No. ในโต๊ะคีย์
             let html = `
             <div class="overflow-x-auto border border-slate-300 shadow-sm rounded-xl bg-white">
                 <table class="excel-grid-table w-full">
@@ -793,6 +800,7 @@
                             <th class="excel-grid-th w-12 text-center bg-[#00320D] text-white">#</th>
                             <th class="excel-grid-th w-32 bg-[#00320D] text-white">EPC No</th>
                             <th class="excel-grid-th w-40 bg-[#00320D] text-white">บาร์โค้ด (Part 2)</th>
+                            <th class="excel-grid-th w-32 bg-[#00320D] text-white">MAIN No.</th>
                             <th class="excel-grid-th min-w-[250px] bg-[#00320D] text-white">ชื่อชิ้นส่วน</th>
                             <th class="excel-grid-th w-24 text-center bg-[#00320D] text-white">ยอดสั่ง</th>
                             <th class="excel-grid-th w-48 bg-[#00320D] text-white">สถานะมาร์คของ</th>
@@ -814,6 +822,7 @@
                     <td class="excel-cell text-center font-black text-slate-400 bg-slate-50">${idx + 1}</td>
                     <td class="excel-cell"><input type="text" class="excel-input font-mono text-amber-700 font-bold po-epc" value="${p.epc_no || ''}" placeholder="EPC..."></td>
                     <td class="excel-cell"><input type="text" class="excel-input font-mono font-bold text-blue-700 po-partno" value="${p.part_no || ''}"></td>
+                    <td class="excel-cell"><input type="text" class="excel-input font-mono text-slate-500 po-main" value="${p.part_main_no || ''}" placeholder="Main..."></td>
                     <td class="excel-cell"><input type="text" class="excel-input font-medium po-partname" value="${p.part_name || ''}"></td>
                     <td class="excel-cell"><input type="number" class="excel-input text-center font-black text-lg text-emerald-700 bg-emerald-50 focus:bg-white po-qty" value="${p.qty_ordered || 1}"></td>
                     <td class="excel-cell"><select class="excel-select font-bold text-blue-900 bg-blue-50 focus:bg-white po-status">${dropdownHtml}</select></td>
@@ -847,6 +856,7 @@
                 const payload = {
                     epc_no: row.querySelector('.po-epc').value,
                     part_no: row.querySelector('.po-partno').value,
+                    part_main_no: row.querySelector('.po-main').value,
                     part_name: row.querySelector('.po-partname').value,
                     qty_ordered: parseInt(row.querySelector('.po-qty').value) || 1,
                     order_status: row.querySelector('.po-status').value,
@@ -1013,7 +1023,7 @@
             } catch(e){}
         }
 
-        // 🌟 โหลด PO Tracking + แสดงวันที่อะไหล่เข้าครบแล้ว
+        // 🌟 โหลด PO Tracking + แสดงวันที่อะไหล่เข้าครบแล้วอัตโนมัติ
         function loadPOTracking() {
             try {
                 const myPOs = (allGlobalParts || []).filter(o => o.branch_name === currentBranch);
@@ -1024,7 +1034,43 @@
                 myPOs.forEach(o => {
                     const inboundsForPart = allInbounds.filter(i => i.epc_no === o.epc_no && i.part_no === o.part_no);
                     const rcvQty = inboundsForPart.reduce((sum, item) => sum + item.qty, 0);
-                    if (hideCompletedPO && rcvQty >= o.qty_ordered) return;
+                    
+                    // 🚀 แก้ปัญหาข้อที่ 1: ลอจิกอัตโนมัติอัปเดตสถานะ "อะไหล่เข้าครบ"
+                    const isAllReceived = rcvQty >= o.qty_ordered;
+                    let rcvAllDateVal = o.part_received_all_date ? String(o.part_received_all_date).split('T')[0] : '';
+                    
+                    if (isAllReceived && o.qty_ordered > 0) {
+                        let needsUpdate = false;
+                        let targetStatus = o.order_status || '';
+
+                        // ถ้าสถานะยังไม่ใช่คำว่า "ครบ" จะดึงค่าสถานะเข้าครบมาเปลี่ยนให้ทันที
+                        if (!targetStatus.includes('ครบ')) {
+                            const completeStatusObj = allPOStatuses.find(s => getSafeStatusName(s).includes('ครบ'));
+                            targetStatus = completeStatusObj ? getSafeStatusName(completeStatusObj) : 'อะไหล่เข้าครบ';
+                            needsUpdate = true;
+                        }
+
+                        // ถ้ายังไม่มีวันที่ประทับไว้ ให้ดึงวันที่รับเข้าครั้งล่าสุดมาใส่ให้
+                        if (!rcvAllDateVal) {
+                            const lastInbound = inboundsForPart.sort((a,b) => new Date(b.received_date) - new Date(a.received_date))[0];
+                            rcvAllDateVal = lastInbound && lastInbound.received_date ? String(lastInbound.received_date).split('T')[0] : new Date().toISOString().split('T')[0];
+                            needsUpdate = true;
+                        }
+
+                        // หากมีการเปลี่ยนแปลงจากลอจิกอัตโนมัติด้านบน สั่งอัปเดตลง Database อย่างเงียบๆ เบื้องหลัง
+                        if (needsUpdate) {
+                            o.order_status = targetStatus;
+                            o.part_received_all_date = rcvAllDateVal;
+                            const orderId = o.id || o.order_id;
+                            fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, {
+                                method: 'PUT',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({ order_status: targetStatus, part_received_all_date: rcvAllDateVal })
+                            }).catch(e => console.error(e));
+                        }
+                    }
+
+                    if (hideCompletedPO && isAllReceived) return;
 
                     const orderId = o.id || o.order_id;
                     let dropdownHtml = allPOStatuses.map(s => {
@@ -1032,19 +1078,6 @@
                         return `<option value="${sName}" ${o.order_status === sName ? 'selected' : ''}>${sName}</option>`;
                     }).join('');
 
-                    // 🎯 คำนวณ/ดึงค่า "วันที่อะไหล่เข้าครบแล้ว"
-                    let rcvAllDateVal = '';
-                    if (o.part_received_all_date) {
-                        rcvAllDateVal = String(o.part_received_all_date).split('T')[0];
-                    } else if (rcvQty >= o.qty_ordered && inboundsForPart.length > 0) {
-                        // ถ้ารับของครบแล้วแต่ใน DB ยังว่าง ให้ดึงวันที่ของเข้าครั้งล่าสุดมาอ้างอิง
-                        const lastInbound = inboundsForPart.sort((a,b) => new Date(b.received_date) - new Date(a.received_date))[0];
-                        if (lastInbound && lastInbound.received_date) {
-                            rcvAllDateVal = String(lastInbound.received_date).split('T')[0];
-                        }
-                    }
-
-                    const isAllReceived = rcvQty >= o.qty_ordered;
                     const rcvAllStyle = isAllReceived ? 'bg-emerald-50 text-emerald-800 font-bold' : 'text-slate-400';
 
                     html += `
@@ -1059,7 +1092,7 @@
                         <td class="font-mono text-center text-slate-500">${o.order_date ? String(o.order_date).split('T')[0] : '-'}</td>
                         <td class="font-mono p-1"><input type="date" value="${o.est_arrival_date ? String(o.est_arrival_date).split('T')[0] : ''}" onchange="fastUpdatePO('${orderId}', 'est_arrival_date', this.value)" class="inline-edit-input text-center"></td>
                         
-                        <!-- 🎯 เพิ่มคอลัมน์วันที่อะไหล่เข้าครบแล้ว (Inline Edit) -->
+                        <!-- คอลัมน์วันที่อะไหล่เข้าครบแล้ว (Inline Edit) -->
                         <td class="font-mono p-1"><input type="date" value="${rcvAllDateVal}" onchange="fastUpdatePO('${orderId}', 'part_received_all_date', this.value)" class="inline-edit-input text-center ${rcvAllStyle}" title="วันที่อะไหล่เข้าครบแล้ว"></td>
                         
                         <td class="font-mono text-[10px] text-slate-400 px-2">${o.part_main_no || '-'}</td>
@@ -1084,6 +1117,8 @@
                         <td class="font-mono p-1"><input type="date" value="${String(d.received_date).split('T')[0]}" onchange="fastUpdateInbound('${inId}', 'received_date', this.value)" class="inline-edit-input text-center"></td>
                         <td class="font-mono text-amber-600 font-bold px-2">${d.epc_no||'-'}</td>
                         <td class="font-mono font-bold text-emerald-600 px-2">${d.part_no}</td>
+                        <!-- 🚀 แก้ปัญหาข้อที่ 2: แสดงเลข MAIN ในตาราง Inbound -->
+                        <td class="font-mono text-slate-500 text-[10px] px-2">${d.part_main_no||'-'}</td>
                         <td class="font-bold px-2 truncate">${d.part_name}</td>
                         <td class="text-center p-1"><input type="number" value="${d.qty}" onchange="fastUpdateInbound('${inId}', 'qty', this.value)" class="inline-edit-input font-black text-emerald-600 bg-emerald-50 text-center"></td>
                         <td class="text-right font-mono p-1"><input type="number" value="${parseFloat(d.unit_price).toFixed(2)}" onchange="fastUpdateInbound('${inId}', 'unit_price', this.value)" class="inline-edit-input text-right"></td>
@@ -1100,7 +1135,7 @@
             try {
                 const tbody = document.getElementById('outbound_table_body');
                 const filteredOutb = allOutbounds.filter(d => d.branch_name === currentBranch);
-                if(filteredOutb.length === 0) { tbody.innerHTML = `<tr><td colspan="10" class="text-center py-8 text-slate-400">ยังไม่มีประวัติการเบิก/จองชิ้นส่วนอะไหล่</td></tr>`; return; }
+                if(filteredOutb.length === 0) { tbody.innerHTML = `<tr><td colspan="11" class="text-center py-8 text-slate-400">ยังไม่มีประวัติการเบิก/จองชิ้นส่วนอะไหล่</td></tr>`; return; }
 
                 tbody.innerHTML = filteredOutb.map((d, index) => {
                     const outId = d.id || d.outbound_id;
@@ -1118,6 +1153,8 @@
                             </select>
                         </td>
                         <td class="font-mono font-bold text-blue-700 px-2">${d.part_no}</td>
+                        <!-- 🚀 แก้ปัญหาข้อที่ 2: แสดงเลข MAIN ในตาราง Outbound -->
+                        <td class="font-mono text-slate-500 text-[10px] px-2">${d.part_main_no||'-'}</td>
                         <td class="text-center p-1"><input type="number" value="${d.qty}" onchange="fastUpdateOutbound('${outId}', 'qty', this.value)" class="inline-edit-input font-black text-center bg-slate-50"></td>
                         <td class="px-2 text-center"><span class="bg-slate-200 px-1.5 py-0.5 rounded font-bold">${d.car_plate}</span></td>
                         <td class="font-mono text-xs px-2">${d.qt_no||'-'}</td>
