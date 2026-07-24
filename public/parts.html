@@ -492,7 +492,6 @@
             document.getElementById('btn-' + tabId).classList.remove('border-transparent', 'text-slate-500');
         }
 
-        // 🌟 หัวตารางเพิ่ม MAIN No. เข้า Inbound และ Outbound
         const tablesStructure = {
             saTable: [
                 { key: 'car_plate', title: 'ทะเบียนรถ', w: 120, filter: true },
@@ -561,7 +560,6 @@
             ]
         };
 
-        // 🌟 ยืดขยายขนาดคอลัมน์ (Resizable Columns Engine)
         function initResizableColumns(tableId) {
             const table = document.getElementById(tableId); if(!table) return;
             const cols = table.querySelectorAll('thead th');
@@ -589,7 +587,6 @@
             });
         }
 
-        // เจนเนอเรตส่วนหัวตาราง Excel แบบ Dynamic พร้อม Resizer
         function buildTableHeaders() {
             Object.keys(tablesStructure).forEach(tableId => {
                 const rowId = tableId.replace('Table', '_head_row');
@@ -749,7 +746,6 @@
             try { 
                 const resIn = await fetch(`${API_BASE_URL}/api/part-inbound`); if(resIn.ok) allInbounds = await resIn.json(); 
                 
-                // 🚀 แก้ปัญหาข้อที่ 3: ดึงข้อมูล Outbound กลับมาแล้วครับ! 
                 const resOut = await fetch(`${API_BASE_URL}/api/part-outbound`); if(resOut.ok) allOutbounds = await resOut.json(); 
 
                 const resJobs = await fetch(`${API_BASE_URL}/api/reports`); if(resJobs.ok) allGlobalJobs = await resJobs.json();
@@ -791,7 +787,6 @@
                 return;
             }
 
-            // 🚀 แก้ปัญหาข้อที่ 2: เพิ่มคอลัมน์ MAIN No. ในโต๊ะคีย์
             let html = `
             <div class="overflow-x-auto border border-slate-300 shadow-sm rounded-xl bg-white">
                 <table class="excel-grid-table w-full">
@@ -1023,7 +1018,6 @@
             } catch(e){}
         }
 
-        // 🌟 โหลด PO Tracking + แสดงวันที่อะไหล่เข้าครบแล้วอัตโนมัติ
         function loadPOTracking() {
             try {
                 const myPOs = (allGlobalParts || []).filter(o => o.branch_name === currentBranch);
@@ -1035,7 +1029,6 @@
                     const inboundsForPart = allInbounds.filter(i => i.epc_no === o.epc_no && i.part_no === o.part_no);
                     const rcvQty = inboundsForPart.reduce((sum, item) => sum + item.qty, 0);
                     
-                    // 🚀 แก้ปัญหาข้อที่ 1: ลอจิกอัตโนมัติอัปเดตสถานะ "อะไหล่เข้าครบ"
                     const isAllReceived = rcvQty >= o.qty_ordered;
                     let rcvAllDateVal = o.part_received_all_date ? String(o.part_received_all_date).split('T')[0] : '';
                     
@@ -1043,21 +1036,18 @@
                         let needsUpdate = false;
                         let targetStatus = o.order_status || '';
 
-                        // ถ้าสถานะยังไม่ใช่คำว่า "ครบ" จะดึงค่าสถานะเข้าครบมาเปลี่ยนให้ทันที
                         if (!targetStatus.includes('ครบ')) {
                             const completeStatusObj = allPOStatuses.find(s => getSafeStatusName(s).includes('ครบ'));
                             targetStatus = completeStatusObj ? getSafeStatusName(completeStatusObj) : 'อะไหล่เข้าครบ';
                             needsUpdate = true;
                         }
 
-                        // ถ้ายังไม่มีวันที่ประทับไว้ ให้ดึงวันที่รับเข้าครั้งล่าสุดมาใส่ให้
                         if (!rcvAllDateVal) {
                             const lastInbound = inboundsForPart.sort((a,b) => new Date(b.received_date) - new Date(a.received_date))[0];
                             rcvAllDateVal = lastInbound && lastInbound.received_date ? String(lastInbound.received_date).split('T')[0] : new Date().toISOString().split('T')[0];
                             needsUpdate = true;
                         }
 
-                        // หากมีการเปลี่ยนแปลงจากลอจิกอัตโนมัติด้านบน สั่งอัปเดตลง Database อย่างเงียบๆ เบื้องหลัง
                         if (needsUpdate) {
                             o.order_status = targetStatus;
                             o.part_received_all_date = rcvAllDateVal;
@@ -1092,7 +1082,6 @@
                         <td class="font-mono text-center text-slate-500">${o.order_date ? String(o.order_date).split('T')[0] : '-'}</td>
                         <td class="font-mono p-1"><input type="date" value="${o.est_arrival_date ? String(o.est_arrival_date).split('T')[0] : ''}" onchange="fastUpdatePO('${orderId}', 'est_arrival_date', this.value)" class="inline-edit-input text-center"></td>
                         
-                        <!-- คอลัมน์วันที่อะไหล่เข้าครบแล้ว (Inline Edit) -->
                         <td class="font-mono p-1"><input type="date" value="${rcvAllDateVal}" onchange="fastUpdatePO('${orderId}', 'part_received_all_date', this.value)" class="inline-edit-input text-center ${rcvAllStyle}" title="วันที่อะไหล่เข้าครบแล้ว"></td>
                         
                         <td class="font-mono text-[10px] text-slate-400 px-2">${o.part_main_no || '-'}</td>
@@ -1117,7 +1106,6 @@
                         <td class="font-mono p-1"><input type="date" value="${String(d.received_date).split('T')[0]}" onchange="fastUpdateInbound('${inId}', 'received_date', this.value)" class="inline-edit-input text-center"></td>
                         <td class="font-mono text-amber-600 font-bold px-2">${d.epc_no||'-'}</td>
                         <td class="font-mono font-bold text-emerald-600 px-2">${d.part_no}</td>
-                        <!-- 🚀 แก้ปัญหาข้อที่ 2: แสดงเลข MAIN ในตาราง Inbound -->
                         <td class="font-mono text-slate-500 text-[10px] px-2">${d.part_main_no||'-'}</td>
                         <td class="font-bold px-2 truncate">${d.part_name}</td>
                         <td class="text-center p-1"><input type="number" value="${d.qty}" onchange="fastUpdateInbound('${inId}', 'qty', this.value)" class="inline-edit-input font-black text-emerald-600 bg-emerald-50 text-center"></td>
@@ -1153,7 +1141,6 @@
                             </select>
                         </td>
                         <td class="font-mono font-bold text-blue-700 px-2">${d.part_no}</td>
-                        <!-- 🚀 แก้ปัญหาข้อที่ 2: แสดงเลข MAIN ในตาราง Outbound -->
                         <td class="font-mono text-slate-500 text-[10px] px-2">${d.part_main_no||'-'}</td>
                         <td class="text-center p-1"><input type="number" value="${d.qty}" onchange="fastUpdateOutbound('${outId}', 'qty', this.value)" class="inline-edit-input font-black text-center bg-slate-50"></td>
                         <td class="px-2 text-center"><span class="bg-slate-200 px-1.5 py-0.5 rounded font-bold">${d.car_plate}</span></td>
@@ -1269,7 +1256,35 @@
             };
             try {
                 const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                if(!res.ok) throw new Error(); showToast(editId ? 'อัปเดตข้อมูลสำเร็จ!' : 'บันทึกสั่งซื้อสำเร็จ!'); closePOModal(); loadAllData();
+                if(!res.ok) throw new Error(); 
+                
+                // 🌟 เพิ่มระบบฉลาด: Auto-Booking
+                // เมื่อมีการ "สั่งซื้ออะไหล่ใหม่" (ไม่ใช่การกดแก้ไขรายการเดิม) ให้ทำการจองอะไหล่นี้ทันที
+                if (!editId) {
+                    const outboundPayload = {
+                        issue_date: document.getElementById('po_date').value,
+                        part_no: document.getElementById('po_part_no').value,
+                        qty: parseInt(document.getElementById('po_qty').value) || 1,
+                        car_plate: document.getElementById('po_plate').value.toUpperCase().trim(),
+                        qt_no: document.getElementById('po_qt').value,
+                        so_no: document.getElementById('po_so').value,
+                        part_main_no: document.getElementById('po_part_main').value,
+                        part_name: document.getElementById('po_part_name').value,
+                        unit_price: 0, // กำหนดเป็น 0 ไปก่อนตอนสร้างใบจอง
+                        car_model: document.getElementById('po_model').value,
+                        job_status: 'รอเข้าซ่อม', // สถานะ = จอง (Booking)
+                        part_type: document.getElementById('po_type').value,
+                        branch_name: currentBranch
+                    };
+                    await fetch(`${API_BASE_URL}/api/part-outbound`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(outboundPayload)
+                    });
+                }
+
+                showToast(editId ? 'อัปเดตข้อมูลสำเร็จ!' : 'บันทึกสั่งซื้อและเปิดใบจองอะไหล่อัตโนมัติสำเร็จ!'); 
+                closePOModal(); loadAllData();
             } catch(err) { showToast('เกิดข้อผิดพลาดคีย์ข้อมูล', 'error'); }
         }
 
