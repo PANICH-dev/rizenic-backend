@@ -722,25 +722,45 @@ function addPartRow(partNo = '', partMain = '', partName = '', model = '', type 
 
             const routingDept = document.getElementById('department_routing').value || 'รอดำเนินการ';
             
-            // 🌟 เพิ่มคำสั่งส่งรายชื่อชิ้นส่วนหลักและรองไปให้ Database ด้วย
+            // 🌟 อัปเดต formData ให้ส่งข้อมูลครบถ้วนตามโครงสร้าง Database ใหม่
             const formData = {
-                sa_owner: sessionStorage.getItem('emp_name'), branch_name: sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่',
-                customer_name: document.getElementById('customer_name').value, phone_number: document.getElementById('phone_number').value,
-                customer_type: document.getElementById('customer_type').value, car_brand: document.getElementById('car_brand').value,
-                car_model: document.getElementById('car_model').value, vin_no: document.getElementById('vin_no').value,
-                qt_no: qtArr.join(', '), so_no: soArr.join(', '), bl_no: blArr.join(', '),
-                payment_type: document.getElementById('payment_type').value, damage_level: document.getElementById('damage_level').value,
-                contact_date: document.getElementById('contact_date').value || null, arrived_date: document.getElementById('arrived_date').value || null,
-                target_finish_date: document.getElementById('target_finish_date').value || null, actual_finish_date: document.getElementById('actual_finish_date').value || null,
+                sa_owner: sessionStorage.getItem('emp_name'), 
+                branch_name: sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่',
+                customer_name: document.getElementById('customer_name').value, 
+                phone_number: document.getElementById('phone_number').value,
+                customer_type: document.getElementById('customer_type').value, 
+                car_brand: document.getElementById('car_brand').value,
+                car_model: document.getElementById('car_model').value, 
+                vin_no: document.getElementById('vin_no').value,
+                qt_no: qtArr.join(', '), 
+                so_no: soArr.join(', '), 
+                bl_no: blArr.join(', '),
+                payment_type: document.getElementById('payment_type').value, 
+                damage_level: document.getElementById('damage_level').value,
+                contact_date: document.getElementById('contact_date').value || null, 
+                arrived_date: document.getElementById('arrived_date').value || null,
+                target_finish_date: document.getElementById('target_finish_date').value || null, 
+                actual_finish_date: document.getElementById('actual_finish_date').value || null,
                 delivery_date: document.getElementById('delivery_date').value || null, 
                 notes: document.getElementById('notes').value, 
                 is_parked: document.getElementById('park_status').value, 
-                job_status: document.getElementById('job_status').value, car_plate: document.getElementById('car_plate').value,
+                job_status: document.getElementById('job_status').value, 
+                car_plate: document.getElementById('car_plate').value,
                 department_routing: routingDept,
                 main_part_qty: selectedBodyParts.main.length,
                 sub_part_qty: selectedBodyParts.sub.length,
-                main_part_name: selectedBodyParts.main.join(' , '), // 🌟 บันทึกชื่อชิ้นส่วนหลักลง DB
-                sub_part_name: selectedBodyParts.sub.join(' , ')    // 🌟 บันทึกชื่อชิ้นส่วนรองลง DB
+                main_part_name: selectedBodyParts.main.join(' , '), 
+                sub_part_name: selectedBodyParts.sub.join(' , '),
+                // 🌟 ส่งค่าว่าง (null) หรือ 0 เข้าไปสำหรับฟิลด์ใหม่ที่หน้าเปิดบิลยังไม่มีช่องกรอก
+                appointment_date: null,
+                customer_phone: null,
+                expected_finish_date: null,
+                cost_labor: 0,
+                cost_part: 0,
+                cost_external: 0,
+                quotation_no: null,
+                job_order_no: null,
+                ivn_no: null
             };
             
             const url = editId ? `${API_BASE_URL}/api/report/${editId}` : `${API_BASE_URL}/api/report`;
