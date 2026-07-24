@@ -848,7 +848,10 @@
                 const orderId = row.getAttribute('data-id');
                 if(!orderId) return;
 
+                const existingPO = allGlobalParts.find(p => String(p.id || p.order_id) === String(orderId)) || {};
+
                 const payload = {
+                    ...existingPO, // 🌟 แก้ไข: แนบข้อมูลเดิมทั้งหมดป้องกันการโดนล้างค่า
                     epc_no: row.querySelector('.po-epc').value,
                     part_no: row.querySelector('.po-partno').value,
                     part_main_no: row.querySelector('.po-main').value,
@@ -1055,7 +1058,7 @@
                             fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, {
                                 method: 'PUT',
                                 headers: {'Content-Type': 'application/json'},
-                                body: JSON.stringify({ order_status: targetStatus, part_received_all_date: rcvAllDateVal })
+                                body: JSON.stringify({ ...o, order_status: targetStatus, part_received_all_date: rcvAllDateVal }) // 🌟 แก้ไข: แนบข้อมูลเดิมกลับไปทั้งหมด
                             }).catch(e => console.error(e));
                         }
                     }
