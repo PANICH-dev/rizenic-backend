@@ -178,11 +178,11 @@
                     </div>
                 </div>
 
-                <!-- 🔍 บล็อก 5: PO Tracking -->
+                <!-- 🔍 บล็อก 5: PO Tracking (อัปเกรดปุ่มแก้ไขและล็อก ETA) -->
                 <div class="card-container">
                     <div class="section-header">
                         <h3 class="section-title"><i class="fa-solid fa-magnifying-glass-chart section-icon"></i> 5. ติดตามสถานะอะไหล่ (PO Tracking)</h3>
-                        <button type="button" onclick="checkCrossPageEditMode()" class="px-4 py-2 bg-white text-slate-700 text-xs font-bold border border-slate-300 rounded-xl shadow-sm hover:bg-slate-50 transition-all w-full sm:w-auto mt-2 sm:mt-0"><i class="fa-solid fa-rotate-right mr-1"></i> รีเฟรชตาราง</button>
+                        <button type="button" onclick="loadPartsTrackingTable(document.getElementById('car_plate').value.trim())" class="px-4 py-2 bg-white text-slate-700 text-xs font-bold border border-slate-300 rounded-xl shadow-sm hover:bg-slate-50 transition-all w-full sm:w-auto mt-2 sm:mt-0"><i class="fa-solid fa-rotate-right mr-1"></i> รีเฟรชตาราง</button>
                     </div>
                     <div class="overflow-x-auto border border-slate-200 rounded-xl shadow-sm">
                         <table class="modern-table">
@@ -606,7 +606,7 @@
                     })
                 });
 
-                // 🌟 2. เพิ่มระบบ Auto-Booking จองอะไหล่อัตโนมัติใน Inbound/Outbound
+                // 🌟 2. เพิ่มระบบ Auto-Booking จองอะไหล่อัตโนมัติไปที่เบิกจ่าย (Outbound)
                 await fetch(`${API_BASE_URL}/api/part-outbound`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -625,7 +625,7 @@
             } catch(e) { alert('❌ เกิดข้อผิดพลาดในการยิงออเดอร์'); btnElem.innerHTML = '<i class="fa-solid fa-paper-plane"></i> แอด'; }
         }
 
-        // 🌟 5. ฟังก์ชันติดตาม PO ดึงข้อมูลมาอัปเดต และป้องกันการแก้ไขถ้าของสั่งไปแล้ว
+        // 🌟 5. ฟังก์ชันติดตาม PO อัปเดตให้มีปุ่ม "แก้ไข (Prompt)" และ "ลบข้อมูล" ได้!
         async function loadPartsTrackingTable(carPlate) {
             const tbody = document.getElementById('track_parts_body');
             if (!carPlate) {
@@ -645,64 +645,68 @@
 
                 tbody.innerHTML = filtered.map(item => {
                     const orderId = item.id || item.order_id;
-                    const hasETA = item.est_arrival_date && item.est_arrival_date.trim() !== '';
+                    const hasETA = item.est_arrival_date && String(item.est_arrival_date).trim() !== '';
 
-                    // 🔒 ล็อกปุ่มจัดการหากมี ETA
+                    // 🔒 ล็อกปุ่มจัดการหากมี ETA (แก้ไข/ลบไม่ได้)
                     const actionButtons = hasETA 
-                        ? `<span class="text-slate-400 text-[10px] font-bold" title="สั่งของไปแล้ว ไม่สามารถแก้ไขได้"><i class="fa-solid fa-lock"></i> ล็อก</span>`
-                        : `<button type="button" onclick="deletePO('${orderId}', '${carPlate}')" class="text-red-500 hover:text-red-700 bg-red-50 px-2 py-1 rounded text-[10px] font-bold" title="ลบรายการ"><i class="fa-solid fa-trash"></i> ลบ</button>`;
-
-                    // 🔒 ล็อกช่องป้อนจำนวนสั่งหากมี ETA
-                    const qtyHtml = hasETA
-                        ? `<span class="font-bold text-amber-600">${item.qty_ordered || 0}</span>`
-                        : `<input type="number" value="${item.qty_ordered || 1}" onchange="fastUpdatePO('${orderId}', 'qty_ordered', this.value, '${carPlate}')" class="w-16 px-2 py-1 text-center border border-slate-300 rounded-lg text-xs font-bold text-amber-600 bg-white focus:outline-none focus:border-amber-500 shadow-sm">`;
-                    
-                    // 🔒 ล็อกช่องหมายเหตุหากมี ETA
-                    const noteHtml = hasETA
-                        ? `<span class="text-xs text-slate-500">${item.notes || '-'}</span>`
-                        : `<input type="text" value="${item.notes || ''}" placeholder="ระบุหมายเหตุ..." onchange="fastUpdatePO('${orderId}', 'notes', this.value, '${carPlate}')" class="w-full px-2 py-1 border border-slate-300 rounded-lg text-xs text-slate-600 bg-white focus:outline-none focus:border-blue-500 shadow-sm">`;
+                        ? `<span class="text-slate-400 text-[11px] font-bold flex items-center justify-center gap-1" title="สั่งของแล้ว ไม่สามารถแก้ไขได้"><i class="fa-solid fa-lock"></i> ล็อก</span>`
+                        : `<div class="flex items-center justify-center gap-1">
+                               <button type="button" onclick="editPOPrompt('${orderId}', '${item.qty_ordered || 1}', '${item.notes || ''}', '${carPlate}')" class="text-blue-500 hover:text-blue-700 hover:bg-blue-100 bg-blue-50 px-2 py-1 rounded text-xs font-bold transition shadow-sm" title="แก้ไขรายการนี้"><i class="fa-solid fa-pen"></i></button>
+                               <button type="button" onclick="deletePO('${orderId}', '${carPlate}')" class="text-red-500 hover:text-red-700 hover:bg-red-100 bg-red-50 px-2 py-1 rounded text-xs font-bold transition shadow-sm" title="ลบรายการนี้"><i class="fa-solid fa-trash"></i></button>
+                           </div>`;
 
                     return `
                     <tr class="hover:bg-slate-50 transition-colors">
                         <td class="font-mono text-xs font-bold text-slate-600">${item.epc_no || '-'}</td>
                         <td class="font-mono text-xs font-bold text-blue-700">${item.part_no || '-'}</td>
                         <td class="font-bold text-slate-800 text-[11px] truncate max-w-[200px]" title="${item.part_name || '-'}">${item.part_name || '-'}</td>
-                        <td class="text-center">${qtyHtml}</td>
+                        <td class="text-center font-bold text-amber-600">${item.qty_ordered || 0}</td>
                         <td class="text-center font-bold text-emerald-600">${item.qty_received || 0}</td>
                         <td><span class="px-2 py-1 rounded text-[10px] font-bold bg-slate-100 border text-slate-700 shadow-sm">${item.order_status || 'รอสั่งซื้อ'}</span></td>
-                        <td class="font-mono text-xs text-slate-500">${item.order_date ? item.order_date.split('T')[0] : '-'}</td>
-                        <td class="font-mono text-xs font-bold ${hasETA ? 'text-amber-600' : 'text-slate-400'}">${hasETA ? item.est_arrival_date.split('T')[0] : '-'}</td>
-                        <td class="font-mono text-xs text-emerald-600">${item.part_received_all_date ? item.part_received_all_date.split('T')[0] : '-'}</td>
-                        <td>${noteHtml}</td>
-                        <td class="text-center flex justify-center gap-1 py-1.5">${actionButtons}</td>
+                        <td class="font-mono text-xs text-slate-500">${item.order_date ? String(item.order_date).split('T')[0] : '-'}</td>
+                        <td class="font-mono text-xs font-bold ${hasETA ? 'text-amber-600' : 'text-slate-400'}">${hasETA ? String(item.est_arrival_date).split('T')[0] : '-'}</td>
+                        <td class="font-mono text-xs text-emerald-600">${item.part_received_all_date ? String(item.part_received_all_date).split('T')[0] : '-'}</td>
+                        <td><span class="text-xs text-slate-500">${item.notes || '-'}</span></td>
+                        <td class="text-center py-1.5">${actionButtons}</td>
                     </tr>
                 `}).join('');
             } catch (e) {
-                console.error(e);
+                console.error("Error loading tracking table:", e);
             }
         }
 
-        // 🌟 อัปเดตด่วนบนตาราง (Inline Edit)
-        async function fastUpdatePO(id, field, value, carPlate) {
+        // 🌟 ฟังก์ชันเปิดหน้าต่าง Prompt เพื่อแก้ไขจำนวนและหมายเหตุ
+        async function editPOPrompt(id, oldQty, oldNotes, carPlate) {
+            const newQty = prompt('แก้ไขจำนวนสั่งซื้อ:', oldQty);
+            if (newQty === null) return; 
+            const newNotes = prompt('แก้ไขหมายเหตุ:', oldNotes);
+            if (newNotes === null) return;
+
             try {
-                const res = await fetch(`${API_BASE_URL}/api/part-orders/${id}/fast`, {
-                    method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ field, value })
-                });
-                if(!res.ok) throw new Error();
+                if (newQty !== oldQty) {
+                    await fetch(`${API_BASE_URL}/api/part-orders/${id}/fast`, {
+                        method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ field: 'qty_ordered', value: newQty })
+                    });
+                }
+                if (newNotes !== oldNotes) {
+                    await fetch(`${API_BASE_URL}/api/part-orders/${id}/fast`, {
+                        method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ field: 'notes', value: newNotes })
+                    });
+                }
                 
-                // Show Success Toast
                 const toast = document.createElement('div');
                 toast.className = 'fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-6 py-3 rounded-xl shadow-2xl z-[200] flex items-center gap-2';
                 toast.innerHTML = `<i class="fa-solid fa-circle-check text-xl"></i> อัปเดตข้อมูลสำเร็จ!`;
                 document.body.appendChild(toast);
                 setTimeout(() => toast.remove(), 2000);
+                
+                loadPartsTrackingTable(carPlate);
             } catch(e) { 
                 alert('❌ แก้ไขข้อมูลไม่สำเร็จ'); 
-                loadPartsTrackingTable(carPlate); 
             }
         }
 
-        // 🌟 ลบรายการสั่งซื้ออะไหล่ (ถ้ายังไม่ล็อก)
+        // 🌟 ลบ PO จากตาราง
         async function deletePO(id, carPlate) {
             if(confirm('🚨 ยืนยันการลบรายการสั่งซื้อนี้ออกจากระบบ?')) {
                 try { 
@@ -716,7 +720,6 @@
             }
         }
 
-        // 🌟 ดึงเลขใบเสนอราคา (QT) และสั่งซ่อม (SO) ใหม่สุดจากแผนกอะไหล่มายัดใส่ตารางอัตโนมัติ
         async function checkCrossPageEditMode() {
             const idToEdit = sessionStorage.getItem('edit_job_id'); if(!idToEdit) return;
             try {
@@ -750,7 +753,6 @@
                 if (job.so_no) job.so_no.split(',').forEach(v => { let val = v.trim(); if(val) { soArr.push(val); addDocRow('SO', val); }});
                 if (job.bl_no) job.bl_no.split(',').forEach(v => { if(v.trim()) addDocRow('BL', v.trim()); });
                 
-                // แอบดึงข้อมูลจากตารางอะไหล่ เผื่อมีเลขใหม่จากฝั่งคลัง
                 const resPO = await fetch(`${API_BASE_URL}/api/part-orders`);
                 if(resPO.ok) {
                     const poData = await resPO.json();
