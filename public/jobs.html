@@ -363,7 +363,7 @@
         </div>
     </div>
 
-    <!-- 🌟 Modal: แสดงรายการรถแบบตาราง 🌟 -->
+    <!-- 🌟 Modal: แสดงรายการรถแบบตาราง (พร้อมให้แก้สถานะได้) 🌟 -->
     <div id="jobListModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center hidden p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden modal-fade border border-[#00320D] flex flex-col max-h-[90vh]">
             <div class="bg-[#00320D] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md z-20 relative border-b-4 border-amber-500">
@@ -383,7 +383,7 @@
                             <th class="px-4 py-3 !border-x-0 !border-b-green-900">ลูกค้า / SA</th>
                             <th class="px-4 py-3 !border-x-0 !border-b-green-900">ความเสียหาย</th>
                             <th class="px-4 py-3 !border-x-0 !border-b-green-900">สถานะอะไหล่</th>
-                            <th class="px-4 py-3 !border-x-0 !border-b-green-900">สถานะซ่อม (ERP)</th>
+                            <th class="px-4 py-3 !border-x-0 !border-b-green-900">อัปเดตสถานะ (ERP)</th>
                             <th class="px-4 py-3 !border-x-0 !border-b-green-900 text-center">จัดการ</th>
                         </tr>
                     </thead>
@@ -403,12 +403,7 @@
         let userBranch = '';
         let currentViewSA = ''; 
 
-        const parkedStatuses = [
-            "09.จอดรอเข้าซ่อม", "10.กำลังซ่อม", "11.รถซ่อมเสร็จรอส่งมอบ", 
-            "12.ส่งมอบ", "13.วางบิลประกัน", "14.ชำระเงินสด", 
-            "15.วางบิล Tesla", "16.วางบิล EV ME", "17.รอออกบิล", 
-            "19.ออกบิลแล้ว", "20.จอดซ่อม TC", "21.พักซ่อม"
-        ];
+        // 🌟 Helper Function ลบออกเพราะกลับไปใช้ String เหมือนเดิมแล้ว[cite: 8]
 
         const columnsDef = [
             { idx: 1, key: 'action', title: 'จัดการ', width: 90 },
@@ -441,7 +436,7 @@
             { idx: 28, key: 'cost_labor', title: 'ค่าแรง', width: 100 },
             { idx: 29, key: 'cost_part', title: 'ค่าอะไหล่', width: 100 },
             { idx: 30, key: 'cost_external', title: 'ค่าซ่อมภายนอก', width: 100 },
-            { idx: 31, key: 'park_status', title: 'ประเภทรับรถ', width: 120 }, 
+            { idx: 31, key: 'is_parked', title: 'ประเภทรับรถ', width: 120 }, // 🌟 เปลี่ยนกลับเป็นแบบเดิม แต่ยังใช้ key is_parked[cite: 8]
             { idx: 32, key: 'notes', title: 'หมายเหตุ', width: 200 },
             { idx: 33, key: 'quotation_no', title: 'Quotation', width: 120 },
             { idx: 34, key: 'job_order_no', title: 'Job Order', width: 120 },
@@ -449,7 +444,7 @@
             { idx: 36, key: 'sa_owner', title: 'SA ผู้ดูแล', width: 130 }
         ];
 
-        let hiddenCols = new Set([6, 9, 12, 14, 15, 18, 19, 21, 22, 23, 24, 26, 28, 29, 30, 33, 34, 35]); // 🌟 ซ่อนคอลัมน์ใหม่บางส่วนไว้ก่อน จะได้ไม่รก
+        let hiddenCols = new Set([6, 9, 12, 14, 15, 18, 19, 21, 22, 23, 24, 26, 28, 29, 30, 33, 34, 35]);
 
         let activeFilters = {}; 
         let currentFilterKey = -1;
@@ -537,7 +532,6 @@
             const thead = document.getElementById('jobs_table_head');
             let trHtml = '<tr>';
             columnsDef.forEach(col => {
-                // 🛠️ โค้ดสร้างไอคอน Filter โดยส่ง col.idx ไปให้เปิดการกรอง
                 let filterIcon = col.key !== 'action' ? `<i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, ${col.idx}, '${col.title}')"></i>` : '';
                 let bgClass = col.key === 'car_plate' ? 'bg-amber-600 text-slate-900 border-amber-700' : (col.key === 'action' ? 'bg-blue-900 border-blue-800' : '');
                 
@@ -625,10 +619,10 @@
                 const colDef = columnsDef.find(c => c.idx === colIndex);
                 if(!colDef) return;
                 
-                let val = job[colDef.key] || '';
+                let val = job[colDef.key];
                 if(['contact_date', 'arrived_date', 'target_finish_date', 'actual_finish_date', 'delivery_date'].includes(colDef.key)) {
                     val = val ? String(val).split('T')[0] : '';
-                } else { val = String(val).trim(); }
+                } else { val = String(val || '').trim(); } // 🌟 เปลี่ยนกลับให้เป็น String ธรรมดา[cite: 8]
                 uniqueValues.add(val);
             });
 
@@ -677,7 +671,6 @@
             const checks = document.querySelectorAll('.ef-check');
             const checkedVals = Array.from(checks).filter(cb => cb.checked).map(cb => cb.value);
             
-            // การหา element <th> อิงจาก idx - 1
             const thIcon = document.querySelectorAll('#jobsTable th')[currentFilterKey - 1].querySelector('.filter-icon');
 
             if (checkedVals.length === checks.length || checkedVals.length === 0) {
@@ -931,7 +924,7 @@
 
             jobs.forEach(job => {
                 const st = job.job_status || "ไม่ระบุสถานะ";
-                if (job.billing_date || st.includes('ออกบิลแล้ว')) {
+                if (job.billing_date || st.includes('ออกบิลแล้ว') || job.department_routing === 'บัญชี') {
                     billedCount++;
                 } else {
                     statusCounts[st] = (statusCounts[st] || 0) + 1;
@@ -959,7 +952,7 @@
         function openSAFilteredModal(statusType) {
             let jobsToShow = [];
             if (statusType === 'Billed') {
-                jobsToShow = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA && (j.billing_date || (j.job_status||'').includes('ออกบิลแล้ว')));
+                jobsToShow = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA && (j.billing_date || (j.job_status||'').includes('ออกบิลแล้ว') || j.department_routing === 'บัญชี'));
                 document.getElementById('modal_status_name').innerText = `งานที่ปิดบิลแล้ว (SA: ${currentViewSA})`;
             } else {
                 jobsToShow = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA && j.job_status === statusType);
@@ -970,12 +963,10 @@
             document.getElementById('jobListModal').classList.remove('hidden');
         }
 
+        // 🌟 อัปเดตรายการรถจอดซ่อม ให้อิงจาก String ("จอดซ่อม" / "ไม่จอดซ่อม")[cite: 8]
         function renderSAParkedCars(jobs) {
             const tbody = document.getElementById('sa_parked_body');
-            const parkedCars = jobs.filter(j => {
-                const st = j.job_status || '';
-                return parkedStatuses.some(p => st.includes(p) || p.includes(st));
-            });
+            const parkedCars = jobs.filter(j => j.is_parked === 'จอดซ่อม'); 
             
             document.getElementById('count_parked').innerText = parkedCars.length;
 
@@ -1128,12 +1119,19 @@
             const tbody = document.getElementById('modal_job_table');
             if (jobs.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-500 font-bold">ไม่มีข้อมูล</td></tr>`; return; }
 
+            let safeOptsGlobal = globalStatusOptionsHtml;
+
             tbody.innerHTML = jobs.map(j => {
                 const saName = j.sa_owner || 'ไม่ระบุ';
                 const damageColor = j.damage_level === 'หนัก' ? 'text-red-600' : (j.damage_level === 'กลาง' ? 'text-amber-500' : 'text-emerald-600');
                 
+                let safeStatus = j.job_status || '';
+                let safeOptions = safeOptsGlobal;
+                if(!safeOptions.includes(`value="${safeStatus}"`)) { safeOptions = `<option value="${safeStatus}">${safeStatus}</option>` + safeOptions; } 
+                safeOptions = safeOptions.replace(`value="${safeStatus}"`, `value="${safeStatus}" selected`); 
+
                 return `
-                    <tr class="hover:bg-emerald-50/50 transition cursor-pointer border-b border-slate-100" onclick="editJobFromDashboard('${j.id}')">
+                    <tr class="hover:bg-emerald-50/50 transition cursor-pointer border-b border-slate-100" onclick="goToEditJob('${j.id}')">
                         <td class="px-4 py-3 font-bold text-[#00320D]"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded font-mono text-xs shadow-inner whitespace-nowrap">${j.car_plate || '-'}</span></td>
                         <td class="px-4 py-3 font-bold text-slate-800 text-[11px] leading-tight">${j.car_brand} <br><span class="text-slate-500 font-medium">${j.car_model || ''}</span></td>
                         <td class="px-4 py-3 text-[11px] leading-tight">
@@ -1142,8 +1140,12 @@
                         </td>
                         <td class="px-4 py-3 text-xs font-bold ${damageColor}">${j.damage_level || '-'}</td>
                         <td class="px-4 py-3 text-[10px] font-bold text-purple-700"><span class="bg-purple-50 px-2 py-1 rounded-lg border border-purple-200 shadow-sm">${j.part_status || '-'}</span></td>
-                        <td class="px-4 py-3 text-[10px] font-bold text-slate-700"><span class="bg-slate-100 px-2 py-1 rounded-lg border shadow-sm">${j.job_status || '-'}</span></td>
-                        <td class="px-4 py-3 text-center"><button class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full whitespace-nowrap"><i class="fa-solid fa-pen"></i> เปิด</button></td>
+                        <td class="px-4 py-3 text-[10px] font-bold text-slate-700">
+                            <select onclick="event.stopPropagation()" onchange="fastUpdateJob('${j.id}', 'job_status', this.value)" class="bg-slate-50 border border-slate-300 rounded px-2 py-1 outline-none focus:border-amber-500 w-full cursor-pointer font-bold text-[#00320D]">
+                                ${safeOptions}
+                            </select>
+                        </td>
+                        <td class="px-4 py-3 text-center"><button onclick="event.stopPropagation(); goToEditJob('${j.id}')" class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full whitespace-nowrap"><i class="fa-solid fa-pen"></i> เปิด</button></td>
                     </tr>
                 `;
             }).join('');
@@ -1169,12 +1171,6 @@
                     }
                 } else throw new Error();
             } catch (err) { showToast('บันทึกข้อมูลไม่สำเร็จ!', 'error'); loadJobsData(); }
-        }
-
-        async function updateParkStatus(jobId, newParkStatus, oldNote) {
-            let cleanNote = oldNote.replace(/^\[(.*?)\]\s*/, ''); 
-            let finalNote = `[${newParkStatus}] ${cleanNote}`;
-            await fastUpdateJob(jobId, 'notes', finalNote);
         }
 
         async function deleteJobRow(jobId, carPlate) {
@@ -1214,7 +1210,7 @@
                     let rawVal = job[colDef.key] || '';
                     if (['contact_date', 'arrived_date', 'target_finish_date', 'actual_finish_date', 'delivery_date'].includes(colDef.key)) {
                         rawVal = rawVal ? String(rawVal).split('T')[0] : '';
-                    }
+                    } // 🌟 นำเงื่อนไขเช็ค Boolean กลับเป็น String ธรรมดา[cite: 8]
                     if (!activeFilters[key].has(String(rawVal).trim())) return false;
                 }
                 return true;
@@ -1234,7 +1230,6 @@
             let dir = table.getAttribute(`data-dir-${colIndex}`) || 'asc';
             table.setAttribute(`data-dir-${colIndex}`, dir === 'asc' ? 'desc' : 'asc');
             
-            // ใช้ colIndex เพื่อหาคอลัมน์ที่ตรงกับ idx
             const thElements = Array.from(table.querySelectorAll('th'));
             const clickedTh = thElements.find(th => th.id === `th_${colIndex}`);
             if (clickedTh) {
@@ -1242,7 +1237,6 @@
                 if (clickedIcon) clickedIcon.className = dir === 'asc' ? "fa-solid fa-sort-down ml-1 text-amber-400 opacity-100" : "fa-solid fa-sort-up ml-1 text-amber-400 opacity-100";
             }
 
-            // หา column index ที่แท้จริงในตาราง HTML
             const thIndex = thElements.findIndex(th => th.id === `th_${colIndex}`);
 
             rows.sort((a, b) => {
@@ -1259,6 +1253,7 @@
             rows.forEach(row => tbody.appendChild(row));
         }
 
+        // 🌟 อัปเดต Table ให้รองรับ is_parked เป็น String ("จอดซ่อม" / "ไม่จอดซ่อม")[cite: 8]
         function renderTable(data) {
             const tbody = document.getElementById('jobs_table_body');
             if (!data || data.length === 0) {
@@ -1288,19 +1283,16 @@
                             let safeOptions = safeOptsGlobal;
                             if(!safeOptions.includes(`value="${safeStatus}"`)) { safeOptions = `<option value="${safeStatus}">${safeStatus}</option>` + safeOptions; } 
                             safeOptions = safeOptions.replace(`value="${safeStatus}"`, `value="${safeStatus}" selected`); 
-                            cellData = `<select onchange="fastUpdateJob('${job.id}', 'job_status', this.value)" class="inline-edit-select bg-slate-50">${safeOptions}</select>`; 
+                            cellData = `<select onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'job_status', this.value)" class="inline-edit-select bg-slate-50">${safeOptions}</select>`; 
                             break;
                         case 'damage_level':
                             let dmgOpts = ['เบา', 'กลาง', 'หนัก'].map(d => `<option value="${d}" ${job.damage_level === d ? 'selected' : ''}>${d}</option>`).join('');
-                            cellData = `<select onchange="fastUpdateJob('${job.id}', 'damage_level', this.value)" class="inline-edit-select ${job.damage_level === 'หนัก' ? 'text-red-600' : 'text-amber-600'}">${dmgOpts}</select>`;
+                            cellData = `<select onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'damage_level', this.value)" class="inline-edit-select ${job.damage_level === 'หนัก' ? 'text-red-600' : 'text-amber-600'}">${dmgOpts}</select>`;
                             break;
-                        case 'park_status': 
-                            let pStat = 'ไม่จอดซ่อม';
-                            let noteTxt = job.notes || '';
-                            let m = noteTxt.match(/^\[(.*?)\]/);
-                            if(m) pStat = m[1];
-                            let pOpts = `<option value="ไม่จอดซ่อม" ${pStat==='ไม่จอดซ่อม'?'selected':''}>ไม่จอดซ่อม</option><option value="จอดซ่อม" ${pStat==='จอดซ่อม'?'selected':''}>จอดซ่อม</option>`;
-                            cellData = `<select onchange="updateParkStatus('${job.id}', this.value, '${noteTxt.replace(/'/g, "\\'")}')" class="inline-edit-select ${pStat==='จอดซ่อม'?'text-blue-600 font-black':'text-slate-500'}">${pOpts}</select>`;
+                        case 'is_parked': 
+                            let isP = job.is_parked || 'ไม่จอดซ่อม'; // 🌟 ดึงค่า String มาใช้ตรงๆ[cite: 8]
+                            let pOpts = `<option value="ไม่จอดซ่อม" ${isP === 'ไม่จอดซ่อม'?'selected':''}>ไม่จอดซ่อม</option><option value="จอดซ่อม" ${isP === 'จอดซ่อม'?'selected':''}>จอดซ่อม</option>`;
+                            cellData = `<select onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'is_parked', this.value)" class="inline-edit-select ${isP === 'จอดซ่อม'?'text-blue-600 font-black':'text-slate-500'}">${pOpts}</select>`;
                             break;
                         case 'contact_date': case 'appointment_date': case 'arrived_date': case 'target_finish_date': case 'expected_finish_date': case 'actual_finish_date': case 'delivery_date': 
                             cellData = `<input type="date" value="${job[col.key] ? String(job[col.key]).split('T')[0] : ''}" onchange="fastUpdateJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input font-mono text-slate-500 text-center">`; 
@@ -1440,7 +1432,8 @@
                     sa_owner: row.querySelector('.bulk-input-sa').value, car_brand: row.querySelector('.bulk-input-brand').value,
                     car_model: row.querySelector('.bulk-input-model').value, arrived_date: row.querySelector('.bulk-input-arrived').value || null,
                     target_finish_date: row.querySelector('.bulk-input-target').value || null, job_status: row.querySelector('.bulk-input-status').value || '09.จอดรอเข้าซ่อม',
-                    department_routing: 'ซ่อม', branch_name: userBranch, damage_level: 'เบา' 
+                    department_routing: 'ซ่อม', branch_name: userBranch, damage_level: 'เบา',
+                    is_parked: 'จอดซ่อม' // 🌟 เปลี่ยนมาบันทึกเป็น String เหมือนเดิม[cite: 8]
                 };
 
                 promises.push(fetch(`${API_BASE_URL}/api/report`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }));

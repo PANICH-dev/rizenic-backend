@@ -78,9 +78,20 @@
                 <option value="all">-- ทุกสาขา --</option>
             </select>
         </div>
-        <div class="flex items-center gap-3 bg-slate-50 p-1.5 rounded-xl border border-slate-200 shadow-inner">
-            <span class="text-xs font-bold text-slate-500 uppercase px-2"><i class="fa-solid fa-calendar-day text-amber-500"></i> ตัวกรองด่วน (รวม):</span>
-            <select id="month_filter_select" onchange="applyFilters()" class="px-3 py-2 bg-white border border-slate-200 text-slate-800 rounded-lg outline-none text-xs font-bold cursor-pointer shadow-sm hover:border-amber-400">
+        <div class="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200 shadow-inner flex-wrap">
+            <span class="text-xs font-bold text-slate-500 uppercase px-2"><i class="fa-solid fa-calendar-day text-amber-500"></i> ตัวกรองด่วน:</span>
+            <!-- 🌟 เพิ่ม Dropdown สำหรับเลือก "วัน" -->
+            <select id="day_filter_select" onchange="applyFilters()" class="px-2 py-2 bg-white border border-slate-200 text-slate-800 rounded-lg outline-none text-xs font-bold cursor-pointer shadow-sm hover:border-amber-400">
+                <option value="all">-- ทุกวัน --</option>
+                <option value="01">01</option><option value="02">02</option><option value="03">03</option><option value="04">04</option><option value="05">05</option>
+                <option value="06">06</option><option value="07">07</option><option value="08">08</option><option value="09">09</option><option value="10">10</option>
+                <option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option>
+                <option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option>
+                <option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option>
+                <option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option>
+                <option value="31">31</option>
+            </select>
+            <select id="month_filter_select" onchange="applyFilters()" class="px-2 py-2 bg-white border border-slate-200 text-slate-800 rounded-lg outline-none text-xs font-bold cursor-pointer shadow-sm hover:border-amber-400">
                 <option value="all">-- ทุกเดือน --</option>
                 <option value="01">มกราคม (01)</option>
                 <option value="02">กุมภาพันธ์ (02)</option>
@@ -95,7 +106,7 @@
                 <option value="11">พฤศจิกายน (11)</option>
                 <option value="12">ธันวาคม (12)</option>
             </select>
-            <select id="year_filter_select" onchange="applyFilters()" class="px-3 py-2 bg-white border border-slate-200 text-slate-800 rounded-lg outline-none text-xs font-bold cursor-pointer shadow-sm hover:border-amber-400">
+            <select id="year_filter_select" onchange="applyFilters()" class="px-2 py-2 bg-white border border-slate-200 text-slate-800 rounded-lg outline-none text-xs font-bold cursor-pointer shadow-sm hover:border-amber-400">
                 <!-- เจนปีอัตโนมัติ -->
             </select>
             <button onclick="fetchDashboardData()" class="px-4 py-2 bg-[#00320D] text-white font-bold rounded-lg text-xs shadow-md hover:bg-black transition flex items-center gap-2"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
@@ -114,12 +125,20 @@
             </div>
         </div>
 
-        <!-- 📊 1. การ์ดสรุปยอดด่วน -->
+        <!-- 📊 1. การ์ดสรุปยอดด่วน (🌟 แก้ไขตามโจทย์) -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="stat-card bg-gradient-to-br from-purple-50 to-white border-purple-100" onclick="openFilteredModal('contacted')">
+                <div class="absolute -right-4 -bottom-4 text-purple-100 text-8xl opacity-40 rotate-12 transition-transform group-hover:scale-110"><i class="fa-solid fa-phone"></i></div>
+                <div class="z-10">
+                    <p class="text-[11px] font-black text-purple-800 uppercase tracking-widest mb-1 opacity-80">1. ติดต่อสอบถาม</p>
+                    <h3 class="text-4xl font-black text-purple-600" id="stat_contacted">0</h3>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xl shadow-sm z-10"><i class="fa-solid fa-phone-volume"></i></div>
+            </div>
             <div class="stat-card bg-gradient-to-br from-blue-50 to-white border-blue-100" onclick="openFilteredModal('arrived')">
                 <div class="absolute -right-4 -bottom-4 text-blue-100 text-8xl opacity-40 rotate-12 transition-transform group-hover:scale-110"><i class="fa-solid fa-car-side"></i></div>
                 <div class="z-10">
-                    <p class="text-[11px] font-black text-blue-800 uppercase tracking-widest mb-1 opacity-80">ยอดรถเข้ารวม</p>
+                    <p class="text-[11px] font-black text-blue-800 uppercase tracking-widest mb-1 opacity-80">2. รถเข้าจอดอู่</p>
                     <h3 class="text-4xl font-black text-blue-700" id="stat_arrived">0</h3>
                 </div>
                 <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xl shadow-sm z-10"><i class="fa-solid fa-arrow-right-to-bracket"></i></div>
@@ -127,7 +146,7 @@
             <div class="stat-card bg-gradient-to-br from-amber-50 to-white border-amber-100" onclick="openFilteredModal('finished')">
                 <div class="absolute -right-4 -bottom-4 text-amber-100 text-8xl opacity-40 rotate-12 transition-transform group-hover:scale-110"><i class="fa-solid fa-hammer"></i></div>
                 <div class="z-10">
-                    <p class="text-[11px] font-black text-amber-800 uppercase tracking-widest mb-1 opacity-80">ยอดซ่อมเสร็จรวม</p>
+                    <p class="text-[11px] font-black text-amber-800 uppercase tracking-widest mb-1 opacity-80">4. ซ่อมเสร็จจริง</p>
                     <h3 class="text-4xl font-black text-amber-600" id="stat_repaired">0</h3>
                 </div>
                 <div class="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-xl shadow-sm z-10"><i class="fa-solid fa-check"></i></div>
@@ -135,18 +154,10 @@
             <div class="stat-card bg-gradient-to-br from-emerald-50 to-white border-emerald-100" onclick="openFilteredModal('delivered')">
                 <div class="absolute -right-4 -bottom-4 text-emerald-100 text-8xl opacity-40 rotate-12 transition-transform group-hover:scale-110"><i class="fa-solid fa-flag-checkered"></i></div>
                 <div class="z-10">
-                    <p class="text-[11px] font-black text-emerald-800 uppercase tracking-widest mb-1 opacity-80">ยอดส่งมอบรวม</p>
+                    <p class="text-[11px] font-black text-emerald-800 uppercase tracking-widest mb-1 opacity-80">5. ส่งมอบรถลูกค้า</p>
                     <h3 class="text-4xl font-black text-emerald-600" id="stat_delivered">0</h3>
                 </div>
                 <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl shadow-sm z-10"><i class="fa-solid fa-check-double"></i></div>
-            </div>
-            <div class="stat-card bg-gradient-to-br from-purple-50 to-white border-purple-100" onclick="window.location.href='parts.html'">
-                <div class="absolute -right-4 -bottom-4 text-purple-100 text-8xl opacity-40 rotate-12 transition-transform group-hover:scale-110"><i class="fa-solid fa-box-open"></i></div>
-                <div class="z-10">
-                    <p class="text-[11px] font-black text-purple-800 uppercase tracking-widest mb-1 opacity-80">อะไหล่ค้างสั่ง/รับ</p>
-                    <h3 class="text-4xl font-black text-purple-600" id="stat_backorder">0</h3>
-                </div>
-                <div class="w-12 h-12 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xl shadow-sm z-10"><i class="fa-solid fa-boxes-stacked"></i></div>
             </div>
         </div>
 
@@ -312,7 +323,7 @@
             </div>
         </div>
 
-        <!-- 🗓️ 9. ปฏิทินปฏิบัติงาน (อัปเกรดความพรีเมียม + โชว์ตัวเลขทันที) -->
+        <!-- 🗓️ 9. ปฏิทินปฏิบัติงาน -->
         <div class="card-box shadow-md border-t-4 border-[#00320D]">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-slate-200 pb-5">
                 <h3 class="text-xl font-black text-slate-800 flex items-center gap-3"><i class="fa-regular fa-calendar-days text-blue-600 bg-blue-50 p-2 rounded-lg"></i> แผนปฏิบัติงานประจำเดือน (พร้อมแสดงยอดโควต้าชิ้นงาน)</h3>
@@ -323,7 +334,6 @@
                 </div>
             </div>
 
-            <!-- 🌟 หัวตารางปฏิทินแบบสีเข้ม พรีเมียม -->
             <div class="grid grid-cols-7 gap-3 text-center text-xs font-bold text-white uppercase tracking-widest mb-3 bg-[#00320D] rounded-xl py-3 shadow-md">
                 <div class="text-red-400">อาทิตย์</div><div>จันทร์</div><div>อังคาร</div><div>พุธ</div><div>พฤหัสฯ</div><div>ศุกร์</div><div class="text-blue-400">เสาร์</div>
             </div>
@@ -368,7 +378,7 @@
         let allPartOrders = [];
         let filteredPartOrders = [];
         let allStatuses = [];
-        let allQuotas = []; // 🌟 เก็บข้อมูลโควต้า
+        let allQuotas = []; 
         
         let statusChartInstance = null;
         let insuranceChartInstance = null;
@@ -435,7 +445,6 @@
                 const statRes = await fetch(`${API_BASE_URL}/api/statuses`).catch(() => null);
                 if(statRes && statRes.ok) { allStatuses = await statRes.json(); }
 
-                // 🌟 ดึงข้อมูลโควต้า
                 const resQuotas = await fetch(`${API_BASE_URL}/api/quotas`).catch(() => null);
                 if(resQuotas && resQuotas.ok) { allQuotas = await resQuotas.json(); }
 
@@ -470,8 +479,10 @@
             } catch (err) { console.error("โหลดข้อมูลแดชบอร์ดพัง:", err); }
         }
 
+        // 🌟 อัปเดตฟังก์ชันให้อ่านค่าจาก "วัน" เพิ่มเติม
         function applyFilters() {
             const selectedBranch = document.getElementById('branchFilter').value;
+            const filterDay = document.getElementById('day_filter_select').value;
             const filterMonth = document.getElementById('month_filter_select').value;
             const filterYear = document.getElementById('year_filter_select').value;
             
@@ -485,38 +496,43 @@
                 filteredPartOrders = allPartOrders.filter(o => o.branch_name === selectedBranch);
             }
             
-            renderKPIs(filterMonth, filterYear);
+            // 🌟 ส่งค่า fDay เข้าไปด้วย
+            renderKPIs(filterDay, filterMonth, filterYear);
             renderDailyReport(); 
             renderStatusChart();
             renderInsuranceChart();
-            renderFinanceChart(filterMonth, filterYear);
+            renderFinanceChart(filterDay, filterMonth, filterYear);
             renderSASection();
             renderStationSection();
             renderSAAlerts(); 
             renderPartsTracking();
             renderParkedCars();
+            // ปฏิทินยังคงส่งแค่เดือนกับปีเพื่อใช้ตั้งค่าหัวปฏิทิน
             renderCalendar(filterMonth, filterYear);
         }
 
-        function isDateInFilter(dateStr, fMonth, fYear) {
+        // 🌟 อัปเดตฟังก์ชันเพื่อคัดกรองวันที่ (Day)
+        function isDateInFilter(dateStr, fDay, fMonth, fYear) {
             if(!dateStr) return false;
             const d = new Date(dateStr);
             if(isNaN(d)) return false;
             if(fYear && fYear !== 'all' && d.getFullYear().toString() !== fYear) return false;
             if(fMonth && fMonth !== 'all' && String(d.getMonth()+1).padStart(2,'0') !== fMonth) return false;
+            if(fDay && fDay !== 'all' && String(d.getDate()).padStart(2,'0') !== fDay) return false;
             return true;
         }
 
-        function renderKPIs(fMonth, fYear) {
-            const arrived = filteredJobs.filter(j => isDateInFilter(j.arrived_date, fMonth, fYear)).length;
-            const repaired = filteredJobs.filter(j => isDateInFilter(j.repair_finish_date, fMonth, fYear)).length;
-            const delivered = filteredJobs.filter(j => isDateInFilter(j.delivery_date, fMonth, fYear)).length;
-            const backorders = filteredPartOrders.filter(o => ['ติด Back Order', 'ของเข้าบางส่วน', 'รอสั่งซื้อ', 'รออะไหล่'].includes(o.order_status)).length;
+        // 🌟 อัปเดตการส่งตัวแปรลงในฟังก์ชัน
+        function renderKPIs(fDay, fMonth, fYear) {
+            const contacted = filteredJobs.filter(j => isDateInFilter(j.contact_date, fDay, fMonth, fYear)).length;
+            const arrived = filteredJobs.filter(j => isDateInFilter(j.arrived_date, fDay, fMonth, fYear)).length;
+            const repaired = filteredJobs.filter(j => isDateInFilter(j.repair_finish_date, fDay, fMonth, fYear)).length;
+            const delivered = filteredJobs.filter(j => isDateInFilter(j.delivery_date, fDay, fMonth, fYear)).length;
 
+            document.getElementById('stat_contacted').innerText = contacted;
             document.getElementById('stat_arrived').innerText = arrived;
             document.getElementById('stat_repaired').innerText = repaired;
             document.getElementById('stat_delivered').innerText = delivered;
-            document.getElementById('stat_backorder').innerText = backorders;
         }
 
         function renderDailyReport() {
@@ -586,14 +602,17 @@
             document.getElementById('jobListModal').classList.remove('hidden');
         }
 
+        // 🌟 อัปเดตการลิงก์ปุ่ม Modal ด่วนให้รับค่าวันได้ด้วย
         function openFilteredModal(type) {
+            const fDay = document.getElementById('day_filter_select').value;
             const fMonth = document.getElementById('month_filter_select').value;
             const fYear = document.getElementById('year_filter_select').value;
             
             let jobsToShow = []; let title = "";
-            if(type === 'arrived') { jobsToShow = filteredJobs.filter(j => isDateInFilter(j.arrived_date, fMonth, fYear)); title = "รถเข้าจอด"; }
-            if(type === 'finished') { jobsToShow = filteredJobs.filter(j => isDateInFilter(j.repair_finish_date, fMonth, fYear)); title = "ซ่อมเสร็จ"; }
-            if(type === 'delivered') { jobsToShow = filteredJobs.filter(j => isDateInFilter(j.delivery_date, fMonth, fYear)); title = "ส่งมอบแล้ว"; }
+            if(type === 'contacted') { jobsToShow = filteredJobs.filter(j => isDateInFilter(j.contact_date, fDay, fMonth, fYear)); title = "1. ติดต่อสอบถาม"; }
+            if(type === 'arrived') { jobsToShow = filteredJobs.filter(j => isDateInFilter(j.arrived_date, fDay, fMonth, fYear)); title = "2. รถเข้าจอดอู่"; }
+            if(type === 'finished') { jobsToShow = filteredJobs.filter(j => isDateInFilter(j.repair_finish_date, fDay, fMonth, fYear)); title = "4. ซ่อมเสร็จจริง"; }
+            if(type === 'delivered') { jobsToShow = filteredJobs.filter(j => isDateInFilter(j.delivery_date, fDay, fMonth, fYear)); title = "5. ส่งมอบรถลูกค้า"; }
 
             document.getElementById('modal_status_name').innerText = title;
             renderJobTableInModal(jobsToShow);
@@ -670,13 +689,14 @@
             });
         }
 
-        function renderFinanceChart(fMonth, fYear) {
+        // 🌟 อัปเดตกราฟบัญชีให้รับค่าวันเพิ่มเติมได้
+        function renderFinanceChart(fDay, fMonth, fYear) {
             const accJobs = filteredJobs.filter(d => d.department_routing === 'บัญชี');
             
             const unmanaged = accJobs.filter(j => !j.billing_date || j.billing_date.trim() === '').length;
             const managed = accJobs.filter(j => {
                 if (!j.billing_date || j.billing_date.trim() === '') return false;
-                return isDateInFilter(j.billing_date, fMonth, fYear);
+                return isDateInFilter(j.billing_date, fDay, fMonth, fYear);
             }).length;
 
             if (financeChartInstance) financeChartInstance.destroy();
@@ -871,7 +891,6 @@
             }).join('');
         }
 
-        // 🌟 9. ฟังก์ชันปฏิทินปฏิบัติงาน (อัปเกรดโชว์ตัวเลขถาวร)
         function renderCalendar(fMonth, fYear) {
             const grid = document.getElementById('calendar_grid'); grid.innerHTML = '';
             
@@ -914,7 +933,6 @@
                         const h = Math.max(20, (arrCount / maxCount) * 100);
                         barBlock += `
                         <div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[18px]" onclick="openJobListModalCalendar('${d.dateStr}', 'arrived')" title="รถเข้าจอด: ${arrCount} คัน">
-                            <!-- 🌟 โชว์เลขถาวรตรงนี้ (เอา opacity-0 ออกแล้ว) -->
                             <span class="text-[9px] font-black text-blue-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-blue-200">${arrCount}</span>
                             <div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-blue-700/20" style="height: ${h}%;"></div>
                         </div>`;
@@ -923,7 +941,6 @@
                         const h = Math.max(20, (tarCount / maxCount) * 100);
                         barBlock += `
                         <div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[18px]" onclick="openJobListModalCalendar('${d.dateStr}', 'target')" title="เป้าซ่อมเสร็จ: ${tarCount} คัน">
-                            <!-- 🌟 โชว์เลขถาวรตรงนี้ -->
                             <span class="text-[9px] font-black text-amber-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-amber-200">${tarCount}</span>
                             <div class="w-full bg-gradient-to-t from-amber-500 to-amber-300 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-amber-600/20" style="height: ${h}%;"></div>
                         </div>`;
@@ -932,7 +949,6 @@
                         const h = Math.max(20, (delCount / maxCount) * 100);
                         barBlock += `
                         <div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[18px]" onclick="openJobListModalCalendar('${d.dateStr}', 'delivery')" title="นัดส่งมอบ: ${delCount} คัน">
-                            <!-- 🌟 โชว์เลขถาวรตรงนี้ -->
                             <span class="text-[9px] font-black text-emerald-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-emerald-200">${delCount}</span>
                             <div class="w-full bg-gradient-to-t from-emerald-500 to-emerald-300 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-emerald-600/20" style="height: ${h}%;"></div>
                         </div>`;
