@@ -203,7 +203,7 @@
                         <h3 class="section-title"><i class="fa-solid fa-eye section-icon"></i> 6. ความคืบหน้าจากสถานีช่าง</h3>
                     </div>
                     <div class="flex flex-wrap gap-2" id="station_badges_container">
-                        <span id="badge_st_kho" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">01. เเคาะ</span>
+                        <span id="badge_st_kho" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">01. เคาะ</span>
                         <span id="badge_st_pou" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">02. โป๊ว</span>
                         <span id="badge_st_puan" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">03. เตรียมพื้น</span>
                         <span id="badge_st_pon" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">04. พ่นสี</span>
@@ -610,7 +610,6 @@
             } catch(e) { alert('❌ เกิดข้อผิดพลาดในการยิงออเดอร์'); btnElem.innerHTML = '<i class="fa-solid fa-paper-plane"></i> แอด'; }
         }
 
-        // 🌟 เพิ่มฟังก์ชันสำหรับโหลดข้อมูล PO Tracking มาแสดงผล
         async function loadPartsTrackingTable(carPlate) {
             const tbody = document.getElementById('track_parts_body');
             if (!carPlate) {
@@ -844,6 +843,7 @@
             }
         }
 
+        // 🌟 แก้ไข: เพิ่มการเช็คว่าค่าไม่ว่างและมีความหมายว่าทำเสร็จแล้ว ถึงจะขึ้นสีเขียว
         function updateStationProgress(job) {
             const stations = [
                 { id: 'badge_st_kho', val: job?.station_kho }, { id: 'badge_st_pou', val: job?.station_pou }, { id: 'badge_st_puan', val: job?.station_puan },
@@ -856,8 +856,17 @@
                 const el = document.getElementById(st.id); if (!el) return;
                 el.className = 'px-3 py-1.5 rounded-lg text-[11px] font-bold shadow-sm transition-all border';
                 el.innerHTML = el.innerHTML.replace('<i class="fa-solid fa-circle-check mr-1"></i> ', ''); 
-                if (st.val) { el.classList.add('bg-emerald-100', 'text-emerald-700', 'border-emerald-300'); el.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> ' + el.innerHTML; } 
-                else { el.classList.add('bg-white', 'text-slate-400', 'border-slate-200'); }
+                
+                // 🌟 เช็คว่าค่าคือ boolean TRUE หรือข้อความ 'true' เท่านั้น
+                const isCompleted = st.val === true || String(st.val).toLowerCase() === 'true';
+
+                if (isCompleted) { 
+                    el.classList.add('bg-emerald-100', 'text-emerald-700', 'border-emerald-300'); 
+                    el.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> ' + el.innerHTML; 
+                } 
+                else { 
+                    el.classList.add('bg-white', 'text-slate-400', 'border-slate-200'); 
+                }
             });
 
             const noteContainer = document.getElementById('repair_note_display');
