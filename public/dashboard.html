@@ -377,6 +377,7 @@
         let filteredPartOrders = [];
         let allStatuses = [];
         let allQuotas = []; 
+        let globalStatusOptionsHtml = ''; // 🌟 สร้างตัวแปรเก็บ HTML ตัวเลือกสถานะ
         
         let statusChartInstance = null;
         let insuranceChartInstance = null;
@@ -448,7 +449,11 @@
                 if(resParts && resParts.ok) { allPartOrders = await resParts.json(); }
 
                 const statRes = await fetch(`${API_BASE_URL}/api/statuses`).catch(() => null);
-                if(statRes && statRes.ok) { allStatuses = await statRes.json(); }
+                if(statRes && statRes.ok) { 
+                    allStatuses = await statRes.json(); 
+                    // 🌟 สร้าง HTML Dropdown ไว้ใช้อัตโนมัติใน Modal Pop-up
+                    globalStatusOptionsHtml = allStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
+                }
 
                 const resQuotas = await fetch(`${API_BASE_URL}/api/quotas`).catch(() => null);
                 if(resQuotas && resQuotas.ok) { allQuotas = await resQuotas.json(); }
@@ -742,7 +747,6 @@
             document.getElementById('jobListModal').classList.remove('hidden');
         }
 
-        // 🌟 อัปเดตฟังก์ชันนี้ ให้ใช้เช็คค่า Boolean เหมือนกับหน้า repair
         function computeHighestStationIFS(j) {
             if(isTrue(j.station_ready)) return "13.รอส่งมอบ";
             if(isTrue(j.station_pak)) return "12.พักซ่อม";
@@ -874,7 +878,7 @@
                 const station = computeHighestStationIFS(j);
 
                 return `
-                    <tr class="cursor-pointer" onclick="editJobFromDashboard('${j.id}')">
+                    <tr class="cursor-pointer" onclick="goToEditJob('${j.id}')">
                         <td class="text-center"><span class="px-3 py-1 rounded-lg border ${dayBadge}">${diffDays}</span></td>
                         <td class="font-black text-amber-700"><span class="bg-amber-50 px-2.5 py-1 rounded border border-amber-300 shadow-inner">${j.car_plate || '-'}</span></td>
                         <td class="font-bold text-slate-800">${j.car_brand} ${j.car_model || ''}</td>
@@ -1055,6 +1059,31 @@
                     </tr>
                 `;
             }).join('');
+        }
+
+        // 🌟 เพิ่มฟังก์ชันเปิดหน้าเปิดบิลเพื่อแก้ไขงาน (เชื่อมโยงผ่าน sessionStorage)
+        function goToEditJob(jobId) { 
+            sessionStorage.setItem('edit_job_id', jobId); 
+            window.location.href = 'index.html'; 
+        }
+
+        // 🌟 เพิ่มฟังก์ชันอัปเดตสถานะงานด่วนจาก Dropdown ใน Pop-up
+        async function fastUpdateJob(jobId, field, value) {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/report/${jobId}/fast-date`, {
+                    method: 'PUT', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ field, value })
+                });
+                if (res.ok) {
+                    const jobIndex = allJobs.findIndex(j => j.id === jobId);
+                    if(jobIndex > -1) allJobs[jobIndex][field] = value;
+                    applyFilters(); // อัปเดตข้อมูลบนหน้าแดชบอร์ดทันที
+                } else throw new Error();
+            } catch (err) { 
+                alert('บันทึกข้อมูลไม่สำเร็จ'); 
+                fetchDashboardData(); 
+            }
         }
 
         function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
