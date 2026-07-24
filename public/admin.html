@@ -164,6 +164,21 @@
                         <input type="text" onkeyup="filterTable('ctype_search_input', 'ctype_table_body')" id="ctype_search_input" class="w-full pl-9 pr-3 py-1.5 bg-slate-50 border rounded-lg text-xs outline-none focus:border-[#00320D]" placeholder="ค้นหาประเภทลูกค้า...">
                     </div>
                 </div>
+                <div class="bg-slate-50 p-5 rounded-xl border mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 items-end shadow-sm">
+    <input type="hidden" id="edit_ctype_id">
+    <div>
+        <label class="label-text">รหัสประเภทลูกค้า *</label>
+        <input type="text" id="ctype_code_input" class="minimal-input font-mono uppercase" placeholder="เช่น CT-01, PDI">
+    </div>
+    <div>
+        <label class="label-text">ชื่อประเภทลูกค้า *</label>
+        <input type="text" id="ctype_name_input" class="minimal-input" placeholder="เช่น Walk-in, Fleet">
+    </div>
+    <div class="flex gap-2">
+        <button onclick="saveCtype()" id="btn_save_ctype" class="px-6 py-2.5 bg-[#00320D] text-white font-bold rounded-lg text-sm shadow hover:bg-black w-full"><i class="fa-solid fa-floppy-disk mr-1"></i> บันทึก</button>
+        <button onclick="resetCtypeForm()" class="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50">ล้าง</button>
+    </div>
+</div>
                 <div class="bg-slate-50 p-5 rounded-xl border mb-6 flex flex-col md:flex-row gap-4 items-end shadow-sm">
                     <input type="hidden" id="edit_ctype_id">
                     <div class="flex-1 w-full"><label class="label-text">ชื่อประเภทลูกค้า (เช่น Walk-in, Fleet, VIP)</label><input type="text" id="ctype_name_input" class="minimal-input"></div>
@@ -404,42 +419,66 @@
         async function saveIns() { const id = document.getElementById('edit_ins_id').value; await fetch(`${API_BASE_URL}${id ? '/api/insurances/'+id : '/api/insurances'}`, { method: id ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ insurance_code: document.getElementById('ins_code_input').value, insurance_name: document.getElementById('ins_name_input').value, insurance_type: document.getElementById('ins_type_input').value }) }); resetInsForm(); loadIns(); }
 
         // ================= 4. ประเภทลูกค้า (🌟 แก้ไขฟังก์ชันบันทึกเรียบร้อย) =================
-        async function loadCtype() {
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/customer-types`); const data = await res.json();
-                document.getElementById('ctype_table_body').innerHTML = data.map(c => `<tr><td class="p-3 font-mono text-slate-500">${c.type_code||'-'}</td><td class="p-3 font-bold">${c.type_name}</td><td class="p-3 text-center"><button onclick="editCtype('${c.customer_type_id}', '${c.type_name}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteData('/api/customer-types/${c.customer_type_id}', loadCtype)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
-            } catch(e){}
-        }
-        function editCtype(id, name) { document.getElementById('edit_ctype_id').value = id; document.getElementById('ctype_name_input').value = name; document.getElementById('btn_save_ctype').innerHTML = '<i class="fa-solid fa-pen-to-square mr-1"></i> อัปเดต'; document.getElementById('btn_save_ctype').classList.replace('bg-[#00320D]', 'bg-blue-600'); }
-        function resetCtypeForm() { document.getElementById('edit_ctype_id').value = ''; document.getElementById('ctype_name_input').value = ''; document.getElementById('btn_save_ctype').innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> บันทึก'; document.getElementById('btn_save_ctype').classList.replace('bg-blue-600', 'bg-[#00320D]'); }
+        // 🌟 ฟังก์ชันโหลดประเภทลูกค้า
+async function loadCtype() {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/customer-types`); const data = await res.json();
+        document.getElementById('ctype_table_body').innerHTML = data.map(c => `
+            <tr>
+                <td class="p-3 font-mono font-bold text-blue-700">${c.type_code||'-'}</td>
+                <td class="p-3 font-bold">${c.type_name}</td>
+                <td class="p-3 text-center">
+                    <button onclick="editCtype('${c.customer_type_id}', '${c.type_code||''}', '${c.type_name}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fa-solid fa-pen-to-square"></i></button>
+                    <button onclick="deleteData('/api/customer-types/${c.customer_type_id}', loadCtype)" class="text-slate-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>`).join('');
+    } catch(e){}
+}
+
+function editCtype(id, code, name) { 
+    document.getElementById('edit_ctype_id').value = id; 
+    document.getElementById('ctype_code_input').value = code;
+    document.getElementById('ctype_code_input').readOnly = true; // ล็อคไม่ให้แก้รหัสตอนอัปเดต
+    document.getElementById('ctype_name_input').value = name; 
+    document.getElementById('btn_save_ctype').innerHTML = '<i class="fa-solid fa-pen-to-square mr-1"></i> อัปเดต'; 
+    document.getElementById('btn_save_ctype').classList.replace('bg-[#00320D]', 'bg-blue-600'); 
+}
+
+function resetCtypeForm() { 
+    document.getElementById('edit_ctype_id').value = ''; 
+    document.getElementById('ctype_code_input').value = ''; 
+    document.getElementById('ctype_code_input').readOnly = false;
+    document.getElementById('ctype_name_input').value = ''; 
+    document.getElementById('btn_save_ctype').innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> บันทึก'; 
+    document.getElementById('btn_save_ctype').classList.replace('bg-blue-600', 'bg-[#00320D]'); 
+}
+
+async function saveCtype() { 
+    const id = document.getElementById('edit_ctype_id').value; 
+    const code = document.getElementById('ctype_code_input').value.trim();
+    const name = document.getElementById('ctype_name_input').value.trim();
+
+    if(!code || !name) return alert('⚠️ กรุณากรอกทั้งรหัสและชื่อประเภทลูกค้าให้ครบถ้วน!');
+
+    try {
+        const res = await fetch(`${API_BASE_URL}${id ? '/api/customer-types/'+id : '/api/customer-types'}`, { 
+            method: id ? 'PUT' : 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ type_code: code, type_name: name }) 
+        });
         
-        async function saveCtype() { 
-            const id = document.getElementById('edit_ctype_id').value; 
-            const name = document.getElementById('ctype_name_input').value.trim();
-            if(!name) return alert('⚠️ กรุณากรอกชื่อประเภทลูกค้า!');
-
-            // สร้าง รหัสประเภทลูกค้า อัตโนมัติ ป้องกัน Backend Reject
-            const code = 'CT-' + Math.floor(1000 + Math.random() * 9000);
-
-            try {
-                const res = await fetch(`${API_BASE_URL}${id ? '/api/customer-types/'+id : '/api/customer-types'}`, { 
-                    method: id ? 'PUT' : 'POST', 
-                    headers: {'Content-Type': 'application/json'}, 
-                    body: JSON.stringify({ type_code: code, type_name: name }) 
-                });
-                
-                if (!res.ok) {
-                    const err = await res.json();
-                    alert('❌ ไม่สามารถบันทึกได้: ' + (err.error || 'ข้อมูลไม่ถูกต้อง'));
-                    return;
-                }
-                
-                resetCtypeForm(); 
-                loadCtype();
-            } catch(e) {
-                alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
-            } 
+        if (!res.ok) {
+            const err = await res.json();
+            alert('❌ ไม่สามารถบันทึกได้: ' + (err.error || 'รหัสอาจจะซ้ำในระบบ'));
+            return;
         }
+        
+        resetCtypeForm(); 
+        loadCtype();
+    } catch(e) {
+        alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+    } 
+}
 
         // ================= 5. จัดการสถานะหลัก (Dynamic Routing) =================
         async function loadMainStatus() {
