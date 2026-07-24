@@ -512,12 +512,9 @@ function addPartRow(partNo = '', partMain = '', partName = '', model = '', type 
                 <td class="px-2 py-2"><input type="text" class="minimal-input px-2 py-1.5 part-name-input text-xs" placeholder="ชื่อชิ้นส่วน" value="${partName}" readonly></td>
                 <td class="px-2 py-2"><input type="text" class="minimal-input px-2 py-1.5 part-model-input text-xs" placeholder="รุ่นรถ" value="${model}" readonly></td>
                 
-                <!-- 🌟 แก้ไข: ขยายความกว้างกล่อง และเปลี่ยนเป็น อะไหล่หลัก/อะไหล่รอง -->
+                <!-- 🌟 แก้ไข: เปลี่ยน Dropdown เป็น Input Readonly แบบคลีนๆ -->
                 <td class="px-2 py-2 min-w-[120px]">
-                    <select class="minimal-input px-2 py-1.5 part-type-input text-xs bg-white w-full">
-                        <option value="อะไหล่หลัก" ${type==='อะไหล่หลัก'?'selected':''}>อะไหล่หลัก</option>
-                        <option value="อะไหล่รอง" ${type==='อะไหล่รอง'?'selected':''}>อะไหล่รอง</option>
-                    </select>
+                    <input type="text" class="minimal-input px-2 py-1.5 part-type-input text-xs bg-slate-100 text-slate-500 font-bold" placeholder="ประเภท" value="${type}" readonly>
                 </td>
                 
                 <td class="px-2 py-2"><input type="number" class="minimal-input px-2 py-1.5 part-price-input text-xs text-right" placeholder="ราคา" value="${price}" readonly></td>
@@ -538,18 +535,17 @@ function addPartRow(partNo = '', partMain = '', partName = '', model = '', type 
             const n = tr.querySelector('.part-name-input'); const m = tr.querySelector('.part-main-input');
             const mo = tr.querySelector('.part-model-input'); const p = tr.querySelector('.part-price-input');
             const l = tr.querySelector('.part-loc-input'); const s = tr.querySelector('.part-safe-input');
-            const t = tr.querySelector('.part-type-input'); // 🌟 ดึง Element ของ Dropdown ประเภทอะไหล่มาใช้งาน
+            const t = tr.querySelector('.part-type-input'); // ดึง Input ประเภทอะไหล่มา
 
             try {
                 const res = await fetch(`${API_BASE_URL}/api/parts/check/${encodeURIComponent(partNo)}`);
                 const data = await res.json();
                 
-                // ถ้ามีข้อมูลในมาสเตอร์ ให้อัปเดตทุกช่อง รวมถึง "ประเภทอะไหล่" ด้วย!
                 if (data && data.part_name) {
                     n.value = data.part_name; 
                     m.value = data.part_main_no || '-'; 
                     mo.value = data.car_model || '-';
-                    t.value = data.part_category || 'อะไหล่หลัก'; // 🌟 ยัดค่า part_category จาก DB ใส่ Dropdown
+                    t.value = data.part_category || 'อะไหล่หลัก'; 
                     p.value = data.unit_price || 0; 
                     l.value = data.location || '-'; 
                     s.value = data.safety_stock || 0;
@@ -558,7 +554,7 @@ function addPartRow(partNo = '', partMain = '', partName = '', model = '', type 
                         const newName = prompt('1. ชื่อชิ้นส่วน:'); if (!newName) { inputElem.value = ''; return; }
                         const newMain = prompt('2. หมายเลข MAIN:', ''); 
                         const newModel = prompt('3. รุ่นรถ:', document.getElementById('car_model').value || 'ALL');
-                        const newCat = prompt('4. ประเภทอะไหล่ (พิมพ์: อะไหล่หลัก หรือ อะไหล่รอง):', 'อะไหล่หลัก'); // 🌟 เพิ่มช่องกรอกประเภท
+                        const newCat = prompt('4. ประเภทอะไหล่ (พิมพ์: อะไหล่หลัก หรือ อะไหล่รอง):', 'อะไหล่หลัก');
                         const newPrice = prompt('5. ราคา:', '0'); 
                         const newLocation = prompt('6. Location:', 'ยังไม่ระบุ'); 
                         const newSafe = prompt('7. Safety Stock:', '0');
@@ -573,7 +569,7 @@ function addPartRow(partNo = '', partMain = '', partName = '', model = '', type 
                         });
                         
                         n.value = newName; m.value = newMain || '-'; mo.value = newModel; 
-                        t.value = newCat; // 🌟 อัปเดต Dropdown หลังจากสร้างใหม่
+                        t.value = newCat; 
                         p.value = newPrice; l.value = newLocation; s.value = newSafe;
                     } else { inputElem.value = ''; }
                 }
@@ -617,7 +613,7 @@ function addPartRow(partNo = '', partMain = '', partName = '', model = '', type 
             } catch(e) { alert('❌ เกิดข้อผิดพลาดในการยิงออเดอร์'); btnElem.innerHTML = '<i class="fa-solid fa-paper-plane"></i> แอด'; }
         }
 
-        async function checkCrossPageEditMode() {
+  async function checkCrossPageEditMode() {
             const idToEdit = sessionStorage.getItem('edit_job_id'); if(!idToEdit) return;
             try {
                 const res = await fetch(`${API_BASE_URL}/api/report/${idToEdit}`); if (!res.ok) return;
@@ -651,6 +647,11 @@ function addPartRow(partNo = '', partMain = '', partName = '', model = '', type 
                 
                 selectDamage(job.damage_level || 'เบา');
                 
+                // 🌟 โหลดรายชื่อชิ้นส่วนหลัก-รอง ที่เคยติ๊กเลือกไว้กลับมาแสดง
+                selectedBodyParts.main = job.main_part_name ? job.main_part_name.split(',').map(s => s.trim()).filter(Boolean) : [];
+                selectedBodyParts.sub = job.sub_part_name ? job.sub_part_name.split(',').map(s => s.trim()).filter(Boolean) : [];
+                renderBodyPartsUI();
+                
                setTimeout(() => {
                     if(job.job_status) {
                         document.getElementById('job_status').value = job.job_status;
@@ -674,78 +675,6 @@ function addPartRow(partNo = '', partMain = '', partName = '', model = '', type 
             } catch(e) { console.error(e); }
         }
 
-        async function loadPartsTrackingTable(carPlate) {
-            try {
-                if(!carPlate) return;
-                const poRes = await fetch(`${API_BASE_URL}/api/part-orders`);
-                if (poRes.ok) {
-                    const allPO = await poRes.json();
-                    const jobPO = allPO.filter(po => po.car_plate === carPlate);
-                    const trackBody = document.getElementById('track_parts_body');
-                    
-                    if (jobPO.length > 0) {
-                        trackBody.innerHTML = jobPO.map(po => {
-                            let statusClass = 'bg-slate-100 border-slate-300 text-slate-700';
-                            if(po.order_status === 'อะไหล่มาครบแล้ว') statusClass = 'bg-emerald-100 border-emerald-400 text-emerald-800 font-black shadow-sm';
-                            else if(po.order_status === 'ติด Back Order') statusClass = 'bg-rose-100 border-rose-400 text-rose-800 font-black shadow-sm';
-                            else if(po.order_status === 'รอสั่งซื้อ') statusClass = 'bg-amber-100 border-amber-400 text-amber-800 font-bold shadow-sm';
-                            else if(po.order_status === 'สั่งแล้วรอของเข้า') statusClass = 'bg-blue-100 border-blue-400 text-blue-800 font-bold shadow-sm';
-
-                            return `
-                            <tr>
-                                <td class="font-mono text-[10px] text-slate-400">${po.epc_no || '-'}</td>
-                                <td class="font-mono font-bold text-blue-700">${po.part_no}</td>
-                                <td class="font-medium text-slate-800 truncate max-w-[200px]" title="${po.part_name}">${po.part_name}</td>
-                                <td class="text-center font-bold text-slate-800">${po.qty_ordered}</td>
-                                <td class="text-center font-bold text-emerald-600">${po.qty_received || 0}</td>
-                                <td><span class="px-3 py-1 border rounded-lg text-[10px] whitespace-nowrap ${statusClass}">${po.order_status}</span></td>
-                                <td class="text-[10px] text-slate-500 font-mono">${po.order_date ? po.order_date.split('T')[0] : '-'}</td>
-                                <td class="text-[10px] text-amber-600 font-mono">${po.est_arrival_date ? po.est_arrival_date.split('T')[0] : '-'}</td>
-                                <td class="text-[10px] text-emerald-600 font-mono">${po.received_date ? po.received_date.split('T')[0] : '-'}</td>
-                                <td class="text-[10px] text-slate-400 truncate max-w-[100px]">${po.notes || '-'}</td>
-                                <td class="text-center">
-                                    <button type="button" onclick="editPO(${po.order_id}, '${po.part_no}', ${po.qty_ordered})" class="text-slate-400 hover:text-blue-600 px-2 py-1 bg-white border border-slate-200 rounded-lg shadow-sm" title="แก้ไข"><i class="fa-solid fa-pen"></i></button>
-                                    <button type="button" onclick="deletePO(${po.order_id})" class="text-slate-400 hover:text-red-500 px-2 py-1 bg-white border border-slate-200 rounded-lg shadow-sm ml-1" title="ลบ"><i class="fa-solid fa-trash"></i></button>
-                                </td>
-                            </tr>
-                        `}).join('');
-                    } else {
-                        trackBody.innerHTML = `<tr><td colspan="11" class="text-center py-8 text-slate-400 text-xs font-bold">ยังไม่มีประวัติการสั่งซื้ออะไหล่</td></tr>`;
-                    }
-                }
-            } catch(e) {}
-        }
-
-        async function deletePO(orderId) {
-            if(confirm('🚨 ยืนยันการลบออเดอร์นี้ถาวร?')) {
-                try {
-                    await fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, { method: 'DELETE' });
-                    loadPartsTrackingTable(document.getElementById('car_plate').value);
-                } catch(e) {}
-            }
-        }
-
-        async function editPO(orderId, oldPartNo, oldQty) {
-            const newPartNo = prompt('1. ระบุ "บาร์โค้ด" ที่ต้องการแก้ไข:', oldPartNo);
-            if(!newPartNo) return;
-            
-            let newPartName = ""; let newMainNo = "";
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/parts/check/${encodeURIComponent(newPartNo)}`);
-                const data = await res.json();
-                if(data && data.part_name) { newPartName = data.part_name; newMainNo = data.part_main_no || ''; } 
-                else { newPartName = prompt(`⚠️ ระบุชื่อชิ้นส่วนด้วยตนเอง:`); if(!newPartName) return; }
-            } catch(e) {}
-
-            const newQty = prompt('2. ระบุ "จำนวน" ใหม่:', oldQty);
-            if(!newQty || isNaN(newQty)) return;
-
-            try {
-                await fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ part_no: newPartNo, part_name: newPartName, part_main_no: newMainNo, qty_ordered: parseInt(newQty) }) });
-                loadPartsTrackingTable(document.getElementById('car_plate').value);
-            } catch(e) {}
-        }
-
         function cancelEditMode() {
             sessionStorage.removeItem('edit_job_id'); document.getElementById('saForm').reset(); document.getElementById('sa_report_id').value = '';
             document.getElementById('edit_mode_badge').classList.add('hidden');
@@ -755,6 +684,11 @@ function addPartRow(partNo = '', partMain = '', partName = '', model = '', type 
             document.getElementById('order_parts_body').innerHTML = ''; addPartRow();
             document.getElementById('track_parts_body').innerHTML = `<tr><td colspan="11" class="text-center py-8 text-slate-400 text-xs font-bold">กรุณาบันทึกใบงานเพื่อติดตามสถานะอะไหล่</td></tr>`;
             
+            // 🌟 รีเซ็ตปุ่มชิ้นส่วนที่กดค้างไว้เวลาเคลียร์ฟอร์ม
+            selectedBodyParts.main = [];
+            selectedBodyParts.sub = [];
+            renderBodyPartsUI();
+
             selectDamage('เบา');
             document.getElementById('department_routing').value = 'รอดำเนินการ';
             document.getElementById('park_status').value = 'ไม่จอดซ่อม';
@@ -788,6 +722,7 @@ function addPartRow(partNo = '', partMain = '', partName = '', model = '', type 
 
             const routingDept = document.getElementById('department_routing').value || 'รอดำเนินการ';
             
+            // 🌟 เพิ่มคำสั่งส่งรายชื่อชิ้นส่วนหลักและรองไปให้ Database ด้วย
             const formData = {
                 sa_owner: sessionStorage.getItem('emp_name'), branch_name: sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่',
                 customer_name: document.getElementById('customer_name').value, phone_number: document.getElementById('phone_number').value,
@@ -803,7 +738,9 @@ function addPartRow(partNo = '', partMain = '', partName = '', model = '', type 
                 job_status: document.getElementById('job_status').value, car_plate: document.getElementById('car_plate').value,
                 department_routing: routingDept,
                 main_part_qty: selectedBodyParts.main.length,
-                sub_part_qty: selectedBodyParts.sub.length
+                sub_part_qty: selectedBodyParts.sub.length,
+                main_part_name: selectedBodyParts.main.join(' , '), // 🌟 บันทึกชื่อชิ้นส่วนหลักลง DB
+                sub_part_name: selectedBodyParts.sub.join(' , ')    // 🌟 บันทึกชื่อชิ้นส่วนรองลง DB
             };
             
             const url = editId ? `${API_BASE_URL}/api/report/${editId}` : `${API_BASE_URL}/api/report`;
@@ -828,7 +765,7 @@ function addPartRow(partNo = '', partMain = '', partName = '', model = '', type 
                         const pNo = tr.querySelector('.part-no-input')?.value; 
                         const pMain = tr.querySelector('.part-main-input')?.value;
                         const pName = tr.querySelector('.part-name-input')?.value; 
-                        const pType = tr.querySelector('.part-type-input')?.value || 'อะไหล่แท้';
+                        const pType = tr.querySelector('.part-type-input')?.value || 'อะไหล่หลัก';
                         const pQty = tr.querySelector('.part-qty-input')?.value || '1';
                         
                         if (pNo && pName) {
