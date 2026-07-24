@@ -594,6 +594,8 @@
 
             try {
                 btnElem.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+                
+                // 1. ส่งคำสั่งซื้อเข้าตาราง Part Orders
                 await fetch(`${API_BASE_URL}/api/part-orders`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
@@ -601,6 +603,19 @@
                         qt_no: qtArr.join(','), so_no: soArr.join(','), epc_no: null,
                         part_no: pNo, part_main_no: pMain, part_name: pName, qty_ordered: pQty, part_type: pType, 
                         branch_name: sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่', order_status: 'รอสั่งซื้อ', order_date: new Date().toISOString().split('T')[0]
+                    })
+                });
+
+                // 🌟 2. เพิ่มระบบ Auto-Booking จองอะไหล่อัตโนมัติใน Inbound/Outbound
+                await fetch(`${API_BASE_URL}/api/part-outbound`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        issue_date: new Date().toISOString().split('T')[0],
+                        part_no: pNo, part_main_no: pMain, part_name: pName, qty: parseInt(pQty) || 1,
+                        car_plate: carPlate, qt_no: qtArr.join(','), so_no: soArr.join(','),
+                        unit_price: 0, car_model: document.getElementById('car_model').value,
+                        job_status: 'รอเข้าซ่อม', part_type: pType,
+                        branch_name: sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่'
                     })
                 });
                 
@@ -819,12 +834,26 @@
                         const pQty = tr.querySelector('.part-qty-input')?.value || '1';
                         
                         if (pNo && pName) {
+                            // 1. สร้างใบสั่งซื้อ
                             await fetch(`${API_BASE_URL}/api/part-orders`, {
                                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ 
                                     qt_no: qtArr.join(', '), so_no: soArr.join(', '), epc_no: null,
                                     order_date: new Date().toISOString().split('T')[0], car_plate: formData.car_plate, vin_no: formData.vin_no, car_model: formData.car_model, 
                                     part_no: pNo, part_main_no: pMain, part_name: pName, qty_ordered: pQty, part_type: pType, branch_name: formData.branch_name, order_status: 'รอสั่งซื้อ' 
+                                })
+                            });
+
+                            // 🌟 2. เพิ่มระบบ Auto-Booking จองอะไหล่อัตโนมัติ
+                            await fetch(`${API_BASE_URL}/api/part-outbound`, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    issue_date: new Date().toISOString().split('T')[0],
+                                    part_no: pNo, part_main_no: pMain, part_name: pName, qty: parseInt(pQty) || 1,
+                                    car_plate: formData.car_plate, qt_no: qtArr.join(', '), so_no: soArr.join(', '),
+                                    unit_price: 0, car_model: formData.car_model,
+                                    job_status: 'รอเข้าซ่อม', part_type: pType,
+                                    branch_name: formData.branch_name
                                 })
                             });
                         }
