@@ -1069,14 +1069,20 @@
                     }).join('');
 
                     const rcvAllStyle = isAllReceived ? 'bg-emerald-50 text-emerald-800 font-bold' : 'text-slate-400';
+                    const hasETA = o.est_arrival_date && o.est_arrival_date.trim() !== '';
+
+                    const actionButtons = hasETA 
+                        ? `<span class="text-slate-400 text-xs" title="สั่งของไปแล้ว ไม่สามารถแก้ไขได้"><i class="fa-solid fa-lock"></i> ล็อก</span>`
+                        : `<button onclick="openPOModal('${orderId}')" class="text-blue-500 hover:text-blue-700 bg-blue-50 px-2 py-0.5 rounded" title="แก้ไข"><i class="fa-solid fa-pen"></i></button>
+                           <button onclick="deleteRow('/api/part-orders/${orderId}')" class="text-red-500 hover:text-red-700 bg-red-50 px-2 py-0.5 rounded" title="ลบรายการ"><i class="fa-solid fa-trash"></i></button>`;
 
                     html += `
                     <tr>
-                        <td class="font-mono p-1"><input type="text" value="${o.epc_no || ''}" onchange="fastUpdatePO('${orderId}', 'epc_no', this.value)" class="inline-edit-input font-bold text-amber-700 text-center"></td>
+                        <td class="font-mono p-1"><input type="text" value="${o.epc_no || ''}" onchange="fastUpdatePO('${orderId}', 'epc_no', this.value)" class="inline-edit-input font-bold text-amber-700 text-center" ${hasETA ? 'readonly' : ''}></td>
                         <td class="font-mono font-bold text-blue-600 px-2">${o.part_no}</td>
                         <td class="px-2 text-center"><span class="bg-slate-200 px-1.5 py-0.5 rounded text-[10px] font-bold">${o.car_plate || '-'}</span></td>
                         <td class="p-1"><select onchange="fastUpdatePO('${orderId}', 'order_status', this.value)" class="inline-edit-select bg-slate-50 w-full">${dropdownHtml}</select></td>
-                        <td class="text-center p-1"><input type="number" value="${o.qty_ordered}" onchange="fastUpdatePO('${orderId}', 'qty_ordered', this.value)" class="inline-edit-input font-black text-center w-full"></td>
+                        <td class="text-center p-1"><input type="number" value="${o.qty_ordered}" onchange="fastUpdatePO('${orderId}', 'qty_ordered', this.value)" class="inline-edit-input font-black text-center w-full" ${hasETA ? 'readonly' : ''}></td>
                         <td class="text-center font-black text-emerald-600 bg-slate-50">${rcvQty}</td>
                         <td class="truncate px-2" title="${o.part_name}">${o.part_name}</td>
                         <td class="font-mono text-center text-slate-500">${o.order_date ? String(o.order_date).split('T')[0] : '-'}</td>
@@ -1086,8 +1092,7 @@
                         
                         <td class="font-mono text-[10px] text-slate-400 px-2">${o.part_main_no || '-'}</td>
                         <td class="text-center flex justify-center gap-1 py-1">
-                            <button onclick="openPOModal('${orderId}')" class="text-blue-500 hover:text-blue-700 bg-blue-50 px-2 py-0.5 rounded"><i class="fa-solid fa-expand"></i></button>
-                            <button onclick="deleteRow('/api/part-orders/${orderId}')" class="text-red-500 hover:text-red-700 bg-red-50 px-2 py-0.5 rounded"><i class="fa-solid fa-trash"></i></button>
+                            ${actionButtons}
                         </td>
                     </tr>`;
                 });
@@ -1258,8 +1263,6 @@
                 const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 if(!res.ok) throw new Error(); 
                 
-                // 🌟 เพิ่มระบบฉลาด: Auto-Booking
-                // เมื่อมีการ "สั่งซื้ออะไหล่ใหม่" (ไม่ใช่การกดแก้ไขรายการเดิม) ให้ทำการจองอะไหล่นี้ทันที
                 if (!editId) {
                     const outboundPayload = {
                         issue_date: document.getElementById('po_date').value,
@@ -1270,9 +1273,9 @@
                         so_no: document.getElementById('po_so').value,
                         part_main_no: document.getElementById('po_part_main').value,
                         part_name: document.getElementById('po_part_name').value,
-                        unit_price: 0, // กำหนดเป็น 0 ไปก่อนตอนสร้างใบจอง
+                        unit_price: 0, 
                         car_model: document.getElementById('po_model').value,
-                        job_status: 'รอเข้าซ่อม', // สถานะ = จอง (Booking)
+                        job_status: 'รอเข้าซ่อม', 
                         part_type: document.getElementById('po_type').value,
                         branch_name: currentBranch
                     };
