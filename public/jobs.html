@@ -1326,57 +1326,6 @@ function renderTable(data) {
             tbody.innerHTML = allRowsHtml; // อัปเดต DOM แค่ครั้งเดียว (ลดความหน่วง)
         }
 
-            let safeOptsGlobal = globalStatusOptionsHtml;
-
-            tbody.innerHTML = data.map(job => {
-                let rowHtml = '<tr>';
-                columnsDef.forEach(col => {
-                    let cellData = ''; let cellClass = '';
-                    switch(col.key) {
-                        case 'action': 
-                            cellData = `
-                                <div class="flex items-center justify-center gap-1 w-full h-full">
-                                    <button onclick="goToEditJob('${job.id}')" class="bg-blue-600 text-white px-2 py-1 rounded shadow-sm hover:bg-blue-800 transition-all" title="แก้ไขใบงาน"><i class="fa-solid fa-pen-to-square"></i></button>
-                                    <button onclick="deleteJobRow('${job.id}', '${job.car_plate || '-'}')" class="bg-red-500 text-white px-2 py-1 rounded shadow-sm hover:bg-red-700 transition-all" title="ลบใบงานทิ้ง"><i class="fa-solid fa-trash-can"></i></button>
-                                </div>`; 
-                            break;
-                        case 'car_plate': 
-                            cellData = `<input type="text" value="${job.car_plate || ''}" onchange="fastUpdateJob('${job.id}', 'car_plate', this.value)" class="inline-edit-input font-black text-amber-700 bg-amber-50 text-center uppercase">`; 
-                            break;
-                        case 'job_status': 
-                            let safeStatus = job.job_status || '';
-                            let safeOptions = safeOptsGlobal;
-                            if(!safeOptions.includes(`value="${safeStatus}"`)) { safeOptions = `<option value="${safeStatus}">${safeStatus}</option>` + safeOptions; } 
-                            safeOptions = safeOptions.replace(`value="${safeStatus}"`, `value="${safeStatus}" selected`); 
-                            cellData = `<select onchange="fastUpdateJob('${job.id}', 'job_status', this.value)" class="inline-edit-select bg-slate-50">${safeOptions}</select>`; 
-                            break;
-                        case 'damage_level':
-                            let dmgOpts = ['เบา', 'กลาง', 'หนัก'].map(d => `<option value="${d}" ${job.damage_level === d ? 'selected' : ''}>${d}</option>`).join('');
-                            cellData = `<select onchange="fastUpdateJob('${job.id}', 'damage_level', this.value)" class="inline-edit-select ${job.damage_level === 'หนัก' ? 'text-red-600' : 'text-amber-600'}">${dmgOpts}</select>`;
-                            break;
-                        case 'park_status': 
-                            let pStat = 'ไม่จอดซ่อม';
-                            let noteTxt = job.notes || '';
-                            let m = noteTxt.match(/^\[(.*?)\]/);
-                            if(m) pStat = m[1];
-                            let pOpts = `<option value="ไม่จอดซ่อม" ${pStat==='ไม่จอดซ่อม'?'selected':''}>ไม่จอดซ่อม</option><option value="จอดซ่อม" ${pStat==='จอดซ่อม'?'selected':''}>จอดซ่อม</option>`;
-                            cellData = `<select onchange="updateParkStatus('${job.id}', this.value, '${noteTxt.replace(/'/g, "\\'")}')" class="inline-edit-select ${pStat==='จอดซ่อม'?'text-blue-600 font-black':'text-slate-500'}">${pOpts}</select>`;
-                            break;
-                        case 'contact_date': case 'arrived_date': case 'target_finish_date': case 'actual_finish_date': case 'delivery_date': 
-                            cellData = `<input type="date" value="${job[col.key] ? String(job[col.key]).split('T')[0] : ''}" onchange="fastUpdateJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input font-mono text-slate-500 text-center">`; 
-                            break;
-                        case 'notes': case 'qt_no': case 'so_no': case 'bl_no': case 'sa_owner':
-                            cellData = `<input type="text" value="${job[col.key] || ''}" onchange="fastUpdateJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input text-slate-700" placeholder="-">`;
-                            break;
-                        case 'branch_name': cellData = `<div class="px-3 py-1 font-bold text-[#00320D]">${job.branch_name || '-'}</div>`; break;
-                        case 'part_status': cellData = `<div class="px-3 py-1 font-bold text-purple-700 truncate" title="${job.part_status}">${job.part_status || '-'}</div>`; break;
-                        default: cellData = `<div class="px-3 py-1 truncate" title="${job[col.key]}">${job[col.key] || '-'}</div>`; break;
-                    }
-                    rowHtml += `<td class="${cellClass}">${cellData}</td>`;
-                });
-                rowHtml += '</tr>'; return rowHtml;
-            }).join('');
-        }
 
         // ================= BULK INSERT (PDI) =================
         function openBulkModal() {
