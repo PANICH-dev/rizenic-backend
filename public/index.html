@@ -503,8 +503,7 @@
             `;
             tbody.appendChild(tr);
         }
-
-        function addPartRow(partNo = '', partMain = '', partName = '', model = '', type = 'อะไหล่แท้', price = '0', loc = '', safe = '0') {
+function addPartRow(partNo = '', partMain = '', partName = '', model = '', type = 'อะไหล่หลัก', price = '0', loc = '', safe = '0') {
             const tbody = document.getElementById('order_parts_body'); if(!tbody) return;
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -512,7 +511,15 @@
                 <td class="px-2 py-2"><input type="text" class="minimal-input px-2 py-1.5 part-main-input font-mono text-xs" placeholder="MAIN No" value="${partMain}" readonly></td>
                 <td class="px-2 py-2"><input type="text" class="minimal-input px-2 py-1.5 part-name-input text-xs" placeholder="ชื่อชิ้นส่วน" value="${partName}" readonly></td>
                 <td class="px-2 py-2"><input type="text" class="minimal-input px-2 py-1.5 part-model-input text-xs" placeholder="รุ่นรถ" value="${model}" readonly></td>
-                <td class="px-2 py-2"><select class="minimal-input px-2 py-1.5 part-type-input text-xs bg-white"><option value="อะไหล่แท้" ${type==='อะไหล่แท้'?'selected':''}>แท้</option><option value="อะไหล่เทียบ" ${type==='อะไหล่เทียบ'?'selected':''}>เทียบ</option></select></td>
+                
+                <!-- 🌟 แก้ไข: ขยายความกว้างกล่อง และเปลี่ยนเป็น อะไหล่หลัก/อะไหล่รอง -->
+                <td class="px-2 py-2 min-w-[120px]">
+                    <select class="minimal-input px-2 py-1.5 part-type-input text-xs bg-white w-full">
+                        <option value="อะไหล่หลัก" ${type==='อะไหล่หลัก'?'selected':''}>อะไหล่หลัก</option>
+                        <option value="อะไหล่รอง" ${type==='อะไหล่รอง'?'selected':''}>อะไหล่รอง</option>
+                    </select>
+                </td>
+                
                 <td class="px-2 py-2"><input type="number" class="minimal-input px-2 py-1.5 part-price-input text-xs text-right" placeholder="ราคา" value="${price}" readonly></td>
                 <td class="px-2 py-2"><input type="text" class="minimal-input px-2 py-1.5 part-loc-input text-xs" placeholder="Location" value="${loc}" readonly></td>
                 <td class="px-2 py-2 text-center"><input type="number" class="minimal-input px-2 py-1.5 part-safe-input text-xs text-center font-bold" value="${safe}" readonly></td>
@@ -531,25 +538,43 @@
             const n = tr.querySelector('.part-name-input'); const m = tr.querySelector('.part-main-input');
             const mo = tr.querySelector('.part-model-input'); const p = tr.querySelector('.part-price-input');
             const l = tr.querySelector('.part-loc-input'); const s = tr.querySelector('.part-safe-input');
+            const t = tr.querySelector('.part-type-input'); // 🌟 ดึง Element ของ Dropdown ประเภทอะไหล่มาใช้งาน
 
             try {
                 const res = await fetch(`${API_BASE_URL}/api/parts/check/${encodeURIComponent(partNo)}`);
                 const data = await res.json();
+                
+                // ถ้ามีข้อมูลในมาสเตอร์ ให้อัปเดตทุกช่อง รวมถึง "ประเภทอะไหล่" ด้วย!
                 if (data && data.part_name) {
-                    n.value = data.part_name; m.value = data.part_main_no || '-'; mo.value = data.car_model || '-';
-                    p.value = data.unit_price || 0; l.value = data.location || '-'; s.value = data.safety_stock || 0;
+                    n.value = data.part_name; 
+                    m.value = data.part_main_no || '-'; 
+                    mo.value = data.car_model || '-';
+                    t.value = data.part_category || 'อะไหล่หลัก'; // 🌟 ยัดค่า part_category จาก DB ใส่ Dropdown
+                    p.value = data.unit_price || 0; 
+                    l.value = data.location || '-'; 
+                    s.value = data.safety_stock || 0;
                 } else {
                     if (confirm(`⚠️ ไม่พบอะไหล่บาร์โค้ด "${partNo}" ในระบบ!\nต้องการบันทึกเป็นรายการใหม่หรือไม่?`)) {
                         const newName = prompt('1. ชื่อชิ้นส่วน:'); if (!newName) { inputElem.value = ''; return; }
-                        const newMain = prompt('2. หมายเลข MAIN:', ''); const newModel = prompt('3. รุ่นรถ:', document.getElementById('car_model').value || 'ALL');
-                        const newPrice = prompt('4. ราคา:', '0'); const newLocation = prompt('5. Location:', 'ยังไม่ระบุ'); const newSafe = prompt('6. Safety Stock:', '0');
+                        const newMain = prompt('2. หมายเลข MAIN:', ''); 
+                        const newModel = prompt('3. รุ่นรถ:', document.getElementById('car_model').value || 'ALL');
+                        const newCat = prompt('4. ประเภทอะไหล่ (พิมพ์: อะไหล่หลัก หรือ อะไหล่รอง):', 'อะไหล่หลัก'); // 🌟 เพิ่มช่องกรอกประเภท
+                        const newPrice = prompt('5. ราคา:', '0'); 
+                        const newLocation = prompt('6. Location:', 'ยังไม่ระบุ'); 
+                        const newSafe = prompt('7. Safety Stock:', '0');
 
                         await fetch(`${API_BASE_URL}/api/parts`, { 
                             method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-                            body: JSON.stringify({ part_no: partNo, part_main_no: newMain, part_name: newName, car_model: newModel, unit_price: newPrice, location: newLocation, safety_stock: newSafe, part_category: 'อะไหล่ทั่วไป' }) 
+                            body: JSON.stringify({ 
+                                part_no: partNo, part_main_no: newMain, part_name: newName, 
+                                car_model: newModel, unit_price: newPrice, location: newLocation, 
+                                safety_stock: newSafe, part_category: newCat 
+                            }) 
                         });
                         
-                        n.value = newName; m.value = newMain || '-'; mo.value = newModel; p.value = newPrice; l.value = newLocation; s.value = newSafe;
+                        n.value = newName; m.value = newMain || '-'; mo.value = newModel; 
+                        t.value = newCat; // 🌟 อัปเดต Dropdown หลังจากสร้างใหม่
+                        p.value = newPrice; l.value = newLocation; s.value = newSafe;
                     } else { inputElem.value = ''; }
                 }
             } catch(e) { console.log(e); }
