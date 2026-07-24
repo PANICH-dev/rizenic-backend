@@ -80,7 +80,6 @@
         </div>
         <div class="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200 shadow-inner flex-wrap">
             <span class="text-xs font-bold text-slate-500 uppercase px-2"><i class="fa-solid fa-calendar-day text-amber-500"></i> ตัวกรองด่วน:</span>
-            <!-- 🌟 เพิ่ม Dropdown สำหรับเลือก "วัน" -->
             <select id="day_filter_select" onchange="applyFilters()" class="px-2 py-2 bg-white border border-slate-200 text-slate-800 rounded-lg outline-none text-xs font-bold cursor-pointer shadow-sm hover:border-amber-400">
                 <option value="all">-- ทุกวัน --</option>
                 <option value="01">01</option><option value="02">02</option><option value="03">03</option><option value="04">04</option><option value="05">05</option>
@@ -107,7 +106,6 @@
                 <option value="12">ธันวาคม (12)</option>
             </select>
             <select id="year_filter_select" onchange="applyFilters()" class="px-2 py-2 bg-white border border-slate-200 text-slate-800 rounded-lg outline-none text-xs font-bold cursor-pointer shadow-sm hover:border-amber-400">
-                <!-- เจนปีอัตโนมัติ -->
             </select>
             <button onclick="fetchDashboardData()" class="px-4 py-2 bg-[#00320D] text-white font-bold rounded-lg text-xs shadow-md hover:bg-black transition flex items-center gap-2"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
         </div>
@@ -125,7 +123,7 @@
             </div>
         </div>
 
-        <!-- 📊 1. การ์ดสรุปยอดด่วน (🌟 แก้ไขตามโจทย์) -->
+        <!-- 📊 1. การ์ดสรุปยอดด่วน -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <div class="stat-card bg-gradient-to-br from-purple-50 to-white border-purple-100" onclick="openFilteredModal('contacted')">
                 <div class="absolute -right-4 -bottom-4 text-purple-100 text-8xl opacity-40 rotate-12 transition-transform group-hover:scale-110"><i class="fa-solid fa-phone"></i></div>
@@ -387,6 +385,13 @@
         let userRole = '';
         let userBranch = '';
 
+        // 🌟 Helper Function สำคัญสำหรับเช็คค่า Boolean ของสถานีช่าง
+        function isTrue(val) {
+            if (val === null || val === undefined) return false;
+            const strVal = String(val).trim().toUpperCase();
+            return strVal === 'TRUE' || strVal === '1' || val === true || val === 1;
+        }
+
         function getTodayString() {
             const d = new Date();
             return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -479,7 +484,6 @@
             } catch (err) { console.error("โหลดข้อมูลแดชบอร์ดพัง:", err); }
         }
 
-        // 🌟 อัปเดตฟังก์ชันให้อ่านค่าจาก "วัน" เพิ่มเติม
         function applyFilters() {
             const selectedBranch = document.getElementById('branchFilter').value;
             const filterDay = document.getElementById('day_filter_select').value;
@@ -496,7 +500,6 @@
                 filteredPartOrders = allPartOrders.filter(o => o.branch_name === selectedBranch);
             }
             
-            // 🌟 ส่งค่า fDay เข้าไปด้วย
             renderKPIs(filterDay, filterMonth, filterYear);
             renderDailyReport(); 
             renderStatusChart();
@@ -507,11 +510,9 @@
             renderSAAlerts(); 
             renderPartsTracking();
             renderParkedCars();
-            // ปฏิทินยังคงส่งแค่เดือนกับปีเพื่อใช้ตั้งค่าหัวปฏิทิน
             renderCalendar(filterMonth, filterYear);
         }
 
-        // 🌟 อัปเดตฟังก์ชันเพื่อคัดกรองวันที่ (Day)
         function isDateInFilter(dateStr, fDay, fMonth, fYear) {
             if(!dateStr) return false;
             const d = new Date(dateStr);
@@ -522,7 +523,6 @@
             return true;
         }
 
-        // 🌟 อัปเดตการส่งตัวแปรลงในฟังก์ชัน
         function renderKPIs(fDay, fMonth, fYear) {
             const contacted = filteredJobs.filter(j => isDateInFilter(j.contact_date, fDay, fMonth, fYear)).length;
             const arrived = filteredJobs.filter(j => isDateInFilter(j.arrived_date, fDay, fMonth, fYear)).length;
@@ -602,7 +602,6 @@
             document.getElementById('jobListModal').classList.remove('hidden');
         }
 
-        // 🌟 อัปเดตการลิงก์ปุ่ม Modal ด่วนให้รับค่าวันได้ด้วย
         function openFilteredModal(type) {
             const fDay = document.getElementById('day_filter_select').value;
             const fMonth = document.getElementById('month_filter_select').value;
@@ -689,7 +688,6 @@
             });
         }
 
-        // 🌟 อัปเดตกราฟบัญชีให้รับค่าวันเพิ่มเติมได้
         function renderFinanceChart(fDay, fMonth, fYear) {
             const accJobs = filteredJobs.filter(d => d.department_routing === 'บัญชี');
             
@@ -744,19 +742,20 @@
             document.getElementById('jobListModal').classList.remove('hidden');
         }
 
+        // 🌟 อัปเดตฟังก์ชันนี้ ให้ใช้เช็คค่า Boolean เหมือนกับหน้า repair
         function computeHighestStationIFS(j) {
-            if(j.station_ready) return "13.รอส่งมอบ";
-            if(j.station_pak) return "12.พักซ่อม";
-            if(j.station_film) return "11.ฟิล์ม";
-            if(j.station_kraj) return "10.กระจก";
-            if(j.station_mag) return "09.ซ่อมแม็ก";
-            if(j.station_qc) return "08.เก็บงาน";
-            if(j.station_kat) return "06.ขัดสี";
-            if(j.station_prak) return "05.ประกอบ";
-            if(j.station_pon) return "04.พ่นสี";
-            if(j.station_puan) return "03.เตรียมพื้น";
-            if(j.station_pou) return "02.โป๊ว";
-            if(j.station_kho) return "01.เคาะ";
+            if(isTrue(j.station_ready)) return "13.รอส่งมอบ";
+            if(isTrue(j.station_pak)) return "12.พักซ่อม";
+            if(isTrue(j.station_film)) return "11.ฟิล์ม";
+            if(isTrue(j.station_kraj)) return "10.กระจก";
+            if(isTrue(j.station_mag)) return "09.ซ่อมแม็ก";
+            if(isTrue(j.station_qc)) return "08.เก็บงาน";
+            if(isTrue(j.station_kat)) return "06.ขัดสี";
+            if(isTrue(j.station_prak)) return "05.ประกอบ";
+            if(isTrue(j.station_pon)) return "04.พ่นสี";
+            if(isTrue(j.station_puan)) return "03.เตรียมพื้น";
+            if(isTrue(j.station_pou)) return "02.โป๊ว";
+            if(isTrue(j.station_kho)) return "01.เคาะ";
             return "รอรับรถ";
         }
 
@@ -1026,12 +1025,19 @@
             const tbody = document.getElementById('modal_job_table');
             if (jobs.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-500 font-bold">ไม่มีข้อมูล</td></tr>`; return; }
 
+            let safeOptsGlobal = globalStatusOptionsHtml;
+
             tbody.innerHTML = jobs.map(j => {
                 const saName = j.sa_owner || 'ไม่ระบุ';
                 const damageColor = j.damage_level === 'หนัก' ? 'text-red-600' : (j.damage_level === 'กลาง' ? 'text-amber-500' : 'text-emerald-600');
                 
+                let safeStatus = j.job_status || '';
+                let safeOptions = safeOptsGlobal;
+                if(!safeOptions.includes(`value="${safeStatus}"`)) { safeOptions = `<option value="${safeStatus}">${safeStatus}</option>` + safeOptions; } 
+                safeOptions = safeOptions.replace(`value="${safeStatus}"`, `value="${safeStatus}" selected`); 
+
                 return `
-                    <tr class="hover:bg-emerald-50/50 transition cursor-pointer border-b border-slate-100" onclick="editJobFromDashboard('${j.id}')">
+                    <tr class="hover:bg-emerald-50/50 transition cursor-pointer border-b border-slate-100" onclick="goToEditJob('${j.id}')">
                         <td class="px-4 py-3 font-bold text-[#00320D]"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded font-mono text-xs shadow-inner whitespace-nowrap">${j.car_plate || '-'}</span></td>
                         <td class="px-4 py-3 font-bold text-slate-800 text-[11px] leading-tight">${j.car_brand} <br><span class="text-slate-500 font-medium">${j.car_model || ''}</span></td>
                         <td class="px-4 py-3 text-[11px] leading-tight">
@@ -1040,14 +1046,17 @@
                         </td>
                         <td class="px-4 py-3 text-xs font-bold ${damageColor}">${j.damage_level || '-'}</td>
                         <td class="px-4 py-3 text-[10px] font-bold text-purple-700"><span class="bg-purple-50 px-2 py-1 rounded-lg border border-purple-200 shadow-sm">${j.part_status || '-'}</span></td>
-                        <td class="px-4 py-3 text-[10px] font-bold text-slate-700"><span class="bg-slate-100 px-2 py-1 rounded-lg border shadow-sm">${j.job_status || '-'}</span></td>
-                        <td class="px-4 py-3 text-center"><button class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full whitespace-nowrap"><i class="fa-solid fa-pen"></i> เปิด</button></td>
+                        <td class="px-4 py-3 text-[10px] font-bold text-slate-700">
+                            <select onclick="event.stopPropagation()" onchange="fastUpdateJob('${j.id}', 'job_status', this.value)" class="bg-slate-50 border border-slate-300 rounded px-2 py-1 outline-none focus:border-amber-500 w-full cursor-pointer font-bold text-[#00320D]">
+                                ${safeOptions}
+                            </select>
+                        </td>
+                        <td class="px-4 py-3 text-center"><button onclick="event.stopPropagation(); goToEditJob('${j.id}')" class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full whitespace-nowrap"><i class="fa-solid fa-pen"></i> เปิด</button></td>
                     </tr>
                 `;
             }).join('');
         }
 
-        function editJobFromDashboard(jobId) { sessionStorage.setItem('edit_job_id', jobId); window.location.href = 'index.html'; }
         function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
 
     </script>
