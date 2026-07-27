@@ -80,34 +80,14 @@
         </div>
         <div class="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200 shadow-inner flex-wrap">
             <span class="text-xs font-bold text-slate-500 uppercase px-2"><i class="fa-solid fa-calendar-day text-amber-500"></i> ตัวกรองด่วน:</span>
-            <select id="day_filter_select" onchange="applyFilters()" class="px-2 py-2 bg-white border border-slate-200 text-slate-800 rounded-lg outline-none text-xs font-bold cursor-pointer shadow-sm hover:border-amber-400">
-                <option value="all">-- ทุกวัน --</option>
-                <option value="01">01</option><option value="02">02</option><option value="03">03</option><option value="04">04</option><option value="05">05</option>
-                <option value="06">06</option><option value="07">07</option><option value="08">08</option><option value="09">09</option><option value="10">10</option>
-                <option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option>
-                <option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option>
-                <option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option>
-                <option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option>
-                <option value="31">31</option>
-            </select>
-            <select id="month_filter_select" onchange="applyFilters()" class="px-2 py-2 bg-white border border-slate-200 text-slate-800 rounded-lg outline-none text-xs font-bold cursor-pointer shadow-sm hover:border-amber-400">
-                <option value="all">-- ทุกเดือน --</option>
-                <option value="01">มกราคม (01)</option>
-                <option value="02">กุมภาพันธ์ (02)</option>
-                <option value="03">มีนาคม (03)</option>
-                <option value="04">เมษายน (04)</option>
-                <option value="05">พฤษภาคม (05)</option>
-                <option value="06">มิถุนายน (06)</option>
-                <option value="07">กรกฎาคม (07)</option>
-                <option value="08">สิงหาคม (08)</option>
-                <option value="09">กันยายน (09)</option>
-                <option value="10">ตุลาคม (10)</option>
-                <option value="11">พฤศจิกายน (11)</option>
-                <option value="12">ธันวาคม (12)</option>
-            </select>
-            <select id="year_filter_select" onchange="applyFilters()" class="px-2 py-2 bg-white border border-slate-200 text-slate-800 rounded-lg outline-none text-xs font-bold cursor-pointer shadow-sm hover:border-amber-400">
-            </select>
-            <button onclick="fetchDashboardData()" class="px-4 py-2 bg-[#00320D] text-white font-bold rounded-lg text-xs shadow-md hover:bg-black transition flex items-center gap-2"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
+            
+            <div class="flex items-center gap-2 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-sm">
+                <input type="date" id="dash_start_date" onchange="applyFilters()" class="bg-transparent text-slate-800 text-xs font-bold outline-none cursor-pointer border-none p-0">
+                <span class="text-slate-400 font-bold">-</span>
+                <input type="date" id="dash_end_date" onchange="applyFilters()" class="bg-transparent text-slate-800 text-xs font-bold outline-none cursor-pointer border-none p-0">
+            </div>
+
+            <button onclick="fetchDashboardData()" class="px-4 py-2 bg-[#00320D] text-white font-bold rounded-lg text-xs shadow-md hover:bg-black transition flex items-center gap-2 ml-2"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
         </div>
     </div>
 
@@ -159,12 +139,12 @@
             </div>
         </div>
 
-        <!-- 📋 RIZENIC Report ประจำวัน -->
+        <!-- 📋 RIZENIC Report ประจำวัน (อัปเกรดประเภทลูกค้าแบบ Unique) -->
         <div class="card-box shadow-md !p-0">
             <div class="p-4 border-b border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center bg-emerald-50/60 gap-3">
                 <h3 class="text-lg font-black text-[#00320D] flex items-center gap-2">
                     <i class="fa-solid fa-clipboard-list text-emerald-600 bg-emerald-100 p-2 rounded-lg"></i> 
-                    RIZENIC Report
+                    RIZENIC Report (สรุปข้อมูลรายวัน/เดือน)
                 </h3>
                 <div class="flex items-center gap-2 bg-white p-1.5 rounded-lg border border-slate-200 shadow-sm flex-wrap">
                     <span class="text-xs font-bold text-slate-500 px-2"><i class="fa-solid fa-calendar-days text-emerald-500"></i> ช่วงเวลา:</span>
@@ -178,7 +158,7 @@
                 
                 <!-- คอลัมน์ 1: ลูกค้า -->
                 <div class="md:pr-6">
-                    <h4 class="font-bold text-slate-800 mb-4 pb-2 border-b border-slate-100 flex items-center gap-2"><i class="fa-solid fa-users text-blue-500"></i> ข้อมูลติดต่อ & ลูกค้า</h4>
+                    <h4 class="font-bold text-slate-800 mb-4 pb-2 border-b border-slate-100 flex items-center gap-2"><i class="fa-solid fa-users text-blue-500"></i> จำแนกประเภทลูกค้า</h4>
                     <div class="space-y-1.5" id="report_col_customers"></div>
                 </div>
 
@@ -205,7 +185,7 @@
                 <div class="w-full h-[280px]"><canvas id="statusChart"></canvas></div>
             </div>
 
-            <!-- 🍩 3. สัดส่วนประกันภัย -->
+            <!-- 🍩 3. สัดส่วนประเภทลูกค้า -->
             <div class="card-box">
                 <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
                     <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-shield-halved text-purple-500"></i> สัดส่วนประเภทลูกค้า</h3>
@@ -243,32 +223,8 @@
             </div>
         </div>
 
-        <!-- 🌟 7.1 ตารางรายการสั่งซื้ออะไหล่จากทีม SA -->
-        <div class="card-box !p-0 shadow-md">
-            <div class="p-6 border-b border-slate-200 flex justify-between items-center bg-rose-50/50">
-                <h3 class="text-lg font-black text-rose-900 flex items-center gap-2"><i class="fa-solid fa-bell text-rose-600 bg-rose-100 p-2 rounded-lg"></i> รายการสั่งซื้ออะไหล่ที่ส่งเข้ามาจากทีมบริการ (SA)</h3>
-            </div>
-            <div class="overflow-x-auto h-[350px] custom-scrollbar p-0">
-                <table class="excel-table w-full border-none">
-                    <thead class="bg-[#00320D] text-white text-xs uppercase sticky top-0 shadow-sm border-b border-green-900">
-                        <tr>
-                            <th class="w-32 text-center !border-b-green-900">สถานะอะไหล่</th>
-                            <th class="w-32 !border-b-green-900">ทะเบียนรถ</th>
-                            <th class="w-40 !border-b-green-900">รุ่นรถ</th>
-                            <th class="w-40 !border-b-green-900">ลูกค้า</th>
-                            <th class="w-32 !border-b-green-900">EPC No.</th>
-                            <th class="w-40 !border-b-green-900">สถานะหลัก (ERP)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="sa_alerts_body" class="divide-y divide-slate-200 bg-white">
-                        <!-- JS Injects Here -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- 📦 7.2 ตารางติดตามใบสั่งอะไหล่ (PO Tracking) -->
-        <div class="card-box !p-0 shadow-md">
+        <!-- 📦 7. ตารางติดตามใบสั่งอะไหล่ (PO Tracking) -->
+        <div class="card-box !p-0 shadow-md mt-4">
             <div class="p-6 border-b border-slate-200 flex justify-between items-center bg-blue-50/50">
                 <h3 class="text-lg font-black text-blue-900 flex items-center gap-2"><i class="fa-solid fa-boxes-stacked text-blue-600 bg-blue-100 p-2 rounded-lg"></i> แจ้งเตือนและติดตามสถานะใบสั่งอะไหล่ (PO Tracking)</h3>
                 <button onclick="window.location.href='parts.html'" class="text-xs bg-white text-blue-600 px-4 py-2 rounded-lg font-bold hover:bg-blue-600 hover:text-white transition shadow-sm border border-blue-200 flex items-center gap-2"><i class="fa-solid fa-arrow-up-right-from-square"></i> ไปแผนกอะไหล่</button>
@@ -324,7 +280,7 @@
         <!-- 🗓️ 9. ปฏิทินปฏิบัติงาน -->
         <div class="card-box shadow-md border-t-4 border-[#00320D]">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-slate-200 pb-5">
-                <h3 class="text-xl font-black text-slate-800 flex items-center gap-3"><i class="fa-regular fa-calendar-days text-blue-600 bg-blue-50 p-2 rounded-lg"></i> แผนปฏิบัติงานประจำเดือน (พร้อมแสดงยอดโควต้าชิ้นงาน)</h3>
+                <h3 class="text-xl font-black text-slate-800 flex items-center gap-3"><i class="fa-regular fa-calendar-days text-blue-600 bg-blue-50 p-2 rounded-lg"></i> แผนปฏิบัติงาน (ตามช่วงเวลาที่กรอง)</h3>
                 <div class="flex flex-wrap gap-4 text-xs font-bold px-4 py-2 bg-slate-50 rounded-xl border border-slate-200 shadow-inner">
                     <div class="flex items-center gap-2"><div class="w-3.5 h-3.5 bg-gradient-to-t from-blue-600 to-blue-400 rounded-sm shadow-sm"></div> <span class="text-slate-600">เข้าจอด</span></div>
                     <div class="flex items-center gap-2"><div class="w-3.5 h-3.5 bg-gradient-to-t from-amber-500 to-amber-300 rounded-sm shadow-sm"></div> <span class="text-slate-600">เป้าเสร็จ</span></div>
@@ -341,28 +297,15 @@
 
     </main>
 
-    <!-- 🌟 Modal: แสดงรายการรถ 🌟 -->
+    <!-- 🌟 Modal: แสดงรายการรถ (แยก SA) 🌟 -->
     <div id="jobListModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center hidden p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden modal-fade border border-[#00320D] flex flex-col max-h-[90vh]">
             <div class="bg-[#00320D] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md z-20 relative border-b-4 border-amber-500">
                 <h2 class="font-bold text-lg flex items-center gap-3"><div class="bg-white/10 p-1.5 rounded"><i class="fa-solid fa-list-ul text-amber-400"></i></div> <span id="modal_status_name" class="text-amber-400 font-black tracking-wide"></span></h2>
                 <button onclick="closeModal('jobListModal')" class="hover:text-red-400 bg-white/5 hover:bg-red-500/20 w-8 h-8 rounded-full flex items-center justify-center transition-colors text-lg"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div class="flex-1 overflow-auto custom-scrollbar p-0 bg-slate-50 relative">
-                <table class="excel-table w-full border-none">
-                    <thead class="bg-[#00320D] text-white text-xs uppercase sticky top-0 shadow-sm border-b border-green-900">
-                        <tr>
-                            <th class="px-4 py-3 !border-x-0 !border-b-green-900">ทะเบียนรถ</th>
-                            <th class="px-4 py-3 !border-x-0 !border-b-green-900">ยี่ห้อ/รุ่น</th>
-                            <th class="px-4 py-3 !border-x-0 !border-b-green-900">ลูกค้า / SA</th>
-                            <th class="px-4 py-3 !border-x-0 !border-b-green-900">ความเสียหาย</th>
-                            <th class="px-4 py-3 !border-x-0 !border-b-green-900">สถานะอะไหล่</th>
-                            <th class="px-4 py-3 !border-x-0 !border-b-green-900">สถานะซ่อม (ERP)</th>
-                            <th class="px-4 py-3 !border-x-0 !border-b-green-900 text-center">จัดการ</th>
-                        </tr>
-                    </thead>
-                    <tbody id="modal_job_table" class="text-sm divide-y divide-slate-200 bg-white"></tbody>
-                </table>
+            <div class="flex-1 overflow-auto custom-scrollbar p-0 bg-slate-50 relative" id="modal_job_container">
+                <!-- Data will be grouped and injected here -->
             </div>
         </div>
     </div>
@@ -377,7 +320,7 @@
         let filteredPartOrders = [];
         let allStatuses = [];
         let allQuotas = []; 
-        let globalStatusOptionsHtml = ''; // 🌟 สร้างตัวแปรเก็บ HTML ตัวเลือกสถานะ
+        let globalStatusOptionsHtml = ''; 
         
         let statusChartInstance = null;
         let insuranceChartInstance = null;
@@ -386,7 +329,6 @@
         let userRole = '';
         let userBranch = '';
 
-        // 🌟 Helper Function สำคัญสำหรับเช็คค่า Boolean ของสถานีช่าง
         function isTrue(val) {
             if (val === null || val === undefined) return false;
             const strVal = String(val).trim().toUpperCase();
@@ -396,6 +338,16 @@
         function getTodayString() {
             const d = new Date();
             return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+
+        function getFirstDayOfMonth() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+        }
+        function getLastDayOfMonth() {
+            const d = new Date();
+            const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+            return `${end.getFullYear()}-${String(end.getMonth()+1).padStart(2,'0')}-${String(end.getDate()).padStart(2,'0')}`;
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -415,13 +367,13 @@
             document.getElementById('display_branch').innerText = userBranch;
             
             const today = new Date();
-            const todayStr = getTodayString();
-            
-            document.getElementById('month_filter_select').value = String(today.getMonth() + 1).padStart(2, '0');
             document.getElementById('current_date_display').innerText = today.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
             
-            document.getElementById('report_start_date').value = todayStr;
-            document.getElementById('report_end_date').value = todayStr;
+            document.getElementById('dash_start_date').value = getFirstDayOfMonth();
+            document.getElementById('dash_end_date').value = getLastDayOfMonth();
+            
+            document.getElementById('report_start_date').value = getFirstDayOfMonth();
+            document.getElementById('report_end_date').value = getLastDayOfMonth();
 
             setupBranchDropdown();
             fetchDashboardData();
@@ -451,29 +403,11 @@
                 const statRes = await fetch(`${API_BASE_URL}/api/statuses`).catch(() => null);
                 if(statRes && statRes.ok) { 
                     allStatuses = await statRes.json(); 
-                    // 🌟 สร้าง HTML Dropdown ไว้ใช้อัตโนมัติใน Modal Pop-up
                     globalStatusOptionsHtml = allStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
                 }
 
                 const resQuotas = await fetch(`${API_BASE_URL}/api/quotas`).catch(() => null);
                 if(resQuotas && resQuotas.ok) { allQuotas = await resQuotas.json(); }
-
-                const yearSelect = document.getElementById('year_filter_select');
-                let savedYear = yearSelect.value;
-                if (!savedYear) savedYear = new Date().getFullYear().toString(); 
-                
-                const years = new Set([new Date().getFullYear()]);
-                allJobs.forEach(j => {
-                    if(j.arrived_date) { const y = new Date(j.arrived_date).getFullYear(); if(!isNaN(y)) years.add(y); }
-                });
-                yearSelect.innerHTML = '<option value="all">-- ทุกปี --</option>';
-                [...years].sort((a,b)=>b-a).forEach(y => yearSelect.innerHTML += `<option value="${y}">${y}</option>`);
-                
-                if(savedYear && savedYear !== 'all' && years.has(parseInt(savedYear))) {
-                    yearSelect.value = savedYear;
-                } else {
-                    yearSelect.value = new Date().getFullYear().toString(); 
-                }
 
                 const rStr = String(userRole).toLowerCase();
                 if (rStr.includes('admin') || rStr.includes('แอดมิน') || rStr.includes('manager') || rStr.includes('ba')) {
@@ -491,9 +425,8 @@
 
         function applyFilters() {
             const selectedBranch = document.getElementById('branchFilter').value;
-            const filterDay = document.getElementById('day_filter_select').value;
-            const filterMonth = document.getElementById('month_filter_select').value;
-            const filterYear = document.getElementById('year_filter_select').value;
+            const startDate = document.getElementById('dash_start_date').value;
+            const endDate = document.getElementById('dash_end_date').value;
             
             document.getElementById('chartBranchLabel').innerText = selectedBranch === 'all' ? 'ทุกสาขา' : selectedBranch;
 
@@ -505,34 +438,31 @@
                 filteredPartOrders = allPartOrders.filter(o => o.branch_name === selectedBranch);
             }
             
-            renderKPIs(filterDay, filterMonth, filterYear);
+            renderKPIs(startDate, endDate);
             renderDailyReport(); 
             renderStatusChart();
             renderInsuranceChart();
-            renderFinanceChart(filterDay, filterMonth, filterYear);
+            renderFinanceChart(startDate, endDate);
             renderSASection();
             renderStationSection();
-            renderSAAlerts(); 
             renderPartsTracking();
             renderParkedCars();
-            renderCalendar(filterMonth, filterYear);
+            renderCalendarByRange(startDate, endDate);
         }
 
-        function isDateInFilter(dateStr, fDay, fMonth, fYear) {
+        function isDateInRange(dateStr, start, end) {
             if(!dateStr) return false;
-            const d = new Date(dateStr);
-            if(isNaN(d)) return false;
-            if(fYear && fYear !== 'all' && d.getFullYear().toString() !== fYear) return false;
-            if(fMonth && fMonth !== 'all' && String(d.getMonth()+1).padStart(2,'0') !== fMonth) return false;
-            if(fDay && fDay !== 'all' && String(d.getDate()).padStart(2,'0') !== fDay) return false;
+            const dStr = dateStr.split('T')[0];
+            if(start && dStr < start) return false;
+            if(end && dStr > end) return false;
             return true;
         }
 
-        function renderKPIs(fDay, fMonth, fYear) {
-            const contacted = filteredJobs.filter(j => isDateInFilter(j.contact_date, fDay, fMonth, fYear)).length;
-            const arrived = filteredJobs.filter(j => isDateInFilter(j.arrived_date, fDay, fMonth, fYear)).length;
-            const repaired = filteredJobs.filter(j => isDateInFilter(j.repair_finish_date, fDay, fMonth, fYear)).length;
-            const delivered = filteredJobs.filter(j => isDateInFilter(j.delivery_date, fDay, fMonth, fYear)).length;
+        function renderKPIs(start, end) {
+            const contacted = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end)).length;
+            const arrived = filteredJobs.filter(j => isDateInRange(j.arrived_date, start, end)).length;
+            const repaired = filteredJobs.filter(j => isDateInRange(j.repair_finish_date, start, end)).length;
+            const delivered = filteredJobs.filter(j => isDateInRange(j.delivery_date, start, end)).length;
 
             document.getElementById('stat_contacted').innerText = contacted;
             document.getElementById('stat_arrived').innerText = arrived;
@@ -540,19 +470,27 @@
             document.getElementById('stat_delivered').innerText = delivered;
         }
 
+        // 🌟 แก้ไข: ให้ RIZENIC Report ค้นหาและสร้าง List "ประเภทลูกค้า" โดยอิงจากค่าที่ดึงมาจริงในฐานข้อมูล (Unique)
         function renderDailyReport() {
-            const start = document.getElementById('report_start_date').value || getTodayString();
-            const end = document.getElementById('report_end_date').value || getTodayString();
+            const start = document.getElementById('report_start_date').value || getFirstDayOfMonth();
+            const end = document.getElementById('report_end_date').value || getLastDayOfMonth();
             const reportMonth = start.substring(0, 7);
+
+            // ดึงประเภทลูกค้าที่ไม่ซ้ำ (Unique) ที่มีประวัติเข้ามาในช่วงเวลาที่กำหนด
+            const activeContacts = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end));
+            const uniqueCustomerTypes = [...new Set(activeContacts.map(j => (j.customer_type || 'ไม่ระบุ').trim()))].sort();
+
+            const dynamicCustomerTypes = uniqueCustomerTypes.map(type => ({
+                label: `${type}`,
+                icon: "🏷️",
+                filter: j => (j.customer_type || 'ไม่ระบุ').trim() === type && isDateInRange(j.contact_date, start, end)
+            }));
 
             const reportDef = {
                 customers: [
-                    { label: "ลูกค้าเข้ามาติดต่อช่วงเวลาที่เลือก", icon: "👥", filter: j => j.contact_date && j.contact_date.split('T')[0] >= start && j.contact_date.split('T')[0] <= end },
-                    { label: "ลูกค้าเข้ามาติดต่อประจำเดือน", icon: "👥", filter: j => j.contact_date && j.contact_date.startsWith(reportMonth) },
-                    { label: "PDI", icon: "👥", filter: j => (j.customer_type||'').toUpperCase().includes('PDI') && j.contact_date && j.contact_date.split('T')[0] >= start && j.contact_date.split('T')[0] <= end },
-                    { label: "Tesla", icon: "👥", filter: j => ((j.customer_type||'').toUpperCase().includes('TESLA') || (j.car_brand||'').toUpperCase().includes('TESLA')) && j.contact_date && j.contact_date.split('T')[0] >= start && j.contact_date.split('T')[0] <= end },
-                    { label: "EV ME", icon: "👥", filter: j => ((j.customer_type||'').toUpperCase().includes('EV ME') || (j.customer_type||'').toUpperCase().includes('EVME')) && j.contact_date && j.contact_date.split('T')[0] >= start && j.contact_date.split('T')[0] <= end },
-                    { label: "ลูกค้าทั่วไป", icon: "👥", filter: j => !(j.customer_type||'').toUpperCase().includes('PDI') && !(j.customer_type||'').toUpperCase().includes('EV ME') && !(j.customer_type||'').toUpperCase().includes('EVME') && !(j.customer_type||'').toUpperCase().includes('TESLA') && !(j.car_brand||'').toUpperCase().includes('TESLA') && j.contact_date && j.contact_date.split('T')[0] >= start && j.contact_date.split('T')[0] <= end }
+                    { label: "ติดต่อช่วงเวลาที่เลือก (รวม)", icon: "👥", filter: j => isDateInRange(j.contact_date, start, end) },
+                    { label: "ติดต่อรวมประจำเดือน", icon: "📅", filter: j => j.contact_date && j.contact_date.startsWith(reportMonth) },
+                    ...dynamicCustomerTypes
                 ],
                 workStatus: [
                     { label: "รอเสนอประกัน", icon: "⏳", filter: j => (j.job_status||'').includes('รอเสนอประกัน') },
@@ -603,23 +541,7 @@
             const item = window.currentReportDef[cat][itemIdx];
             const jobsToShow = filteredJobs.filter(item.filter);
             document.getElementById('modal_status_name').innerText = `รายงาน: ${item.label}`;
-            renderJobTableInModal(jobsToShow);
-            document.getElementById('jobListModal').classList.remove('hidden');
-        }
-
-        function openFilteredModal(type) {
-            const fDay = document.getElementById('day_filter_select').value;
-            const fMonth = document.getElementById('month_filter_select').value;
-            const fYear = document.getElementById('year_filter_select').value;
-            
-            let jobsToShow = []; let title = "";
-            if(type === 'contacted') { jobsToShow = filteredJobs.filter(j => isDateInFilter(j.contact_date, fDay, fMonth, fYear)); title = "1. ติดต่อสอบถาม"; }
-            if(type === 'arrived') { jobsToShow = filteredJobs.filter(j => isDateInFilter(j.arrived_date, fDay, fMonth, fYear)); title = "2. รถเข้าจอดอู่"; }
-            if(type === 'finished') { jobsToShow = filteredJobs.filter(j => isDateInFilter(j.repair_finish_date, fDay, fMonth, fYear)); title = "4. ซ่อมเสร็จจริง"; }
-            if(type === 'delivered') { jobsToShow = filteredJobs.filter(j => isDateInFilter(j.delivery_date, fDay, fMonth, fYear)); title = "5. ส่งมอบรถลูกค้า"; }
-
-            document.getElementById('modal_status_name').innerText = title;
-            renderJobTableInModal(jobsToShow);
+            renderJobTableInModalGroupedBySA(jobsToShow);
             document.getElementById('jobListModal').classList.remove('hidden');
         }
 
@@ -664,42 +586,52 @@
         function openStatusModal(statusName) {
             document.getElementById('modal_status_name').innerText = statusName;
             const jobsToShow = filteredJobs.filter(j => (j.job_status || "ไม่ระบุสถานะ") === statusName);
-            renderJobTableInModal(jobsToShow);
+            renderJobTableInModalGroupedBySA(jobsToShow);
             document.getElementById('jobListModal').classList.remove('hidden');
         }
 
         function renderInsuranceChart() {
-            let insCount = 0; let cashCount = 0;
+            const customerTypes = {};
             filteredJobs.forEach(j => {
-                if((j.payment_type || '').includes('ประกัน')) insCount++;
-                else cashCount++;
+                const type = (j.customer_type || 'ไม่มีข้อมูล').trim();
+                if(customerTypes[type] !== undefined) customerTypes[type]++;
+                else customerTypes[type] = 1;
             });
+
+            const sortedTypes = Object.entries(customerTypes).sort((a,b) => b[1] - a[1]);
+            const labels = sortedTypes.map(i => i[0]);
+            const data = sortedTypes.map(i => i[1]);
+
+            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#ec4899', '#06b6d4', '#64748b'];
 
             if (insuranceChartInstance) insuranceChartInstance.destroy();
             const ctx = document.getElementById('insuranceChart').getContext('2d');
             insuranceChartInstance = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: ['ประกันภัย', 'เงินสด / อื่นๆ'],
-                    datasets: [{ data: [insCount, cashCount], backgroundColor: ['#a855f7', '#fbbf24'], borderWidth: 0, hoverOffset: 8 }]
+                    labels: labels,
+                    datasets: [{ data: data, backgroundColor: colors, borderWidth: 0, hoverOffset: 8 }]
                 },
                 options: {
-                    responsive: true, maintainAspectRatio: false, cutout: '65%',
+                    responsive: true, maintainAspectRatio: false, cutout: '60%',
                     plugins: { 
-                        legend: { position: 'bottom', labels: { font: { family: 'Kanit', weight: 'bold' } } },
-                        datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 14 } }
+                        legend: { position: 'right', labels: { font: { family: 'Kanit', size: 10 } } },
+                        datalabels: { 
+                            color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 12 },
+                            formatter: (val) => val > 0 ? val : ''
+                        }
                     }
                 }
             });
         }
 
-        function renderFinanceChart(fDay, fMonth, fYear) {
+        function renderFinanceChart(start, end) {
             const accJobs = filteredJobs.filter(d => d.department_routing === 'บัญชี');
             
             const unmanaged = accJobs.filter(j => !j.billing_date || j.billing_date.trim() === '').length;
             const managed = accJobs.filter(j => {
                 if (!j.billing_date || j.billing_date.trim() === '') return false;
-                return isDateInFilter(j.billing_date, fDay, fMonth, fYear);
+                return isDateInRange(j.billing_date, start, end);
             }).length;
 
             if (financeChartInstance) financeChartInstance.destroy();
@@ -743,7 +675,7 @@
         function openSAModal(saName) {
             document.getElementById('modal_status_name').innerText = `รถทั้งหมดของ SA: ${saName}`;
             const jobsToShow = filteredJobs.filter(j => (j.sa_owner || "ไม่ระบุ SA") === saName);
-            renderJobTableInModal(jobsToShow);
+            renderJobTableInModalGroupedBySA(jobsToShow);
             document.getElementById('jobListModal').classList.remove('hidden');
         }
 
@@ -783,31 +715,8 @@
         function openStationModal(stationName) {
             document.getElementById('modal_status_name').innerText = `สถานีช่าง: ${stationName}`;
             const jobsToShow = filteredJobs.filter(j => j.job_status !== '12.ส่งมอบแล้ว' && computeHighestStationIFS(j) === stationName);
-            renderJobTableInModal(jobsToShow);
+            renderJobTableInModalGroupedBySA(jobsToShow);
             document.getElementById('jobListModal').classList.remove('hidden');
-        }
-
-        function renderSAAlerts() {
-            const tbody = document.getElementById('sa_alerts_body');
-            const urgentOrders = filteredJobs.filter(j => 
-                (j.department_routing || '').includes('อะไหล่') || (j.job_status || '').includes('สั่งอะไหล่')
-            );
-
-            if (urgentOrders.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400 font-bold">ไม่มีการแจ้งเตือนสั่งอะไหล่จาก SA 🎉</td></tr>`;
-                return;
-            }
-
-            tbody.innerHTML = urgentOrders.map(j => `
-                <tr class="hover:bg-rose-50/50 transition cursor-pointer" onclick="window.location.href='parts.html'">
-                    <td class="text-center px-4 py-3"><span class="px-2.5 py-1 bg-rose-100 text-rose-700 font-bold border border-rose-300 rounded text-[10px] shadow-sm">${j.part_status || 'รอดำเนินการ'}</span></td>
-                    <td class="px-4 py-3 font-black text-[#00320D]"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded text-xs shadow-inner">${j.car_plate || '-'}</span></td>
-                    <td class="px-4 py-3 text-xs font-bold text-slate-700">${j.car_brand} ${j.car_model || ''}</td>
-                    <td class="px-4 py-3 text-xs font-medium text-slate-600 truncate max-w-[150px]" title="${j.customer_name}">${j.customer_name || '-'}</td>
-                    <td class="px-4 py-3 font-mono font-bold text-amber-600 text-xs">${j.epc_no || '-'}</td>
-                    <td class="px-4 py-3 text-[11px] font-bold text-slate-700"><span class="bg-slate-100 px-2 py-1 rounded border shadow-sm">${j.job_status || '-'}</span></td>
-                </tr>
-            `).join('');
         }
 
         function renderPartsTracking() {
@@ -894,34 +803,46 @@
             }).join('');
         }
 
-        function renderCalendar(fMonth, fYear) {
+        function renderCalendarByRange(startDate, endDate) {
             const grid = document.getElementById('calendar_grid'); grid.innerHTML = '';
             
-            const m = parseInt(fMonth) - 1;
-            const y = parseInt(fYear);
+            if(!startDate || !endDate) return;
+
+            const start = new Date(startDate);
+            const end = new Date(endDate);
             
-            if(isNaN(m) || isNaN(y)) {
-                grid.innerHTML = `<div class="col-span-7 text-center py-10 text-slate-400 font-bold bg-slate-50 rounded-xl">เลือกดูข้อมูล "ทุกเดือน" จะไม่สามารถแสดงปฏิทินรายวันได้ครับ</div>`;
+            if(isNaN(start) || isNaN(end) || start > end) {
+                grid.innerHTML = `<div class="col-span-7 text-center py-10 text-slate-400 font-bold bg-slate-50 rounded-xl">วันที่ไม่ถูกต้อง หรือช่วงเวลาที่เลือกกว้างเกินไป</div>`;
                 return;
             }
 
-            const firstDay = new Date(y, m, 1).getDay();
-            const totalDays = new Date(y, m + 1, 0).getDate();
+            const diffTime = Math.abs(end - start);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if(diffDays > 31) {
+                grid.innerHTML = `<div class="col-span-7 text-center py-10 text-slate-400 font-bold bg-slate-50 rounded-xl">การแสดงผลปฏิทินรองรับสูงสุด 31 วัน กรุณาเลือกช่วงเวลาใหม่</div>`;
+                return;
+            }
+
+            const firstDayOfWeek = start.getDay();
+            for(let i = 0; i < firstDayOfWeek; i++) { grid.innerHTML += `<div class="bg-slate-50/50 rounded-xl border border-transparent"></div>`; }
 
             let maxCount = 1; 
             const daysData = [];
-            for(let day = 1; day <= totalDays; day++) {
-                const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+            
+            let currentDay = new Date(start);
+            while(currentDay <= end) {
+                const dateStr = `${currentDay.getFullYear()}-${String(currentDay.getMonth()+1).padStart(2,'0')}-${String(currentDay.getDate()).padStart(2,'0')}`;
                 const arrived = filteredJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr);
                 const target = filteredJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr);
                 const delivery = filteredJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr);
                 
                 const dayMax = Math.max(arrived.length, target.length, delivery.length);
                 if (dayMax > maxCount) maxCount = dayMax;
-                daysData.push({ day, dateStr, arrJobs: arrived, tarJobs: target, delJobs: delivery });
-            }
+                daysData.push({ day: currentDay.getDate(), dateStr, arrJobs: arrived, tarJobs: target, delJobs: delivery });
 
-            for(let i = 0; i < firstDay; i++) { grid.innerHTML += `<div class="bg-slate-50/50 rounded-xl border border-transparent"></div>`; }
+                currentDay.setDate(currentDay.getDate() + 1);
+            }
 
             const selectedBranch = document.getElementById('branchFilter').value;
             let branchesToCheck = selectedBranch === 'all' ? [...new Set(allJobs.map(j => j.branch_name).filter(b => b))] : [selectedBranch];
@@ -1021,53 +942,82 @@
             else if(type === 'delivery') { typeLabel = "วันส่งมอบ"; jobsToShow = filteredJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr); }
 
             document.getElementById('modal_status_name').innerText = `วันที่ ${new Date(dateStr).toLocaleDateString('th-TH')} (${typeLabel})`;
-            renderJobTableInModal(jobsToShow);
+            renderJobTableInModalGroupedBySA(jobsToShow);
             document.getElementById('jobListModal').classList.remove('hidden');
         }
 
-        function renderJobTableInModal(jobs) {
-            const tbody = document.getElementById('modal_job_table');
-            if (jobs.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-500 font-bold">ไม่มีข้อมูล</td></tr>`; return; }
+        // 🌟 แยกตารางรายการตาม SA 
+        function renderJobTableInModalGroupedBySA(jobs) {
+            const container = document.getElementById('modal_job_container');
+            if (jobs.length === 0) { 
+                container.innerHTML = `<div class="text-center py-10 text-slate-500 font-bold bg-white m-4 rounded-xl shadow-sm">ไม่มีข้อมูล</div>`; 
+                return; 
+            }
 
-            let safeOptsGlobal = globalStatusOptionsHtml;
+            const groupedBySA = {};
+            jobs.forEach(j => {
+                const sa = j.sa_owner || 'ไม่ระบุ SA';
+                if(!groupedBySA[sa]) groupedBySA[sa] = [];
+                groupedBySA[sa].push(j);
+            });
 
-            tbody.innerHTML = jobs.map(j => {
-                const saName = j.sa_owner || 'ไม่ระบุ';
-                const damageColor = j.damage_level === 'หนัก' ? 'text-red-600' : (j.damage_level === 'กลาง' ? 'text-amber-500' : 'text-emerald-600');
-                
-                let safeStatus = j.job_status || '';
-                let safeOptions = safeOptsGlobal;
-                if(!safeOptions.includes(`value="${safeStatus}"`)) { safeOptions = `<option value="${safeStatus}">${safeStatus}</option>` + safeOptions; } 
-                safeOptions = safeOptions.replace(`value="${safeStatus}"`, `value="${safeStatus}" selected`); 
-
-                return `
-                    <tr class="hover:bg-emerald-50/50 transition cursor-pointer border-b border-slate-100" onclick="goToEditJob('${j.id}')">
-                        <td class="px-4 py-3 font-bold text-[#00320D]"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded font-mono text-xs shadow-inner whitespace-nowrap">${j.car_plate || '-'}</span></td>
-                        <td class="px-4 py-3 font-bold text-slate-800 text-[11px] leading-tight">${j.car_brand} <br><span class="text-slate-500 font-medium">${j.car_model || ''}</span></td>
-                        <td class="px-4 py-3 text-[11px] leading-tight">
-                            <div class="font-bold text-slate-700 truncate max-w-[150px]" title="${j.customer_name}">${j.customer_name || '-'}</div>
-                            <div class="text-[10px] text-amber-600 font-bold mt-0.5"><i class="fa-solid fa-user-tie"></i> ${saName}</div>
-                        </td>
-                        <td class="px-4 py-3 text-xs font-bold ${damageColor}">${j.damage_level || '-'}</td>
-                        <td class="px-4 py-3 text-[10px] font-bold text-purple-700"><span class="bg-purple-50 px-2 py-1 rounded-lg border border-purple-200 shadow-sm">${j.part_status || '-'}</span></td>
-                        <td class="px-4 py-3 text-[10px] font-bold text-slate-700">
-                            <select onclick="event.stopPropagation()" onchange="fastUpdateJob('${j.id}', 'job_status', this.value)" class="bg-slate-50 border border-slate-300 rounded px-2 py-1 outline-none focus:border-amber-500 w-full cursor-pointer font-bold text-[#00320D]">
-                                ${safeOptions}
-                            </select>
-                        </td>
-                        <td class="px-4 py-3 text-center"><button onclick="event.stopPropagation(); goToEditJob('${j.id}')" class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full whitespace-nowrap"><i class="fa-solid fa-pen"></i> เปิด</button></td>
-                    </tr>
+            let finalHtml = '';
+            
+            Object.keys(groupedBySA).sort().forEach(sa => {
+                finalHtml += `
+                    <div class="bg-slate-100 px-4 py-2 border-y border-slate-300 flex items-center justify-between sticky top-0 z-10 shadow-sm">
+                        <span class="font-black text-[#00320D] text-sm"><i class="fa-solid fa-user-tie text-amber-500 mr-2"></i> SA: ${sa}</span>
+                        <span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-xs font-bold border border-amber-300">${groupedBySA[sa].length} คัน</span>
+                    </div>
+                    <table class="excel-table w-full border-none mb-4">
+                        <thead class="bg-white text-slate-500 text-[10px] uppercase border-b border-slate-200">
+                            <tr>
+                                <th class="px-4 py-2 font-bold text-left">ทะเบียนรถ</th>
+                                <th class="px-4 py-2 font-bold text-left">ยี่ห้อ/รุ่น</th>
+                                <th class="px-4 py-2 font-bold text-left">ลูกค้า</th>
+                                <th class="px-4 py-2 font-bold text-left">ความเสียหาย</th>
+                                <th class="px-4 py-2 font-bold text-left">สถานะอะไหล่</th>
+                                <th class="px-4 py-2 font-bold text-left">สถานะซ่อม (ERP)</th>
+                                <th class="px-4 py-2 font-bold text-center">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-sm divide-y divide-slate-100 bg-white">
                 `;
-            }).join('');
+                
+                groupedBySA[sa].forEach(j => {
+                    const damageColor = j.damage_level === 'หนัก' ? 'text-red-600' : (j.damage_level === 'กลาง' ? 'text-amber-500' : 'text-emerald-600');
+                    let safeStatus = j.job_status || '';
+                    let safeOptions = globalStatusOptionsHtml;
+                    if(!safeOptions.includes(`value="${safeStatus}"`)) { safeOptions = `<option value="${safeStatus}">${safeStatus}</option>` + safeOptions; } 
+                    safeOptions = safeOptions.replace(`value="${safeStatus}"`, `value="${safeStatus}" selected`); 
+
+                    finalHtml += `
+                        <tr class="hover:bg-emerald-50/50 transition cursor-pointer" onclick="goToEditJob('${j.id}')">
+                            <td class="px-4 py-3 font-bold text-[#00320D]"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded font-mono text-xs shadow-inner whitespace-nowrap">${j.car_plate || '-'}</span></td>
+                            <td class="px-4 py-3 font-bold text-slate-800 text-[11px] leading-tight">${j.car_brand} <br><span class="text-slate-500 font-medium">${j.car_model || ''}</span></td>
+                            <td class="px-4 py-3 text-[11px] font-bold text-slate-700 truncate max-w-[150px]" title="${j.customer_name}">${j.customer_name || '-'}</td>
+                            <td class="px-4 py-3 text-xs font-bold ${damageColor}">${j.damage_level || '-'}</td>
+                            <td class="px-4 py-3 text-[10px] font-bold text-purple-700"><span class="bg-purple-50 px-2 py-1 rounded-lg border border-purple-200 shadow-sm">${j.part_status || '-'}</span></td>
+                            <td class="px-4 py-3 text-[10px] font-bold text-slate-700">
+                                <select onclick="event.stopPropagation()" onchange="fastUpdateJob('${j.id}', 'job_status', this.value)" class="bg-slate-50 border border-slate-300 rounded px-2 py-1 outline-none focus:border-amber-500 w-full cursor-pointer font-bold text-[#00320D]">
+                                    ${safeOptions}
+                                </select>
+                            </td>
+                            <td class="px-4 py-3 text-center"><button onclick="event.stopPropagation(); goToEditJob('${j.id}')" class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full whitespace-nowrap"><i class="fa-solid fa-pen"></i> เปิด</button></td>
+                        </tr>
+                    `;
+                });
+                finalHtml += `</tbody></table>`;
+            });
+
+            container.innerHTML = finalHtml;
         }
 
-        // 🌟 เพิ่มฟังก์ชันเปิดหน้าเปิดบิลเพื่อแก้ไขงาน (เชื่อมโยงผ่าน sessionStorage)
         function goToEditJob(jobId) { 
             sessionStorage.setItem('edit_job_id', jobId); 
             window.location.href = 'index.html'; 
         }
 
-        // 🌟 เพิ่มฟังก์ชันอัปเดตสถานะงานด่วนจาก Dropdown ใน Pop-up
         async function fastUpdateJob(jobId, field, value) {
             try {
                 const res = await fetch(`${API_BASE_URL}/api/report/${jobId}/fast-date`, {
@@ -1078,7 +1028,7 @@
                 if (res.ok) {
                     const jobIndex = allJobs.findIndex(j => j.id === jobId);
                     if(jobIndex > -1) allJobs[jobIndex][field] = value;
-                    applyFilters(); // อัปเดตข้อมูลบนหน้าแดชบอร์ดทันที
+                    applyFilters(); 
                 } else throw new Error();
             } catch (err) { 
                 alert('บันทึกข้อมูลไม่สำเร็จ'); 

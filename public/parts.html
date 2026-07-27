@@ -193,8 +193,15 @@
         <!-- 📊 5. สต๊อกคงเหลือ -->
         <section id="tab-stock" class="parts-tab-content flex-col">
             <div class="card-container border-l-4 border-l-amber-500">
-                <div class="p-4 bg-slate-50 border-b flex justify-between items-center shrink-0">
-                    <h3 class="font-bold text-[#00320D] text-sm flex items-center gap-2"><i class="fa-solid fa-cubes-stacked text-amber-500"></i> สรุปยอดคลังสินค้าสต๊อกคงเหลือ (Real-time)</h3>
+                <div class="p-4 bg-slate-50 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shrink-0">
+                    <h3 class="font-bold text-[#00320D] text-sm flex items-center gap-2"><i class="fa-solid fa-cubes-stacked text-amber-500"></i> สรุปยอดคลังสินค้าสต๊อกคงเหลือ (Group By MAIN No.)</h3>
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <div class="relative flex-1 sm:w-64">
+                            <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                            <input type="text" id="stock_search_input" onkeyup="searchStockTable()" class="w-full pl-8 pr-3 py-2 bg-white border border-slate-300 rounded-lg outline-none text-xs font-bold text-[#00320D] focus:border-amber-500 shadow-sm" placeholder="ค้นหา MAIN, ชื่อ, รุ่นรถ...">
+                        </div>
+                        <button onclick="loadStockInHouse()" class="px-4 py-2 bg-white text-slate-700 border border-slate-300 font-bold rounded-lg text-xs shadow-sm hover:bg-slate-100 transition whitespace-nowrap"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
+                    </div>
                 </div>
                 <div class="flex-1 overflow-auto custom-scrollbar">
                     <table class="modern-table" id="stockTable">
@@ -540,13 +547,16 @@
                 { key: 'btn_action', title: 'จัดการ', w: 100, filter: false }
             ],
             stockTable: [
-                { key: 'part_no', title: 'หมายเลขอะไหล่ (Part 2)', w: 150, filter: true },
-                { key: 'part_name', title: 'ชื่อชิ้นส่วน', w: 210, filter: true },
-                { key: 'car_model', title: 'รุ่นรถที่รองรับ', w: 180, filter: true },
                 { key: 'part_main_no', title: 'MAIN No.', w: 130, filter: true },
-                { key: 'physicalStock', title: 'ยอดรวม', w: 110, filter: true },
-                { key: 'totalBooked', title: 'ติดจอง', w: 110, filter: true },
-                { key: 'availableStock', title: 'ยอดในคลัง', w: 110, filter: true }
+                { key: 'part_no', title: 'หมายเลขอะไหล่', w: 180, filter: true },
+                { key: 'part_name', title: 'ชื่อชิ้นส่วน', w: 210, filter: true },
+                { key: 'physicalStock', title: 'ยอดรวม', w: 90, filter: true },
+                { key: 'totalBooked', title: 'ติดจอง', w: 90, filter: true },
+                { key: 'availableStock', title: 'ยอดในคลัง', w: 90, filter: true },
+                { key: 'location', title: 'Location', w: 100, filter: true },
+                { key: 'car_model', title: 'รุ่นรถ', w: 150, filter: true },
+                { key: 'unit_price', title: 'ราคา/หน่วย', w: 100, filter: true },
+                { key: 'part_category', title: 'ประเภทอะไหล่', w: 100, filter: true }
             ],
             masterTable: [
                 { key: 'part_no', title: 'บาร์โค้ด (Part 2)', w: 150, filter: true },
@@ -810,9 +820,12 @@
 
             carParts.forEach((p, idx) => {
                 const orderId = p.id || p.order_id;
-                const dropdownHtml = allPOStatuses.map(s => {
+                
+                // 🌟 แก้ไข 1: บังคับให้สถานะเริ่มต้นเป็นค่าเดิม หรือ 'รอสั่งซื้อ' เสมอ
+                let currentStatus = p.order_status || 'รอสั่งซื้อ';
+                let dropdownHtml = allPOStatuses.map(s => {
                     const sName = getSafeStatusName(s);
-                    return `<option value="${sName}" ${p.order_status === sName ? 'selected' : ''}>${sName}</option>`;
+                    return `<option value="${sName}" ${currentStatus === sName ? 'selected' : ''}>${sName}</option>`;
                 }).join('');
 
                 html += `
@@ -1024,7 +1037,6 @@
             } catch(e){}
         }
 
-        // 🌟 แก้ไขการเปรียบเทียบรหัสอะไหล่ / EPC ให้ล้างช่องว่าง (Trim/UpperCase) สต๊อกและจำนวนรับจริงจะได้ตรง 100%
         function loadPOTracking() {
             try {
                 const myPOs = (allGlobalParts || []).filter(o => o.branch_name === currentBranch);
@@ -1033,7 +1045,6 @@
 
                 let html = '';
                 myPOs.forEach(o => {
-                    // 🌟 ใช้ cleanStr เพื่อป้องกันเคาะเว้นวรรคทำให้ค้นหาไม่เจอ
                     const inboundsForPart = allInbounds.filter(i => 
                         cleanStr(i.part_no) === cleanStr(o.part_no) &&
                         (cleanStr(i.epc_no) === cleanStr(o.epc_no) || !i.epc_no || !o.epc_no)
@@ -1173,32 +1184,94 @@
             } catch(e){}
         }
 
-        // 🌟 สต๊อกคงเหลือ คำนวณแบบยืดหยุ่น ป้องกันเคาะเว้นวรรค
-        function loadStockInHouse() {
+        // 🌟 2. แก้ไขระบบสต๊อกคงเหลือ ให้เช็คค่าว่างแล้วกรุ๊ปให้ถูกต้อง!
+        async function loadStockInHouse() {
             try {
+                if(allMasterPartsData.length === 0) {
+                    const resM = await fetch(`${API_BASE_URL}/api/parts?branch=${encodeURIComponent(currentBranch)}`);
+                    if(resM.ok) allMasterPartsData = await resM.json();
+                }
+
                 fetch(`${API_BASE_URL}/api/parts-inventory?branch=${encodeURIComponent(currentBranch)}`).then(res => res.json()).then(data => {
-                    const activeStock = data.map(s => {
-                        const tIn = parseInt(s.total_inbound) || 0;
-                        const tOut = parseInt(s.total_issued) || 0;
-                        const tBook = parseInt(s.total_booked) || 0;
-                        const physicalStock = tIn - tOut;
-                        const availableStock = physicalStock - tBook;
-                        return { ...s, physicalStock, totalBooked: tBook, availableStock };
+                    let groupedData = {};
+                    
+                    data.forEach(item => {
+                        const rawMain = item.part_main_no ? item.part_main_no.trim() : '';
+                        const rawPart = item.part_no ? item.part_no.trim() : '';
+                        
+                        // ถ้ารายการไหนไม่มี MAIN ให้ใช้ part_no เป็นตัวจัดกรุ๊ปแทน (ป้องกันการรวมของมั่วกัน)
+                        const groupKey = (rawMain !== '' && rawMain !== '-') ? rawMain : rawPart; 
+                        
+                        if (!groupedData[groupKey]) {
+                            groupedData[groupKey] = {
+                                part_main_no: rawMain,
+                                part_nos: new Set(),
+                                part_names: new Set(),
+                                car_models: new Set(),
+                                tIn: 0, tOut: 0, tBook: 0
+                            };
+                        }
+                        
+                        if(rawPart) groupedData[groupKey].part_nos.add(rawPart);
+                        if(item.part_name) groupedData[groupKey].part_names.add(item.part_name);
+                        if(item.car_model) groupedData[groupKey].car_models.add(item.car_model);
+                        
+                        groupedData[groupKey].tIn += parseInt(item.total_inbound) || 0;
+                        groupedData[groupKey].tOut += parseInt(item.total_issued) || 0;
+                        groupedData[groupKey].tBook += parseInt(item.total_booked) || 0;
+                    });
+
+                    const activeStock = Object.values(groupedData).map(s => {
+                        const physicalStock = s.tIn - s.tOut;
+                        const availableStock = physicalStock - s.tBook;
+                        
+                        const firstPartNo = Array.from(s.part_nos)[0];
+                        const masterInfo = allMasterPartsData.find(m => m.part_main_no === s.part_main_no || m.part_no === firstPartNo) || {};
+                        
+                        return { 
+                            part_main_no: s.part_main_no || '-',
+                            part_no: Array.from(s.part_nos).join(', ') || '-',
+                            part_name: Array.from(s.part_names).join(', ') || '-',
+                            car_model: Array.from(s.car_models).join(', ') || masterInfo.car_model || '-',
+                            location: masterInfo.location || '-',
+                            unit_price: masterInfo.unit_price || 0,
+                            part_category: masterInfo.part_category || '-',
+                            physicalStock, totalBooked: s.tBook, availableStock 
+                        };
                     }).filter(s => s.physicalStock > 0);
+
+                    if (activeStock.length === 0) {
+                        document.getElementById('stock_table_body').innerHTML = `<tr><td colspan="10" class="text-center py-10 text-slate-400">ไม่มีรายการสต๊อกคงเหลือ</td></tr>`;
+                        return;
+                    }
 
                     document.getElementById('stock_table_body').innerHTML = activeStock.map(s => `
                         <tr>
-                            <td class="font-mono font-bold text-blue-600 px-2">${s.part_no}</td>
-                            <td class="font-bold text-[#00320D] px-2 truncate">${s.part_name}</td>
-                            <td class="text-slate-500 text-xs px-2 truncate">${s.car_model||'-'}</td>
-                            <td class="font-mono text-slate-400 text-center px-2">${s.part_main_no||'-'}</td>
-                            <td class="text-center font-black text-slate-600 bg-slate-50 px-2">${s.physicalStock}</td>
+                            <td class="font-mono font-bold text-amber-700 bg-amber-50/30 px-2 text-center border-r border-slate-300">${s.part_main_no}</td>
+                            <td class="font-mono text-blue-600 px-2 text-[10px] truncate max-w-[150px]" title="${s.part_no}">${s.part_no}</td>
+                            <td class="font-bold text-[#00320D] px-2 truncate max-w-[200px]" title="${s.part_name}">${s.part_name}</td>
+                            <td class="text-center font-black text-slate-600 bg-slate-50 px-2 border-l border-slate-300">${s.physicalStock}</td>
                             <td class="text-center font-black text-amber-600 bg-amber-50/30 px-2">${s.totalBooked}</td>
-                            <td class="text-center font-black text-emerald-600 bg-emerald-50/50 px-2">${s.availableStock}</td>
+                            <td class="text-center font-black text-emerald-600 bg-emerald-50/50 px-2 border-r border-slate-300">${s.availableStock}</td>
+                            <td class="text-center font-mono text-xs px-2">${s.location}</td>
+                            <td class="text-slate-500 text-[10px] px-2 truncate max-w-[150px]">${s.car_model}</td>
+                            <td class="text-right font-mono font-bold text-emerald-700 px-2">${parseFloat(s.unit_price).toFixed(2)}</td>
+                            <td class="text-center text-[10px] font-bold text-slate-500 uppercase px-2"><span class="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300">${s.part_category}</span></td>
                         </tr>`).join('');
                     runTableFilters('stockTable');
                 });
             } catch(e) {}
+        }
+
+        // 🌟 3. ฟังก์ชันค้นหาในหน้าสต๊อก (อัปเดตให้รองรับกับช่อง Search ใหม่)
+        function searchStockTable() {
+            const input = document.getElementById("stock_search_input").value.toLowerCase();
+            const trs = document.getElementById("stock_table_body").getElementsByTagName("tr");
+            for (let i = 0; i < trs.length; i++) {
+                if(trs[i].cells.length === 1) continue; 
+                const rowText = trs[i].textContent.toLowerCase();
+                trs[i].style.display = rowText.includes(input) ? "" : "none";
+            }
         }
 
         function loadMasterParts() {
@@ -1368,7 +1441,6 @@
         function toggleCompletedPO() { hideCompletedPO = !hideCompletedPO; loadPOTracking(); }
         function calcInTotal() { document.getElementById('in_total').value = ((parseFloat(document.getElementById('in_price').value) || 0) * (parseInt(document.getElementById('in_qty').value) || 0)).toFixed(2); }
         
-        // 🌟 ปรับปรุง Auto-Fill Inbound ให้หยิบถูกชิ้นแม้ EPC จะซ้ำกันหลายตัว
         function autoFillInboundFromEPC(v) { 
             if(!v) return; 
             const searchKey = cleanStr(v);
