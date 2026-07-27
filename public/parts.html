@@ -304,14 +304,16 @@
                 <button type="button" onclick="closeInboundModal()" class="text-slate-400 hover:text-red-500 transition"><i class="fa-solid fa-xmark text-2xl"></i></button>
             </div>
 
-            <div class="p-4 bg-white border-b shrink-0 flex gap-4 items-center justify-between">
+            <div class="p-4 bg-white border-b shrink-0 flex gap-4 items-center justify-between flex-wrap">
                 <div class="relative w-full max-w-md">
                     <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
                     <input type="text" id="multi_inbound_search" onkeyup="filterMultiInboundTable()" class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none text-sm font-bold text-slate-700 focus:border-emerald-500 shadow-sm" placeholder="ค้นหา EPC, บาร์โค้ด, ทะเบียน, ชื่ออะไหล่...">
                 </div>
-                <div class="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
-                    <span class="text-xs font-bold text-slate-500">เลือกทั้งหมด</span>
-                    <input type="checkbox" id="chk_all_inbound" onchange="toggleAllInbound(this.checked)" class="w-5 h-5 accent-emerald-500 cursor-pointer rounded">
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                        <span class="text-xs font-bold text-slate-500">เลือกทั้งหมด</span>
+                        <input type="checkbox" id="chk_all_inbound" onchange="toggleAllInbound(this.checked)" class="w-5 h-5 accent-emerald-500 cursor-pointer rounded">
+                    </div>
                 </div>
             </div>
 
@@ -336,24 +338,25 @@
                     </table>
                 </div>
                 
-                <div class="bg-white px-6 py-4 border-t flex justify-between items-center shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-                    <div class="text-sm font-bold text-slate-600 bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-200">
+                <div class="bg-white px-6 py-4 border-t flex flex-col sm:flex-row justify-between items-center shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] gap-4">
+                    <div class="text-sm font-bold text-slate-600 bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-200 w-full sm:w-auto text-center">
                         <i class="fa-solid fa-boxes-stacked text-emerald-600 mr-2"></i> เลือกรับเข้า <span id="multi_inbound_count" class="text-emerald-700 font-black text-lg mx-1">0</span> รายการ
                     </div>
-                    <div class="flex gap-3">
+                    <div class="flex gap-3 w-full sm:w-auto justify-end">
                         <button type="button" onclick="closeInboundModal()" class="px-5 py-2.5 bg-white text-slate-600 rounded-lg font-bold border border-slate-300 hover:bg-slate-100 transition shadow-sm">ยกเลิก</button>
-                        <button type="submit" id="btn_submit_inbound" class="px-8 py-2.5 bg-emerald-600 text-white font-black rounded-lg shadow-md hover:bg-emerald-700 transition flex items-center gap-2"><i class="fa-solid fa-check-double"></i> ยืนยันการรับเข้า</button>
+                        <button type="button" onclick="closeInboundModal(); openManualInboundModal();" class="px-5 py-2.5 bg-blue-50 text-blue-700 rounded-lg font-bold border border-blue-200 hover:bg-blue-100 hover:text-blue-800 transition shadow-sm"><i class="fa-solid fa-plus"></i> รับเข้า Manual</button>
+                        <button type="submit" id="btn_submit_inbound" class="px-8 py-2.5 bg-emerald-600 text-white font-black rounded-lg shadow-md hover:bg-emerald-700 transition flex items-center gap-2"><i class="fa-solid fa-check-double"></i> ยืนยันรับเข้า</button>
                     </div>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- 🌟 Modal: แก้ไขประวัติรับเข้า (Single Edit) 🌟 -->
+    <!-- 🌟 Modal: รับเข้า (Manual / Edit Single) 🌟 -->
     <div id="editInboundModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden border-t-4 border-t-blue-500 flex flex-col max-h-[90vh]">
             <div class="px-6 py-4 border-b flex justify-between items-center bg-blue-50/50 shrink-0">
-                <h3 class="font-black text-blue-900 flex items-center gap-2 text-sm sm:text-base"><i class="fa-solid fa-pen text-blue-600"></i> แก้ไขข้อมูลประวัติรับเข้า</h3>
+                <h3 class="font-black text-blue-900 flex items-center gap-2 text-sm sm:text-base"><i class="fa-solid fa-pen text-blue-600"></i> <span id="manual_inbound_title">บันทึกรับเข้าแบบแมนนวล / แก้ไขประวัติ</span></h3>
                 <button type="button" onclick="closeEditInboundModal()" class="text-slate-400 hover:text-red-500 transition"><i class="fa-solid fa-xmark text-2xl"></i></button>
             </div>
             <form id="editInboundForm" onsubmit="submitEditInbound(event)" class="flex flex-col flex-1 overflow-hidden">
@@ -361,20 +364,24 @@
                     <input type="hidden" id="edit_inbound_id">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end mb-4">
                         <div><label class="label-text text-red-600">วันที่ของเข้า *</label><input type="date" id="edit_in_date" required class="minimal-input font-mono bg-blue-50 border-blue-200"></div>
-                        <div><label class="label-text">EPC No</label><input type="text" id="edit_in_epc" class="minimal-input font-mono uppercase bg-slate-50 border-slate-200"></div>
-                        <div><label class="label-text">บาร์โค้ดรับ</label><input type="text" id="edit_in_part_no" required class="minimal-input font-mono uppercase bg-slate-50 border-slate-200"></div>
-                        <div><label class="label-text text-red-600">จำนวนรับเข้า *</label><input type="number" id="edit_in_qty" required min="1" value="1" class="minimal-input text-center font-black text-blue-700 text-lg border-blue-200"></div>
+                        <div>
+                            <label class="label-text text-red-600">EPC No * (พิมพ์ค้นหาได้เลย)</label>
+                            <input type="text" id="edit_in_epc" required list="epc_list" class="minimal-input font-mono uppercase bg-blue-50 border-blue-200" onchange="autoFillInboundFromEPC(this.value)" placeholder="ค้นหา EPC หรือ บาร์โค้ด...">
+                        </div>
+                        <div><label class="label-text text-red-600">สแกนบาร์โค้ดรับ * (เลขอะไหล่)</label><input type="text" id="edit_in_part_no" required class="minimal-input font-mono uppercase bg-blue-50 border-blue-200" onblur="fetchMasterPart('edit_in')"></div>
+                        <div><label class="label-text text-red-600">จำนวนรับเข้า *</label><input type="number" id="edit_in_qty" required min="1" value="1" class="minimal-input text-center font-black text-blue-700 text-lg border-blue-200" onkeyup="calcEditInTotal()"></div>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end border-t border-slate-100 pt-4">
-                        <div><label class="label-text">หมายเลขอะไหล่ (Main)</label><input type="text" id="edit_in_part_main" class="minimal-input"></div>
-                        <div class="md:col-span-1"><label class="label-text">รายการชิ้นส่วน</label><input type="text" id="edit_in_part_name" class="minimal-input text-blue-700 font-bold"></div>
-                        <div><label class="label-text">ราคาต่อหน่วย</label><input type="number" id="edit_in_price" class="minimal-input text-right font-mono" value="0" step="0.01"></div>
+                        <div><label class="label-text">หมายเลขอะไหล่ (Main)</label><input type="text" id="edit_in_part_main" class="minimal-input" readonly></div>
+                        <div class="md:col-span-1"><label class="label-text">รายการชิ้นส่วน</label><input type="text" id="edit_in_part_name" class="minimal-input text-blue-700 font-bold" readonly></div>
+                        <div><label class="label-text">ราคาต่อหน่วย</label><input type="number" id="edit_in_price" class="minimal-input text-right font-mono" readonly value="0" step="0.01"></div>
+                        <div><label class="label-text">มูลค่ารวม</label><input type="number" id="edit_in_total" class="minimal-input text-right font-bold text-emerald-700 font-mono" readonly value="0"></div>
                         <input type="hidden" id="edit_in_model">
                     </div>
                 </div>
                 <div class="bg-slate-50 px-6 py-4 border-t flex justify-end gap-3 shrink-0">
                     <button type="button" onclick="closeEditInboundModal()" class="px-5 py-2.5 bg-white text-slate-600 rounded-lg font-bold border border-slate-300 hover:bg-slate-100 transition shadow-sm">ยกเลิก</button>
-                    <button type="submit" class="px-8 py-2.5 bg-blue-600 text-white font-black rounded-lg shadow-md hover:bg-blue-700 transition flex items-center gap-2"><i class="fa-solid fa-save"></i> บันทึกแก้ไข</button>
+                    <button type="submit" class="px-8 py-2.5 bg-blue-600 text-white font-black rounded-lg shadow-md hover:bg-blue-700 transition flex items-center gap-2"><i class="fa-solid fa-save"></i> บันทึกข้อมูล</button>
                 </div>
             </form>
         </div>
@@ -781,7 +788,6 @@
             } catch(e) { showToast('แก้ไขข้อมูลไม่สำเร็จ', 'error'); loadAllData(); }
         }
 
-        // 🌟 แก้ไขให้ดึงตารางมารีโหลดทันทีที่เปลี่ยนสถานะเบิกอะไหล่ 🌟
         async function fastUpdateOutbound(id, field, value) {
             try {
                 const res = await fetch(`${API_BASE_URL}/api/part-outbound/${id}/fast`, {
@@ -790,7 +796,6 @@
                 if(!res.ok) throw new Error();
                 showToast('อัปเดตข้อมูลเบิกจ่าย/จอง เรียบร้อย!');
                 
-                // รีโหลด 2 ตารางหลักให้ค่าอัปเดตตรงกันทันที
                 await loadAllData();
                 loadStockInHouse();
             } catch(e) { 
@@ -1001,15 +1006,15 @@
                     
                     html += `
                     <tr class="inbound-row hover:bg-emerald-50 transition-colors cursor-pointer border-b border-slate-100" onclick="toggleRowCheckbox(this)">
-                        <td class="text-center p-2"><input type="checkbox" class="inbound-chk w-5 h-5 accent-emerald-500 cursor-pointer rounded" value="${po.id || po.order_id}" onchange="updateInboundCount(); event.stopPropagation();"></td>
-                        <td class="p-2 text-center" onclick="event.stopPropagation();"><input type="date" class="inbound-date minimal-input py-1 px-2 h-8 text-[11px] font-mono w-[120px] mx-auto text-center" value="${todayStr}" required></td>
+                        <td class="text-center p-2"><input type="checkbox" onclick="event.stopPropagation()" class="inbound-chk w-5 h-5 accent-emerald-500 cursor-pointer rounded" value="${po.id || po.order_id}" onchange="updateInboundCount()"></td>
+                        <td class="p-2 text-center" onclick="event.stopPropagation();"><input type="date" onclick="event.stopPropagation()" class="inbound-date minimal-input py-1 px-2 h-8 text-[11px] font-mono w-[120px] mx-auto text-center cursor-pointer" value="${todayStr}" required></td>
                         <td class="font-bold text-center"><span class="bg-slate-100 px-2 py-1 border border-slate-300 shadow-inner rounded text-[10px]">${po.car_plate || '-'}</span></td>
                         <td class="font-mono text-amber-700 font-bold search-epc text-xs text-center">${po.epc_no || '-'}</td>
                         <td class="font-mono font-bold text-blue-700 search-part text-xs text-center">${po.part_no || '-'}</td>
                         <td class="font-bold text-slate-700 truncate search-name max-w-[250px] text-[11px]" title="${po.part_name || '-'}">${po.part_name || '-'}</td>
                         <td class="text-center font-black text-rose-500">${remaining}</td>
                         <td class="text-center p-1" onclick="event.stopPropagation();">
-                            <input type="number" class="inbound-qty minimal-input text-center font-black text-emerald-700 py-1 px-2 h-8 w-20 mx-auto" max="${remaining}" min="1" value="${remaining}">
+                            <input type="number" onclick="event.stopPropagation()" class="inbound-qty minimal-input text-center font-black text-emerald-700 py-1 px-2 h-8 w-20 mx-auto" max="${remaining}" min="1" value="${remaining}">
                             <input type="hidden" class="inbound-epc" value="${po.epc_no || ''}">
                             <input type="hidden" class="inbound-part" value="${po.part_no || ''}">
                             <input type="hidden" class="inbound-main" value="${po.part_main_no || ''}">
@@ -1044,6 +1049,16 @@
                     updateInboundCount();
                 }
             }, 100);
+        }
+
+        // 🌟 เปิด Modal รับเข้าแบบ Manual 
+        function openManualInboundModal() {
+            document.getElementById('editInboundForm').reset();
+            document.getElementById('edit_inbound_id').value = '';
+            document.getElementById('edit_in_date').value = getTodayString();
+            document.getElementById('manual_inbound_title').innerText = "บันทึกรับเข้าแบบแมนนวล (นอกรายการสั่งซื้อ)";
+            document.getElementById('editInboundModal').classList.remove('hidden'); 
+            document.getElementById('editInboundModal').classList.add('flex');
         }
 
         function filterMultiInboundTable() {
@@ -1132,6 +1147,7 @@
         function openEditInboundModal(id) {
             const p = allInbounds.find(x => String(x.id || x.inbound_id) === String(id));
             if(!p) return;
+            document.getElementById('manual_inbound_title').innerText = "แก้ไขข้อมูลประวัติรับเข้า";
             document.getElementById('edit_inbound_id').value = id;
             document.getElementById('edit_in_date').value = p.received_date ? String(p.received_date).split('T')[0] : '';
             document.getElementById('edit_in_epc').value = p.epc_no || '';
@@ -1150,9 +1166,16 @@
             document.getElementById('editInboundModal').classList.remove('flex');
         }
 
+        function calcEditInTotal() { 
+            document.getElementById('edit_in_total').value = ((parseFloat(document.getElementById('edit_in_price').value) || 0) * (parseInt(document.getElementById('edit_in_qty').value) || 0)).toFixed(2); 
+        }
+
         async function submitEditInbound(e) {
             e.preventDefault();
             const id = document.getElementById('edit_inbound_id').value;
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `${API_BASE_URL}/api/part-inbound/${id}` : `${API_BASE_URL}/api/part-inbound`;
+            
             const payload = {
                 received_date: document.getElementById('edit_in_date').value,
                 epc_no: document.getElementById('edit_in_epc').value,
@@ -1165,11 +1188,11 @@
                 branch_name: currentBranch
             };
             try {
-                const res = await fetch(`${API_BASE_URL}/api/part-inbound/${id}`, {
-                    method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+                const res = await fetch(url, {
+                    method: method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
                 });
                 if(!res.ok) throw new Error();
-                showToast('แก้ไขข้อมูลรับเข้าสำเร็จ!');
+                showToast(id ? 'แก้ไขข้อมูลรับเข้าสำเร็จ!' : 'บันทึกรับเข้าแบบ Manual สำเร็จ!');
                 closeEditInboundModal();
                 loadAllData();
             } catch(e) { showToast('เกิดข้อผิดพลาด', 'error'); }
@@ -1681,7 +1704,6 @@
         }
 
         function toggleCompletedPO() { hideCompletedPO = !hideCompletedPO; loadPOTracking(); }
-        function calcInTotal() { document.getElementById('in_total').value = ((parseFloat(document.getElementById('in_price').value) || 0) * (parseInt(document.getElementById('in_qty').value) || 0)).toFixed(2); }
 
         async function fetchMasterPart(p) { 
             const n = document.getElementById(`${p}_part_no`).value.trim(); 
@@ -1695,7 +1717,7 @@
                     if(document.getElementById(`${p}_model`)) document.getElementById(`${p}_model`).value = d.car_model || '-'; 
                     if(document.getElementById(`${p}_type`)) document.getElementById(`${p}_type`).value = d.part_category || 'อะไหล่หลัก'; 
                     if(document.getElementById(`${p}_price`)) document.getElementById(`${p}_price`).value = d.unit_price || 0; 
-                    calcInTotal(); 
+                    if(typeof calcEditInTotal === 'function') calcEditInTotal(); 
                 } 
             } catch(e) {} 
         }
