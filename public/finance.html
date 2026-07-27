@@ -434,30 +434,45 @@
             applyFilters();
         }
 
-        // 🌟 แก้ไข: ล้างตัวอักษรเฉพาะช่องที่เป็นตัวเลข (cost) เพื่อไม่ให้กระทบวันที่ 🌟
+        // 🌟 แก้ไข: จัดการส่งค่า `billing_date` และประเภทข้อมูลให้สมบูรณ์ 100% 🌟
         async function fastUpdateAcc(jobId, field, value) {
             try {
                 let valToSend = value;
-                if(['cost_labor', 'cost_part', 'cost_external'].includes(field)) {
-                    valToSend = value.replace(/,/g, ''); 
+                
+                if (['cost_labor', 'cost_part', 'cost_external'].includes(field)) {
+                    valToSend = String(value || '0').replace(/,/g, ''); 
+                } else if (field === 'billing_date') {
+                    // 🌟 ถ้าค่าเป็น String ว่าง ให้ส่ง null ป้องกัน DB (PostgreSQL) ล้มเหลวจากประเภทข้อมูล DATE
+                    valToSend = value && String(value).trim() !== '' ? value : null;
                 }
 
                 const res = await fetch(`${API_BASE_URL}/api/report/${jobId}/fast-date`, {
-                    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ field, value: valToSend })
+                    method: 'PUT', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ field, value: valToSend })
                 });
+
                 if (res.ok) {
-                    const jobIndex = allAccJobs.findIndex(j => j.id === jobId);
-                    if(jobIndex > -1) allAccJobs[jobIndex][field] = valToSend;
+                    // 🌟 ใช้ String(j.id) === String(jobId) ป้องกันความผิดพลาดการเปรียบเทียบ Number/String
+                    const jobIndex = allAccJobs.findIndex(j => String(j.id) === String(jobId));
+                    if (jobIndex > -1) allAccJobs[jobIndex][field] = valToSend;
+                    
                     showToast('อัปเดตข้อมูลอัตโนมัติสำเร็จ!');
                     
-                    if(['cost_labor', 'cost_part', 'cost_external'].includes(field)) {
+                    if (['cost_labor', 'cost_part', 'cost_external'].includes(field)) {
                         applyFilters(); 
-                    } else if (field === 'billing_date') {
+                    } else if (field === 'billing_date' || field === 'job_status') {
                         buildYearDropdown(); 
                         applyFilters(); 
                     }
-                } else throw new Error();
-            } catch (err) { showToast('บันทึกข้อมูลไม่สำเร็จ!', 'error'); loadAccountingData(); }
+                } else {
+                    throw new Error('Server update failed');
+                }
+            } catch (err) { 
+                console.error("fastUpdateAcc error:", err);
+                showToast('บันทึกข้อมูลไม่สำเร็จ!', 'error'); 
+                loadAccountingData(); 
+            }
         }
 
         function formatAccNum(val) {
@@ -625,7 +640,7 @@
                     if(!matchStr.includes(searchTxt)) return false;
                 }
                 
-                const hasBillingDate = job.billing_date && job.billing_date.trim() !== '';
+                const hasBillingDate = job.billing_date && String(job.billing_date).trim() !== '';
                 
                 if (managedType === 'รอจัดการ' && hasBillingDate) return false;
                 if (managedType === 'จัดการแล้ว' && !hasBillingDate) return false;
