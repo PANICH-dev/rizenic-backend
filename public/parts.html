@@ -302,8 +302,8 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end mb-4">
                         <div><label class="label-text text-red-600">วันที่ของเข้า *</label><input type="date" id="in_date" required class="minimal-input font-mono bg-emerald-50 border-emerald-200"></div>
                         <div>
-                            <label class="label-text text-red-600">EPC No * (พิมพ์ค้นหาได้เลย)</label>
-                            <input type="text" id="in_epc" required list="epc_list" class="minimal-input font-mono uppercase bg-emerald-50 border-emerald-200" onchange="autoFillInboundFromEPC(this.value)" placeholder="ค้นหา EPC...">
+                            <label class="label-text text-red-600">EPC No * (เลือกอะไหล่ที่จะรับเข้า)</label>
+                            <input type="text" id="in_epc" required list="epc_list" class="minimal-input font-mono uppercase bg-emerald-50 border-emerald-200" onchange="autoFillInboundFromEPC(this.value)" placeholder="ค้นหา EPC หรือ บาร์โค้ด...">
                             <datalist id="epc_list"></datalist>
                         </div>
                         <div><label class="label-text text-red-600">สแกนบาร์โค้ดรับ * (เลขอะไหล่)</label><input type="text" id="in_part_no" required class="minimal-input font-mono uppercase bg-emerald-50 border-emerald-200" onblur="fetchMasterPart('in')"></div>
@@ -419,7 +419,9 @@
         let currentFilterTable = '';
         let currentFilterCol = -1;
 
-        // 🌟 Helper: แจ้งเตือน Toast
+        // 🌟 Helper: ทำความสะอาดข้อความ ล้างช่องว่าง และปรับเป็นตัวพิมพ์ใหญ่เพื่อเปรียบเทียบชัวร์ 100%
+        const cleanStr = (val) => String(val || '').trim().toUpperCase();
+
         function showToast(msg, type='success') {
             const toast = document.getElementById('toastMsg');
             if(type === 'error') { 
@@ -433,7 +435,6 @@
             setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 2500);
         }
 
-        // 🌟 Helper: ดึงค่าดิบในตารางเพื่อนำมา Sort/Filter
         function getCellValue(cell) {
             if(!cell) return '';
             const input = cell.querySelector('input, select');
@@ -469,7 +470,6 @@
             loadAllData();
             loadCarModelsGrid(); 
 
-            // ปิด Modal Filter เมื่อคลิกที่อื่น
             document.addEventListener('click', (e) => {
                 const modal = document.getElementById('excelFilterModal');
                 if (!modal.contains(e.target) && !e.target.closest('.filter-icon') && !modal.classList.contains('hidden')) {
@@ -614,7 +614,6 @@
             });
         }
 
-        // ================= 🌟 EXCEL FILTER LOGIC 🌟 =================
         function openExcelFilter(e, tableId, colIndex, title) {
             e.stopPropagation(); currentFilterTable = tableId; currentFilterCol = colIndex;
             document.getElementById('ef_col_name').innerText = title; document.getElementById('ef_search').value = '';
@@ -709,7 +708,6 @@
             rows.forEach(row => tbody.appendChild(row));
         }
 
-        // ================= FAST INLINE EDIT AUTO-SAVE =================
         async function fastUpdatePO(id, field, value) {
             try {
                 const res = await fetch(`${API_BASE_URL}/api/part-orders/${id}/fast`, {
@@ -745,9 +743,7 @@
             buildTableHeaders();
             try { 
                 const resIn = await fetch(`${API_BASE_URL}/api/part-inbound`); if(resIn.ok) allInbounds = await resIn.json(); 
-                
                 const resOut = await fetch(`${API_BASE_URL}/api/part-outbound`); if(resOut.ok) allOutbounds = await resOut.json(); 
-
                 const resJobs = await fetch(`${API_BASE_URL}/api/reports`); if(resJobs.ok) allGlobalJobs = await resJobs.json();
                 const resParts = await fetch(`${API_BASE_URL}/api/part-orders`); if(resParts.ok) allGlobalParts = await resParts.json();
                 
@@ -763,13 +759,20 @@
                 if (poBoSelect && allPOStatuses.length > 0) {
                     poBoSelect.innerHTML = allPOStatuses.map(s => `<option value="${getSafeStatusName(s)}">${getSafeStatusName(s)}</option>`).join('');
                 }
+
+                // 🌟 อัปเดตรายการใน datalist ของ Inbound Modal ให้เลือกได้ระดับชิ้นส่วน
+                const epcDatalist = document.getElementById('epc_list');
+                if(epcDatalist && allGlobalParts.length > 0) {
+                    epcDatalist.innerHTML = allGlobalParts.map(p => 
+                        `<option value="${p.part_no}">${p.epc_no ? p.epc_no + ' | ' : ''}${p.part_name} (${p.car_plate || 'ไม่ระบุทะเบียน'})</option>`
+                    ).join('');
+                }
+
             } catch(e) { console.error("API Error", e); }
             
             loadSAOrders(); loadPOTracking(); loadInbound(); loadOutbound(); loadStockInHouse(); loadMasterParts();
         }
 
-        // ================= POP-UP CONTROLLERS =================
-        
         function openCarPartsDetailsModal(carPlate, epcNo) {
             document.getElementById('modal_job_id').value = carPlate;
             document.getElementById('modal_epc').value = epcNo !== '-' ? epcNo : '';
@@ -851,7 +854,7 @@
                 const existingPO = allGlobalParts.find(p => String(p.id || p.order_id) === String(orderId)) || {};
 
                 const payload = {
-                    ...existingPO, // 🌟 แก้ไข: แนบข้อมูลเดิมทั้งหมดป้องกันการโดนล้างค่า
+                    ...existingPO, 
                     epc_no: row.querySelector('.po-epc').value,
                     part_no: row.querySelector('.po-partno').value,
                     part_main_no: row.querySelector('.po-main').value,
@@ -950,7 +953,7 @@
             document.querySelectorAll('.master-car-model-checkbox').forEach(cb => cb.checked = false);
             
             if(partNo) {
-                const part = allMasterPartsData.find(p => p.part_no === partNo);
+                const part = allMasterPartsData.find(p => cleanStr(p.part_no) === cleanStr(partNo));
                 if(part) {
                     document.getElementById('master_part_no').value = part.part_no; document.getElementById('master_part_name').value = part.part_name;
                     document.getElementById('master_part_main').value = part.part_main_no || ''; document.getElementById('master_category').value = part.part_category || 'อะไหล่หลัก';
@@ -993,7 +996,7 @@
                 if(jobsRoutedToParts.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-400 font-bold">✅ ไม่มีคิวรถในแผนกอะไหล่ขณะนี้</td></tr>`; return; }
 
                 tbody.innerHTML = jobsRoutedToParts.map(job => {
-                    const carPartsItems = (allGlobalParts || []).filter(p => p.car_plate === job.car_plate);
+                    const carPartsItems = (allGlobalParts || []).filter(p => cleanStr(p.car_plate) === cleanStr(job.car_plate));
                     const displayEpc = [...new Set(carPartsItems.map(p => p.epc_no).filter(Boolean))].join(', ') || (job.epc_no || '-');
                     const arrivedDate = job.arrived_date ? String(job.arrived_date).split('T')[0] : '-'; 
 
@@ -1021,6 +1024,7 @@
             } catch(e){}
         }
 
+        // 🌟 แก้ไขการเปรียบเทียบรหัสอะไหล่ / EPC ให้ล้างช่องว่าง (Trim/UpperCase) สต๊อกและจำนวนรับจริงจะได้ตรง 100%
         function loadPOTracking() {
             try {
                 const myPOs = (allGlobalParts || []).filter(o => o.branch_name === currentBranch);
@@ -1029,10 +1033,14 @@
 
                 let html = '';
                 myPOs.forEach(o => {
-                    const inboundsForPart = allInbounds.filter(i => i.epc_no === o.epc_no && i.part_no === o.part_no);
-                    const rcvQty = inboundsForPart.reduce((sum, item) => sum + item.qty, 0);
+                    // 🌟 ใช้ cleanStr เพื่อป้องกันเคาะเว้นวรรคทำให้ค้นหาไม่เจอ
+                    const inboundsForPart = allInbounds.filter(i => 
+                        cleanStr(i.part_no) === cleanStr(o.part_no) &&
+                        (cleanStr(i.epc_no) === cleanStr(o.epc_no) || !i.epc_no || !o.epc_no)
+                    );
+                    const rcvQty = inboundsForPart.reduce((sum, item) => sum + (parseInt(item.qty) || 0), 0);
                     
-                    const isAllReceived = rcvQty >= o.qty_ordered;
+                    const isAllReceived = rcvQty >= (parseInt(o.qty_ordered) || 1);
                     let rcvAllDateVal = o.part_received_all_date ? String(o.part_received_all_date).split('T')[0] : '';
                     
                     if (isAllReceived && o.qty_ordered > 0) {
@@ -1058,7 +1066,7 @@
                             fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, {
                                 method: 'PUT',
                                 headers: {'Content-Type': 'application/json'},
-                                body: JSON.stringify({ ...o, order_status: targetStatus, part_received_all_date: rcvAllDateVal }) // 🌟 แก้ไข: แนบข้อมูลเดิมกลับไปทั้งหมด
+                                body: JSON.stringify({ ...o, order_status: targetStatus, part_received_all_date: rcvAllDateVal })
                             }).catch(e => console.error(e));
                         }
                     }
@@ -1072,7 +1080,7 @@
                     }).join('');
 
                     const rcvAllStyle = isAllReceived ? 'bg-emerald-50 text-emerald-800 font-bold' : 'text-slate-400';
-                    const hasETA = o.est_arrival_date && o.est_arrival_date.trim() !== '';
+                    const hasETA = o.est_arrival_date && String(o.est_arrival_date).trim() !== '';
 
                     const actionButtons = hasETA 
                         ? `<span class="text-slate-400 text-xs" title="สั่งของไปแล้ว ไม่สามารถแก้ไขได้"><i class="fa-solid fa-lock"></i> ล็อก</span>`
@@ -1165,6 +1173,7 @@
             } catch(e){}
         }
 
+        // 🌟 สต๊อกคงเหลือ คำนวณแบบยืดหยุ่น ป้องกันเคาะเว้นวรรค
         function loadStockInHouse() {
             try {
                 fetch(`${API_BASE_URL}/api/parts-inventory?branch=${encodeURIComponent(currentBranch)}`).then(res => res.json()).then(data => {
@@ -1358,9 +1367,50 @@
 
         function toggleCompletedPO() { hideCompletedPO = !hideCompletedPO; loadPOTracking(); }
         function calcInTotal() { document.getElementById('in_total').value = ((parseFloat(document.getElementById('in_price').value) || 0) * (parseInt(document.getElementById('in_qty').value) || 0)).toFixed(2); }
-        function autoFillInboundFromEPC(v) { if(!v) return; const m = allGlobalParts.find(o => o.epc_no === v); if(m) { document.getElementById('in_part_no').value = m.part_no || ''; document.getElementById('in_part_main').value = m.part_main_no || ''; document.getElementById('in_part_name').value = m.part_name || ''; document.getElementById('in_model').value = m.car_model || ''; fetchMasterPart('in'); } }
-        async function fetchMasterPart(p) { const n = document.getElementById(`${p}_part_no`).value.trim(); if(!n) return; try { const res = await fetch(`${API_BASE_URL}/api/parts/check/${encodeURIComponent(n)}`); const d = await res.json(); if(d && d.part_name) { if(document.getElementById(`${p}_part_main`)) document.getElementById(`${p}_part_main`).value = d.part_main_no || '-'; if(document.getElementById(`${p}_part_name`)) document.getElementById(`${p}_part_name`).value = d.part_name || '-'; if(document.getElementById(`${p}_model`)) document.getElementById(`${p}_model`).value = d.car_model || '-'; if(document.getElementById(`${p}_type`)) document.getElementById(`${p}_type`).value = d.part_category || 'อะไหล่หลัก'; if(document.getElementById(`${p}_price`)) document.getElementById(`${p}_price`).value = d.unit_price || 0; calcInTotal(); } } catch(e) {} }
-        async function fetchJobDataByPlate(p) { const pl = document.getElementById(`${p}_plate`).value.trim(); if(!pl) return; const job = allGlobalJobs.find(j => j.car_plate === pl); if(job) { if(document.getElementById(`${p}_vin`)) document.getElementById(`${p}_vin`).value = job.vin_no || '-'; if(document.getElementById(`${p}_model`)) document.getElementById(`${p}_model`).value = job.car_model || '-'; if(document.getElementById(`${p}_qt`)) document.getElementById(`${p}_qt`).value = (job.qt_no || '').split(',')[0].trim(); if(document.getElementById(`${p}_so`)) document.getElementById(`${p}_so`).value = (job.so_no || '').split(',')[0].trim(); } }
+        
+        // 🌟 ปรับปรุง Auto-Fill Inbound ให้หยิบถูกชิ้นแม้ EPC จะซ้ำกันหลายตัว
+        function autoFillInboundFromEPC(v) { 
+            if(!v) return; 
+            const searchKey = cleanStr(v);
+            const m = allGlobalParts.find(o => cleanStr(o.part_no) === searchKey || cleanStr(o.epc_no) === searchKey); 
+            if(m) { 
+                document.getElementById('in_epc').value = m.epc_no || ''; 
+                document.getElementById('in_part_no').value = m.part_no || ''; 
+                document.getElementById('in_part_main').value = m.part_main_no || ''; 
+                document.getElementById('in_part_name').value = m.part_name || ''; 
+                document.getElementById('in_model').value = m.car_model || ''; 
+                fetchMasterPart('in'); 
+            } 
+        }
+
+        async function fetchMasterPart(p) { 
+            const n = document.getElementById(`${p}_part_no`).value.trim(); 
+            if(!n) return; 
+            try { 
+                const res = await fetch(`${API_BASE_URL}/api/parts/check/${encodeURIComponent(n)}`); 
+                const d = await res.json(); 
+                if(d && d.part_name) { 
+                    if(document.getElementById(`${p}_part_main`)) document.getElementById(`${p}_part_main`).value = d.part_main_no || '-'; 
+                    if(document.getElementById(`${p}_part_name`)) document.getElementById(`${p}_part_name`).value = d.part_name || '-'; 
+                    if(document.getElementById(`${p}_model`)) document.getElementById(`${p}_model`).value = d.car_model || '-'; 
+                    if(document.getElementById(`${p}_type`)) document.getElementById(`${p}_type`).value = d.part_category || 'อะไหล่หลัก'; 
+                    if(document.getElementById(`${p}_price`)) document.getElementById(`${p}_price`).value = d.unit_price || 0; 
+                    calcInTotal(); 
+                } 
+            } catch(e) {} 
+        }
+
+        async function fetchJobDataByPlate(p) { 
+            const pl = cleanStr(document.getElementById(`${p}_plate`).value); 
+            if(!pl) return; 
+            const job = allGlobalJobs.find(j => cleanStr(j.car_plate) === pl); 
+            if(job) { 
+                if(document.getElementById(`${p}_vin`)) document.getElementById(`${p}_vin`).value = job.vin_no || '-'; 
+                if(document.getElementById(`${p}_model`)) document.getElementById(`${p}_model`).value = job.car_model || '-'; 
+                if(document.getElementById(`${p}_qt`)) document.getElementById(`${p}_qt`).value = (job.qt_no || '').split(',')[0].trim(); 
+                if(document.getElementById(`${p}_so`)) document.getElementById(`${p}_so`).value = (job.so_no || '').split(',')[0].trim(); 
+            } 
+        }
     </script>
 </body>
 </html>
