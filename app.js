@@ -865,6 +865,49 @@ app.get('/api/parts-inventory', async (req, res) => {
     res.json(result.rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+// ==========================================
+// 🎨 API บันทึก/ดึง ค่าการเลือกคอลัมน์รายบุคคล (User Column Preferences)
+// ==========================================
+app.get('/api/user-preferences/:empName', async (req, res) => {
+  try {
+    const { empName } = req.params;
+    const result = await pool.query(
+      'SELECT hidden_columns FROM user_column_preferences WHERE emp_name = $1',
+      [empName]
+    );
+
+    if (result.rows.length > 0) {
+      res.json({ hidden_columns: result.rows[0].hidden_columns });
+    } else {
+      res.json({ hidden_columns: null });
+    }
+  } catch (error) {
+    console.error('Error fetching user preferences:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/user-preferences', async (req, res) => {
+  try {
+    const { emp_name, hidden_columns } = req.body;
+    const jsonCols = JSON.stringify(hidden_columns);
+
+    const queryText = `
+      INSERT INTO user_column_preferences (emp_name, hidden_columns, updated_at) 
+      VALUES ($1, $2, CURRENT_TIMESTAMP) 
+      ON CONFLICT (emp_name) 
+      DO UPDATE SET 
+        hidden_columns = EXCLUDED.hidden_columns,
+        updated_at = CURRENT_TIMESTAMP;
+    `;
+    await pool.query(queryText, [emp_name, jsonCols]);
+
+    res.json({ success: true, message: 'บันทึกการตั้งค่าคอลัมน์เรียบร้อยครับนาย!' });
+  } catch (error) {
+    console.error('Error saving user preferences:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 if (require.main === module) {
     app.listen(port, () => console.log(`🚀 พร้อมที่: http://localhost:${port}`));
