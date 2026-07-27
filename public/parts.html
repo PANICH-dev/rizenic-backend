@@ -296,7 +296,7 @@
         </div>
     </div>
 
-    <!-- 🌟 Modal: รับเข้า (Multi-item) อัปเกรดใหม่ 🌟 -->
+    <!-- 🌟 Modal: รับเข้า (Multi-item) 🌟 -->
     <div id="inboundModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden border-t-4 border-t-emerald-500 flex flex-col max-h-[90vh]">
             <div class="px-6 py-4 border-b flex justify-between items-center bg-emerald-50/50 shrink-0">
@@ -781,6 +781,7 @@
             } catch(e) { showToast('แก้ไขข้อมูลไม่สำเร็จ', 'error'); loadAllData(); }
         }
 
+        // 🌟 แก้ไขให้ดึงตารางมารีโหลดทันทีที่เปลี่ยนสถานะเบิกอะไหล่ 🌟
         async function fastUpdateOutbound(id, field, value) {
             try {
                 const res = await fetch(`${API_BASE_URL}/api/part-outbound/${id}/fast`, {
@@ -788,8 +789,14 @@
                 });
                 if(!res.ok) throw new Error();
                 showToast('อัปเดตข้อมูลเบิกจ่าย/จอง เรียบร้อย!');
-                if(field === 'job_status') loadAllData(); else loadStockInHouse();
-            } catch(e) { showToast('แก้ไขข้อมูลเบิกจ่ายไม่สำเร็จ', 'error'); loadAllData(); }
+                
+                // รีโหลด 2 ตารางหลักให้ค่าอัปเดตตรงกันทันที
+                await loadAllData();
+                loadStockInHouse();
+            } catch(e) { 
+                showToast('แก้ไขข้อมูลเบิกจ่ายไม่สำเร็จ', 'error'); 
+                loadAllData(); 
+            }
         }
 
         async function loadAllData() {
@@ -812,6 +819,14 @@
                 if (poBoSelect && allPOStatuses.length > 0) {
                     poBoSelect.innerHTML = allPOStatuses.map(s => `<option value="${getSafeStatusName(s)}">${getSafeStatusName(s)}</option>`).join('');
                 }
+
+                const epcDatalist = document.getElementById('epc_list');
+                if(epcDatalist && allGlobalParts.length > 0) {
+                    epcDatalist.innerHTML = allGlobalParts.map(p => 
+                        `<option value="${p.part_no}">${p.epc_no ? p.epc_no + ' | ' : ''}${p.part_name} (${p.car_plate || 'ไม่ระบุทะเบียน'})</option>`
+                    ).join('');
+                }
+
             } catch(e) { console.error("API Error", e); }
             
             loadSAOrders(); loadPOTracking(); loadInbound(); loadOutbound(); loadStockInHouse(); loadMasterParts();
@@ -959,7 +974,6 @@
         }
         function closePOModal() { const m = document.getElementById('poModal'); m.classList.add('hidden'); m.classList.remove('flex'); }
 
-        // 🌟 เปิด Inbound Modal แบบดึงรายการค้างรับทั้งหมดมาแสดงเป็นตาราง 🌟
         function openInboundModal() {
             const tbody = document.getElementById('multi_inbound_body');
             tbody.innerHTML = '';
@@ -1016,7 +1030,6 @@
         }
         function closeInboundModal() { document.getElementById('inboundModal').classList.add('hidden'); document.getElementById('inboundModal').classList.remove('flex'); }
 
-        // 🌟 เปิด Modal รับเข้าแบบสั่งเช็คออเดอร์นั้นอัตโนมัติ (จากหน้า PO)
         function openInboundModalFromPO(orderId) {
             openInboundModal(); 
             setTimeout(() => {
@@ -1033,7 +1046,6 @@
             }, 100);
         }
 
-        // 🌟 ตัวกรองและนับจำนวนใน Modal Inbound
         function filterMultiInboundTable() {
             const txt = document.getElementById('multi_inbound_search').value.toLowerCase();
             const rows = document.querySelectorAll('#multi_inbound_body tr.inbound-row');
@@ -1057,7 +1069,6 @@
             document.getElementById('multi_inbound_count').innerText = count;
         }
 
-        // 🌟 บันทึกรับเข้าหลายรายการพร้อมกัน
         async function submitMultiInbound(e) {
             e.preventDefault();
             const rows = document.querySelectorAll('.inbound-row');
@@ -1118,7 +1129,6 @@
             }
         }
 
-        // 🌟 เปิด Modal สำหรับแก้ไขประวัติ Inbound (เฉพาะชิ้น)
         function openEditInboundModal(id) {
             const p = allInbounds.find(x => String(x.id || x.inbound_id) === String(id));
             if(!p) return;
@@ -1223,7 +1233,6 @@
             m.classList.remove('flex'); 
         }
 
-        // ================= RENDERING TABLES CONTENT =================
         function loadSAOrders() {
             try {
                 const tbody = document.getElementById('sa_alerts_body');
@@ -1322,7 +1331,6 @@
                     const rcvAllStyle = isAllReceived ? 'bg-emerald-50 text-emerald-800 font-bold' : 'text-slate-400';
                     const hasETA = o.est_arrival_date && String(o.est_arrival_date).trim() !== '';
 
-                    // 🌟 เพิ่มปุ่ม "รับเข้า" สีเขียว สำหรับกดแล้วดึงข้อมูลไป Modal Inbound อัตโนมัติ
                     let actionButtons = '';
                     if (!isAllReceived && hasETA) {
                         actionButtons += `<button onclick="openInboundModalFromPO('${orderId}')" class="text-emerald-700 hover:text-white hover:bg-emerald-600 bg-emerald-50 px-2 py-0.5 rounded transition shadow-sm border border-emerald-200" title="รับเข้าสต๊อก"><i class="fa-solid fa-download"></i></button>`;
@@ -1360,7 +1368,6 @@
             } catch(e) {}
         }
 
-        // 🌟 เปลี่ยนปุ่ม Expand เป็นการเปิดหน้าต่างแก้ไข (Edit) แทน
         function loadInbound() {
             try {
                 const tbody = document.getElementById('inbound_table_body');
@@ -1609,6 +1616,35 @@
                 showToast(editId ? 'อัปเดตข้อมูลสำเร็จ!' : 'บันทึกสั่งซื้อและเปิดใบจองอะไหล่อัตโนมัติสำเร็จ!'); 
                 closePOModal(); loadAllData();
             } catch(err) { showToast('เกิดข้อผิดพลาดคีย์ข้อมูล', 'error'); }
+        }
+
+        async function submitInbound(e) {
+            e.preventDefault(); const editId = document.getElementById('edit_inbound_id').value;
+            const method = editId ? 'PUT' : 'POST'; const url = editId ? `${API_BASE_URL}/api/part-inbound/${editId}` : `${API_BASE_URL}/api/part-inbound`;
+            const payload = {
+                received_date: document.getElementById('in_date').value, epc_no: document.getElementById('in_epc').value, part_no: document.getElementById('in_part_no').value,
+                part_main_no: document.getElementById('in_part_main').value, part_name: document.getElementById('in_part_name').value, car_model: document.getElementById('in_model').value,
+                qty: parseInt(document.getElementById('in_qty').value), unit_price: parseFloat(document.getElementById('in_price').value), branch_name: currentBranch
+            };
+            try {
+                const res = await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                if(!res.ok) throw new Error(); showToast('บันทึกรับเข้าสำเร็จ!'); closeInboundModal(); loadAllData();
+            } catch(e) { showToast('เกิดข้อผิดพลาด', 'error'); }
+        }
+
+        async function submitOutbound(e) {
+            e.preventDefault(); const editId = document.getElementById('edit_outbound_id').value;
+            const method = editId ? 'PUT' : 'POST'; const url = editId ? `${API_BASE_URL}/api/part-outbound/${editId}` : `${API_BASE_URL}/api/part-outbound`;
+            const payload = {
+                issue_date: document.getElementById('out_date').value, part_no: document.getElementById('out_part_no').value, qty: parseInt(document.getElementById('out_qty').value),
+                car_plate: document.getElementById('out_plate').value.toUpperCase().trim(), qt_no: document.getElementById('out_qt').value, so_no: document.getElementById('out_so').value,
+                part_main_no: document.getElementById('out_part_main').value, part_name: document.getElementById('out_part_name').value, unit_price: parseFloat(document.getElementById('out_price').value) || 0,
+                car_model: document.getElementById('out_model').value, job_status: document.getElementById('out_job_status').value, part_type: document.getElementById('out_type').value, branch_name: currentBranch
+            };
+            try {
+                const res = await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                if(!res.ok) throw new Error(); showToast('บันทึกรายการสำเร็จ!'); closeOutboundModal(); loadAllData();
+            } catch(e) { showToast('เกิดข้อผิดพลาดเบิก/จอง', 'error'); }
         }
 
         async function saveMasterPart() {
