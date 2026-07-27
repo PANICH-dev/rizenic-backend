@@ -12,7 +12,7 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Kanit', sans-serif; background-color: #f8fafc; } /* 🌟 ซอฟต์สีพื้นหลังให้คลีนขึ้น */
+        body { font-family: 'Kanit', sans-serif; background-color: #f8fafc; overflow-x: hidden; } 
         
         .bg-rizenic-green { background-color: #00320D; }
         .text-rizenic-green { color: #00320D; }
@@ -21,7 +21,6 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; border: 2px solid transparent; background-clip: padding-box; }
         .custom-scrollbar::-webkit-scrollbar-track { background-color: transparent; }
         
-        /* 🌟 ปรับดีไซน์การ์ดให้ละมุนและมีมิติขึ้น */
         .card-box { @apply bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-lg transition-all duration-300 relative overflow-hidden; }
         .stat-card { @apply p-6 flex items-center justify-between bg-white rounded-2xl shadow-sm border border-slate-100 transition-all hover:shadow-xl cursor-pointer hover:-translate-y-1 relative overflow-hidden; }
         
@@ -34,12 +33,39 @@
         .modal-fade { animation: fadeIn 0.2s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 
-        /* 🌟 ระบบตารางใหม่ */
-        .excel-table { @apply w-full text-left border-collapse whitespace-nowrap text-sm bg-white rounded-lg overflow-hidden; }
-        .excel-table tbody td { @apply px-4 py-3.5 border-b border-slate-100 text-slate-700 align-middle font-medium; }
+        /* 🌟 ระบบตาราง Excel Filter 🌟 */
+        .excel-table { @apply w-full text-left border-collapse whitespace-nowrap text-sm bg-white rounded-lg overflow-hidden; table-layout: fixed; }
+        .excel-table thead th { @apply px-4 py-3.5 text-white border-b border-white/20 font-bold sticky top-0 z-10 align-middle tracking-wide shadow-sm select-none; }
+        .excel-table tbody td { @apply px-4 py-3 border-b border-slate-100 text-slate-700 align-middle font-medium overflow-hidden text-ellipsis; }
+        .excel-table tbody tr:hover td { @apply bg-emerald-50/60 transition-colors; }
+        
+        .sort-icon { @apply ml-1 opacity-40 transition-opacity group-hover:opacity-100 text-[10px]; }
+        .filter-icon { @apply ml-2 text-white/50 hover:text-amber-300 transition-colors p-1 rounded hover:bg-white/10 cursor-pointer; }
+        .filter-icon.active { @apply text-amber-400 opacity-100; }
+
+        .excel-filter-modal { @apply absolute bg-white border border-slate-200 shadow-xl rounded-lg p-3 z-[200] w-64 text-sm hidden flex-col; box-shadow: 0 10px 25px rgba(0,0,0,0.15); }
+        .excel-filter-modal.active { @apply flex; }
     </style>
 </head>
 <body class="text-slate-800 min-h-screen selection:bg-[#00320D] selection:text-white flex flex-col">
+
+    <!-- 🔍 Excel Filter Modal -->
+    <div id="excelFilterModal" class="excel-filter-modal">
+        <div class="flex justify-between items-center border-b pb-2 mb-2">
+            <span class="font-bold text-[#00320D] text-xs"><i class="fa-solid fa-filter mr-1"></i> ตัวกรอง: <span id="ef_col_name" class="text-amber-600"></span></span>
+            <button onclick="closeExcelFilter()" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <input type="text" id="ef_search" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none focus:border-amber-500 bg-slate-50" placeholder="🔍 ค้นหา..." onkeyup="searchExcelFilter()">
+        <div class="flex items-center gap-2 mt-2 px-1 pb-1 border-b">
+            <input type="checkbox" id="ef_select_all" checked onchange="toggleAllExcelFilters(this.checked)" class="w-3.5 h-3.5 cursor-pointer accent-[#00320D]">
+            <label for="ef_select_all" class="text-xs font-bold text-[#00320D] cursor-pointer select-none">เลือกทั้งหมด</label>
+        </div>
+        <div id="ef_checkbox_list" class="max-h-48 overflow-y-auto space-y-1 mt-2 p-1 rounded custom-scrollbar"></div>
+        <div class="flex gap-2 mt-3 pt-2 border-t">
+            <button onclick="applyExcelFilter()" class="flex-1 bg-[#00320D] text-white text-xs font-bold py-2 rounded-lg hover:bg-black transition shadow-md"><i class="fa-solid fa-check"></i> ตกลง</button>
+            <button onclick="clearSpecificExcelFilter()" class="flex-1 bg-slate-100 text-slate-700 text-xs font-bold py-2 rounded-lg hover:bg-slate-200 transition border border-slate-300"><i class="fa-solid fa-eraser"></i> ล้าง</button>
+        </div>
+    </div>
 
     <header class="bg-rizenic-green text-white shadow-lg z-50 shrink-0 border-b-4 border-amber-500 sticky top-0">
         <div class="px-6 py-3 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -242,16 +268,28 @@
                 <button onclick="window.location.href='parts.html'" class="text-xs bg-blue-50 text-blue-700 px-4 py-2 rounded-lg font-bold hover:bg-blue-600 hover:text-white transition shadow-sm border border-blue-200 flex items-center gap-2"><i class="fa-solid fa-arrow-up-right-from-square"></i> ไปแผนกอะไหล่</button>
             </div>
             <div class="overflow-x-auto max-h-[400px] custom-scrollbar p-0">
-                <table class="excel-table w-full border-none">
+                <table class="excel-table w-full border-none" id="partsTrackingTable">
                     <thead class="bg-gradient-to-r from-blue-900 to-blue-700 text-blue-50 text-xs tracking-wider sticky top-0 shadow-md z-10">
                         <tr>
-                            <th class="w-32 text-center px-4 py-4 font-bold border-b border-blue-950">สถานะอะไหล่</th>
-                            <th class="w-32 px-4 py-4 font-bold border-b border-blue-950">ทะเบียนรถ</th>
-                            <th class="w-24 px-4 py-4 font-bold border-b border-blue-950">SA รับผิดชอบ</th>
-                            <th class="w-32 px-4 py-4 font-bold border-b border-blue-950">หมายเลขอะไหล่</th>
-                            <th class="w-48 px-4 py-4 font-bold border-b border-blue-950">รายการชิ้นส่วน</th>
-                            <th class="w-24 text-center px-4 py-4 font-bold border-b border-blue-950">สั่ง / รับ</th>
-                            <th class="w-32 text-center px-4 py-4 font-bold border-b border-blue-950">กำหนดเข้า</th>
+                            <th class="w-32 px-4 py-4 border-b border-blue-950 group cursor-pointer" onclick="sortTable('partsTrackingTable', 0)">
+                                <div class="flex justify-between items-center"><span>สถานะอะไหล่ <i class="fa-solid fa-sort sort-icon"></i></span> <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'partsTrackingTable', 0, 'สถานะอะไหล่'); event.stopPropagation();"></i></div>
+                            </th>
+                            <th class="w-32 px-4 py-4 border-b border-blue-950 group cursor-pointer" onclick="sortTable('partsTrackingTable', 1)">
+                                <div class="flex justify-between items-center"><span>ทะเบียนรถ <i class="fa-solid fa-sort sort-icon"></i></span> <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'partsTrackingTable', 1, 'ทะเบียนรถ'); event.stopPropagation();"></i></div>
+                            </th>
+                            <th class="w-24 px-4 py-4 border-b border-blue-950 group cursor-pointer" onclick="sortTable('partsTrackingTable', 2)">
+                                <div class="flex justify-between items-center"><span>SA รับผิดชอบ <i class="fa-solid fa-sort sort-icon"></i></span> <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'partsTrackingTable', 2, 'SA รับผิดชอบ'); event.stopPropagation();"></i></div>
+                            </th>
+                            <th class="w-32 px-4 py-4 border-b border-blue-950 group cursor-pointer" onclick="sortTable('partsTrackingTable', 3)">
+                                <div class="flex justify-between items-center"><span>หมายเลขอะไหล่ <i class="fa-solid fa-sort sort-icon"></i></span> <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'partsTrackingTable', 3, 'หมายเลขอะไหล่'); event.stopPropagation();"></i></div>
+                            </th>
+                            <th class="w-48 px-4 py-4 border-b border-blue-950 group cursor-pointer" onclick="sortTable('partsTrackingTable', 4)">
+                                <div class="flex justify-between items-center"><span>รายการชิ้นส่วน <i class="fa-solid fa-sort sort-icon"></i></span> <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'partsTrackingTable', 4, 'รายการชิ้นส่วน'); event.stopPropagation();"></i></div>
+                            </th>
+                            <th class="w-24 px-4 py-4 border-b border-blue-950 text-center font-bold">สั่ง / รับ</th>
+                            <th class="w-32 px-4 py-4 border-b border-blue-950 group cursor-pointer" onclick="sortTable('partsTrackingTable', 6)">
+                                <div class="flex justify-between items-center"><span>กำหนดเข้า <i class="fa-solid fa-sort sort-icon"></i></span></div>
+                            </th>
                         </tr>
                     </thead>
                     <tbody id="parts_tracking_body" class="divide-y divide-slate-100 bg-white">
@@ -268,17 +306,34 @@
                 <button onclick="window.location.href='repair.html'" class="text-xs bg-orange-50 text-orange-700 px-4 py-2 rounded-lg font-bold hover:bg-orange-600 hover:text-white transition shadow-sm border border-orange-200 flex items-center gap-2"><i class="fa-solid fa-arrow-up-right-from-square"></i> ไปสถานีช่าง</button>
             </div>
             <div class="overflow-x-auto max-h-[400px] custom-scrollbar p-0">
-                <table class="excel-table w-full border-none">
+                <table class="excel-table w-full border-none" id="stationTable">
                     <thead class="bg-gradient-to-r from-orange-600 to-orange-500 text-orange-50 text-xs tracking-wider sticky top-0 shadow-md z-10">
                         <tr>
-                            <th class="w-32 px-4 py-4 font-bold border-b border-orange-700">ทะเบียนรถ</th>
-                            <th class="w-40 px-4 py-4 font-bold border-b border-orange-700">ยี่ห้อ / รุ่น</th>
-                            <th class="w-40 px-4 py-4 font-bold border-b border-orange-700">ชื่อลูกค้า</th>
-                            <th class="w-40 px-4 py-4 font-bold border-b border-orange-700">สถานะหลัก (ERP)</th>
-                            <th class="w-32 px-4 py-4 font-black text-white border-b border-orange-700">สถานีปัจจุบัน</th>
-                            <th class="w-24 text-center px-4 py-4 font-bold border-b border-orange-700">กำหนดเสร็จ</th>
-                            <th class="w-24 text-center px-4 py-4 font-bold border-b border-orange-700">เสร็จจริง</th>
-                            <th class="w-24 text-center px-4 py-4 font-bold border-b border-orange-700">จัดการ</th>
+                            <th class="w-32 px-4 py-4 border-b border-orange-700 group cursor-pointer" onclick="sortTable('stationTable', 0)">
+                                <div class="flex justify-between items-center"><span>ทะเบียนรถ <i class="fa-solid fa-sort sort-icon"></i></span> <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'stationTable', 0, 'ทะเบียนรถ'); event.stopPropagation();"></i></div>
+                            </th>
+                            <th class="w-40 px-4 py-4 border-b border-orange-700 group cursor-pointer" onclick="sortTable('stationTable', 1)">
+                                <div class="flex justify-between items-center"><span>ยี่ห้อ / รุ่น <i class="fa-solid fa-sort sort-icon"></i></span> <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'stationTable', 1, 'รุ่นรถ'); event.stopPropagation();"></i></div>
+                            </th>
+                            <th class="w-40 px-4 py-4 border-b border-orange-700 group cursor-pointer" onclick="sortTable('stationTable', 2)">
+                                <div class="flex justify-between items-center"><span>ชื่อลูกค้า <i class="fa-solid fa-sort sort-icon"></i></span> <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'stationTable', 2, 'ลูกค้า'); event.stopPropagation();"></i></div>
+                            </th>
+                            <th class="w-40 px-4 py-4 border-b border-orange-700 group cursor-pointer" onclick="sortTable('stationTable', 3)">
+                                <div class="flex justify-between items-center"><span>สถานะหลัก <i class="fa-solid fa-sort sort-icon"></i></span> <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'stationTable', 3, 'สถานะ'); event.stopPropagation();"></i></div>
+                            </th>
+                            <th class="w-32 px-4 py-4 border-b border-orange-700 group cursor-pointer text-orange-200" onclick="sortTable('stationTable', 4)">
+                                <div class="flex justify-between items-center"><span>สถานีปัจจุบัน <i class="fa-solid fa-sort sort-icon"></i></span> <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'stationTable', 4, 'สถานี'); event.stopPropagation();"></i></div>
+                            </th>
+                            <th class="w-24 px-4 py-4 border-b border-orange-700 group cursor-pointer text-center" onclick="sortTable('stationTable', 5)">
+                                <div class="flex justify-center items-center gap-1"><span>กำหนดเสร็จ <i class="fa-solid fa-sort sort-icon"></i></span></div>
+                            </th>
+                            <th class="w-24 px-4 py-4 border-b border-orange-700 group cursor-pointer text-center" onclick="sortTable('stationTable', 6)">
+                                <div class="flex justify-center items-center gap-1"><span>เสร็จจริง <i class="fa-solid fa-sort sort-icon"></i></span></div>
+                            </th>
+                            <th class="w-24 px-4 py-4 border-b border-orange-700 group cursor-pointer text-center" onclick="sortTable('stationTable', 7)">
+                                <div class="flex justify-center items-center gap-1"><span>กำหนดส่งมอบ <i class="fa-solid fa-sort sort-icon"></i></span></div>
+                            </th>
+                            <th class="w-20 px-4 py-4 border-b border-orange-700 text-center font-bold">จัดการ</th>
                         </tr>
                     </thead>
                     <tbody id="station_table_body" class="divide-y divide-slate-100 bg-white">
@@ -294,19 +349,37 @@
                 <h3 class="text-lg font-black text-[#00320D] flex items-center gap-2"><i class="fa-solid fa-car text-amber-500 bg-amber-50 p-2 rounded-lg"></i> รายการรถกำลังจอดซ่อมในศูนย์ (ตามสถานะ ERP)</h3>
             </div>
             <div class="overflow-x-auto max-h-[500px] custom-scrollbar p-0">
-                <table class="excel-table w-full border-none">
+                <table class="excel-table w-full border-none" id="parkedCarsTable">
                     <thead class="bg-gradient-to-r from-amber-600 to-amber-500 text-amber-50 text-xs tracking-wider sticky top-0 shadow-md z-10">
                         <tr>
-                            <th class="w-16 text-center px-4 py-4 font-bold border-b border-amber-700">จอด (วัน)</th>
-                            <th class="w-32 px-4 py-4 font-bold border-b border-amber-700">ทะเบียนรถ</th>
-                            <th class="w-40 px-4 py-4 font-bold border-b border-amber-700">ยี่ห้อ / รุ่น</th>
-                            <th class="w-40 px-4 py-4 font-bold border-b border-amber-700">ชื่อลูกค้า</th>
-                            <th class="w-32 px-4 py-4 font-bold border-b border-amber-700">สถานีช่างล่าสุด</th>
-                            <th class="w-24 text-center px-4 py-4 font-bold border-b border-amber-700">เป้าซ่อมเสร็จ</th>
-                            <th class="w-24 text-center px-4 py-4 font-bold border-b border-amber-700">เสร็จจริง</th>
-                            <th class="w-24 text-center px-4 py-4 font-bold border-b border-amber-700">กำหนดส่งมอบ</th>
-                            <th class="w-40 px-4 py-4 font-bold border-b border-amber-700">สถานะหลัก (ERP)</th>
-                            <th class="w-20 text-center px-4 py-4 font-bold border-b border-amber-700">จัดการ</th>
+                            <th class="w-16 px-4 py-4 border-b border-amber-700 group cursor-pointer" onclick="sortTable('parkedCarsTable', 0)">
+                                <div class="flex justify-between items-center"><span>จอด (วัน) <i class="fa-solid fa-sort sort-icon"></i></span> <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'parkedCarsTable', 0, 'วันจอด'); event.stopPropagation();"></i></div>
+                            </th>
+                            <th class="w-32 px-4 py-4 border-b border-amber-700 group cursor-pointer" onclick="sortTable('parkedCarsTable', 1)">
+                                <div class="flex justify-between items-center"><span>ทะเบียนรถ <i class="fa-solid fa-sort sort-icon"></i></span> <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'parkedCarsTable', 1, 'ทะเบียน'); event.stopPropagation();"></i></div>
+                            </th>
+                            <th class="w-40 px-4 py-4 border-b border-amber-700 group cursor-pointer" onclick="sortTable('parkedCarsTable', 2)">
+                                <div class="flex justify-between items-center"><span>ยี่ห้อ / รุ่น <i class="fa-solid fa-sort sort-icon"></i></span> <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'parkedCarsTable', 2, 'รุ่นรถ'); event.stopPropagation();"></i></div>
+                            </th>
+                            <th class="w-40 px-4 py-4 border-b border-amber-700 group cursor-pointer" onclick="sortTable('parkedCarsTable', 3)">
+                                <div class="flex justify-between items-center"><span>ชื่อลูกค้า <i class="fa-solid fa-sort sort-icon"></i></span> <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'parkedCarsTable', 3, 'ลูกค้า'); event.stopPropagation();"></i></div>
+                            </th>
+                            <th class="w-32 px-4 py-4 border-b border-amber-700 group cursor-pointer" onclick="sortTable('parkedCarsTable', 4)">
+                                <div class="flex justify-between items-center"><span>สถานีช่างล่าสุด <i class="fa-solid fa-sort sort-icon"></i></span> <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'parkedCarsTable', 4, 'สถานี'); event.stopPropagation();"></i></div>
+                            </th>
+                            <th class="w-24 px-4 py-4 border-b border-amber-700 group cursor-pointer text-center" onclick="sortTable('parkedCarsTable', 5)">
+                                <div class="flex justify-center items-center gap-1"><span>เป้าซ่อมเสร็จ <i class="fa-solid fa-sort sort-icon"></i></span></div>
+                            </th>
+                            <th class="w-24 px-4 py-4 border-b border-amber-700 group cursor-pointer text-center" onclick="sortTable('parkedCarsTable', 6)">
+                                <div class="flex justify-center items-center gap-1"><span>เสร็จจริง <i class="fa-solid fa-sort sort-icon"></i></span></div>
+                            </th>
+                            <th class="w-24 px-4 py-4 border-b border-amber-700 group cursor-pointer text-center" onclick="sortTable('parkedCarsTable', 7)">
+                                <div class="flex justify-center items-center gap-1"><span>กำหนดส่งมอบ <i class="fa-solid fa-sort sort-icon"></i></span></div>
+                            </th>
+                            <th class="w-40 px-4 py-4 border-b border-amber-700 group cursor-pointer" onclick="sortTable('parkedCarsTable', 8)">
+                                <div class="flex justify-between items-center"><span>สถานะหลัก (ERP) <i class="fa-solid fa-sort sort-icon"></i></span> <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 'parkedCarsTable', 8, 'สถานะ'); event.stopPropagation();"></i></div>
+                            </th>
+                            <th class="w-20 px-4 py-4 border-b border-amber-700 text-center font-bold">จัดการ</th>
                         </tr>
                     </thead>
                     <tbody id="parked_cars_body" class="divide-y divide-slate-100 bg-white">
@@ -342,7 +415,7 @@
 
     </main>
 
-    <!-- 🌟 Modal: แสดงรายการรถ (แยก SA) 🌟 -->
+    <!-- 🌟 Modal: แสดงรายการรถ (แยก SA แบบย่อขยายได้) 🌟 -->
     <div id="jobListModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center hidden p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden modal-fade border border-[#00320D] flex flex-col max-h-[90vh]">
             <div class="bg-[#00320D] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md z-20 relative border-b-4 border-amber-500">
@@ -373,6 +446,11 @@
         
         let userRole = '';
         let userBranch = '';
+        
+        // 🌟 สำหรับระบบ Excel Filter 🌟
+        let activeFilters = {}; 
+        let currentFilterTable = '';
+        let currentFilterCol = -1;
 
         function isTrue(val) {
             if (val === null || val === undefined) return false;
@@ -388,6 +466,13 @@
             const d = new Date();
             const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
             return `${end.getFullYear()}-${String(end.getMonth()+1).padStart(2,'0')}-${String(end.getDate()).padStart(2,'0')}`;
+        }
+
+        function getCellValue(cell) {
+            if(!cell) return '';
+            const input = cell.querySelector('input, select');
+            if (input) return input.tagName === 'SELECT' ? input.options[input.selectedIndex].text.trim() : input.value.trim();
+            return cell.innerText.trim();
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -416,6 +501,14 @@
 
             setupBranchDropdown();
             fetchDashboardData();
+
+            // 🌟 ซ่อน Modal Filter เมื่อคลิกที่อื่น 🌟
+            document.addEventListener('click', (e) => {
+                const modal = document.getElementById('excelFilterModal');
+                if (!modal.contains(e.target) && !e.target.closest('.filter-icon') && !modal.classList.contains('hidden')) {
+                    closeExcelFilter();
+                }
+            });
         });
 
         function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
@@ -477,6 +570,10 @@
                 filteredPartOrders = allPartOrders.filter(o => o.branch_name === selectedBranch);
             }
             
+            // ล้างฟิลเตอร์ตารางก่อน Render ใหม่
+            activeFilters = {};
+            document.querySelectorAll('.filter-icon').forEach(i => { i.classList.remove('active'); });
+
             renderKPIs(startDate, endDate);
             renderDailyReport(); 
             renderStatusChart();
@@ -484,9 +581,11 @@
             renderFinanceChart(startDate, endDate);
             renderSASection();
             renderStationSection();
-            renderStationTable(); 
+            
             renderPartsTracking();
+            renderStationTable(); 
             renderParkedCars();
+            
             renderCalendarByRange(startDate, endDate);
         }
 
@@ -777,7 +876,129 @@
             document.getElementById('jobListModal').classList.remove('hidden');
         }
 
-        // 🌟 แยกส่วน "รถที่กำลังอยู่ในสถานีช่าง" ให้เห็นชัดๆ 
+        // ==============================================
+        // 🌟 EXCEL FILTER LOGIC สำหรับ Dashboard 🌟
+        // ==============================================
+        function openExcelFilter(e, tableId, colIndex, title) {
+            e.stopPropagation();
+            currentFilterTable = tableId;
+            currentFilterCol = colIndex;
+            document.getElementById('ef_col_name').innerText = title;
+            document.getElementById('ef_search').value = '';
+
+            if (!activeFilters[tableId]) activeFilters[tableId] = {};
+            const rows = Array.from(document.getElementById(tableId).querySelector('tbody').querySelectorAll('tr'));
+            
+            const uniqueValues = new Set();
+            rows.forEach(row => { if(row.cells.length > colIndex) uniqueValues.add(getCellValue(row.cells[colIndex])); });
+
+            const sortedValues = [...uniqueValues].sort();
+            const listDiv = document.getElementById('ef_checkbox_list');
+            listDiv.innerHTML = '';
+            const activeSet = activeFilters[tableId][colIndex];
+
+            sortedValues.forEach(val => {
+                const isChecked = activeSet ? activeSet.has(val) : true;
+                listDiv.innerHTML += `
+                    <label class="flex items-start gap-2 hover:bg-slate-200 p-1.5 rounded cursor-pointer ef-item transition">
+                        <input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''} class="ef-check accent-[#00320D] mt-0.5 cursor-pointer">
+                        <span class="text-slate-800 font-medium truncate w-full" title="${val}">${val === '' ? '(ว่าง)' : val}</span>
+                    </label>
+                `;
+            });
+
+            document.getElementById('ef_select_all').checked = Array.from(document.querySelectorAll('.ef-check')).every(cb => cb.checked);
+            
+            const modal = document.getElementById('excelFilterModal');
+            const rect = e.target.getBoundingClientRect();
+            modal.style.top = (rect.bottom + window.scrollY + 8) + 'px';
+            let leftPos = rect.left + window.scrollX;
+            if (leftPos + 260 > window.innerWidth) leftPos = window.innerWidth - 270;
+            modal.style.left = leftPos + 'px';
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+        }
+
+        function closeExcelFilter() {
+            document.getElementById('excelFilterModal').classList.add('hidden');
+            document.getElementById('excelFilterModal').classList.remove('flex');
+        }
+
+        function searchExcelFilter() {
+            const txt = document.getElementById('ef_search').value.toLowerCase();
+            document.querySelectorAll('.ef-item').forEach(l => {
+                l.style.display = l.querySelector('.ef-check').value.toLowerCase().includes(txt) ? 'flex' : 'none';
+            });
+        }
+        function toggleAllExcelFilters(c) { document.querySelectorAll('.ef-item:not([style*="display: none"]) .ef-check').forEach(cb => cb.checked = c); }
+
+        function applyExcelFilter() {
+            const checks = document.querySelectorAll('.ef-check');
+            const checkedVals = Array.from(checks).filter(cb => cb.checked).map(cb => cb.value);
+            const thIcon = document.getElementById(currentFilterTable).querySelectorAll('th')[currentFilterCol].querySelector('.filter-icon');
+
+            if (checkedVals.length === checks.length || checkedVals.length === 0) {
+                delete activeFilters[currentFilterTable][currentFilterCol];
+                if(thIcon) { thIcon.classList.remove('active'); }
+            } else {
+                if (!activeFilters[currentFilterTable]) activeFilters[currentFilterTable] = {};
+                activeFilters[currentFilterTable][currentFilterCol] = new Set(checkedVals);
+                if(thIcon) { thIcon.classList.add('active'); }
+            }
+            closeExcelFilter(); runTableFilters(currentFilterTable);
+        }
+
+        function clearSpecificExcelFilter() {
+            if(activeFilters[currentFilterTable]) delete activeFilters[currentFilterTable][currentFilterCol];
+            const thIcon = document.getElementById(currentFilterTable).querySelectorAll('th')[currentFilterCol].querySelector('.filter-icon');
+            if(thIcon) { thIcon.classList.remove('active'); }
+            closeExcelFilter(); runTableFilters(currentFilterTable);
+        }
+
+        function runTableFilters(tableId) {
+            const rows = document.getElementById(tableId).querySelector('tbody').getElementsByTagName('tr');
+            const tableFilters = activeFilters[tableId] || {};
+            for (let i = 0; i < rows.length; i++) {
+                if(rows[i].cells.length === 1 && rows[i].cells[0].colSpan > 1) continue;
+                let showRow = true;
+                for (const [colIndex, activeSet] of Object.entries(tableFilters)) {
+                    if(!activeSet.has(getCellValue(rows[i].cells[colIndex]))) { showRow = false; break; }
+                }
+                rows[i].style.display = showRow ? "" : "none";
+            }
+        }
+
+        function sortTable(tableId, colIndex) {
+            const table = document.getElementById(tableId);
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            if (rows.length <= 1) return;
+
+            table.querySelectorAll('.fa-sort, .fa-sort-up, .fa-sort-down').forEach(icon => {
+                icon.className = "fa-solid fa-sort sort-icon";
+            });
+
+            let dir = table.getAttribute(`data-dir-${colIndex}`) || 'asc';
+            table.setAttribute(`data-dir-${colIndex}`, dir === 'asc' ? 'desc' : 'asc');
+            
+            const clickedIcon = table.querySelectorAll('th')[colIndex].querySelector('.sort-icon');
+            if (clickedIcon) {
+                clickedIcon.className = dir === 'asc' ? "fa-solid fa-sort-down ml-1 text-white opacity-100" : "fa-solid fa-sort-up ml-1 text-white opacity-100";
+            }
+
+            rows.sort((a, b) => {
+                let valA = getCellValue(a.cells[colIndex]); let valB = getCellValue(b.cells[colIndex]);
+                let numA = parseFloat(valA.replace(/,/g, '')); let numB = parseFloat(valB.replace(/,/g, ''));
+                if (!isNaN(numA) && !isNaN(numB)) return dir === 'asc' ? numA - numB : numB - numA;
+                return dir === 'asc' ? valA.localeCompare(valB, 'th') : valB.localeCompare(valA, 'th');
+            });
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        // ==============================================
+        // 🌟 RENDERING TABLES 🌟
+        // ==============================================
+
+        // 🌟 แยกส่วน "รถที่กำลังอยู่ในสถานีช่าง" พร้อมคอลัมน์และแจ้งเตือน 
         function renderStationTable() {
             const tbody = document.getElementById('station_table_body');
             const activeStations = ["01.เคาะ", "02.โป๊ว", "03.เตรียมพื้น", "04.พ่นสี", "05.ประกอบ", "06.ขัดสี", "08.เก็บงาน", "09.ซ่อมแม็ก", "10.กระจก", "11.ฟิล์ม"];
@@ -795,24 +1016,39 @@
 
             inRepairCars.sort((a,b) => new Date(a.target_finish_date||'9999') - new Date(b.target_finish_date||'9999'));
 
+            const today = new Date();
+            today.setHours(0,0,0,0);
+
             tbody.innerHTML = inRepairCars.map(j => {
                 const target = j.target_finish_date ? j.target_finish_date.split('T')[0] : '-';
                 const actual = j.repair_finish_date ? j.repair_finish_date.split('T')[0] : '-';
+                const delivery = j.delivery_date ? j.delivery_date.split('T')[0] : '-';
                 const station = computeHighestStationIFS(j);
+                
+                let overdueWarning = '';
+                if (j.delivery_date) {
+                    let dDate = new Date(j.delivery_date); dDate.setHours(0,0,0,0);
+                    if (today > dDate) overdueWarning = `<i class="fa-solid fa-triangle-exclamation text-red-500 animate-pulse ml-1" title="เลยกำหนดส่งมอบ!"></i>`;
+                } else if (j.target_finish_date) {
+                    let tDate = new Date(j.target_finish_date); tDate.setHours(0,0,0,0);
+                    if (today > tDate) overdueWarning = `<i class="fa-solid fa-clock text-amber-500 animate-pulse ml-1" title="เลยเป้าซ่อมเสร็จ!"></i>`;
+                }
                 
                 return `
                     <tr class="cursor-pointer hover:bg-orange-50/50 transition-colors border-b border-slate-100" onclick="goToEditJob('${j.id}')">
-                        <td class="px-4 py-3 font-black text-orange-700"><span class="bg-orange-50 px-2.5 py-1 rounded border border-orange-200 shadow-inner">${j.car_plate || '-'}</span></td>
+                        <td class="px-4 py-3 font-black text-orange-700"><span class="bg-orange-50 px-2.5 py-1 rounded border border-orange-200 shadow-inner">${j.car_plate || '-'}${overdueWarning}</span></td>
                         <td class="px-4 py-3 text-xs font-bold text-slate-700">${j.car_brand} ${j.car_model || ''}</td>
                         <td class="px-4 py-3 text-xs font-medium text-slate-600 truncate max-w-[150px]" title="${j.customer_name}">${j.customer_name || '-'}</td>
                         <td class="px-4 py-3 text-xs font-bold text-slate-700"><span class="bg-slate-100 px-2 py-1 rounded shadow-sm border border-slate-200">${j.job_status || '-'}</span></td>
                         <td class="px-4 py-3 text-xs font-black text-orange-600 bg-orange-50/30"><i class="fa-solid fa-wrench"></i> ${station.replace(/[0-9.]/g, '')}</td>
                         <td class="px-4 py-3 font-mono text-xs text-blue-600 text-center font-bold">${target}</td>
                         <td class="px-4 py-3 font-mono text-xs text-emerald-600 text-center font-bold">${actual}</td>
+                        <td class="px-4 py-3 font-mono text-xs text-purple-600 text-center font-bold">${delivery}</td>
                         <td class="px-4 py-3 text-center"><button class="bg-white text-orange-600 border border-orange-300 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-orange-500 hover:text-white transition shadow-sm whitespace-nowrap"><i class="fa-solid fa-folder-open"></i> ดูใบงาน</button></td>
                     </tr>
                 `;
             }).join('');
+            runTableFilters('stationTable');
         }
 
         // 🌟 อัปเกรดตารางอะไหล่ (โชว์เฉพาะค้างรับ) 
@@ -850,6 +1086,7 @@
                     </tr>
                 `;
             }).join('');
+            runTableFilters('partsTrackingTable');
         }
 
         // 🌟 อัปเกรดตารางรถจอดซ่อม (โชว์เฉพาะรถในศูนย์ ไม่รวมส่งมอบแล้ว)
@@ -903,6 +1140,7 @@
                     </tr>
                 `;
             }).join('');
+            runTableFilters('parkedCarsTable');
         }
 
         function renderCalendarByRange(startDate, endDate) {
@@ -1048,6 +1286,19 @@
             document.getElementById('jobListModal').classList.remove('hidden');
         }
 
+        // 🌟 แยกตารางรายการตาม SA (แบบ Accordion ย่อ/ขยายได้) 🌟
+        window.toggleSAAccordion = function(id) {
+            const el = document.getElementById(id);
+            const icon = document.getElementById('icon_' + id);
+            if(el.classList.contains('hidden')) {
+                el.classList.remove('hidden');
+                icon.classList.add('rotate-90'); 
+            } else {
+                el.classList.add('hidden');
+                icon.classList.remove('rotate-90');
+            }
+        }
+
         function renderJobTableInModalGroupedBySA(jobs) {
             const container = document.getElementById('modal_job_container');
             if (jobs.length === 0) { 
@@ -1064,25 +1315,30 @@
 
             let finalHtml = '';
             
-            Object.keys(groupedBySA).sort().forEach(sa => {
+            Object.keys(groupedBySA).sort().forEach((sa, index) => {
+                const groupId = `sa_group_${index}`;
                 finalHtml += `
-                    <div class="bg-slate-100 px-4 py-2 border-y border-slate-300 flex items-center justify-between sticky top-0 z-10 shadow-sm">
-                        <span class="font-black text-[#00320D] text-sm"><i class="fa-solid fa-user-tie text-amber-500 mr-2"></i> SA: ${sa}</span>
+                    <div class="bg-slate-100 px-4 py-3 border-y border-slate-300 flex items-center justify-between sticky top-0 z-10 shadow-sm cursor-pointer hover:bg-slate-200 transition" onclick="toggleSAAccordion('${groupId}')">
+                        <span class="font-black text-[#00320D] text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-chevron-right transition-transform duration-200 text-slate-400" id="icon_${groupId}"></i> 
+                            <i class="fa-solid fa-user-tie text-amber-500"></i> SA: ${sa}
+                        </span>
                         <span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-xs font-bold border border-amber-300">${groupedBySA[sa].length} คัน</span>
                     </div>
-                    <table class="excel-table w-full border-none mb-4">
-                        <thead class="bg-white text-slate-500 text-[10px] uppercase border-b border-slate-200">
-                            <tr>
-                                <th class="px-4 py-2 font-bold text-left">ทะเบียนรถ</th>
-                                <th class="px-4 py-2 font-bold text-left">ยี่ห้อ/รุ่น</th>
-                                <th class="px-4 py-2 font-bold text-left">ลูกค้า</th>
-                                <th class="px-4 py-2 font-bold text-left">ความเสียหาย</th>
-                                <th class="px-4 py-2 font-bold text-left">สถานะอะไหล่</th>
-                                <th class="px-4 py-2 font-bold text-left">สถานะซ่อม (ERP)</th>
-                                <th class="px-4 py-2 font-bold text-center">จัดการ</th>
-                            </tr>
-                        </thead>
-                        <tbody class="text-sm divide-y divide-slate-100 bg-white">
+                    <div id="${groupId}" class="hidden">
+                        <table class="excel-table w-full border-none mb-2">
+                            <thead class="bg-white text-slate-500 text-[10px] uppercase border-b border-slate-200">
+                                <tr>
+                                    <th class="px-4 py-2 font-bold text-left">ทะเบียนรถ</th>
+                                    <th class="px-4 py-2 font-bold text-left">ยี่ห้อ/รุ่น</th>
+                                    <th class="px-4 py-2 font-bold text-left">ลูกค้า</th>
+                                    <th class="px-4 py-2 font-bold text-left">ความเสียหาย</th>
+                                    <th class="px-4 py-2 font-bold text-left">สถานะอะไหล่</th>
+                                    <th class="px-4 py-2 font-bold text-left">สถานะซ่อม (ERP)</th>
+                                    <th class="px-4 py-2 font-bold text-center">จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm divide-y divide-slate-100 bg-white">
                 `;
                 
                 groupedBySA[sa].forEach(j => {
@@ -1108,7 +1364,7 @@
                         </tr>
                     `;
                 });
-                finalHtml += `</tbody></table>`;
+                finalHtml += `</tbody></table></div>`;
             });
 
             container.innerHTML = finalHtml;
