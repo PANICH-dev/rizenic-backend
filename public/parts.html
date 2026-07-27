@@ -53,6 +53,7 @@
 </head>
 <body class="text-slate-800 h-screen flex flex-col selection:bg-[#00320D] selection:text-white">
 
+    <!-- 🔔 ป๊อปอัปแจ้งเตือนการ Auto-Save (Toast) -->
     <div id="toastMsg" class="fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 translate-y-20 opacity-0 z-[200] flex items-center gap-2 border border-white/20">
         <span id="toastContent"><i class="fa-solid fa-circle-check text-xl"></i> บันทึกข้อมูลอัตโนมัติเรียบร้อย!</span>
     </div>
@@ -156,7 +157,7 @@
             <div class="card-container border-l-4 border-l-emerald-600">
                 <div class="px-5 py-3.5 bg-slate-50 border-b flex justify-between items-center shrink-0">
                     <span class="text-sm font-bold text-[#00320D] flex items-center gap-2"><i class="fa-solid fa-download text-emerald-600"></i> ประวัติการรับเข้าคลังสินค้าพาร์ทอะไหล่ (Inbound)</span>
-                    <button onclick="openInboundModal()" class="text-xs bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-sm font-bold hover:bg-emerald-700 transition"><i class="fa-solid fa-plus"></i> บันทึกรับเข้าใหม่</button>
+                    <button onclick="openInboundModal()" class="text-xs bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-sm font-bold hover:bg-emerald-700 transition"><i class="fa-solid fa-download"></i> บันทึกรับเข้าใหม่ (ค้างส่ง)</button>
                 </div>
                 <div class="flex-1 overflow-auto custom-scrollbar">
                     <table class="modern-table" id="inTable">
@@ -295,50 +296,85 @@
         </div>
     </div>
 
-    <!-- Modal: รับเข้า -->
+    <!-- 🌟 Modal: รับเข้า (Multi-item) อัปเกรดใหม่ 🌟 -->
     <div id="inboundModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden border-t-4 border-t-emerald-500 flex flex-col max-h-[90vh]">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden border-t-4 border-t-emerald-500 flex flex-col max-h-[90vh]">
             <div class="px-6 py-4 border-b flex justify-between items-center bg-emerald-50/50 shrink-0">
-                <h3 class="font-black text-emerald-900 flex items-center gap-2 text-sm sm:text-base"><i class="fa-solid fa-download text-emerald-600"></i> <span id="inbound_modal_title">บันทึกรับเข้าคลังสินค้าพาร์ทอะไหล่</span></h3>
+                <h3 class="font-black text-emerald-900 flex items-center gap-2 text-sm sm:text-base"><i class="fa-solid fa-truck-ramp-box text-emerald-600"></i> <span id="inbound_modal_title">บันทึกรับเข้าคลังสินค้า (จากรายการสั่งซื้อที่ยังไม่ครบ)</span></h3>
                 <button type="button" onclick="closeInboundModal()" class="text-slate-400 hover:text-red-500 transition"><i class="fa-solid fa-xmark text-2xl"></i></button>
             </div>
-            <form id="inboundForm" onsubmit="submitInbound(event)" class="flex flex-col flex-1 overflow-hidden">
+
+            <div class="p-4 bg-white border-b shrink-0 flex gap-4 items-center justify-between">
+                <div class="relative w-full max-w-md">
+                    <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="multi_inbound_search" onkeyup="filterMultiInboundTable()" class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none text-sm font-bold text-slate-700 focus:border-emerald-500 shadow-sm" placeholder="ค้นหา EPC, บาร์โค้ด, ทะเบียน, ชื่ออะไหล่...">
+                </div>
+                <div class="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                    <span class="text-xs font-bold text-slate-500">เลือกทั้งหมด</span>
+                    <input type="checkbox" id="chk_all_inbound" onchange="toggleAllInbound(this.checked)" class="w-5 h-5 accent-emerald-500 cursor-pointer rounded">
+                </div>
+            </div>
+
+            <form id="inboundForm" onsubmit="submitMultiInbound(event)" class="flex flex-col flex-1 overflow-hidden">
+                <div class="flex-1 overflow-y-auto custom-scrollbar p-0 bg-slate-50">
+                    <table class="modern-table w-full" id="multiInboundTable">
+                        <thead class="bg-[#00320D] text-white sticky top-0 shadow-sm z-10">
+                            <tr>
+                                <th class="w-12 text-center py-3">เลือก</th>
+                                <th class="w-36 text-center py-3">วันที่รับเข้า</th>
+                                <th class="w-24 text-center py-3">ทะเบียนรถ</th>
+                                <th class="w-24 py-3 text-center">EPC No</th>
+                                <th class="w-32 py-3 text-center">บาร์โค้ด</th>
+                                <th class="py-3">รายการชิ้นส่วน</th>
+                                <th class="w-20 text-center py-3">ค้างรับ</th>
+                                <th class="w-24 text-center py-3">รับรอบนี้</th>
+                            </tr>
+                        </thead>
+                        <tbody id="multi_inbound_body" class="divide-y divide-slate-200 bg-white">
+                            <!-- Injected via JS -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="bg-white px-6 py-4 border-t flex justify-between items-center shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                    <div class="text-sm font-bold text-slate-600 bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-200">
+                        <i class="fa-solid fa-boxes-stacked text-emerald-600 mr-2"></i> เลือกรับเข้า <span id="multi_inbound_count" class="text-emerald-700 font-black text-lg mx-1">0</span> รายการ
+                    </div>
+                    <div class="flex gap-3">
+                        <button type="button" onclick="closeInboundModal()" class="px-5 py-2.5 bg-white text-slate-600 rounded-lg font-bold border border-slate-300 hover:bg-slate-100 transition shadow-sm">ยกเลิก</button>
+                        <button type="submit" id="btn_submit_inbound" class="px-8 py-2.5 bg-emerald-600 text-white font-black rounded-lg shadow-md hover:bg-emerald-700 transition flex items-center gap-2"><i class="fa-solid fa-check-double"></i> ยืนยันการรับเข้า</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 🌟 Modal: แก้ไขประวัติรับเข้า (Single Edit) 🌟 -->
+    <div id="editInboundModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden border-t-4 border-t-blue-500 flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 border-b flex justify-between items-center bg-blue-50/50 shrink-0">
+                <h3 class="font-black text-blue-900 flex items-center gap-2 text-sm sm:text-base"><i class="fa-solid fa-pen text-blue-600"></i> แก้ไขข้อมูลประวัติรับเข้า</h3>
+                <button type="button" onclick="closeEditInboundModal()" class="text-slate-400 hover:text-red-500 transition"><i class="fa-solid fa-xmark text-2xl"></i></button>
+            </div>
+            <form id="editInboundForm" onsubmit="submitEditInbound(event)" class="flex flex-col flex-1 overflow-hidden">
                 <div class="p-6 flex-1 overflow-y-auto custom-scrollbar">
                     <input type="hidden" id="edit_inbound_id">
-                    
-                    <!-- 🌟 ซ่อนช่อง Input ข้อมูลที่ไม่อยากให้พิมพ์เองไว้ เพื่อส่งข้อมูลไปกับ Form 🌟 -->
-                    <input type="hidden" id="in_epc">
-                    <input type="hidden" id="in_part_no">
-                    <input type="hidden" id="in_part_main">
-                    <input type="hidden" id="in_part_name">
-                    <input type="hidden" id="in_model">
-                    
-                    <!-- 🌟 ส่วนแสดงข้อมูลให้ตรวจสอบแบบ Read-Only 🌟 -->
-                    <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-4">
-                        <h4 class="text-xs font-black text-emerald-800 mb-2 uppercase border-b border-emerald-200 pb-2"><i class="fa-solid fa-box-open mr-1"></i> ข้อมูลอะไหล่ที่รับเข้า</h4>
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                            <div><p class="text-[10px] text-emerald-600 font-bold">EPC No.</p><p id="display_in_epc" class="font-mono font-bold text-slate-700">-</p></div>
-                            <div><p class="text-[10px] text-emerald-600 font-bold">บาร์โค้ดอะไหล่</p><p id="display_in_part_no" class="font-mono font-black text-blue-700">-</p></div>
-                            <div><p class="text-[10px] text-emerald-600 font-bold">MAIN No.</p><p id="display_in_part_main" class="font-mono font-bold text-slate-700">-</p></div>
-                            <div><p class="text-[10px] text-emerald-600 font-bold">รุ่นรถ</p><p id="display_in_model" class="font-bold text-slate-700">-</p></div>
-                            <div class="col-span-2 md:col-span-4"><p class="text-[10px] text-emerald-600 font-bold">รายการชิ้นส่วน</p><p id="display_in_part_name" class="font-bold text-slate-800 bg-white px-2 py-1 rounded border border-emerald-100">-</p></div>
-                        </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end mb-4">
+                        <div><label class="label-text text-red-600">วันที่ของเข้า *</label><input type="date" id="edit_in_date" required class="minimal-input font-mono bg-blue-50 border-blue-200"></div>
+                        <div><label class="label-text">EPC No</label><input type="text" id="edit_in_epc" class="minimal-input font-mono uppercase bg-slate-50 border-slate-200"></div>
+                        <div><label class="label-text">บาร์โค้ดรับ</label><input type="text" id="edit_in_part_no" required class="minimal-input font-mono uppercase bg-slate-50 border-slate-200"></div>
+                        <div><label class="label-text text-red-600">จำนวนรับเข้า *</label><input type="number" id="edit_in_qty" required min="1" value="1" class="minimal-input text-center font-black text-blue-700 text-lg border-blue-200"></div>
                     </div>
-
-                    <!-- 🌟 ส่วนกรอกข้อมูลรับเข้าที่ให้กรอกได้ 🌟 -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                        <div><label class="label-text text-red-600">1. วันที่ของเข้าจริง *</label><input type="date" id="in_date" required class="minimal-input font-mono bg-white border-emerald-300"></div>
-                        <div><label class="label-text text-red-600">2. จำนวนรับเข้า *</label><input type="number" id="in_qty" required min="1" value="1" class="minimal-input text-center font-black text-emerald-700 text-2xl border-emerald-300" onkeyup="calcInTotal()"></div>
-                    </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end mt-4 pt-4 border-t border-slate-100">
-                        <div><label class="label-text">ราคาต่อหน่วย</label><input type="number" id="in_price" class="minimal-input text-right font-mono" readonly value="0"></div>
-                        <div><label class="label-text">มูลค่ารวม</label><input type="number" id="in_total" class="minimal-input text-right font-bold text-blue-700 font-mono" readonly value="0"></div>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end border-t border-slate-100 pt-4">
+                        <div><label class="label-text">หมายเลขอะไหล่ (Main)</label><input type="text" id="edit_in_part_main" class="minimal-input"></div>
+                        <div class="md:col-span-1"><label class="label-text">รายการชิ้นส่วน</label><input type="text" id="edit_in_part_name" class="minimal-input text-blue-700 font-bold"></div>
+                        <div><label class="label-text">ราคาต่อหน่วย</label><input type="number" id="edit_in_price" class="minimal-input text-right font-mono" value="0" step="0.01"></div>
+                        <input type="hidden" id="edit_in_model">
                     </div>
                 </div>
                 <div class="bg-slate-50 px-6 py-4 border-t flex justify-end gap-3 shrink-0">
-                    <button type="button" onclick="closeInboundModal()" class="px-5 py-2.5 bg-white text-slate-600 rounded-lg font-bold border border-slate-300 hover:bg-slate-100 transition shadow-sm">ยกเลิก</button>
-                    <button type="submit" id="btn_submit_inbound" class="px-8 py-2.5 bg-emerald-600 text-white font-black rounded-lg shadow-md hover:bg-emerald-700 transition flex items-center gap-2"><i class="fa-solid fa-check"></i> ยืนยันรับเข้าสต๊อก</button>
+                    <button type="button" onclick="closeEditInboundModal()" class="px-5 py-2.5 bg-white text-slate-600 rounded-lg font-bold border border-slate-300 hover:bg-slate-100 transition shadow-sm">ยกเลิก</button>
+                    <button type="submit" class="px-8 py-2.5 bg-blue-600 text-white font-black rounded-lg shadow-md hover:bg-blue-700 transition flex items-center gap-2"><i class="fa-solid fa-save"></i> บันทึกแก้ไข</button>
                 </div>
             </form>
         </div>
@@ -453,6 +489,11 @@
             setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 2500);
         }
 
+        function getTodayString() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+
         function getCellValue(cell) {
             if(!cell) return '';
             const input = cell.querySelector('input, select');
@@ -482,8 +523,9 @@
             currentBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
             document.getElementById('display_branch').innerText = currentBranch;
             
-            const today = new Date().toISOString().split('T')[0];
-            ['po_date','in_date','out_date'].forEach(id => { if(document.getElementById(id)) document.getElementById(id).value = today; });
+            const todayStr = getTodayString();
+            if(document.getElementById('po_date')) document.getElementById('po_date').value = todayStr;
+            if(document.getElementById('out_date')) document.getElementById('out_date').value = todayStr;
             
             loadAllData();
             loadCarModelsGrid(); 
@@ -738,16 +780,6 @@
                 showToast('อัปเดตข้อมูลบนตารางเรียบร้อย!');
             } catch(e) { showToast('แก้ไขข้อมูลไม่สำเร็จ', 'error'); loadAllData(); }
         }
-        
-        async function fastUpdateInbound(id, field, value) {
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/part-inbound/${id}/fast`, {
-                    method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ field, value })
-                });
-                if(!res.ok) throw new Error();
-                showToast('อัปเดตข้อมูลรับเข้าเรียบร้อย!'); loadStockInHouse(); 
-            } catch(e) { showToast('แก้ไขข้อมูลรับเข้าไม่สำเร็จ', 'error'); loadAllData(); }
-        }
 
         async function fastUpdateOutbound(id, field, value) {
             try {
@@ -828,6 +860,9 @@
                     const sName = getSafeStatusName(s);
                     return `<option value="${sName}" ${currentStatus === sName ? 'selected' : ''}>${sName}</option>`;
                 }).join('');
+                if(!dropdownHtml.includes('selected')) {
+                    dropdownHtml = `<option value="${currentStatus}" selected>${currentStatus}</option>` + dropdownHtml;
+                }
 
                 html += `
                 <tr data-id="${orderId}" class="hover:bg-amber-50/50 transition-colors group">
@@ -924,63 +959,211 @@
         }
         function closePOModal() { const m = document.getElementById('poModal'); m.classList.add('hidden'); m.classList.remove('flex'); }
 
-        // 🌟 ดึงข้อมูล PO ที่กดรับเข้ามาลงใน Inbound Modal ทันที 🌟
+        // 🌟 เปิด Inbound Modal แบบดึงรายการค้างรับทั้งหมดมาแสดงเป็นตาราง 🌟
+        function openInboundModal() {
+            const tbody = document.getElementById('multi_inbound_body');
+            tbody.innerHTML = '';
+            
+            const pendingPOs = allGlobalParts.filter(po => {
+                if(po.branch_name !== currentBranch) return false;
+                if(po.order_status === 'ยกเลิก') return false;
+                
+                const inbounds = allInbounds.filter(i => cleanStr(i.part_no) === cleanStr(po.part_no) && cleanStr(i.epc_no) === cleanStr(po.epc_no));
+                const rcvQty = inbounds.reduce((sum, item) => sum + (parseInt(item.qty) || 0), 0);
+                const orderedQty = parseInt(po.qty_ordered) || 0;
+                return rcvQty < orderedQty;
+            });
+
+            if(pendingPOs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-10 text-slate-400 font-bold bg-slate-50">ไม่มีรายการอะไหล่ค้างรับ 🎉</td></tr>`;
+            } else {
+                let html = '';
+                const todayStr = getTodayString();
+                pendingPOs.forEach(po => {
+                    const inbounds = allInbounds.filter(i => cleanStr(i.part_no) === cleanStr(po.part_no) && cleanStr(i.epc_no) === cleanStr(po.epc_no));
+                    const rcvQty = inbounds.reduce((sum, item) => sum + (parseInt(item.qty) || 0), 0);
+                    const orderedQty = parseInt(po.qty_ordered) || 0;
+                    const remaining = orderedQty - rcvQty;
+                    
+                    html += `
+                    <tr class="inbound-row hover:bg-emerald-50 transition-colors cursor-pointer border-b border-slate-100" onclick="toggleRowCheckbox(this)">
+                        <td class="text-center p-2"><input type="checkbox" class="inbound-chk w-5 h-5 accent-emerald-500 cursor-pointer rounded" value="${po.id || po.order_id}" onchange="updateInboundCount(); event.stopPropagation();"></td>
+                        <td class="p-2 text-center" onclick="event.stopPropagation();"><input type="date" class="inbound-date minimal-input py-1 px-2 h-8 text-[11px] font-mono w-[120px] mx-auto text-center" value="${todayStr}" required></td>
+                        <td class="font-bold text-center"><span class="bg-slate-100 px-2 py-1 border border-slate-300 shadow-inner rounded text-[10px]">${po.car_plate || '-'}</span></td>
+                        <td class="font-mono text-amber-700 font-bold search-epc text-xs text-center">${po.epc_no || '-'}</td>
+                        <td class="font-mono font-bold text-blue-700 search-part text-xs text-center">${po.part_no || '-'}</td>
+                        <td class="font-bold text-slate-700 truncate search-name max-w-[250px] text-[11px]" title="${po.part_name || '-'}">${po.part_name || '-'}</td>
+                        <td class="text-center font-black text-rose-500">${remaining}</td>
+                        <td class="text-center p-1" onclick="event.stopPropagation();">
+                            <input type="number" class="inbound-qty minimal-input text-center font-black text-emerald-700 py-1 px-2 h-8 w-20 mx-auto" max="${remaining}" min="1" value="${remaining}">
+                            <input type="hidden" class="inbound-epc" value="${po.epc_no || ''}">
+                            <input type="hidden" class="inbound-part" value="${po.part_no || ''}">
+                            <input type="hidden" class="inbound-main" value="${po.part_main_no || ''}">
+                            <input type="hidden" class="inbound-name" value="${po.part_name || ''}">
+                            <input type="hidden" class="inbound-model" value="${po.car_model || ''}">
+                            <input type="hidden" class="inbound-price" value="${po.unit_price || 0}">
+                        </td>
+                    </tr>`;
+                });
+                tbody.innerHTML = html;
+            }
+            
+            document.getElementById('multi_inbound_search').value = '';
+            document.getElementById('chk_all_inbound').checked = false;
+            updateInboundCount();
+            document.getElementById('inboundModal').classList.remove('hidden');
+            document.getElementById('inboundModal').classList.add('flex');
+        }
+        function closeInboundModal() { document.getElementById('inboundModal').classList.add('hidden'); document.getElementById('inboundModal').classList.remove('flex'); }
+
+        // 🌟 เปิด Modal รับเข้าแบบสั่งเช็คออเดอร์นั้นอัตโนมัติ (จากหน้า PO)
         function openInboundModalFromPO(orderId) {
-            const p = allGlobalParts.find(x => String(x.id || x.order_id) === String(orderId));
-            if(!p) return;
-            
-            document.getElementById('inboundForm').reset();
-            document.getElementById('edit_inbound_id').value = ''; 
-            
-            document.getElementById('in_date').value = new Date().toISOString().split('T')[0];
-            document.getElementById('in_epc').value = p.epc_no || ''; 
-            document.getElementById('in_part_no').value = p.part_no || '';
-            document.getElementById('in_part_main').value = p.part_main_no || ''; 
-            document.getElementById('in_part_name').value = p.part_name || '';
-            document.getElementById('in_model').value = p.car_model || '';
-            
-            const rcvQty = allInbounds.filter(i => cleanStr(i.part_no) === cleanStr(p.part_no) && cleanStr(i.epc_no) === cleanStr(p.epc_no)).reduce((sum, item) => sum + (parseInt(item.qty) || 0), 0);
-            const remainingQty = Math.max(1, (parseInt(p.qty_ordered) || 1) - rcvQty);
-            
-            document.getElementById('in_qty').value = remainingQty; 
-            
-            // ใช้ฟังก์ชันโชว์ข้อมูล Read-only (แบบใหม่)
-            document.getElementById('display_in_epc').innerText = p.epc_no || '-';
-            document.getElementById('display_in_part_no').innerText = p.part_no || '-';
-            document.getElementById('display_in_part_main').innerText = p.part_main_no || '-';
-            document.getElementById('display_in_model').innerText = p.car_model || '-';
-            document.getElementById('display_in_part_name').innerText = p.part_name || '-';
-            
-            fetchMasterPart('in');
-            const m = document.getElementById('inboundModal'); m.classList.remove('hidden'); m.classList.add('flex');
+            openInboundModal(); 
+            setTimeout(() => {
+                const chk = document.querySelector(`.inbound-chk[value="${orderId}"]`);
+                if(chk) {
+                    chk.checked = true;
+                    const p = allGlobalParts.find(x => String(x.id || x.order_id) === String(orderId));
+                    if(p) {
+                        document.getElementById('multi_inbound_search').value = p.part_no;
+                        filterMultiInboundTable();
+                    }
+                    updateInboundCount();
+                }
+            }, 100);
         }
 
-        function openInboundModal(id = null) {
-            document.getElementById('inboundForm').reset();
-            
-            // เคลียร์ค่า Display
-            ['display_in_epc', 'display_in_part_no', 'display_in_part_main', 'display_in_model', 'display_in_part_name'].forEach(id => document.getElementById(id).innerText = '-');
-            
-            if(id) {
-                const p = allInbounds.find(x => String(x.id || x.inbound_id) === String(id));
-                if(p) {
-                    document.getElementById('in_date').value = p.received_date ? String(p.received_date).split('T')[0] : '';
-                    document.getElementById('in_epc').value = p.epc_no || ''; document.getElementById('in_part_no').value = p.part_no || '';
-                    document.getElementById('in_qty').value = p.qty || 1; document.getElementById('in_price').value = p.unit_price || 0;
-                    document.getElementById('in_part_main').value = p.part_main_no || ''; document.getElementById('in_part_name').value = p.part_name || '';
-                    document.getElementById('in_model').value = p.car_model || ''; calcInTotal();
-                    document.getElementById('edit_inbound_id').value = id;
-                    
-                    document.getElementById('display_in_epc').innerText = p.epc_no || '-';
-                    document.getElementById('display_in_part_no').innerText = p.part_no || '-';
-                    document.getElementById('display_in_part_main').innerText = p.part_main_no || '-';
-                    document.getElementById('display_in_model').innerText = p.car_model || '-';
-                    document.getElementById('display_in_part_name').innerText = p.part_name || '-';
-                }
-            } else { document.getElementById('edit_inbound_id').value = ''; }
-            const m = document.getElementById('inboundModal'); m.classList.remove('hidden'); m.classList.add('flex');
+        // 🌟 ตัวกรองและนับจำนวนใน Modal Inbound
+        function filterMultiInboundTable() {
+            const txt = document.getElementById('multi_inbound_search').value.toLowerCase();
+            const rows = document.querySelectorAll('#multi_inbound_body tr.inbound-row');
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                row.style.display = text.includes(txt) ? '' : 'none';
+            });
         }
-        function closeInboundModal() { const m = document.getElementById('inboundModal'); m.classList.add('hidden'); m.classList.remove('flex'); }
+        function toggleAllInbound(checked) {
+            const visibleCheckboxes = document.querySelectorAll('#multi_inbound_body tr.inbound-row:not([style*="display: none"]) .inbound-chk');
+            visibleCheckboxes.forEach(chk => chk.checked = checked);
+            updateInboundCount();
+        }
+        function toggleRowCheckbox(row) {
+            const chk = row.querySelector('.inbound-chk');
+            chk.checked = !chk.checked;
+            updateInboundCount();
+        }
+        function updateInboundCount() {
+            const count = document.querySelectorAll('.inbound-chk:checked').length;
+            document.getElementById('multi_inbound_count').innerText = count;
+        }
+
+        // 🌟 บันทึกรับเข้าหลายรายการพร้อมกัน
+        async function submitMultiInbound(e) {
+            e.preventDefault();
+            const rows = document.querySelectorAll('.inbound-row');
+            let promises = [];
+            
+            rows.forEach(row => {
+                const chk = row.querySelector('.inbound-chk');
+                if(chk.checked) {
+                    const qty = parseInt(row.querySelector('.inbound-qty').value) || 1;
+                    const dateVal = row.querySelector('.inbound-date').value;
+                    const epc = row.querySelector('.inbound-epc').value;
+                    const partNo = row.querySelector('.inbound-part').value;
+                    const partMain = row.querySelector('.inbound-main').value;
+                    const partName = row.querySelector('.inbound-name').value;
+                    const model = row.querySelector('.inbound-model').value;
+                    const price = parseFloat(row.querySelector('.inbound-price').value) || 0;
+                    
+                    const payload = {
+                        received_date: dateVal,
+                        epc_no: epc,
+                        part_no: partNo,
+                        part_main_no: partMain,
+                        part_name: partName,
+                        car_model: model,
+                        qty: qty,
+                        unit_price: price,
+                        branch_name: currentBranch
+                    };
+                    
+                    promises.push(fetch(`${API_BASE_URL}/api/part-inbound`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(payload)
+                    }));
+                }
+            });
+            
+            if(promises.length === 0) {
+                alert('⚠️ กรุณาติ๊กเลือกรายการที่ต้องการรับเข้าอย่างน้อย 1 รายการ');
+                return;
+            }
+            
+            const btn = document.getElementById('btn_submit_inbound');
+            const oldHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
+            btn.disabled = true;
+            
+            try {
+                await Promise.all(promises);
+                showToast(`รับเข้าคลังสำเร็จ ${promises.length} รายการ!`);
+                closeInboundModal();
+                loadAllData();
+            } catch(err) {
+                showToast('เกิดข้อผิดพลาดในการรับเข้า', 'error');
+            } finally {
+                btn.innerHTML = oldHtml;
+                btn.disabled = false;
+            }
+        }
+
+        // 🌟 เปิด Modal สำหรับแก้ไขประวัติ Inbound (เฉพาะชิ้น)
+        function openEditInboundModal(id) {
+            const p = allInbounds.find(x => String(x.id || x.inbound_id) === String(id));
+            if(!p) return;
+            document.getElementById('edit_inbound_id').value = id;
+            document.getElementById('edit_in_date').value = p.received_date ? String(p.received_date).split('T')[0] : '';
+            document.getElementById('edit_in_epc').value = p.epc_no || '';
+            document.getElementById('edit_in_part_no').value = p.part_no || '';
+            document.getElementById('edit_in_qty').value = p.qty || 1;
+            document.getElementById('edit_in_price').value = p.unit_price || 0;
+            document.getElementById('edit_in_part_main').value = p.part_main_no || '';
+            document.getElementById('edit_in_part_name').value = p.part_name || '';
+            document.getElementById('edit_in_model').value = p.car_model || '';
+            
+            const m = document.getElementById('editInboundModal');
+            m.classList.remove('hidden'); m.classList.add('flex');
+        }
+        function closeEditInboundModal() {
+            document.getElementById('editInboundModal').classList.add('hidden');
+            document.getElementById('editInboundModal').classList.remove('flex');
+        }
+
+        async function submitEditInbound(e) {
+            e.preventDefault();
+            const id = document.getElementById('edit_inbound_id').value;
+            const payload = {
+                received_date: document.getElementById('edit_in_date').value,
+                epc_no: document.getElementById('edit_in_epc').value,
+                part_no: document.getElementById('edit_in_part_no').value,
+                part_main_no: document.getElementById('edit_in_part_main').value,
+                part_name: document.getElementById('edit_in_part_name').value,
+                car_model: document.getElementById('edit_in_model').value,
+                qty: parseInt(document.getElementById('edit_in_qty').value),
+                unit_price: parseFloat(document.getElementById('edit_in_price').value),
+                branch_name: currentBranch
+            };
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/part-inbound/${id}`, {
+                    method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+                });
+                if(!res.ok) throw new Error();
+                showToast('แก้ไขข้อมูลรับเข้าสำเร็จ!');
+                closeEditInboundModal();
+                loadAllData();
+            } catch(e) { showToast('เกิดข้อผิดพลาด', 'error'); }
+        }
 
         function openOutboundModal(id = null) {
             document.getElementById('outboundForm').reset();
@@ -1127,10 +1310,14 @@
                     if (hideCompletedPO && isAllReceived) return;
 
                     const orderId = o.id || o.order_id;
+                    let currentStatus = o.order_status || 'รอสั่งซื้อ';
                     let dropdownHtml = allPOStatuses.map(s => {
                         const sName = getSafeStatusName(s);
-                        return `<option value="${sName}" ${o.order_status === sName ? 'selected' : ''}>${sName}</option>`;
+                        return `<option value="${sName}" ${currentStatus === sName ? 'selected' : ''}>${sName}</option>`;
                     }).join('');
+                    if(!dropdownHtml.includes('selected')) {
+                        dropdownHtml = `<option value="${currentStatus}" selected>${currentStatus}</option>` + dropdownHtml;
+                    }
 
                     const rcvAllStyle = isAllReceived ? 'bg-emerald-50 text-emerald-800 font-bold' : 'text-slate-400';
                     const hasETA = o.est_arrival_date && String(o.est_arrival_date).trim() !== '';
@@ -1173,6 +1360,7 @@
             } catch(e) {}
         }
 
+        // 🌟 เปลี่ยนปุ่ม Expand เป็นการเปิดหน้าต่างแก้ไข (Edit) แทน
         function loadInbound() {
             try {
                 const tbody = document.getElementById('inbound_table_body');
@@ -1188,8 +1376,8 @@
                         <td class="text-center p-1"><input type="number" value="${d.qty}" onchange="fastUpdateInbound('${inId}', 'qty', this.value)" class="inline-edit-input font-black text-emerald-600 bg-emerald-50 text-center"></td>
                         <td class="text-right font-mono p-1"><input type="number" value="${parseFloat(d.unit_price).toFixed(2)}" onchange="fastUpdateInbound('${inId}', 'unit_price', this.value)" class="inline-edit-input text-right"></td>
                         <td class="text-center flex justify-center gap-1 py-1">
-                            <button onclick="openInboundModal('${inId}')" class="text-blue-500 hover:text-blue-700 bg-blue-50 px-2 py-0.5 rounded"><i class="fa-solid fa-expand"></i></button>
-                            <button onclick="deleteRow('/api/part-inbound/${inId}')" class="text-red-500 hover:text-red-700 bg-red-50 px-2 py-0.5 rounded"><i class="fa-solid fa-trash"></i></button>
+                            <button onclick="openEditInboundModal('${inId}')" class="text-blue-500 hover:text-blue-700 bg-blue-50 px-2 py-0.5 rounded" title="แก้ไขรายการ"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deleteRow('/api/part-inbound/${inId}')" class="text-red-500 hover:text-red-700 bg-red-50 px-2 py-0.5 rounded" title="ลบประวัติ"><i class="fa-solid fa-trash"></i></button>
                         </td>
                     </tr>`}).join('');
                 runTableFilters('inTable');
@@ -1423,35 +1611,6 @@
             } catch(err) { showToast('เกิดข้อผิดพลาดคีย์ข้อมูล', 'error'); }
         }
 
-        async function submitInbound(e) {
-            e.preventDefault(); const editId = document.getElementById('edit_inbound_id').value;
-            const method = editId ? 'PUT' : 'POST'; const url = editId ? `${API_BASE_URL}/api/part-inbound/${editId}` : `${API_BASE_URL}/api/part-inbound`;
-            const payload = {
-                received_date: document.getElementById('in_date').value, epc_no: document.getElementById('in_epc').value, part_no: document.getElementById('in_part_no').value,
-                part_main_no: document.getElementById('in_part_main').value, part_name: document.getElementById('in_part_name').value, car_model: document.getElementById('in_model').value,
-                qty: parseInt(document.getElementById('in_qty').value), unit_price: parseFloat(document.getElementById('in_price').value), branch_name: currentBranch
-            };
-            try {
-                const res = await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-                if(!res.ok) throw new Error(); showToast('บันทึกรับเข้าสำเร็จ!'); closeInboundModal(); loadAllData();
-            } catch(e) { showToast('เกิดข้อผิดพลาด', 'error'); }
-        }
-
-        async function submitOutbound(e) {
-            e.preventDefault(); const editId = document.getElementById('edit_outbound_id').value;
-            const method = editId ? 'PUT' : 'POST'; const url = editId ? `${API_BASE_URL}/api/part-outbound/${editId}` : `${API_BASE_URL}/api/part-outbound`;
-            const payload = {
-                issue_date: document.getElementById('out_date').value, part_no: document.getElementById('out_part_no').value, qty: parseInt(document.getElementById('out_qty').value),
-                car_plate: document.getElementById('out_plate').value.toUpperCase().trim(), qt_no: document.getElementById('out_qt').value, so_no: document.getElementById('out_so').value,
-                part_main_no: document.getElementById('out_part_main').value, part_name: document.getElementById('out_part_name').value, unit_price: parseFloat(document.getElementById('out_price').value) || 0,
-                car_model: document.getElementById('out_model').value, job_status: document.getElementById('out_job_status').value, part_type: document.getElementById('out_type').value, branch_name: currentBranch
-            };
-            try {
-                const res = await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-                if(!res.ok) throw new Error(); showToast('บันทึกรายการสำเร็จ!'); closeOutboundModal(); loadAllData();
-            } catch(e) { showToast('เกิดข้อผิดพลาดเบิก/จอง', 'error'); }
-        }
-
         async function saveMasterPart() {
             const checkedModels = Array.from(document.querySelectorAll('.master-car-model-checkbox:checked')).map(cb => cb.value);
             const editId = document.getElementById('edit_master_id').value;
@@ -1487,36 +1646,6 @@
 
         function toggleCompletedPO() { hideCompletedPO = !hideCompletedPO; loadPOTracking(); }
         function calcInTotal() { document.getElementById('in_total').value = ((parseFloat(document.getElementById('in_price').value) || 0) * (parseInt(document.getElementById('in_qty').value) || 0)).toFixed(2); }
-        
-        // 🌟 ปรับระบบดึงข้อมูลลงฟอร์ม Inbound แบบ Search ข้าม EPC และ Barcode ได้
-        function autoFillInboundFromEPC(v) { 
-            if(!v) return; 
-            const searchKey = cleanStr(v);
-            
-            // หาจากประวัติ PO เพื่อดึงข้อมูลเฉพาะที่เพิ่งค้นมา
-            const m = allGlobalParts.find(o => cleanStr(o.part_no) === searchKey || cleanStr(o.epc_no) === searchKey); 
-            if(m) { 
-                document.getElementById('in_epc').value = m.epc_no || ''; 
-                document.getElementById('in_part_no').value = m.part_no || ''; 
-                document.getElementById('in_part_main').value = m.part_main_no || ''; 
-                document.getElementById('in_part_name').value = m.part_name || ''; 
-                document.getElementById('in_model').value = m.car_model || ''; 
-                
-                // คำนวณยอดที่ยังขาดส่ง
-                const rcvQty = allInbounds.filter(i => cleanStr(i.part_no) === cleanStr(m.part_no) && cleanStr(i.epc_no) === cleanStr(m.epc_no)).reduce((sum, item) => sum + (parseInt(item.qty) || 0), 0);
-                const remainingQty = Math.max(1, (parseInt(m.qty_ordered) || 1) - rcvQty);
-                document.getElementById('in_qty').value = remainingQty; 
-
-                // อัปเดต Display
-                document.getElementById('display_in_epc').innerText = m.epc_no || '-';
-                document.getElementById('display_in_part_no').innerText = m.part_no || '-';
-                document.getElementById('display_in_part_main').innerText = m.part_main_no || '-';
-                document.getElementById('display_in_model').innerText = m.car_model || '-';
-                document.getElementById('display_in_part_name').innerText = m.part_name || '-';
-
-                fetchMasterPart('in'); 
-            } 
-        }
 
         async function fetchMasterPart(p) { 
             const n = document.getElementById(`${p}_part_no`).value.trim(); 
