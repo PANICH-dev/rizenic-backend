@@ -837,25 +837,15 @@
             loadSAOrders(); loadPOTracking(); loadInbound(); loadOutbound(); loadStockInHouse(); loadMasterParts();
         }
 
-        function openCarPartsDetailsModal(carPlate, epcNo) {
+   function openCarPartsDetailsModal(carPlate, epcNo) {
             document.getElementById('modal_job_id').value = carPlate;
             document.getElementById('modal_epc').value = epcNo !== '-' ? epcNo : '';
             
             const container = document.getElementById('modal_dynamic_table_container');
-            const carParts = (allGlobalParts || []).filter(p => p.car_plate === carPlate);
+            const carParts = (allGlobalParts || []).filter(p => cleanStr(p.car_plate) === cleanStr(carPlate));
             
-            if(carParts.length === 0) {
-                container.innerHTML = `<div class="flex flex-col items-center justify-center py-20 text-slate-400">
-                    <i class="fa-solid fa-box-open text-4xl mb-3"></i>
-                    <p class="font-bold">ไม่พบรายการสั่งซื้ออะไหล่สำหรับทะเบียน ${carPlate}</p>
-                </div>`;
-                document.getElementById('alertModal').classList.remove('hidden');
-                document.getElementById('alertModal').classList.add('flex');
-                return;
-            }
-
             let html = `
-            <div class="overflow-x-auto border border-slate-300 shadow-sm rounded-xl bg-white">
+            <div class="overflow-x-auto border border-slate-300 shadow-sm rounded-xl bg-white min-h-[150px]">
                 <table class="excel-grid-table w-full">
                     <thead class="sticky top-0 z-10 shadow-sm">
                         <tr>
@@ -870,35 +860,52 @@
                             <th class="excel-grid-th w-48 bg-[#00320D] text-white">หมายเหตุ</th>
                         </tr>
                     </thead>
-                    <tbody>`;
+                    <tbody id="dynamic_po_tbody">`;
 
-            carParts.forEach((p, idx) => {
-                const orderId = p.id || p.order_id;
-                
-                let currentStatus = p.order_status || 'รอสั่งซื้อ';
-                let dropdownHtml = allPOStatuses.map(s => {
-                    const sName = getSafeStatusName(s);
-                    return `<option value="${sName}" ${currentStatus === sName ? 'selected' : ''}>${sName}</option>`;
-                }).join('');
-                if(!dropdownHtml.includes('selected')) {
-                    dropdownHtml = `<option value="${currentStatus}" selected>${currentStatus}</option>` + dropdownHtml;
-                }
+            if(carParts.length > 0) {
+                carParts.forEach((p, idx) => {
+                    const orderId = p.id || p.order_id;
+                    
+                    let currentStatus = p.order_status || 'รอสั่งซื้อ';
+                    let dropdownHtml = allPOStatuses.map(s => {
+                        const sName = getSafeStatusName(s);
+                        return `<option value="${sName}" ${currentStatus === sName ? 'selected' : ''}>${sName}</option>`;
+                    }).join('');
+                    if(!dropdownHtml.includes('selected')) {
+                        dropdownHtml = `<option value="${currentStatus}" selected>${currentStatus}</option>` + dropdownHtml;
+                    }
 
-                html += `
-                <tr data-id="${orderId}" class="hover:bg-amber-50/50 transition-colors group">
-                    <td class="excel-cell text-center font-black text-slate-400 bg-slate-50">${idx + 1}</td>
-                    <td class="excel-cell"><input type="text" class="excel-input font-mono text-amber-700 font-bold po-epc" value="${p.epc_no || ''}" placeholder="EPC..."></td>
-                    <td class="excel-cell"><input type="text" class="excel-input font-mono font-bold text-blue-700 po-partno" value="${p.part_no || ''}"></td>
-                    <td class="excel-cell"><input type="text" class="excel-input font-mono text-slate-500 po-main" value="${p.part_main_no || ''}" placeholder="Main..."></td>
-                    <td class="excel-cell"><input type="text" class="excel-input font-medium po-partname" value="${p.part_name || ''}"></td>
-                    <td class="excel-cell"><input type="number" class="excel-input text-center font-black text-lg text-emerald-700 bg-emerald-50 focus:bg-white po-qty" value="${p.qty_ordered || 1}"></td>
-                    <td class="excel-cell"><select class="excel-select font-bold text-blue-900 bg-blue-50 focus:bg-white po-status">${dropdownHtml}</select></td>
-                    <td class="excel-cell"><input type="date" class="excel-input text-center font-mono text-slate-600 po-eta" value="${p.est_arrival_date ? String(p.est_arrival_date).split('T')[0] : ''}"></td>
-                    <td class="excel-cell"><input type="text" class="excel-input text-slate-500 po-note" value="${p.notes || ''}" placeholder="ระบุหมายเหตุ..."></td>
-                </tr>`;
-            });
+                    html += `
+                    <tr data-id="${orderId}" class="hover:bg-amber-50/50 transition-colors group">
+                        <td class="excel-cell text-center font-black text-slate-400 bg-slate-50">${idx + 1}</td>
+                        <td class="excel-cell"><input type="text" class="excel-input font-mono text-amber-700 font-bold po-epc" value="${p.epc_no || ''}" placeholder="EPC..."></td>
+                        <td class="excel-cell"><input type="text" class="excel-input font-mono font-bold text-blue-700 po-partno" value="${p.part_no || ''}" onblur="fetchMasterPartInline(this)"></td>
+                        <td class="excel-cell"><input type="text" class="excel-input font-mono text-slate-500 po-main" value="${p.part_main_no || ''}" placeholder="Main..."></td>
+                        <td class="excel-cell"><input type="text" class="excel-input font-medium po-partname" value="${p.part_name || ''}"></td>
+                        <td class="excel-cell"><input type="number" class="excel-input text-center font-black text-lg text-emerald-700 bg-emerald-50 focus:bg-white po-qty" value="${p.qty_ordered || 1}"></td>
+                        <td class="excel-cell"><select class="excel-select font-bold text-blue-900 bg-blue-50 focus:bg-white po-status">${dropdownHtml}</select></td>
+                        <td class="excel-cell"><input type="date" class="excel-input text-center font-mono text-slate-600 po-eta" value="${p.est_arrival_date ? String(p.est_arrival_date).split('T')[0] : ''}"></td>
+                        <td class="excel-cell flex gap-1 items-center">
+                            <input type="text" class="excel-input text-slate-500 po-note flex-1" value="${p.notes || ''}" placeholder="ระบุหมายเหตุ...">
+                        </td>
+                    </tr>`;
+                });
+            } else {
+                html += `<tr><td colspan="9" class="text-center py-10 text-slate-400 font-bold bg-slate-50" id="empty_po_row">ยังไม่มีรายการสั่งซื้อสำหรับรถคันนี้ กดเพิ่มรายการด้านล่างได้เลยครับ</td></tr>`;
+            }
 
             html += `</tbody></table></div>`;
+            
+            // 🎯 ปุ่มคู่หูใหม่ที่กัปตันขอมา! วางไว้ใต้ตารางสวยๆ
+            html += `<div class="mt-4 flex flex-wrap gap-3">
+                <button type="button" onclick="addNewPORow('${carPlate}')" class="px-5 py-2.5 bg-blue-50 text-blue-700 font-bold rounded-lg border border-blue-200 hover:bg-blue-100 transition text-sm flex items-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-plus"></i> เพิ่มรายการอะไหล่ให้รถคันนี้
+                </button>
+                <button type="button" onclick="openMasterModal()" class="px-5 py-2.5 bg-slate-800 text-white font-bold rounded-lg hover:bg-slate-900 transition text-sm flex items-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-database"></i> สร้างอะไหล่มาสเตอร์ใหม่
+                </button>
+            </div>`;
+            
             container.innerHTML = html;
             
             const m = document.getElementById('alertModal');
@@ -906,6 +913,60 @@
             m.classList.add('flex');
         }
 
+        // 🌟 1. ฟังก์ชันเพิ่มแถวตารางแบบสดๆ (สำหรับคีย์ข้อมูลใหม่)
+        function addNewPORow(carPlate) {
+            const tbody = document.getElementById('dynamic_po_tbody');
+            if(!tbody) return;
+
+            // เอาข้อความ "ไม่มีรายการ" ออกไปถ้ามีคนกดเพิ่มแถว
+            const emptyRow = document.getElementById('empty_po_row');
+            if(emptyRow) emptyRow.closest('tr').remove();
+            
+            const epcNo = document.getElementById('modal_epc').value || '';
+            
+            let dropdownHtml = allPOStatuses.map(s => {
+                const sName = getSafeStatusName(s);
+                return `<option value="${sName}" ${sName === 'รอสั่งซื้อ' ? 'selected' : ''}>${sName}</option>`;
+            }).join('');
+            if(!dropdownHtml.includes('selected')) dropdownHtml = `<option value="รอสั่งซื้อ" selected>รอสั่งซื้อ</option>` + dropdownHtml;
+            
+            const tr = document.createElement('tr');
+            tr.className = "hover:bg-amber-50/50 transition-colors group bg-blue-50/30";
+            tr.innerHTML = `
+                <td class="excel-cell text-center font-black text-blue-500 bg-blue-50">NEW</td>
+                <td class="excel-cell"><input type="text" class="excel-input font-mono text-amber-700 font-bold po-epc" value="${epcNo}" placeholder="EPC..."></td>
+                <td class="excel-cell"><input type="text" class="excel-input font-mono font-bold text-blue-700 po-partno" value="" placeholder="สแกน/พิมพ์บาร์โค้ด..." onblur="fetchMasterPartInline(this)"></td>
+                <td class="excel-cell"><input type="text" class="excel-input font-mono text-slate-500 po-main" value="" placeholder="Main..."></td>
+                <td class="excel-cell"><input type="text" class="excel-input font-medium po-partname" value="" placeholder="ชื่อชิ้นส่วน..."></td>
+                <td class="excel-cell"><input type="number" class="excel-input text-center font-black text-lg text-emerald-700 bg-emerald-50 focus:bg-white po-qty" value="1"></td>
+                <td class="excel-cell"><select class="excel-select font-bold text-blue-900 bg-blue-50 focus:bg-white po-status">${dropdownHtml}</select></td>
+                <td class="excel-cell"><input type="date" class="excel-input text-center font-mono text-slate-600 po-eta" value=""></td>
+                <td class="excel-cell flex gap-1 items-center">
+                    <input type="text" class="excel-input text-slate-500 po-note flex-1" value="" placeholder="ระบุหมายเหตุ...">
+                    <button type="button" onclick="this.closest('tr').remove()" class="text-red-400 hover:text-red-600 px-3 transition" title="ลบรายการนี้"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        }
+
+        // 🌟 2. ดึงชื่ออะไหล่จากมาสเตอร์อัตโนมัติ ตอนพิมพ์บาร์โค้ดเสร็จ (On Blur)
+        async function fetchMasterPartInline(inputElem) {
+            const n = inputElem.value.trim();
+            if(!n) return;
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/parts/check/${encodeURIComponent(n)}`);
+                const d = await res.json();
+                if(d && d.part_name) {
+                    const tr = inputElem.closest('tr');
+                    const mainInp = tr.querySelector('.po-main');
+                    const nameInp = tr.querySelector('.po-partname');
+                    if(mainInp && !mainInp.value) mainInp.value = d.part_main_no || '-';
+                    if(nameInp && !nameInp.value) nameInp.value = d.part_name || '-';
+                }
+            } catch(e) {}
+        }
+
+        // 🌟 3. อัปเกรดฟังก์ชันบันทึก! แยกรับมือได้ทั้ง "อัปเดตของเดิม" และ "สร้างออเดอร์ใหม่"
         async function saveSAAlertUpdate(e) {
             e.preventDefault();
             const submitBtn = e.target.querySelector('button[type="submit"]');
@@ -913,44 +974,83 @@
             submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึกข้อมูล...';
             submitBtn.disabled = true;
 
+            const carPlate = document.getElementById('modal_job_id').value;
             const rows = document.querySelectorAll('#modal_dynamic_table_container tbody tr');
             let promises = [];
+            
+            // ดึงข้อมูลทะเบียนรถอ้างอิง เผื่อใช้สร้าง New PO
+            const job = allGlobalJobs.find(j => cleanStr(j.car_plate) === cleanStr(carPlate)) || {};
 
             rows.forEach(row => {
                 const orderId = row.getAttribute('data-id');
-                if(!orderId) return;
-
-                const existingPO = allGlobalParts.find(p => String(p.id || p.order_id) === String(orderId)) || {};
-
-                const payload = {
-                    ...existingPO, 
-                    epc_no: row.querySelector('.po-epc').value,
-                    part_no: row.querySelector('.po-partno').value,
-                    part_main_no: row.querySelector('.po-main').value,
-                    part_name: row.querySelector('.po-partname').value,
-                    qty_ordered: parseInt(row.querySelector('.po-qty').value) || 1,
-                    order_status: row.querySelector('.po-status').value,
-                    est_arrival_date: row.querySelector('.po-eta').value || null,
-                    notes: row.querySelector('.po-note').value
-                };
-
-                const request = fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, {
-                    method: 'PUT',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
+                const partNo = row.querySelector('.po-partno') ? row.querySelector('.po-partno').value : '';
+                const partName = row.querySelector('.po-partname') ? row.querySelector('.po-partname').value : '';
                 
-                promises.push(request);
+                // ข้ามถ้าเป็นแถวที่ว่างเปล่า หรือแถว placeholder 
+                if(!partNo && !partName) return;
+
+                if(orderId) {
+                    // 🔧 กรณีอัปเดตข้อมูลของเก่า
+                    const existingPO = allGlobalParts.find(p => String(p.id || p.order_id) === String(orderId)) || {};
+                    const payload = {
+                        ...existingPO, 
+                        epc_no: row.querySelector('.po-epc').value,
+                        part_no: partNo,
+                        part_main_no: row.querySelector('.po-main').value,
+                        part_name: partName,
+                        qty_ordered: parseInt(row.querySelector('.po-qty').value) || 1,
+                        order_status: row.querySelector('.po-status').value,
+                        est_arrival_date: row.querySelector('.po-eta').value || null,
+                        notes: row.querySelector('.po-note').value
+                    };
+
+                    promises.push(fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(payload)
+                    }));
+                } else {
+                    // 🌟 กรณีเป็นแถวที่ถูกสร้างใหม่ (+ เพิ่มรายการอะไหล่)
+                    const payload = {
+                        qt_no: (job.qt_no || '').split(',')[0].trim(),
+                        so_no: (job.so_no || '').split(',')[0].trim(),
+                        epc_no: row.querySelector('.po-epc').value,
+                        order_date: getTodayString(),
+                        est_arrival_date: row.querySelector('.po-eta').value || null,
+                        car_plate: carPlate,
+                        vin_no: job.vin_no || null,
+                        car_model: job.car_model || null,
+                        part_main_no: row.querySelector('.po-main').value,
+                        part_no: partNo,
+                        part_name: partName,
+                        qty_ordered: parseInt(row.querySelector('.po-qty').value) || 1,
+                        part_type: 'อะไหล่หลัก',
+                        notes: row.querySelector('.po-note').value,
+                        branch_name: currentBranch,
+                        order_status: row.querySelector('.po-status').value || 'รอสั่งซื้อ'
+                    };
+                    
+                    promises.push(fetch(`${API_BASE_URL}/api/part-orders`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(payload)
+                    }));
+                }
             });
 
             try {
+                if(promises.length === 0) throw new Error("ไม่มีข้อมูลให้บันทึก");
                 await Promise.all(promises);
                 showToast('บันทึกข้อมูลโต๊ะคีย์อะไหล่เรียบร้อย!');
                 closeAlertModal();
-                loadAllData();
+                loadAllData(); // รีเฟรชตารางหลังบ้าน
             } catch(err) {
-                showToast('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
-                console.error(err);
+                if(err.message === "ไม่มีข้อมูลให้บันทึก") {
+                    showToast('ไม่มีการเปลี่ยนแปลงข้อมูลใหม่', 'success');
+                    closeAlertModal();
+                } else {
+                    showToast('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
+                }
             } finally {
                 submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
