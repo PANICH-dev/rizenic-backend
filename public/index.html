@@ -625,7 +625,7 @@
             } catch(e) { alert('❌ เกิดข้อผิดพลาดในการยิงออเดอร์'); btnElem.innerHTML = '<i class="fa-solid fa-paper-plane"></i> แอด'; }
         }
 
-       // 🌟 5. ฟังก์ชันติดตาม PO อัปเดตให้มีปุ่ม "แก้ไข (Prompt)" และ "ลบข้อมูล" ได้!
+   // 🌟 5. ฟังก์ชันติดตาม PO อัปเดตให้ปุ่มดินสอเรียก Pop-up ตัวใหม่!
         async function loadPartsTrackingTable(carPlate) {
             const tbody = document.getElementById('track_parts_body');
             if (!carPlate) {
@@ -633,7 +633,7 @@
                 return;
             }
             try {
-                // 🛑 เพิ่ม { cache: 'no-store' } บังคับให้เบราว์เซอร์ดึงข้อมูลใหม่เสมอ
+                // บังคับไม่ให้จำแคช
                 const res = await fetch(`${API_BASE_URL}/api/part-orders`, { cache: 'no-store' });
                 if (!res.ok) return;
                 const data = await res.json();
@@ -647,12 +647,16 @@
                 tbody.innerHTML = filtered.map(item => {
                     const orderId = item.id || item.order_id;
                     const hasETA = item.est_arrival_date && String(item.est_arrival_date).trim() !== '';
+                    
+                    // 🌟 เข้ารหัสหมายเหตุกันตัวอักษรพิเศษทำระบบพัง
+                    const encodedNotes = encodeURIComponent(item.notes || '');
 
-                    // 🔒 ล็อกปุ่มจัดการหากมี ETA (แก้ไข/ลบไม่ได้)
+                    // 🔒 ล็อกปุ่มจัดการหากมี ETA
                     const actionButtons = hasETA 
                         ? `<span class="text-slate-400 text-[11px] font-bold flex items-center justify-center gap-1" title="สั่งของแล้ว ไม่สามารถแก้ไขได้"><i class="fa-solid fa-lock"></i> ล็อก</span>`
                         : `<div class="flex items-center justify-center gap-1">
-                               <button type="button" onclick="editPOPrompt('${orderId}', '${item.qty_ordered || 1}', '${item.notes || ''}', '${carPlate}')" class="text-blue-500 hover:text-blue-700 hover:bg-blue-100 bg-blue-50 px-2 py-1 rounded text-xs font-bold transition shadow-sm" title="แก้ไขรายการนี้"><i class="fa-solid fa-pen"></i></button>
+                               <!-- เปลี่ยนมาเรียกฟังก์ชันเปิด Pop-up ใหม่ -->
+                               <button type="button" onclick="openEditPOModal('${orderId}', '${item.qty_ordered || 1}', '${encodedNotes}', '${carPlate}')" class="text-blue-500 hover:text-blue-700 hover:bg-blue-100 bg-blue-50 px-2 py-1 rounded text-xs font-bold transition shadow-sm" title="แก้ไขรายการนี้"><i class="fa-solid fa-pen"></i></button>
                                <button type="button" onclick="deletePO('${orderId}', '${carPlate}')" class="text-red-500 hover:text-red-700 hover:bg-red-100 bg-red-50 px-2 py-1 rounded text-xs font-bold transition shadow-sm" title="ลบรายการนี้"><i class="fa-solid fa-trash"></i></button>
                            </div>`;
 
@@ -676,37 +680,64 @@
             }
         }
 
-        // 🌟 ฟังก์ชันเปิดหน้าต่าง Prompt เพื่อแก้ไขจำนวนและหมายเหตุ (แก้บั๊กกด Cancel แล้ว)
-        async function editPOPrompt(id, oldQty, oldNotes, carPlate) {
-            let newQty = prompt('แก้ไขจำนวนสั่งซื้อ:', oldQty);
-            if (newQty === null) newQty = oldQty; 
+        // 🌟 ชุดฟังก์ชันควบคุม Pop-up แก้ไข PO สวยๆ
+        function openEditPOModal(id, qty, encodedNotes, carPlate) {
+            const decodedNotes = decodeURIComponent(encodedNotes);
+            document.getElementById('edit_po_modal_id').value = id;
+            document.getElementById('edit_po_modal_car_plate').value = carPlate;
+            document.getElementById('edit_po_modal_qty').value = qty;
+            document.getElementById('edit_po_modal_notes').value = decodedNotes;
             
-            let newNotes = prompt('แก้ไขหมายเหตุ:', oldNotes);
-            if (newNotes === null) newNotes = oldNotes;
+            document.getElementById('editPOModal').classList.remove('hidden');
+        }
 
-            if (newQty === oldQty && newNotes === oldNotes) return;
+        function closeEditPOModal() {
+            document.getElementById('editPOModal').classList.add('hidden');
+        }
+
+        // 🌟 ฟังก์ชันเซฟข้อมูลตอนกด "บันทึกข้อมูล" ใน Pop-up
+        async function submitEditPOModal(e) {
+            e.preventDefault();
+            const id = document.getElementById('edit_po_modal_id').value;
+            const carPlate = document.getElementById('edit_po_modal_car_plate').value;
+            const qty = parseInt(document.getElementById('edit_po_modal_qty').value) || 1;
+            const notes = document.getElementById('edit_po_modal_notes').value; // รับข้อความทั้งหมด รวมถึงการเว้นบรรทัด
+
+            const btn = document.getElementById('btn_submit_edit_po');
+            const oldHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
 
             try {
-                if (newQty !== oldQty) {
-                    await fetch(`${API_BASE_URL}/api/part-orders/${id}/fast`, {
-                        method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ field: 'qty_ordered', value: parseInt(newQty) || 1 })
-                    });
-                }
-                if (newNotes !== oldNotes) {
-                    await fetch(`${API_BASE_URL}/api/part-orders/${id}/fast`, {
-                        method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ field: 'notes', value: newNotes })
-                    });
-                }
-                
+                // ยิงอัปเดตไปที่เซิร์ฟเวอร์
+                await Promise.all([
+                    fetch(`${API_BASE_URL}/api/part-orders/${id}/fast`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ field: 'qty_ordered', value: qty })
+                    }),
+                    fetch(`${API_BASE_URL}/api/part-orders/${id}/fast`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ field: 'notes', value: notes })
+                    })
+                ]);
+
+                // โชว์แจ้งเตือนด้านขวาล่าง
                 const toast = document.createElement('div');
                 toast.className = 'fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-6 py-3 rounded-xl shadow-2xl z-[200] flex items-center gap-2';
                 toast.innerHTML = `<i class="fa-solid fa-circle-check text-xl"></i> อัปเดตข้อมูลสำเร็จ!`;
                 document.body.appendChild(toast);
-                setTimeout(() => toast.remove(), 2000);
-                
+                setTimeout(() => toast.remove(), 2500);
+
+                // ปิด Pop-up และโหลดตารางใหม่ให้ทันที
+                closeEditPOModal();
                 loadPartsTrackingTable(carPlate);
-            } catch(e) { 
+            } catch(err) {
                 alert('❌ แก้ไขข้อมูลไม่สำเร็จ'); 
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
             }
         }
 
@@ -1085,5 +1116,43 @@
 
         function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
     </script>
+
+    <!-- 🌟 Modal: แก้ไขรายการสั่งซื้ออะไหล่ (PO Tracking Edit Pop-up) -->
+    <div id="editPOModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[150] flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden modal-fade border-t-4 border-[#00320D] flex flex-col">
+            <div class="bg-[#00320D] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md">
+                <h3 class="font-bold text-base flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square text-amber-400"></i> แก้ไขรายการสั่งซื้ออะไหล่
+                </h3>
+                <button type="button" onclick="closeEditPOModal()" class="text-slate-300 hover:text-red-400 transition text-2xl">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <form id="editPOForm" onsubmit="submitEditPOModal(event)" class="p-6 space-y-4 bg-slate-50">
+                <input type="hidden" id="edit_po_modal_id">
+                <input type="hidden" id="edit_po_modal_car_plate">
+                
+                <div>
+                    <label class="label-text text-slate-700 font-bold">จำนวนสั่งซื้อ (ชิ้น)</label>
+                    <input type="number" id="edit_po_modal_qty" required min="1" class="minimal-input font-black text-center text-xl text-amber-600 bg-white border-slate-300">
+                </div>
+                
+                <div>
+                    <label class="label-text text-slate-700 font-bold">หมายเหตุเพิ่มเติม</label>
+                    <textarea id="edit_po_modal_notes" rows="4" class="minimal-input bg-white border-slate-300 resize-none text-xs font-medium" placeholder="พิมพ์รายละเอียดหมายเหตุที่นี่..."></textarea>
+                </div>
+                
+                <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                    <button type="button" onclick="closeEditPOModal()" class="px-5 py-2.5 bg-white text-slate-600 text-xs font-bold rounded-xl border border-slate-300 hover:bg-slate-100 transition shadow-sm">
+                        ยกเลิก
+                    </button>
+                    <button type="submit" id="btn_submit_edit_po" class="px-6 py-2.5 bg-[#00320D] hover:bg-black text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-2 border border-green-800">
+                        <i class="fa-solid fa-floppy-disk text-amber-400"></i> บันทึกข้อมูล
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </body>
 </html>
