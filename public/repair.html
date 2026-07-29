@@ -22,9 +22,27 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
         
-        /* 2. Table UI (Excel Pro Max - Fixed Layout & Resizable) */
-        .table-container { overflow: auto; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; max-height: calc(100vh - 200px); resize: both; min-height: 400px; }
-        .excel-table { width: max-content; min-width: 100%; table-layout: fixed; text-align: left; border-collapse: separate; border-spacing: 0; font-size: 12px; }
+        /* 2. Table UI (Excel Pro Max - Fixed Layout, Resizable ทั้งตัวกล่องและคอลัมน์) */
+        .table-container { 
+            overflow: auto; 
+            border-radius: 8px; 
+            border: 2px solid #cbd5e1; 
+            background: #fff; 
+            height: calc(100vh - 220px); 
+            min-height: 350px; 
+            resize: both; 
+            position: relative;
+            box-shadow: inset 0 0 4px rgba(0,0,0,0.02);
+        }
+        .excel-table { 
+            width: max-content; 
+            min-width: 100%; 
+            table-layout: fixed; 
+            text-align: left; 
+            border-collapse: separate; 
+            border-spacing: 0; 
+            font-size: 12px; 
+        }
         .excel-table thead th { 
             background-color: #00320D; color: #ffffff; font-weight: 600; padding: 10px 12px; 
             border-right: 1px solid #334155; border-bottom: 3px solid #f59e0b; position: sticky; top: 0; z-index: 10; letter-spacing: 0.5px;
@@ -81,7 +99,21 @@
         .sort-icon { @apply ml-1 opacity-40 transition-opacity group-hover:opacity-100 text-[10px] text-amber-400; }
         .filter-icon { @apply ml-2 text-white/40 hover:text-amber-400 transition-colors p-1.5 rounded cursor-pointer; }
         .filter-icon.active { @apply text-amber-400 opacity-100; }
-        .resizer { @apply absolute top-0 right-0 w-[5px] h-full cursor-col-resize z-20 hover:bg-amber-400 transition-colors bg-white/10; }
+        
+        /* Resizer Line */
+        .resizer { 
+            position: absolute; 
+            top: 0; 
+            right: 0; 
+            width: 6px; 
+            height: 100%; 
+            cursor: col-resize; 
+            user-select: none; 
+            z-index: 20; 
+        }
+        .resizer:hover, .resizer.resizing { 
+            background-color: #f59e0b !important; 
+        }
     </style>
     <style id="dynamic-col-styles"></style>
 </head>
@@ -212,7 +244,7 @@
                 </div>
             </section>
 
-            <!-- 📊 แท็บ 2: สรุปสถานี (Pie Chart แบบเดิม) -->
+            <!-- 📊 แท็บ 2: สรุปสถานี (Pie Chart) -->
             <section id="tab-summary" class="tab-content">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full pb-10">
                     <div class="bg-white border border-slate-200 p-8 rounded-2xl flex flex-col items-center justify-center shadow-sm h-[70vh]">
@@ -436,11 +468,11 @@
             { id: 'chk_pak', code: '11', name: 'พักซ่อม' }, { id: 'chk_ready', code: '12', name: 'รอส่งมอบ' }
         ];
 
-        // 🌟 ตั้งค่าความกว้างคอลัมน์แบบ Fixed สำหรับตาราง Excel Pro Max (รวมหมายเหตุ)
+        // 🌟 ตั้งค่าความกว้างคอลัมน์สำหรับตาราง Excel Pro Max
         const columnsDef = [
             { idx: 0, key: 'action', title: 'Action', w: 70, filter: false },
-            { idx: 1, key: 'car_plate', title: 'ทะเบียน', w: 100, filter: true },
-            { idx: 2, key: 'car_brand', title: 'ยี่ห้อ/รุ่น', w: 130, filter: true },
+            { idx: 1, key: 'car_plate', title: 'ทะเบียน', w: 110, filter: true },
+            { idx: 2, key: 'car_brand', title: 'ยี่ห้อ/รุ่น', w: 140, filter: true },
             { idx: 3, key: 'arrived_date', title: 'รถเข้า', w: 90, filter: true },
             { idx: 4, key: 'target_finish_date', title: 'เป้าเสร็จ', w: 90, filter: true },
             { idx: 5, key: 'repair_finish_date', title: 'เสร็จจริง', w: 110, filter: true },
@@ -449,12 +481,12 @@
             { idx: 8, key: 'sub_part_name', title: 'ชิ้นรอง', w: 160, filter: true },
             { idx: 9, key: 'calculated_station', title: 'สถานี', w: 120, filter: true },
             { idx: 10, key: 'job_status', title: 'สเตตัส', w: 140, filter: true },
-            { idx: 11, key: 'repair_notes', title: 'หมายเหตุ', w: 160, filter: true }
+            { idx: 11, key: 'repair_notes', title: 'หมายเหตุ', w: 180, filter: true }
         ];
 
         function showToast(msg, type='success') {
             const toast = document.getElementById('toastMsg');
-            toast.className = `fixed bottom-5 right-5 font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 z-[200] flex items-center gap-2 border border-slate-200 ${type === 'error' ? 'bg-red-600 text-white' : (type === 'info' ? 'bg-blue-600 text-white' : 'bg-[#00320D] text-white')}`;
+            toast.className = `fixed bottom-5 right-5 font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 z-[200] flex items-center gap-2 border border-white/20 ${type === 'error' ? 'bg-red-600 text-white' : (type === 'info' ? 'bg-blue-600 text-white' : 'bg-[#00320D] text-white')}`;
             document.getElementById('toastContent').innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-circle-xmark text-white' : (type === 'info' ? 'fa-circle-info text-white' : 'fa-circle-check text-amber-400')} text-xl"></i> ${msg}`;
             toast.classList.remove('translate-y-20', 'opacity-0');
             setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 2500);
@@ -520,7 +552,7 @@
             columnsDef.forEach(col => {
                 let filterIcon = col.filter ? `<i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, ${col.idx}, '${col.title}')"></i>` : '';
                 html += `
-                    <th class="group" style="width: ${col.w}px;">
+                    <th class="group" style="width: ${col.w}px; min-width: ${col.w}px;">
                         <div class="flex justify-between items-center w-full h-full">
                             <div class="cursor-pointer flex-1 overflow-hidden whitespace-nowrap text-ellipsis" onclick="${col.filter ? `sortTable(${col.idx})` : ''}">
                                 ${col.title} <i class="fa-solid fa-sort sort-icon"></i>
@@ -534,22 +566,38 @@
             setTimeout(initResizableColumns, 300);
         }
 
+        // 🌟 ระบบยืด-หดความกว้างคอลัมน์ (Column Resizing Engine) สมบูรณ์แบบ
         function initResizableColumns() {
             const cols = document.querySelectorAll('#repairTable th');
             cols.forEach(col => {
                 const resizer = col.querySelector('.resizer'); if(!resizer) return;
-                let x = 0; let w = 0;
-                const mouseDownHandler = function(e) {
-                    e.stopPropagation(); x = e.clientX; w = col.offsetWidth;
-                    document.addEventListener('mousemove', mouseMoveHandler); document.addEventListener('mouseup', mouseUpHandler); resizer.classList.add('bg-amber-400');
+                let startX = 0, startWidth = 0;
+                
+                const onMouseDown = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    startX = e.clientX;
+                    startWidth = col.offsetWidth;
+                    resizer.classList.add('resizing');
+                    
+                    document.addEventListener('mousemove', onMouseMove);
+                    document.addEventListener('mouseup', onMouseUp);
                 };
-                const mouseMoveHandler = function(e) { 
-                    col.style.width = `${w + (e.clientX - x)}px`; 
-                    col.style.minWidth = `${w + (e.clientX - x)}px`; 
-                    col.style.maxWidth = `${w + (e.clientX - x)}px`;
+                
+                const onMouseMove = function(e) {
+                    const newWidth = Math.max(45, startWidth + (e.clientX - startX));
+                    col.style.width = `${newWidth}px`;
+                    col.style.minWidth = `${newWidth}px`;
+                    col.style.maxWidth = `${newWidth}px`;
                 };
-                const mouseUpHandler = function() { resizer.classList.remove('bg-amber-400'); document.removeEventListener('mousemove', mouseMoveHandler); document.removeEventListener('mouseup', mouseUpHandler); };
-                resizer.addEventListener('mousedown', mouseDownHandler);
+                
+                const onMouseUp = function() {
+                    resizer.classList.remove('resizing');
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                };
+                
+                resizer.addEventListener('mousedown', onMouseDown);
             });
         }
 
@@ -819,7 +867,7 @@
         }
 
         // ===============================================
-        // 📅 2. ปฏิทินปฏิบัติงานแนวตั้ง (แก้ชื่อเดือน กรกฎาคม)
+        // 📅 2. ปฏิทินปฏิบัติงานแนวตั้ง
         // ===============================================
         function renderCalendar() {
             const grid = document.getElementById('calendar_grid'); grid.innerHTML = '';
