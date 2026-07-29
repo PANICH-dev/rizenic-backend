@@ -22,15 +22,16 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; border: 2px solid #f8fafc; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
         
-        /* 🌟 ระบบตารางแบบ Modern SaaS (Excel Promax) */
-        .excel-table { @apply w-full text-left border-collapse whitespace-nowrap text-[12px] bg-white; table-layout: fixed; }
-        .excel-table thead th { @apply relative px-0 py-0 bg-[#00320D] text-white border-r border-green-900 font-bold sticky top-0 z-10 shadow-md align-middle select-none tracking-wide text-xs; }
-        .excel-table tbody td { @apply p-0 border border-slate-200 text-slate-700 align-middle overflow-hidden transition-colors; }
-        .excel-table tbody tr:hover td { @apply bg-blue-50/60 text-[#00320D]; }
+        /* 🌟 ระบบตารางแบบ Modern SaaS (CI Colors: เขียว-ทอง) 🌟 */
+        .excel-table { @apply w-full text-left border-collapse whitespace-nowrap text-[12px] bg-white rounded-lg shadow-sm; table-layout: fixed; }
+        .excel-table thead th { @apply relative px-0 py-0 bg-gradient-to-r from-[#00320D] to-[#004a1f] text-white border-b-4 border-amber-500 font-bold sticky top-0 z-10 shadow-md align-middle select-none tracking-wide text-xs; }
+        .excel-table tbody td { @apply p-0 border-b border-slate-100 text-slate-700 align-middle overflow-hidden transition-colors; }
+        .excel-table tbody tr:hover td { @apply bg-emerald-50/80 text-[#00320D]; }
         
         .resizer { @apply absolute top-0 right-0 w-1.5 h-full cursor-col-resize z-20 hover:bg-amber-400 transition-colors bg-white/10; }
-        .sort-icon { @apply ml-1 opacity-40 transition-opacity group-hover:opacity-100 text-[10px]; }
-        .filter-icon { @apply ml-2 text-slate-300 hover:text-amber-400 transition-colors p-1.5 rounded hover:bg-white/20 cursor-pointer; }
+        .sort-icon { @apply ml-1 opacity-40 transition-opacity group-hover:opacity-100 text-[10px] text-amber-400; }
+        .filter-icon { @apply ml-2 text-white/50 hover:text-amber-400 transition-colors p-1.5 rounded hover:bg-white/20 cursor-pointer; }
+        .filter-icon.active { @apply text-amber-400 opacity-100; }
         
         /* Input ในตารางที่กลมกลืน */
         .inline-edit-input { @apply w-full h-full border-0 bg-transparent px-3 py-2 outline-none font-bold text-emerald-700 transition-all hover:bg-slate-50 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-blue-500 text-xs cursor-pointer text-center; }
@@ -97,7 +98,7 @@
                     <a href="dashboard.html" class="px-3 py-1.5 rounded-lg text-green-200 hover:bg-white/10 font-bold text-xs transition">แดชบอร์ด</a>
                     <a href="index.html" class="px-3 py-1.5 rounded-lg text-green-200 hover:bg-white/10 font-bold text-xs transition">เปิดบิลซ่อม</a>
                     <a href="jobs.html" class="px-3 py-1.5 rounded-lg text-green-200 hover:bg-white/10 font-bold text-xs transition">บอร์ดใบงาน</a>
-                    <button class="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-900 font-black shadow-sm text-xs transition">สถานีช่าง</button>
+                    <button class="px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-slate-900 font-black shadow-md border border-amber-400 text-xs transition">สถานีช่าง</button>
                     <button onclick="logout()" class="px-2 py-1.5 text-red-300 hover:bg-red-500/20 rounded-lg text-xs transition ml-1"><i class="fa-solid fa-power-off"></i></button>
                 </div>
             </div>
@@ -113,6 +114,7 @@
         </div>
         
         <div class="px-4 pb-2 md:pb-3 pt-2 md:pt-0 flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+            <!-- 🌟 ปุ่มซ่อนคอลัมน์ และ ล้างตัวกรอง -->
             <button onclick="toggleColManager()" class="px-3 py-1.5 bg-indigo-50 text-indigo-700 font-bold rounded-lg text-xs border border-indigo-200 hover:bg-indigo-100 transition shadow-sm"><i class="fa-solid fa-eye-slash mr-1"></i> ซ่อนคอลัมน์</button>
             <button onclick="clearAllFilters()" class="px-3 py-1.5 bg-slate-100 text-slate-600 font-bold rounded-lg text-xs border border-slate-300 hover:bg-slate-200 transition shadow-sm"><i class="fa-solid fa-filter-circle-xmark mr-1"></i> ล้างฟิลเตอร์</button>
             
@@ -146,7 +148,7 @@
                     </div>
                 </div>
 
-                <div class="flex-1 overflow-auto custom-scrollbar" id="tableContainer">
+                <div class="flex-1 overflow-auto custom-scrollbar p-0" id="tableContainer">
                     <table class="excel-table" id="repairTable">
                         <thead>
                             <tr id="repair_head_row"></tr>
@@ -174,13 +176,13 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-7 gap-3 text-center text-sm font-black text-white uppercase tracking-widest mb-3 bg-[#00320D] py-3 rounded-xl shadow-md">
+            <div class="grid grid-cols-7 gap-3 text-center text-sm font-black text-white uppercase tracking-widest mb-3 bg-gradient-to-r from-[#00320D] to-[#004a1f] py-3 rounded-xl shadow-md border-b-2 border-amber-500">
                 <div class="text-red-400">อาทิตย์</div><div>จันทร์</div><div>อังคาร</div><div>พุธ</div><div>พฤหัสฯ</div><div>ศุกร์</div><div class="text-blue-400">เสาร์</div>
             </div>
             <div id="calendar_grid" class="grid grid-cols-7 gap-3 min-h-[600px] pb-10"></div>
         </section>
 
-        <!-- 📊 แท็บ 3: สรุปสถานี -->
+        <!-- 📊 แท็บ 3: สรุปสถานี (Accordion พับรายการได้) -->
         <section id="menu-cake" class="repair-sub-tab flex-col">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full pb-10">
                 <div class="bg-white border border-slate-200 p-8 rounded-2xl flex flex-col items-center justify-center shadow-sm h-[70vh]">
@@ -202,7 +204,7 @@
 
     <!-- 🌟 MODALS 🌟 -->
     
-    <!-- 📅 1. Pop-up รายการรถประจำวัน -->
+    <!-- 📅 1. Pop-up รายการรถประจำวัน (แยกหมวด รถเข้า/เป้า/ส่งมอบ + Accordion) -->
     <div id="dayListModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[105] flex items-center justify-center hidden p-4">
         <div class="bg-slate-50 rounded-2xl max-w-5xl w-full relative shadow-2xl flex flex-col h-[90vh] overflow-hidden border-t-4 border-[#00320D]">
             <div class="bg-white px-6 py-4 flex justify-between items-center border-b border-slate-200 shadow-sm shrink-0">
@@ -213,7 +215,7 @@
         </div>
     </div>
 
-    <!-- 🛠️ 2. Pop-up อัปเดตช่าง -->
+    <!-- 🛠️ 2. Pop-up อัปเดตช่าง (เพิ่มระบบดึงรายชื่ออะไหล่ทำสีจาก DB) -->
     <div id="stationModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[110] flex items-center justify-center hidden p-4">
         <div class="bg-white rounded-2xl max-w-5xl w-full p-6 relative shadow-2xl max-h-[95vh] overflow-y-auto custom-scrollbar border-t-4 border-amber-500">
             <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-red-500 text-2xl transition"><i class="fa-solid fa-xmark"></i></button>
@@ -244,18 +246,26 @@
                         </div>
                     </div>
 
-                    <!-- 🌟 ชิ้นส่วนแก้ไขได้ 🌟 -->
+                    <!-- 🌟 4. เปิดให้เลือกดึงข้อมูลอะไหล่จาก Master DB ได้เลย -->
                     <div class="bg-blue-50/50 border border-blue-100 p-4 rounded-xl shadow-sm">
                         <h3 class="text-xs font-black text-blue-800 mb-3 uppercase tracking-wide flex items-center gap-2 border-b border-blue-200/50 pb-2">
                             <i class="fa-solid fa-spray-can text-blue-500"></i> ชิ้นส่วนที่ต้องทำสี (แก้ไขได้)
                         </h3>
                         <div class="mb-3">
-                            <label class="text-[10px] font-bold text-blue-500 mb-1 block">ชิ้นหลัก (Main Parts):</label>
-                            <textarea id="m_main_parts" rows="2" class="w-full text-xs font-medium text-slate-700 bg-white px-2 py-1.5 rounded border border-blue-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none shadow-inner placeholder-slate-300" placeholder="พิมพ์ชื่อชิ้นส่วนหลัก..."></textarea>
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="text-[10px] font-bold text-blue-600 block">ชิ้นหลัก (Main Parts):</label>
+                                <button type="button" onclick="togglePartsSelector('main')" class="text-[9px] bg-blue-100 hover:bg-blue-600 hover:text-white text-blue-700 px-2 py-0.5 rounded font-bold transition-colors"><i class="fa-solid fa-list-ul"></i> ดึงจากระบบ</button>
+                            </div>
+                            <div id="selector_main" class="hidden mb-2 p-2 bg-white border border-blue-200 rounded shadow-inner max-h-32 overflow-y-auto flex flex-wrap gap-1 custom-scrollbar"></div>
+                            <textarea id="m_main_parts" rows="2" class="w-full text-xs font-medium text-slate-700 bg-white px-2 py-1.5 rounded border border-blue-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none shadow-inner placeholder-slate-300" placeholder="พิมพ์หรือดึงชื่อชิ้นส่วนหลัก..."></textarea>
                         </div>
                         <div>
-                            <label class="text-[10px] font-bold text-amber-600 mb-1 block">ชิ้นรอง (Sub Parts):</label>
-                            <textarea id="m_sub_parts" rows="2" class="w-full text-xs font-medium text-slate-700 bg-white px-2 py-1.5 rounded border border-amber-200 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all resize-none shadow-inner placeholder-slate-300" placeholder="พิมพ์ชื่อชิ้นส่วนรอง..."></textarea>
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="text-[10px] font-bold text-amber-600 block">ชิ้นรอง (Sub Parts):</label>
+                                <button type="button" onclick="togglePartsSelector('sub')" class="text-[9px] bg-amber-100 hover:bg-amber-500 hover:text-white text-amber-700 px-2 py-0.5 rounded font-bold transition-colors"><i class="fa-solid fa-list-ul"></i> ดึงจากระบบ</button>
+                            </div>
+                            <div id="selector_sub" class="hidden mb-2 p-2 bg-white border border-amber-200 rounded shadow-inner max-h-32 overflow-y-auto flex flex-wrap gap-1 custom-scrollbar"></div>
+                            <textarea id="m_sub_parts" rows="2" class="w-full text-xs font-medium text-slate-700 bg-white px-2 py-1.5 rounded border border-amber-200 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all resize-none shadow-inner placeholder-slate-300" placeholder="พิมพ์หรือดึงชื่อชิ้นส่วนรอง..."></textarea>
                         </div>
                     </div>
 
@@ -282,7 +292,7 @@
                         <label class="flex items-center gap-2 text-sm cursor-pointer hover:text-amber-600 transition text-slate-700 font-medium"><input type="checkbox" id="chk_ready" class="w-4 h-4 accent-amber-500 cursor-pointer"> 12. รอส่งมอบ</label>
                     </div>
 
-                    <!-- 🌟 วันที่ readonly ให้ช่างดู แต่ข้อมูลส่งผ่าน payload ได้ -->
+                    <!-- 🌟 ล็อกวันที่ ห้ามแก้ไข 100% แต่ส่งค่าด้วย -->
                     <label class="block text-xs font-black uppercase tracking-widest text-slate-500 mb-3"><i class="fa-regular fa-calendar-check text-amber-500"></i> 2. อัปเดตกำหนดการซ่อม (แก้ได้เฉพาะเสร็จจริง)</label>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-inner">
                         <div>
@@ -291,7 +301,7 @@
                         </div>
                         <div>
                             <label class="block text-xs text-emerald-600 font-bold mb-1">วันที่ซ่อมเสร็จจริง (Actual) *</label>
-                            <input type="date" id="m_repair_date" class="w-full p-2.5 bg-white border border-emerald-300 rounded-lg text-emerald-600 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-sm cursor-pointer font-mono font-bold shadow-sm transition-all">
+                            <input type="date" id="m_repair_date" onchange="validateRepairDate(this)" class="w-full p-2.5 bg-white border border-emerald-300 rounded-lg text-emerald-600 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-sm cursor-pointer font-mono font-bold shadow-sm transition-all">
                         </div>
                         <div>
                             <label class="block text-xs text-purple-600 font-bold mb-1">กำหนดส่งมอบลูกค้า (Delivery) 🔒</label>
@@ -344,6 +354,8 @@
         let originalRepairJobs = []; 
         let allQuotas = []; 
         let allPartOrders = []; 
+        let allMasterParts = []; // 🌟 ตัวแปรใหม่เก็บรายการอะไหล่มาสเตอร์
+        
         let currentYear = new Date().getFullYear(); 
         let currentMonth = new Date().getMonth(); 
         let chartInstance = null;
@@ -429,6 +441,7 @@
             if(tabId === 'menu-cake') renderPieChartAndList();
         }
 
+        // 🌟 ซ่อนคอลัมน์ (Hide Columns Logic)
         function toggleColManager() { document.getElementById('colManagerPanel').classList.toggle('hidden'); }
         function toggleColumnVisibility(idx, isShow) {
             if (isShow) hiddenCols.delete(idx); else hiddenCols.add(idx); applyColumnStyles();
@@ -439,6 +452,7 @@
             styleTag.innerHTML = css;
         }
 
+        // 🌟 2. อัปเกรดตารางกระดานคิวรถ (Excel Promax - สี CI)
         function buildTableHeaders() {
             const tr = document.getElementById('repair_head_row'); let html = '';
             columnsDef.forEach(col => {
@@ -508,10 +522,19 @@
             try {
                 document.getElementById('repair_list_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-10 text-slate-500 font-mono"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังดึงข้อมูล...</td></tr>`;
                 const nocache = `?_t=${new Date().getTime()}`;
-                const [resReports, resQuotas, resParts] = await Promise.all([
-                    safeFetch(`${API_BASE_URL}/api/reports${nocache}`), safeFetch(`${API_BASE_URL}/api/quotas${nocache}`), safeFetch(`${API_BASE_URL}/api/part-orders${nocache}`)
+                
+                // 🌟 ดึงข้อมูล master parts เพิ่มเข้ามา
+                const [resReports, resQuotas, resParts, resMaster] = await Promise.all([
+                    safeFetch(`${API_BASE_URL}/api/reports${nocache}`), 
+                    safeFetch(`${API_BASE_URL}/api/quotas${nocache}`), 
+                    safeFetch(`${API_BASE_URL}/api/part-orders${nocache}`),
+                    safeFetch(`${API_BASE_URL}/api/parts${nocache}`)
                 ]);
-                allQuotas = resQuotas; allPartOrders = resParts;
+                
+                allQuotas = resQuotas; 
+                allPartOrders = resParts; 
+                allMasterParts = resMaster;
+
                 originalRepairJobs = resReports.filter(j => 
                     j.branch_name === currentBranch && (j.department_routing === 'ซ่อม' || j.job_status === '09.จอดรอเข้าซ่อม' || j.job_status === '10.กำลังซ่อม' || j.job_status === '11.รถซ่อมเสร็จรอส่งมอบ')
                 ).map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
@@ -552,18 +575,18 @@
                 columnsDef.forEach(col => {
                     let cellData = ''; 
                     switch(col.key) {
-                        case 'action': cellData = `<button onclick="openModal('${j.id}')" class="mx-auto px-4 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 hover:border-[#00320D] text-[#00320D] font-bold rounded-lg transition shadow-sm text-xs flex items-center justify-center gap-1.5 w-full"><i class="fa-solid fa-pen-to-square"></i> อัปเดต</button>`; break;
-                        case 'car_plate': cellData = `<div class="w-full text-center py-1"><span class="inline-flex items-center px-2.5 py-1 rounded-md font-mono text-xs font-black shadow-sm border ${plateClass}">${isOverdue ? '<i class="fa-solid fa-circle-exclamation text-red-500 mr-1"></i>' : ''}${j.car_plate || 'ไม่มีป้าย'}</span></div>`; break;
-                        case 'car_brand': cellData = `<div class="font-bold text-slate-800 truncate" title="${j.car_brand} ${j.car_model || ''}">${j.car_brand || '-'} <span class="text-slate-500 font-medium">${j.car_model || ''}</span></div>`; break;
-                        case 'arrived_date': cellData = `<div class="px-2 py-1 bg-slate-50 rounded border border-slate-100 text-[11px] font-mono font-bold text-slate-600 inline-block text-center w-full">${arrDateStr || '-'}</div>`; break;
-                        case 'target_finish_date': cellData = `<div class="px-2 py-1 bg-slate-50 rounded border ${isOverdue ? 'border-red-200 text-red-600 bg-red-50' : 'border-slate-100 text-amber-600'} text-[11px] font-mono font-bold inline-block text-center w-full">${targetDateStr || '-'}</div>`; break;
+                        case 'action': cellData = `<div class="px-2 py-1"><button onclick="openModal('${j.id}')" class="mx-auto px-4 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 hover:border-[#00320D] text-[#00320D] font-bold rounded-lg transition shadow-sm text-xs flex items-center justify-center gap-1.5 w-full"><i class="fa-solid fa-pen-to-square"></i> อัปเดต</button></div>`; break;
+                        case 'car_plate': cellData = `<div class="w-full text-center px-2 py-1"><span class="inline-flex items-center px-2.5 py-1 rounded-md font-mono text-xs font-black shadow-sm border ${plateClass}">${isOverdue ? '<i class="fa-solid fa-circle-exclamation text-red-500 mr-1"></i>' : ''}${j.car_plate || 'ไม่มีป้าย'}</span></div>`; break;
+                        case 'car_brand': cellData = `<div class="font-bold text-slate-800 truncate px-3" title="${j.car_brand} ${j.car_model || ''}">${j.car_brand || '-'} <span class="text-slate-500 font-medium">${j.car_model || ''}</span></div>`; break;
+                        case 'arrived_date': cellData = `<div class="px-3"><div class="px-2 py-1 bg-slate-50 rounded border border-slate-100 text-[11px] font-mono font-bold text-slate-600 text-center">${arrDateStr || '-'}</div></div>`; break;
+                        case 'target_finish_date': cellData = `<div class="px-3"><div class="px-2 py-1 bg-slate-50 rounded border ${isOverdue ? 'border-red-200 text-red-600 bg-red-50' : 'border-slate-100 text-amber-600'} text-[11px] font-mono font-bold text-center">${targetDateStr || '-'}</div></div>`; break;
                         case 'repair_finish_date': cellData = `<input type="date" min="${getTodayString()}" value="${finishDateStr}" onchange="fastUpdateDate('${j.id}', 'repair_finish_date', this.value)" class="inline-edit-input">`; break;
-                        case 'delivery_date': cellData = `<div class="px-2 py-1 bg-slate-50 rounded border border-slate-100 text-[11px] font-mono font-bold text-blue-600 inline-block text-center w-full">${deliveryDateStr || '-'}</div>`; break;
-                        case 'main_part_name': cellData = `<div class="text-[11px] font-medium text-slate-600 whitespace-normal break-words">${j.main_part_name || '-'}</div>`; break;
-                        case 'sub_part_name': cellData = `<div class="text-[11px] font-medium text-slate-600 whitespace-normal break-words">${j.sub_part_name || '-'}</div>`; break;
-                        case 'calculated_station': cellData = `<span class="px-2 py-1 bg-amber-50 border border-amber-200 rounded text-amber-700 text-[10px] font-bold inline-flex items-center gap-1"><i class="fa-solid fa-wrench"></i> ${j.calculated_station}</span>`; break;
-                        case 'job_status': cellData = `<div class="text-xs font-bold text-slate-600 truncate"><i class="fa-solid fa-tag text-slate-300 mr-1"></i> ${j.job_status || '-'}</div>`; break;
-                        case 'repair_notes': cellData = `<div class="text-slate-500 italic text-xs truncate" title="${j.repair_notes || ''}">${j.repair_notes || '-'}</div>`; break;
+                        case 'delivery_date': cellData = `<div class="px-3"><div class="px-2 py-1 bg-slate-50 rounded border border-slate-100 text-[11px] font-mono font-bold text-blue-600 text-center">${deliveryDateStr || '-'}</div></div>`; break;
+                        case 'main_part_name': cellData = `<div class="text-[11px] font-medium text-slate-600 whitespace-normal break-words px-3 py-1">${j.main_part_name || '-'}</div>`; break;
+                        case 'sub_part_name': cellData = `<div class="text-[11px] font-medium text-slate-600 whitespace-normal break-words px-3 py-1">${j.sub_part_name || '-'}</div>`; break;
+                        case 'calculated_station': cellData = `<div class="px-3"><span class="px-2 py-1 bg-amber-50 border border-amber-200 rounded text-amber-700 text-[10px] font-bold inline-flex items-center gap-1"><i class="fa-solid fa-wrench"></i> ${j.calculated_station}</span></div>`; break;
+                        case 'job_status': cellData = `<div class="text-xs font-bold text-slate-600 truncate px-3"><i class="fa-solid fa-tag text-slate-300 mr-1"></i> ${j.job_status || '-'}</div>`; break;
+                        case 'repair_notes': cellData = `<div class="text-slate-500 italic text-xs truncate px-3" title="${j.repair_notes || ''}">${j.repair_notes || '-'}</div>`; break;
                     }
                     rowHtml += `<td class="border-r border-slate-100/50">${cellData}</td>`;
                 });
@@ -602,21 +625,21 @@
         function applyExcelFilter() {
             const checks = document.querySelectorAll('.ef-check'); const checkedVals = Array.from(checks).filter(cb => cb.checked).map(cb => cb.value);
             const thIcon = document.querySelectorAll('#repairTable th')[currentFilterCol].querySelector('.filter-icon');
-            if (checkedVals.length === checks.length || checkedVals.length === 0) { delete activeFilters[currentFilterCol]; if(thIcon) { thIcon.classList.remove('text-amber-400'); thIcon.classList.add('text-slate-400'); } } 
-            else { activeFilters[currentFilterCol] = new Set(checkedVals); if(thIcon) { thIcon.classList.remove('text-slate-400'); thIcon.classList.add('text-amber-400'); } }
+            if (checkedVals.length === checks.length || checkedVals.length === 0) { delete activeFilters[currentFilterCol]; if(thIcon) { thIcon.classList.remove('text-amber-400'); thIcon.classList.add('text-slate-300'); } } 
+            else { activeFilters[currentFilterCol] = new Set(checkedVals); if(thIcon) { thIcon.classList.remove('text-slate-300'); thIcon.classList.add('text-amber-400'); } }
             closeExcelFilter(); runTableFilters();
         }
 
         function clearSpecificExcelFilter() {
             if(activeFilters[currentFilterCol]) delete activeFilters[currentFilterCol];
             const thIcon = document.querySelectorAll('#repairTable th')[currentFilterCol].querySelector('.filter-icon');
-            if(thIcon) { thIcon.classList.remove('text-amber-400'); thIcon.classList.add('text-slate-400'); }
+            if(thIcon) { thIcon.classList.remove('text-amber-400'); thIcon.classList.add('text-slate-300'); }
             closeExcelFilter(); runTableFilters();
         }
 
         function clearAllFilters() {
             activeFilters = {}; document.getElementById('global_search_input').value = '';
-            document.querySelectorAll('.filter-icon').forEach(icon => { icon.classList.remove('text-amber-400'); icon.classList.add('text-slate-400'); });
+            document.querySelectorAll('.filter-icon').forEach(icon => { icon.classList.remove('text-amber-400'); icon.classList.add('text-slate-300'); });
             runTableFilters();
         }
 
@@ -652,6 +675,9 @@
             rows.forEach(row => tbody.appendChild(row));
         }
 
+        // ===============================================
+        // 📅 2. ปฏิทินแสดง 3 แท่ง
+        // ===============================================
         function renderCalendar() {
             const grid = document.getElementById('calendar_grid'); grid.innerHTML = '';
             const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
@@ -763,6 +789,7 @@
             `;
         }
 
+        // 🌟 1. ปรับปรุง Pop-up แยกหมวดหมู่ นัดเข้า / เป้า / ส่งมอบ ชัดเจน และพับเก็บได้
         function clickCalendarDate(dateString) {
             const arrJobs = originalRepairJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateString);
             const tarJobs = originalRepairJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateString);
@@ -794,6 +821,9 @@
         }
         function closeDayListModal() { document.getElementById('dayListModal').classList.add('hidden'); }
 
+        // ===============================================
+        // 📊 3. สรุปก้อนเค้กคลิกขยายแท็บ (Accordion พับรายการได้)
+        // ===============================================
         function renderPieChartAndList() {
             const counters = { "เคาะ":0, "โป๊ว":0, "เตรียมพื้น":0, "พ่นสี":0, "ประกอบ":0, "ขัดสี":0, "เก็บงาน":0, "ซ่อมแม็ก":0, "กระจก":0, "ฟิล์ม":0, "พักซ่อม":0, "รอส่งมอบ":0, "ยังไม่ระบุ":0 };
             const stationJobs = {}; 
@@ -839,6 +869,7 @@
             });
 
             const breakdownDiv = document.getElementById('station_breakdown_list'); let listHTML = '';
+            
             Object.keys(stationJobs).forEach(stationKey => {
                 if(stationJobs[stationKey].length > 0) {
                     const safeKeyId = stationKey.replace(/[\s\.\/]/g, '_');
@@ -880,7 +911,9 @@
             breakdownDiv.innerHTML = listHTML || '<div class="text-center py-10 text-slate-500">🎉 ไม่มีรถค้างในระบบเลยครับ!</div>';
         }
 
-        // 🌟 4. เปิดให้แก้ไข ชิ้นส่วนหลัก / ชิ้นส่วนรอง ได้อิสระ
+        // ===============================================
+        // 🛠️ 4. อัปเดตช่าง (เพิ่มตัวดึงข้อมูลอะไหล่จาก DB)
+        // ===============================================
         async function openModal(jobId) {
             try {
                 const job = originalRepairJobs.find(j => String(j.id) === String(jobId));
@@ -896,9 +929,13 @@
                 if(job.qt_no && job.qt_no.trim() !== '') { job.qt_no.split(',').forEach(v => { if(v.trim()) qtListDiv.innerHTML += `<span class="bg-white border border-slate-300 text-slate-700 px-2 py-0.5 rounded text-[10px] font-mono shadow-sm">${v.trim()}</span>`; }); } else { qtListDiv.innerHTML = `<span class="text-slate-400 text-[10px] italic">- ไม่มี -</span>`; }
                 if(job.so_no && job.so_no.trim() !== '') { job.so_no.split(',').forEach(v => { if(v.trim()) soListDiv.innerHTML += `<span class="bg-amber-50 border border-amber-300 text-amber-800 font-bold px-2 py-0.5 rounded text-[10px] font-mono shadow-sm">${v.trim()}</span>`; }); } else { soListDiv.innerHTML = `<span class="text-slate-400 text-[10px] italic">- ไม่มี -</span>`; }
                 
-                // 🌟 โหลดค่าใส่ช่อง Textarea
+                // 🎨 ดึงและเปิดให้แก้ไขชิ้นส่วนหลัก/รอง
                 document.getElementById('m_main_parts').value = job.main_part_name || '';
                 document.getElementById('m_sub_parts').value = job.sub_part_name || '';
+                
+                // ปิด selector ไว้ก่อนเปิด modal
+                document.getElementById('selector_main').classList.add('hidden');
+                document.getElementById('selector_sub').classList.add('hidden');
 
                 const carParts = allPartOrders.filter(po => po.car_plate === job.car_plate && po.order_status !== 'ยกเลิก');
                 if(carParts.length > 0) {
@@ -914,7 +951,7 @@
                 
                 ['kho','pou','puan','pon','prak','kat','qc','mag','kraj','film','pak','ready'].forEach(s => document.getElementById(`chk_${s}`).checked = isTrue(job[`station_${s}`]));
                 
-                // 🌟 โหลดวันที่ลง Input
+                // 🌟 ดึงวันที่ลง Input
                 document.getElementById('m_target_date').value = job.target_finish_date ? job.target_finish_date.split('T')[0] : '';
                 document.getElementById('m_repair_date').value = job.repair_finish_date ? job.repair_finish_date.split('T')[0] : '';
                 document.getElementById('m_delivery_date').value = job.delivery_date ? job.delivery_date.split('T')[0] : '';
@@ -928,6 +965,46 @@
             } catch(e) { alert('❌ เปิดหน้าต่างไม่สำเร็จ'); console.log(e); }
         }
 
+        // 🌟 5. ฟังก์ชันเปิด/ปิดกล่องเลือกอะไหล่จาก Master DB
+        function togglePartsSelector(type) {
+            const container = document.getElementById(`selector_${type}`);
+            if(!container.classList.contains('hidden')) {
+                container.classList.add('hidden');
+                return;
+            }
+            
+            const category = type === 'main' ? 'อะไหล่หลัก' : 'อะไหล่รอง';
+            // กรองอะไหล่เฉพาะสาขานี้ และหมวดหมู่ที่ต้องการ
+            const parts = allMasterParts.filter(p => p.part_category === category);
+            
+            if(parts.length === 0) {
+                container.innerHTML = `<span class="text-[10px] text-slate-400 py-2 w-full text-center">ไม่มีข้อมูล ${category} ในระบบมาสเตอร์</span>`;
+            } else {
+                container.innerHTML = parts.map(p => `
+                    <span onclick="appendPart('${type}', '${p.part_name}')" class="cursor-pointer bg-slate-100 hover:bg-[#00320D] hover:text-white text-slate-700 border border-slate-300 px-2 py-0.5 rounded text-[10px] font-bold transition-colors select-none mb-1">
+                        <i class="fa-solid fa-plus mr-0.5 opacity-50"></i> ${p.part_name}
+                    </span>
+                `).join('');
+            }
+            container.classList.remove('hidden');
+        }
+
+        function appendPart(type, partName) {
+            const textarea = document.getElementById(`m_${type}_parts`);
+            let currentVal = textarea.value.trim();
+            if(currentVal.length > 0) {
+                const partsArr = currentVal.split(',').map(s => s.trim());
+                if(!partsArr.includes(partName)) {
+                    textarea.value = currentVal + ', ' + partName;
+                }
+            } else {
+                textarea.value = partName;
+            }
+            // กระพริบสีเขียวแจ้งเตือนว่ากดเข้าแล้ว
+            textarea.classList.add('bg-emerald-50', 'border-emerald-400');
+            setTimeout(() => textarea.classList.remove('bg-emerald-50', 'border-emerald-400'), 400);
+        }
+
         function validateRepairDate(input) {
             const today = getTodayString();
             if (input.value && input.value < today) {
@@ -938,7 +1015,6 @@
 
         function closeModal() { document.getElementById('stationModal').classList.add('hidden'); }
 
-        // 🌟 บันทึกการแก้ไข (ส่งข้อมูลวันที่เดิมกลับไปด้วย เพื่อไม่ให้หาย)
         async function submitRepairStation() {
             const id = document.getElementById('m_job_id').value;
             const repairDateInput = document.getElementById('m_repair_date').value;
