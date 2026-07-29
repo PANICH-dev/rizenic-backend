@@ -22,20 +22,20 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; border: 2px solid #f8fafc; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
         
-        /* 🌟 ระบบตาราง Minimalist CI (ตีกรอบ เขียว-ขาว-เหลือง) 🌟 */
-        .excel-table { @apply w-full text-left border-collapse whitespace-nowrap text-[12px] bg-white rounded-lg shadow-sm overflow-hidden border-hidden; table-layout: fixed; }
-        .excel-table thead th { @apply relative px-0 py-0 bg-[#00320D] text-white border border-slate-500/50 font-bold sticky top-0 z-10 align-middle select-none tracking-wide text-xs; }
-        .excel-table tbody td { @apply p-0 border border-slate-200 text-slate-700 align-middle overflow-hidden transition-colors bg-white; }
+        /* 🌟 ระบบตารางแบบ Minimalist CI (เขียว-ขาว-เหลือง) 🌟 */
+        .excel-table { @apply w-full text-left border-collapse whitespace-nowrap text-[12px] bg-white rounded-lg shadow-sm overflow-hidden; table-layout: fixed; }
+        .excel-table thead th { @apply relative px-0 py-0 bg-[#00320D] text-white border-b-2 border-amber-400 font-bold sticky top-0 z-10 align-middle select-none tracking-wide text-xs; }
+        .excel-table tbody td { @apply p-0 border-b border-slate-100 text-slate-700 align-middle overflow-hidden transition-colors; }
         .excel-table tbody tr { @apply transition-colors duration-200; }
-        .excel-table tbody tr:hover td { @apply bg-amber-50/50 text-[#00320D]; }
+        .excel-table tbody tr:hover td { @apply bg-amber-50/40 text-[#00320D]; }
         
-        .resizer { @apply absolute top-0 right-0 w-[2px] h-full cursor-col-resize z-20 hover:bg-amber-400 transition-colors bg-white/10; }
+        .resizer { @apply absolute top-0 right-0 w-[1px] h-full cursor-col-resize z-20 hover:bg-amber-400 transition-colors bg-white/10; }
         .sort-icon { @apply ml-1 opacity-40 transition-opacity group-hover:opacity-100 text-[10px] text-amber-400; }
         .filter-icon { @apply ml-2 text-white/40 hover:text-amber-400 transition-colors p-1.5 rounded cursor-pointer; }
         .filter-icon.active { @apply text-amber-400 opacity-100; }
         
         /* Input ในตารางแบบคลีนๆ */
-        .inline-edit-input { @apply w-full h-full border-0 bg-transparent px-3 py-2 outline-none font-bold text-[#00320D] transition-all hover:bg-amber-50 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-amber-400 text-xs cursor-pointer text-center; }
+        .inline-edit-input { @apply w-full h-full border-0 bg-transparent px-3 py-2 outline-none font-bold text-[#00320D] transition-all hover:bg-amber-50 focus:bg-white focus:ring-1 focus:ring-inset focus:ring-amber-400 text-xs cursor-pointer text-center; }
         
         .repair-sub-tab { display: none; animation: fadeIn 0.3s ease-in-out; }
         .repair-sub-tab.active { display: flex; flex-direction: column; height: 100%; }
@@ -46,11 +46,12 @@
         .quota-bar { @apply h-1.5 rounded-full bg-slate-200 overflow-hidden mt-0.5; }
         .quota-fill { @apply h-full transition-all duration-500; }
         
-        /* 🌟 สไตล์กล่องพิมพ์ชิ้นส่วนแบบ Tag Input */
-        .parts-textarea-container { @apply w-full min-h-[60px] p-2 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-700 flex flex-wrap gap-1.5 items-start focus-within:ring-2 focus-within:ring-amber-400 focus-within:border-amber-400 transition-all cursor-text shadow-inner; }
-        .part-tag { @apply bg-slate-100 border border-slate-200 text-[#00320D] px-2.5 py-1 rounded-md font-bold inline-flex items-center gap-2 select-none shadow-sm; }
-        .part-tag-remove { @apply text-slate-400 hover:text-red-500 cursor-pointer transition-colors text-[10px] bg-white rounded-full w-4 h-4 flex items-center justify-center border border-slate-200; }
-        .parts-textarea-input { @apply flex-1 min-w-[120px] border-none outline-none bg-transparent py-1 text-slate-700 focus:ring-0 text-xs; }
+        /* 🌟 สไตล์ปุ่มชิ้นส่วน (ดีไซน์เดียวกับเปิดบิล SA) */
+        .part-badge { @apply cursor-pointer px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold transition-all select-none inline-block shadow-sm text-slate-600; }
+        .part-badge.unselected { @apply bg-white hover:border-slate-400 hover:bg-slate-50; }
+        .part-badge.selected-main { @apply bg-blue-600 border-blue-700 text-white shadow-md shadow-blue-500/30 transform scale-105; }
+        .part-badge.selected-sub { @apply bg-amber-500 border-amber-600 text-white shadow-md shadow-amber-500/30 transform scale-105; }
+        
     </style>
     <style id="dynamic-col-styles"></style>
 </head>
@@ -121,7 +122,7 @@
         <div class="px-4 pb-2 md:pb-3 pt-2 md:pt-0 flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
             <button onclick="toggleColManager()" class="px-3 py-1.5 bg-white text-slate-600 font-bold rounded border border-slate-200 hover:bg-slate-50 transition text-xs flex items-center gap-1.5"><i class="fa-solid fa-eye-slash"></i> ซ่อนคอลัมน์</button>
             <button onclick="clearAllFilters()" class="px-3 py-1.5 bg-white text-slate-600 font-bold rounded border border-slate-200 hover:bg-slate-50 transition text-xs flex items-center gap-1.5"><i class="fa-solid fa-filter-circle-xmark"></i> ล้างตัวกรอง</button>
-            <a href="repair_board.html" class="px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 rounded text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+            <a href="repair_board.html" class="px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 rounded text-xs font-bold transition flex items-center gap-1.5">
                 <i class="fa-solid fa-chalkboard"></i> บอร์ดคัมบัง
             </a>
             <button onclick="fetchJobList()" class="px-3 py-1.5 bg-[#00320D] text-white font-bold rounded shadow-sm hover:bg-black transition text-xs flex items-center gap-1.5"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
@@ -144,7 +145,7 @@
                 <div class="bg-white px-5 py-3 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 z-20">
                     <div class="relative w-full sm:w-96">
                         <i class="fa-solid fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                        <input type="text" id="global_search_input" onkeyup="runTableFilters()" class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all placeholder-slate-400" placeholder="ค้นหา ทะเบียนรถ, ยี่ห้อ, สถานะ, หมายเหตุ...">
+                        <input type="text" id="global_search_input" onkeyup="runTableFilters()" class="w-full pl-10 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded text-sm font-medium focus:ring-1 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all placeholder-slate-400" placeholder="ค้นหา ทะเบียนรถ, ยี่ห้อ, สถานะ, หมายเหตุ...">
                     </div>
                     <div class="text-xs font-bold text-slate-500 flex items-center gap-1.5 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
                         <i class="fa-solid fa-car text-amber-500"></i> พบข้อมูล: <span id="table_row_count" class="text-[#00320D] font-black text-sm">0</span> คัน
@@ -250,38 +251,36 @@
                         </div>
                     </div>
 
-                    <!-- 🌟 ระบบประเมินชิ้นส่วนตัวถัง (ดีไซน์แบบ Tag Input แก้ปัญหาไม่บันทึกลงตาราง) 🌟 -->
+                    <!-- 🌟 ระบบประเมินชิ้นส่วนตัวถัง (ดีไซน์สไตล์ SA โทนสีน้ำเงิน-ทอง) 🌟 -->
                     <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
-                        <h3 class="text-xs font-black text-[#00320D] mb-3 uppercase flex items-center gap-2 border-b border-slate-100 pb-2">
-                            <i class="fa-solid fa-spray-can text-amber-500"></i> ชิ้นส่วนที่ต้องทำสี (แก้ไขได้)
-                        </h3>
-                        <div class="mb-4">
-                            <div class="flex justify-between items-center mb-1.5">
-                                <label class="text-[11px] font-bold text-slate-700 block">ชิ้นหลัก (Main Parts):</label>
-                                <button type="button" onclick="togglePartsSelector('main')" class="text-[10px] bg-slate-100 hover:bg-[#00320D] hover:text-white text-slate-600 px-2 py-1 rounded font-bold transition-colors border border-slate-200 flex items-center gap-1 shadow-sm"><i class="fa-solid fa-database"></i> ดึงจากระบบ</button>
-                            </div>
-                            <div id="selector_main" class="hidden mb-2 p-2 bg-slate-50 border border-slate-200 rounded-lg shadow-inner max-h-36 overflow-y-auto flex flex-wrap gap-1 custom-scrollbar"></div>
-                            
-                            <!-- กล่องแสดง Tag ชิ้นส่วนหลัก -->
-                            <div class="parts-textarea-container" onclick="document.getElementById('input_main_parts').focus()">
-                                <div id="tags_main_parts" class="flex flex-wrap gap-1.5 items-center"></div>
-                                <input type="text" id="input_main_parts" class="parts-textarea-input" placeholder="พิมพ์ชื่อชิ้นส่วนแล้วกด Enter..." onkeydown="handlePartInput(event, 'main')">
-                            </div>
-                            <input type="hidden" id="m_main_parts"> <!-- ซ่อนไว้เก็บค่าจริง -->
+                        <div class="flex items-center justify-between bg-[#00320D] px-4 py-2 -mx-4 -mt-4 mb-4 rounded-t-xl border-b border-amber-400">
+                            <h3 class="text-xs font-black text-white flex items-center gap-2"><i class="fa-solid fa-spray-can text-amber-400"></i> ประเมินชิ้นส่วนตัวถัง (แก้ไขได้)</h3>
                         </div>
-                        <div>
-                            <div class="flex justify-between items-center mb-1.5">
-                                <label class="text-[11px] font-bold text-slate-700 block">ชิ้นรอง (Sub Parts):</label>
-                                <button type="button" onclick="togglePartsSelector('sub')" class="text-[10px] bg-slate-100 hover:bg-[#00320D] hover:text-white text-slate-600 px-2 py-1 rounded font-bold transition-colors border border-slate-200 flex items-center gap-1 shadow-sm"><i class="fa-solid fa-database"></i> ดึงจากระบบ</button>
+
+                        <div class="grid grid-cols-1 gap-6">
+                            <!-- ฝั่งซ้าย: ชิ้นหลัก -->
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <p class="text-xs font-bold text-blue-800 flex items-center gap-1.5"><i class="fa-solid fa-layer-group text-blue-500"></i> ชิ้นส่วนหลัก</p>
+                                    <span class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-black border border-blue-200" id="m_count_main">0</span>
+                                </div>
+                                <div id="body_parts_main" class="flex flex-wrap gap-1.5 content-start mb-2 max-h-32 overflow-y-auto custom-scrollbar p-1">
+                                    <span class="text-xs text-slate-400 font-mono italic">กำลังโหลดข้อมูลชิ้นหลัก...</span>
+                                </div>
                             </div>
-                            <div id="selector_sub" class="hidden mb-2 p-2 bg-slate-50 border border-slate-200 rounded-lg shadow-inner max-h-36 overflow-y-auto flex flex-wrap gap-1 custom-scrollbar"></div>
                             
-                            <!-- กล่องแสดง Tag ชิ้นส่วนรอง -->
-                            <div class="parts-textarea-container" onclick="document.getElementById('input_sub_parts').focus()">
-                                <div id="tags_sub_parts" class="flex flex-wrap gap-1.5 items-center"></div>
-                                <input type="text" id="input_sub_parts" class="parts-textarea-input" placeholder="พิมพ์ชื่อชิ้นส่วนแล้วกด Enter..." onkeydown="handlePartInput(event, 'sub')">
+                            <hr class="border-slate-100">
+
+                            <!-- ฝั่งขวา: ชิ้นรอง -->
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <p class="text-xs font-bold text-amber-800 flex items-center gap-1.5"><i class="fa-solid fa-puzzle-piece text-amber-500"></i> ชิ้นส่วนรอง</p>
+                                    <span class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-black border border-amber-300" id="m_count_sub">0</span>
+                                </div>
+                                <div id="body_parts_sub" class="flex flex-wrap gap-1.5 content-start max-h-32 overflow-y-auto custom-scrollbar p-1">
+                                    <span class="text-xs text-slate-400 font-mono italic">กำลังโหลดข้อมูลชิ้นรอง...</span>
+                                </div>
                             </div>
-                            <input type="hidden" id="m_sub_parts"> <!-- ซ่อนไว้เก็บค่าจริง -->
                         </div>
                     </div>
 
@@ -313,15 +312,15 @@
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                         <div>
                             <label class="block text-xs text-slate-500 font-bold mb-1">เป้าซ่อมเสร็จ (Target) 🔒</label>
-                            <input type="date" id="m_target_date" readonly class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-400 outline-none cursor-not-allowed text-sm font-mono select-none">
+                            <input type="date" id="m_target_date" readonly class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded text-slate-400 outline-none cursor-not-allowed text-sm font-mono select-none">
                         </div>
                         <div>
                             <label class="block text-xs text-[#00320D] font-bold mb-1">วันที่ซ่อมเสร็จจริง (Actual) *</label>
-                            <input type="date" id="m_repair_date" onchange="validateRepairDate(this)" class="w-full p-2.5 bg-white border border-amber-400 rounded-lg text-[#00320D] outline-none focus:ring-1 focus:ring-amber-500 text-sm cursor-pointer font-mono font-bold transition-all shadow-inner">
+                            <input type="date" id="m_repair_date" onchange="validateRepairDate(this)" class="w-full p-2.5 bg-white border border-amber-400 rounded text-[#00320D] outline-none focus:ring-1 focus:ring-amber-500 text-sm cursor-pointer font-mono font-bold transition-all shadow-inner">
                         </div>
                         <div>
                             <label class="block text-xs text-slate-500 font-bold mb-1">กำหนดส่งมอบลูกค้า 🔒</label>
-                            <input type="date" id="m_delivery_date" readonly class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-400 outline-none cursor-not-allowed text-sm font-mono select-none">
+                            <input type="date" id="m_delivery_date" readonly class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded text-slate-400 outline-none cursor-not-allowed text-sm font-mono select-none">
                         </div>
                     </div>
 
@@ -329,7 +328,7 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                         <div>
                             <label class="block text-xs text-slate-600 font-bold mb-1">สเตตัสหลักในระบบ ERP</label>
-                            <select id="m_job_status" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-[#00320D] font-bold outline-none focus:border-amber-400 text-sm cursor-pointer shadow-sm">
+                            <select id="m_job_status" class="w-full p-2.5 bg-white border border-slate-200 rounded text-[#00320D] font-bold outline-none focus:border-amber-400 text-sm cursor-pointer shadow-sm">
                                 <option value="09.จอดรอเข้าซ่อม">09.จอดรอเข้าซ่อม</option>
                                 <option value="10.กำลังซ่อม">10.กำลังซ่อม</option>
                                 <option value="11.รถซ่อมเสร็จรอส่งมอบ">11.รถซ่อมเสร็จรอส่งมอบ</option>
@@ -337,7 +336,7 @@
                         </div>
                         <div>
                             <label class="block text-xs font-bold mb-1 text-slate-600">🔀 ส่งต่อแผนก (Routing)</label>
-                            <select id="m_dept_routing" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-[#00320D] font-bold outline-none focus:border-amber-400 text-sm cursor-pointer shadow-sm">
+                            <select id="m_dept_routing" class="w-full p-2.5 bg-white border border-slate-200 rounded text-[#00320D] font-bold outline-none focus:border-amber-400 text-sm cursor-pointer shadow-sm">
                                 <option value="ซ่อม">🛠️ อยู่สถานีช่าง (Repair)</option>
                                 <option value="อะไหล่">📦 ส่งเบิก/สั่งอะไหล่ (Parts)</option>
                                 <option value="บริการ">👩‍💼 ส่งกลับ SA (Service)</option>
@@ -355,7 +354,7 @@
 
             <div class="flex justify-end gap-3 pt-5 border-t border-slate-200 mt-2">
                 <button onclick="closeModal()" class="px-6 py-2.5 bg-white hover:bg-slate-50 text-slate-600 font-bold rounded-xl border border-slate-300 text-sm transition shadow-sm">ยกเลิก</button>
-                <button onclick="submitRepairStation()" class="px-8 py-2.5 bg-amber-400 hover:bg-amber-500 text-[#00320D] font-black rounded-xl text-sm transition shadow-md flex items-center gap-2 border border-amber-500">
+                <button onclick="submitRepairStation()" id="btn_save_modal" class="px-8 py-2.5 bg-amber-400 hover:bg-amber-500 text-[#00320D] font-black rounded-xl text-sm transition shadow-md flex items-center gap-2 border border-amber-500">
                     <i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูล
                 </button>
             </div>
@@ -473,7 +472,7 @@
             columnsDef.forEach(col => {
                 let filterIcon = col.filter ? `<i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, ${col.idx}, '${col.title}')"></i>` : '';
                 html += `
-                    <th class="group hover:bg-[#002209] transition-colors border-r border-slate-500/50" style="width: ${col.w}px; min-width: ${col.w}px;">
+                    <th class="group hover:bg-[#002209] transition-colors border-r border-white/10" style="width: ${col.w}px; min-width: ${col.w}px;">
                         <div class="flex justify-between items-center w-full px-3 py-3 h-full">
                             <div class="cursor-pointer flex-1 overflow-hidden whitespace-nowrap text-ellipsis" onclick="${col.filter ? `sortTable(${col.idx})` : ''}">
                                 ${col.title} <i class="fa-solid fa-sort sort-icon"></i>
@@ -571,7 +570,7 @@
             } catch(e) { showToast('อัปเดตไม่สำเร็จ', 'error'); }
         }
 
-        // 🌟 เรนเดอร์ตัวตารางแบบ Minimalist CI 🌟
+        // 🌟 เรนเดอร์ตัวตารางแบบ Minimalist 🌟
         function renderRepairListTable(data) {
             const tbody = document.getElementById('repair_list_body');
             if(!data || data.length === 0) { tbody.innerHTML = `<tr><td colspan="${columnsDef.length}" class="p-12 text-center text-slate-500 font-bold bg-white">📭 ไม่พบข้อมูลรถที่ตรงตามเงื่อนไข</td></tr>`; return; }
@@ -583,14 +582,14 @@
                 const deliveryDateStr = j.delivery_date ? j.delivery_date.split('T')[0] : '';
                 
                 const isOverdue = checkOverdue(j);
-                const plateClass = isOverdue ? 'bg-red-50 text-red-600 border-red-200 shadow-sm' : 'bg-white border-slate-300 text-[#00320D] shadow-sm';
+                const plateClass = isOverdue ? 'bg-white text-red-600 border-red-200 shadow-sm' : 'bg-white border-slate-300 text-[#00320D] shadow-sm';
                 
                 let rowHtml = `<tr class="${isOverdue ? 'bg-red-50/10' : ''}">`;
                 
                 columnsDef.forEach(col => {
                     let cellData = ''; 
                     switch(col.key) {
-                        case 'action': cellData = `<div class="px-2 py-1.5"><button onclick="openModal('${j.id}')" class="mx-auto px-3.5 py-1.5 bg-amber-400 hover:bg-amber-500 text-[#00320D] font-bold rounded shadow-sm transition-colors text-xs flex items-center justify-center gap-1.5 w-full"><i class="fa-solid fa-pen"></i> อัปเดต</button></div>`; break;
+                        case 'action': cellData = `<div class="px-2 py-1.5"><button onclick="openModal('${j.id}')" class="mx-auto px-3.5 py-1.5 bg-amber-400 hover:bg-amber-500 text-[#00320D] font-bold rounded transition-colors text-xs flex items-center justify-center gap-1.5 w-full shadow-sm"><i class="fa-solid fa-pen"></i> อัปเดต</button></div>`; break;
                         case 'car_plate': cellData = `<div class="w-full text-center px-2 py-1"><span class="inline-flex items-center px-2.5 py-1 rounded font-mono text-xs font-bold border ${plateClass}">${isOverdue ? '<i class="fa-solid fa-circle-exclamation text-red-500 mr-1 animate-pulse"></i>' : ''}${j.car_plate || '-'}</span></div>`; break;
                         case 'car_brand': cellData = `<div class="font-bold text-[#00320D] truncate px-3" title="${j.car_brand} ${j.car_model || ''}">${j.car_brand || '-'} <span class="text-slate-400 font-medium">${j.car_model || ''}</span></div>`; break;
                         case 'arrived_date': cellData = `<div class="px-3 text-center"><span class="text-slate-600 text-[11px] font-mono font-bold">${arrDateStr || '-'}</span></div>`; break;
@@ -598,28 +597,28 @@
                         case 'repair_finish_date': cellData = `<input type="date" min="${getTodayString()}" value="${finishDateStr}" onchange="fastUpdateDate('${j.id}', 'repair_finish_date', this.value)" class="inline-edit-input">`; break;
                         case 'delivery_date': cellData = `<div class="px-3 text-center"><span class="text-emerald-600 text-[11px] font-mono font-bold">${deliveryDateStr || '-'}</span></div>`; break;
                         
-                        // 🌟 Tag ชิ้นส่วนแบบ Minimal
+                        // 🌟 ปรับ Tag ชิ้นส่วนให้ดูสวยงาม Minimal
                         case 'main_part_name': 
                             let mPartsHTML = '-';
                             if(j.main_part_name) {
-                                mPartsHTML = j.main_part_name.split(',').map(p => p.trim() ? `<span class="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded border border-slate-200 m-0.5 inline-block">${p.trim()}</span>` : '').join('');
+                                mPartsHTML = j.main_part_name.split(',').map(p => p.trim() ? `<span class="bg-blue-50 text-blue-800 px-1.5 py-0.5 rounded border border-blue-200 m-0.5 inline-block">${p.trim()}</span>` : '').join('');
                             }
-                            cellData = `<div class="text-[11px] font-medium whitespace-normal px-3 py-1">${mPartsHTML}</div>`; 
+                            cellData = `<div class="text-[11px] font-medium whitespace-normal px-3 py-1 leading-tight">${mPartsHTML}</div>`; 
                             break;
                             
                         case 'sub_part_name': 
                             let sPartsHTML = '-';
                             if(j.sub_part_name) {
-                                sPartsHTML = j.sub_part_name.split(',').map(p => p.trim() ? `<span class="bg-white text-amber-700 px-1.5 py-0.5 rounded border border-amber-200 m-0.5 inline-block">${p.trim()}</span>` : '').join('');
+                                sPartsHTML = j.sub_part_name.split(',').map(p => p.trim() ? `<span class="bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-200 m-0.5 inline-block">${p.trim()}</span>` : '').join('');
                             }
-                            cellData = `<div class="text-[11px] font-medium whitespace-normal px-3 py-1">${sPartsHTML}</div>`; 
+                            cellData = `<div class="text-[11px] font-medium whitespace-normal px-3 py-1 leading-tight">${sPartsHTML}</div>`; 
                             break;
                             
                         case 'calculated_station': cellData = `<div class="px-3"><span class="text-emerald-700 text-[11px] font-bold inline-flex items-center gap-1"><i class="fa-solid fa-wrench opacity-50"></i> ${j.calculated_station}</span></div>`; break;
                         case 'job_status': cellData = `<div class="text-xs font-bold text-slate-500 truncate px-3">${j.job_status || '-'}</div>`; break;
                         case 'repair_notes': cellData = `<div class="text-slate-400 italic text-xs truncate px-3" title="${j.repair_notes || ''}">${j.repair_notes || '-'}</div>`; break;
                     }
-                    rowHtml += `<td class="border-r border-slate-100">${cellData}</td>`;
+                    rowHtml += `<td class="border-r border-slate-100/50">${cellData}</td>`;
                 });
                 rowHtml += '</tr>'; return rowHtml;
             }).join('');
@@ -935,55 +934,63 @@
         }
 
         // ===============================================
-        // 🛠️ 4. อัปเดตช่าง และระบบจัดการอะไหล่แบบ Tag
+        // 🛠️ 4. อัปเดตช่าง และระบบจัดการอะไหล่แบบเลือกปุ่ม
         // ===============================================
-        let mainPartsList = [];
-        let subPartsList = [];
+        
+        function renderBodyPartsUI() {
+            const mainContainer = document.getElementById('body_parts_main'); 
+            const subContainer = document.getElementById('body_parts_sub');
+            mainContainer.innerHTML = ''; subContainer.innerHTML = '';
 
-        function renderTags(type) {
-            const container = document.getElementById(`tags_${type}_parts`);
-            const list = type === 'main' ? mainPartsList : subPartsList;
+            const allMainFromDB = [...new Set(allBodyPartsMaster.filter(p => p.part_category === 'อะไหล่หลัก' && p.part_name).map(p => p.part_name.trim()))].sort();
+            const allSubFromDB = [...new Set(allBodyPartsMaster.filter(p => p.part_category === 'อะไหล่รอง' && p.part_name).map(p => p.part_name.trim()))].sort();
+
+            const customMain = mainPartsList.filter(p => !allMainFromDB.includes(p));
+            const customSub = subPartsList.filter(p => !allSubFromDB.includes(p));
+
+            const fullMainList = [...new Set([...allMainFromDB, ...customMain])];
+            const fullSubList = [...new Set([...allSubFromDB, ...customSub])];
+
+            fullMainList.forEach(part => {
+                const isSelected = mainPartsList.includes(part);
+                mainContainer.innerHTML += `<span onclick="toggleBodyPart('main', '${part.replace(/'/g, "\\'")}')" class="part-badge ${isSelected ? 'selected-main' : 'unselected'}">${part}</span>`;
+            });
             
-            container.innerHTML = list.map((part, index) => `
-                <div class="part-tag group">
-                    <span class="truncate max-w-[150px]">${part}</span>
-                    <i class="fa-solid fa-xmark part-tag-remove" onclick="removePart('${type}', ${index}); event.stopPropagation();"></i>
-                </div>
-            `).join('');
-            updateHiddenInput(type);
+            fullSubList.forEach(part => {
+                const isSelected = subPartsList.includes(part);
+                subContainer.innerHTML += `<span onclick="toggleBodyPart('sub', '${part.replace(/'/g, "\\'")}')" class="part-badge ${isSelected ? 'selected-sub' : 'unselected'}">${part}</span>`;
+            });
+
+            document.getElementById('m_count_main').innerText = mainPartsList.length;
+            document.getElementById('m_count_sub').innerText = subPartsList.length;
+            
+            document.getElementById('m_main_parts').value = mainPartsList.join(', ');
+            document.getElementById('m_sub_parts').value = subPartsList.join(', ');
         }
 
-        function removePart(type, index) {
-            if (type === 'main') { mainPartsList.splice(index, 1); } 
-            else { subPartsList.splice(index, 1); }
-            renderTags(type);
+        function toggleBodyPart(type, partName) {
+            const list = type === 'main' ? mainPartsList : subPartsList;
+            const index = list.indexOf(partName);
+            if (index > -1) { list.splice(index, 1); } else { list.push(partName); }
+            renderBodyPartsUI();
         }
 
-        function handlePartInput(e, type) {
+        function handleCustomPartInput(e, type) {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 const input = e.target;
                 const val = input.value.trim();
                 if (val) {
-                    if (type === 'main' && !mainPartsList.includes(val)) { mainPartsList.push(val); } 
-                    else if (type === 'sub' && !subPartsList.includes(val)) { subPartsList.push(val); }
-                    input.value = ''; renderTags(type);
+                    const list = type === 'main' ? mainPartsList : subPartsList;
+                    if (!list.includes(val)) { list.push(val); }
+                    input.value = ''; 
+                    renderBodyPartsUI();
                 }
-            } else if (e.key === 'Backspace' && e.target.value === '') {
-                const list = type === 'main' ? mainPartsList : subPartsList;
-                if (list.length > 0) { list.pop(); renderTags(type); }
             }
         }
 
-        function appendPart(type, partName) {
-            const list = type === 'main' ? mainPartsList : subPartsList;
-            if (!list.includes(partName)) { list.push(partName); renderTags(type); }
-        }
-
-        function updateHiddenInput(type) {
-            const list = type === 'main' ? mainPartsList : subPartsList;
-            document.getElementById(`m_${type}_parts`).value = list.join(', ');
-        }
+        let mainPartsList = [];
+        let subPartsList = [];
 
         async function openModal(jobId) {
             try {
@@ -1000,13 +1007,10 @@
                 if(job.qt_no && job.qt_no.trim() !== '') { job.qt_no.split(',').forEach(v => { if(v.trim()) qtListDiv.innerHTML += `<span class="bg-white border border-slate-300 text-slate-700 px-2 py-0.5 rounded text-[10px] font-mono shadow-sm">${v.trim()}</span>`; }); } else { qtListDiv.innerHTML = `<span class="text-slate-400 text-[10px] italic">- ไม่มี -</span>`; }
                 if(job.so_no && job.so_no.trim() !== '') { job.so_no.split(',').forEach(v => { if(v.trim()) soListDiv.innerHTML += `<span class="bg-amber-50 border border-amber-300 text-amber-800 font-bold px-2 py-0.5 rounded text-[10px] font-mono shadow-sm">${v.trim()}</span>`; }); } else { soListDiv.innerHTML = `<span class="text-slate-400 text-[10px] italic">- ไม่มี -</span>`; }
                 
-                // 🎨 ดึงชิ้นส่วนและสร้าง Tag
+                // 🎨 โหลดและ Render ชิ้นส่วนทำสีแบบปุ่ม
                 mainPartsList = job.main_part_name ? job.main_part_name.split(',').map(s => s.trim()).filter(Boolean) : [];
                 subPartsList = job.sub_part_name ? job.sub_part_name.split(',').map(s => s.trim()).filter(Boolean) : [];
-                renderTags('main'); renderTags('sub');
-                
-                document.getElementById('selector_main').classList.add('hidden');
-                document.getElementById('selector_sub').classList.add('hidden');
+                renderBodyPartsUI();
 
                 const carParts = allPartOrders.filter(po => po.car_plate === job.car_plate && po.order_status !== 'ยกเลิก');
                 if(carParts.length > 0) {
@@ -1035,26 +1039,6 @@
             } catch(e) { alert('❌ เปิดหน้าต่างไม่สำเร็จ'); console.log(e); }
         }
 
-        // 🌟 ดึงข้อมูลจากฐานมาสเตอร์
-        function togglePartsSelector(type) {
-            const container = document.getElementById(`selector_${type}`);
-            if(!container.classList.contains('hidden')) { container.classList.add('hidden'); return; }
-            const targetCategory = type === 'main' ? 'อะไหล่หลัก' : 'อะไหล่รอง';
-            const rawParts = allBodyPartsMaster.filter(p => p.part_category === targetCategory && p.part_name && p.part_name.trim() !== '');
-            const uniquePartNames = [...new Set(rawParts.map(p => p.part_name.trim()))].sort();
-            
-            if(uniquePartNames.length === 0) {
-                container.innerHTML = `<span class="text-[10px] text-slate-400 py-2 w-full text-center">ไม่มีข้อมูล ${targetCategory} ในระบบมาสเตอร์</span>`;
-            } else {
-                container.innerHTML = uniquePartNames.map(name => `
-                    <button type="button" onclick="appendPart('${type}', '${name.replace(/'/g, "\\'")}')" class="bg-white hover:bg-amber-400 hover:text-[#00320D] hover:border-amber-500 text-slate-700 border border-slate-200 px-2 py-1 rounded text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 select-none">
-                        <i class="fa-solid fa-plus text-slate-400"></i> ${name}
-                    </button>
-                `).join('');
-            }
-            container.classList.remove('hidden');
-        }
-
         function validateRepairDate(input) {
             const today = getTodayString();
             if (input.value && input.value < today) {
@@ -1066,11 +1050,14 @@
         function closeModal() { document.getElementById('stationModal').classList.add('hidden'); }
 
         async function submitRepairStation() {
-            // 🌟 บังคับกวาดค่าที่ค้างอยู่ในช่อง Input เข้า Tag List ก่อนบันทึก
-            const mainInputVal = document.getElementById('input_main_parts').value.trim();
-            if (mainInputVal) { appendPart('main', mainInputVal); document.getElementById('input_main_parts').value = ''; }
-            const subInputVal = document.getElementById('input_sub_parts').value.trim();
-            if (subInputVal) { appendPart('sub', subInputVal); document.getElementById('input_sub_parts').value = ''; }
+            // ดึงค่าก่อน เพราะปุ่มสร้างมาจาก Tag
+            const mainInputVal = document.getElementById('input_custom_main').value.trim();
+            if (mainInputVal && !mainPartsList.includes(mainInputVal)) { mainPartsList.push(mainInputVal); }
+            const subInputVal = document.getElementById('input_custom_sub').value.trim();
+            if (subInputVal && !subPartsList.includes(subInputVal)) { subPartsList.push(subInputVal); }
+            
+            document.getElementById('m_main_parts').value = mainPartsList.join(', ');
+            document.getElementById('m_sub_parts').value = subPartsList.join(', ');
 
             const id = document.getElementById('m_job_id').value;
             const repairDateInput = document.getElementById('m_repair_date').value;
