@@ -240,7 +240,7 @@
                 </div>
             </section>
 
-            <!-- 📋 แท็บ 3: กระดานคิวรถซ่อม (Excel Pro Max Table แก้ไขได้ทันที) -->
+            <!-- 📋 แท็บ 3: กระดานคิวรถซ่อม (Excel Pro Max Table) -->
             <section id="tab-board" class="tab-content">
                 <div class="bg-white rounded-xl shadow-sm flex-1 flex flex-col overflow-hidden">
                     <div class="table-container flex-1">
@@ -441,8 +441,6 @@
             "21.พักซ่อม"
         ];
 
-        const routingOptions = ["ซ่อม", "บริการ", "อะไหล่", "บัญชี", "รอดำเนินการ"];
-
         const stationsTimeline = [
             { id: 'chk_kho', code: '01', name: 'เคาะ' }, { id: 'chk_pou', code: '02', name: 'โป๊ว' }, 
             { id: 'chk_puan', code: '03', name: 'เตรียมพื้น' }, { id: 'chk_pon', code: '04', name: 'พ่นสี' }, 
@@ -463,7 +461,7 @@
             { idx: 6, key: 'delivery_date', title: 'ส่งมอบ', w: 90, filter: true },
             { idx: 7, key: 'main_part_name', title: 'ชิ้นหลัก', w: 220, filter: true },
             { idx: 8, key: 'sub_part_name', title: 'ชิ้นรอง', w: 220, filter: true },
-            { idx: 9, key: 'calculated_station', title: 'สถานี/ส่งต่อ', w: 130, filter: true },
+            { idx: 9, key: 'calculated_station', title: 'สถานี', w: 120, filter: true },
             { idx: 10, key: 'job_status', title: 'สเตตัส', w: 150, filter: true },
             { idx: 11, key: 'repair_notes', title: 'หมายเหตุ', w: 180, filter: true }
         ];
@@ -550,7 +548,7 @@
             setTimeout(initResizableColumns, 300);
         }
 
-        // 🌟 ระบบขยายความกว้างคอลัมน์ตารางแบบ Excel ลื่นไหล 100%
+        // 🌟 ระบบยืด-หดความกว้างคอลัมน์ตารางแบบ Excel
         function initResizableColumns() {
             const cols = document.querySelectorAll('#repairTable th');
             cols.forEach(col => {
@@ -709,7 +707,7 @@
             return html;
         }
 
-        // 🌟 เรนเดอร์ตัวตารางแบบ Excel Pro Max พร้อม Dropdown สตตัสและสถานีแก้ไขสดๆ
+        // 🌟 เรนเดอร์ตัวตารางแบบ Excel Pro Max พร้อม Dropdown สตตัสแก้ไขสดๆ และสถานีช่างจริง
         function renderRepairListTable(data) {
             const tbody = document.getElementById('repair_list_body');
             if(!data || data.length === 0) { tbody.innerHTML = `<tr><td colspan="${columnsDef.length}" class="p-12 text-center text-slate-400 font-bold bg-white">📭 ไม่พบข้อมูลรถที่ตรงตามเงื่อนไข</td></tr>`; return; }
@@ -755,9 +753,8 @@
                             cellData = renderAllTags(j.sub_part_name, 'bg-amber-50', 'text-amber-700', 'border-amber-200');
                             break;
                         case 'calculated_station': 
-                            // 🌟 Dropdown สถานี/ส่งต่อ
-                            const routeOptionsHtml = routingOptions.map(rt => `<option value="${rt}" ${j.department_routing === rt ? 'selected' : ''}>${rt}</option>`).join('');
-                            cellData = `<div class="px-1 py-1"><select onchange="fastUpdateField('${j.id}', 'department_routing', this.value)" class="inline-edit-select text-emerald-800">${routeOptionsHtml}</select></div>`; 
+                            // 🌟 สถานีช่างจริง (เคาะ, โป๊ว, ฯลฯ)
+                            cellData = `<div class="text-[#00320D] text-[11px] font-bold px-2 py-1.5 truncate" title="${j.calculated_station}"><i class="fa-solid fa-wrench text-amber-500 mr-1 text-[9px]"></i> ${j.calculated_station}</div>`; 
                             break;
                         case 'job_status': 
                             // 🌟 Dropdown สตตัสงานซ่อม
@@ -1095,7 +1092,6 @@
             `).join('');
         }
 
-        // 🌟 ดึงข้อมูลจาก rizenic_body_parts มาจัดแสดงปุ่ม (พร้อมดร็อปดาวน์แสดงเครื่องหมาย ✓)
         function renderBodyPartsUI() {
             const mainContainer = document.getElementById('body_parts_main'); 
             const subContainer = document.getElementById('body_parts_sub');
@@ -1129,7 +1125,7 @@
             document.getElementById('m_main_parts').value = mainPartsList.join(', ');
             document.getElementById('m_sub_parts').value = subPartsList.join(', ');
 
-            // Populate Dropdowns with Checkmarks for selected items
+            // Populate Dropdowns with Checkmarks
             const allMainFromDB = [...new Set(allBodyPartsMaster.filter(p => (p.category === 'อะไหล่หลัก' || p.category === 'ชิ้นส่วนหลัก') && p.part_name).map(p => p.part_name.trim()))].sort();
             const allSubFromDB = [...new Set(allBodyPartsMaster.filter(p => (p.category === 'อะไหล่รอง' || p.category === 'ชิ้นส่วนรอง') && p.part_name).map(p => p.part_name.trim()))].sort();
 
