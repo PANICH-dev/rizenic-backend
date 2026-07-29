@@ -22,37 +22,19 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
         
-        /* 2. Table UI (Excel Pro Max - Fixed Layout, Resizable ทั้งตัวกล่องและคอลัมน์) */
-        .table-container { 
-            overflow: auto; 
-            border-radius: 8px; 
-            border: 2px solid #cbd5e1; 
-            background: #fff; 
-            height: calc(100vh - 220px); 
-            min-height: 350px; 
-            resize: both; 
-            position: relative;
-            box-shadow: inset 0 0 4px rgba(0,0,0,0.02);
-        }
-        .excel-table { 
-            width: max-content; 
-            min-width: 100%; 
-            table-layout: fixed; 
-            text-align: left; 
-            border-collapse: separate; 
-            border-spacing: 0; 
-            font-size: 12px; 
-        }
+        /* 2. Table UI (Excel Pro Max) */
+        .table-container { overflow: auto; border-radius: 6px; border: 2px solid #cbd5e1; background: #fff; height: calc(100vh - 220px); min-height: 350px; resize: both; position: relative; box-shadow: inset 0 0 4px rgba(0,0,0,0.02); }
+        .excel-table { width: max-content; min-width: 100%; table-layout: fixed; text-align: left; border-collapse: separate; border-spacing: 0; font-size: 12px; }
         .excel-table thead th { 
             background-color: #00320D; color: #ffffff; font-weight: 600; padding: 10px 12px; 
             border-right: 1px solid #334155; border-bottom: 3px solid #f59e0b; position: sticky; top: 0; z-index: 10; letter-spacing: 0.5px;
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; user-select: none;
         }
-        .excel-table tbody tr { transition: background-color 0.2s; height: 44px; }
+        .excel-table tbody tr { transition: background-color 0.2s; }
         .excel-table tbody tr:hover td { background-color: #fef3c7; color: #00320D; }
-        .excel-table tbody td { padding: 0; vertical-align: middle; color: #334155; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; background-color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .excel-table tbody td { padding: 0; vertical-align: middle; color: #334155; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; background-color: #fff; }
         
-        /* 3. Inputs & Buttons */
+        /* 3. Inputs & Dropdowns inside Table Cells */
         .inline-edit-input { 
             width: 100%; border: 1px solid transparent; background: transparent; padding: 6px 8px; border-radius: 4px; 
             font-family: monospace; font-size: 11px; font-weight: 600; color: #0f172a; cursor: text; transition: all 0.2s; text-align: center;
@@ -61,6 +43,13 @@
         .inline-edit-input:focus { border-color: #f59e0b; background: #fff; outline: none; box-shadow: 0 0 0 2px rgba(245,158,11,0.1); }
         .inline-edit-input.text-left { text-align: left; font-family: 'Kanit', sans-serif; font-weight: 500; font-size: 12px; }
         
+        .inline-edit-select {
+            width: 100%; border: 1px solid #cbd5e1; background-color: #f8fafc; padding: 4px 6px; border-radius: 6px;
+            font-family: 'Kanit', sans-serif; font-size: 11px; font-weight: 700; color: #0f172a; cursor: pointer; transition: all 0.2s; outline: none;
+        }
+        .inline-edit-select:hover { border-color: #f59e0b; background-color: #fff; }
+        .inline-edit-select:focus { border-color: #f59e0b; background-color: #fff; box-shadow: 0 0 0 2px rgba(245,158,11,0.15); }
+
         .action-btn { 
             display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; 
             color: #94a3b8; background: #f8fafc; transition: all 0.2s; border: 1px solid #e2e8f0; 
@@ -101,19 +90,8 @@
         .filter-icon.active { @apply text-amber-400 opacity-100; }
         
         /* Resizer Line */
-        .resizer { 
-            position: absolute; 
-            top: 0; 
-            right: 0; 
-            width: 6px; 
-            height: 100%; 
-            cursor: col-resize; 
-            user-select: none; 
-            z-index: 20; 
-        }
-        .resizer:hover, .resizer.resizing { 
-            background-color: #f59e0b !important; 
-        }
+        .resizer { position: absolute; top: 0; right: 0; width: 6px; height: 100%; cursor: col-resize; user-select: none; z-index: 20; }
+        .resizer:hover, .resizer.resizing { background-color: #f59e0b !important; }
     </style>
     <style id="dynamic-col-styles"></style>
 </head>
@@ -121,7 +99,7 @@
 
     <!-- 🔔 Toast Notifications -->
     <div id="toastMsg" class="fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 translate-y-20 opacity-0 z-[200] flex items-center gap-2 border border-white/20">
-        <span id="toastContent"><i class="fa-solid fa-circle-check text-xl"></i> บันทึกข้อมูลอัตโนมัติเรียบร้อย!</span>
+        <span id="toastContent"><i class="fa-solid fa-circle-check text-xl"></i> บันทึกข้อมูลเรียบร้อย!</span>
     </div>
 
     <!-- 🔍 Excel Filter Modal -->
@@ -170,7 +148,7 @@
             <div class="flex items-center gap-2 border-l border-slate-200 pl-4">
                 <button onclick="fetchJobList()" class="p-2 text-slate-500 hover:text-[#00320D] hover:bg-slate-100 rounded-lg transition" title="Refresh"><i class="fa-solid fa-rotate-right"></i></button>
                 
-                <!-- 🌟 เมนูซ่อนคอลัมน์ (Hide Column) -->
+                <!-- 🌟 เมนูซ่อนคอลัมน์ -->
                 <div class="group relative">
                     <button class="p-2 text-slate-500 hover:text-[#00320D] hover:bg-slate-100 rounded-lg transition flex items-center gap-1.5 text-xs font-bold"><i class="fa-solid fa-eye-slash"></i> <span class="hidden xl:block">ซ่อนคอลัมน์</span></button>
                     <div class="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 shadow-xl rounded-lg py-2 hidden group-hover:block z-50 px-2" id="hide_col_menu">
@@ -224,7 +202,7 @@
     <main class="flex-1 overflow-auto custom-scrollbar p-6 bg-[#f4f6f9]">
         <div class="max-w-[1600px] mx-auto h-full flex flex-col">
 
-            <!-- 📑 แท็บ 1: ปฏิทินปฏิบัติงาน (กราฟแท่งแนวตั้ง) -->
+            <!-- 📑 แท็บ 1: ปฏิทินปฏิบัติงาน -->
             <section id="tab-calendar" class="tab-content active">
                 <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex-1 flex flex-col">
                     <div class="flex justify-between items-center mb-6">
@@ -262,7 +240,7 @@
                 </div>
             </section>
 
-            <!-- 📋 แท็บ 3: กระดานคิวรถซ่อม (Excel Pro Max Table) -->
+            <!-- 📋 แท็บ 3: กระดานคิวรถซ่อม (Excel Pro Max Table แก้ไขได้ทันที) -->
             <section id="tab-board" class="tab-content">
                 <div class="bg-white rounded-xl shadow-sm flex-1 flex flex-col overflow-hidden">
                     <div class="table-container flex-1">
@@ -326,7 +304,7 @@
                     </div>
                 </div>
                 
-                <!-- Step 1: ประเมินชิ้นส่วน (UI ดึงจาก SA โชว์เฉพาะอันที่เลือก + ดร็อปดาวน์เช็กถูก) -->
+                <!-- Step 1: ประเมินชิ้นส่วน -->
                 <div class="bg-white border border-slate-200 p-5 rounded-xl shadow-sm">
                     <h3 class="text-xs font-black text-[#00320D] uppercase tracking-widest mb-4 flex items-center gap-2 pb-2 border-b border-slate-100"><span class="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px]">1</span> ชิ้นส่วนที่ต้องทำสี</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -337,12 +315,10 @@
                                 <span class="text-[10px] bg-[#00320D] text-white px-2 py-0.5 rounded font-black shadow-sm" id="m_count_main">0</span>
                             </div>
                             
-                            <!-- กล่องโชว์เฉพาะอะไหล่ที่เลือกไว้ -->
                             <div id="body_parts_main" class="flex flex-wrap content-start gap-1.5 min-h-[70px] bg-slate-50 border border-slate-200 rounded-lg p-3 shadow-inner">
                                 <span class="text-xs text-slate-400 font-mono italic">ไม่มีชิ้นส่วนที่เลือก</span>
                             </div>
 
-                            <!-- Dropdown เพิ่ม/สลับอะไหล่ พร้อมเครื่องหมาย ✓ -->
                             <select id="select_add_main" onchange="addPartFromDropdown(this, 'main')" class="w-full text-xs font-bold text-slate-700 bg-white border border-slate-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500/20 outline-none cursor-pointer shadow-sm">
                                 <option value="">+ เลือกเพิ่ม/ลบ ชิ้นส่วนหลัก (จากระบบ)...</option>
                             </select>
@@ -358,12 +334,10 @@
                                 <span class="text-[10px] bg-amber-500 text-[#00320D] px-2 py-0.5 rounded font-black shadow-sm" id="m_count_sub">0</span>
                             </div>
                             
-                            <!-- กล่องโชว์เฉพาะอะไหล่ที่เลือกไว้ -->
                             <div id="body_parts_sub" class="flex flex-wrap content-start gap-1.5 min-h-[70px] bg-slate-50 border border-slate-200 rounded-lg p-3 shadow-inner">
                                 <span class="text-xs text-slate-400 font-mono italic">ไม่มีชิ้นส่วนที่เลือก</span>
                             </div>
 
-                            <!-- Dropdown เพิ่ม/สลับอะไหล่ พร้อมเครื่องหมาย ✓ -->
                             <select id="select_add_sub" onchange="addPartFromDropdown(this, 'sub')" class="w-full text-xs font-bold text-slate-700 bg-white border border-slate-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-amber-500/20 outline-none cursor-pointer shadow-sm">
                                 <option value="">+ เลือกเพิ่ม/ลบ ชิ้นส่วนรอง (จากระบบ)...</option>
                             </select>
@@ -459,6 +433,16 @@
         let currentFilterCol = -1;
         let hiddenCols = new Set(); 
 
+        const statusOptions = [
+            "09.จอดรอเข้าซ่อม",
+            "10.กำลังซ่อม",
+            "11.รถซ่อมเสร็จรอส่งมอบ",
+            "12.รอส่งมอบ",
+            "21.พักซ่อม"
+        ];
+
+        const routingOptions = ["ซ่อม", "บริการ", "อะไหล่", "บัญชี", "รอดำเนินการ"];
+
         const stationsTimeline = [
             { id: 'chk_kho', code: '01', name: 'เคาะ' }, { id: 'chk_pou', code: '02', name: 'โป๊ว' }, 
             { id: 'chk_puan', code: '03', name: 'เตรียมพื้น' }, { id: 'chk_pon', code: '04', name: 'พ่นสี' }, 
@@ -468,7 +452,7 @@
             { id: 'chk_pak', code: '11', name: 'พักซ่อม' }, { id: 'chk_ready', code: '12', name: 'รอส่งมอบ' }
         ];
 
-        // 🌟 ตั้งค่าความกว้างคอลัมน์สำหรับตาราง Excel Pro Max
+        // 🌟 ตั้งค่าความกว้างคอลัมน์มาตรฐาน
         const columnsDef = [
             { idx: 0, key: 'action', title: 'Action', w: 70, filter: false },
             { idx: 1, key: 'car_plate', title: 'ทะเบียน', w: 110, filter: true },
@@ -477,10 +461,10 @@
             { idx: 4, key: 'target_finish_date', title: 'เป้าเสร็จ', w: 90, filter: true },
             { idx: 5, key: 'repair_finish_date', title: 'เสร็จจริง', w: 110, filter: true },
             { idx: 6, key: 'delivery_date', title: 'ส่งมอบ', w: 90, filter: true },
-            { idx: 7, key: 'main_part_name', title: 'ชิ้นหลัก', w: 160, filter: true },
-            { idx: 8, key: 'sub_part_name', title: 'ชิ้นรอง', w: 160, filter: true },
-            { idx: 9, key: 'calculated_station', title: 'สถานี', w: 120, filter: true },
-            { idx: 10, key: 'job_status', title: 'สเตตัส', w: 140, filter: true },
+            { idx: 7, key: 'main_part_name', title: 'ชิ้นหลัก', w: 220, filter: true },
+            { idx: 8, key: 'sub_part_name', title: 'ชิ้นรอง', w: 220, filter: true },
+            { idx: 9, key: 'calculated_station', title: 'สถานี/ส่งต่อ', w: 130, filter: true },
+            { idx: 10, key: 'job_status', title: 'สเตตัส', w: 150, filter: true },
             { idx: 11, key: 'repair_notes', title: 'หมายเหตุ', w: 180, filter: true }
         ];
 
@@ -566,7 +550,7 @@
             setTimeout(initResizableColumns, 300);
         }
 
-        // 🌟 ระบบยืด-หดความกว้างคอลัมน์ (Column Resizing Engine) สมบูรณ์แบบ
+        // 🌟 ระบบขยายความกว้างคอลัมน์ตารางแบบ Excel ลื่นไหล 100%
         function initResizableColumns() {
             const cols = document.querySelectorAll('#repairTable th');
             cols.forEach(col => {
@@ -703,28 +687,29 @@
                     const jobIndex = originalRepairJobs.findIndex(j => String(j.id) === String(id));
                     if(jobIndex > -1) { 
                         originalRepairJobs[jobIndex][field] = (isDate && value) ? value + 'T00:00:00.000Z' : value; 
-                        showToast('อัปเดตข้อมูลเรียบร้อย!'); 
-                        if(isDate) updateKPIs(); 
+                        showToast('บันทึกข้อมูลเรียบร้อย!'); 
+                        if(isDate || field === 'job_status') updateKPIs(); 
                         runTableFilters(); 
                     }
                 } else throw new Error();
             } catch(e) { showToast('อัปเดตไม่สำเร็จ', 'error'); }
         }
 
-        function renderTagsLimit(partsStr, bgClass, textClass, borderClass) {
-            if(!partsStr || !partsStr.trim()) return '<div class="px-2 py-1.5 text-center text-slate-300">-</div>';
+        // 🌟 แสดงชิ้นส่วนทุกชิ้นแบบเต็มๆ ในตาราง (ไม่มีการตัดคำ +1)
+        function renderAllTags(partsStr, bgClass, textClass, borderClass) {
+            if(!partsStr || !partsStr.trim()) return '<div class="px-3 py-2 text-[#94a3b8] text-[11px]">-</div>';
             const parts = partsStr.split(',').map(s => s.trim()).filter(Boolean);
-            if(parts.length === 0) return '<div class="px-2 py-1.5 text-center text-slate-300">-</div>';
+            if(parts.length === 0) return '<div class="px-3 py-2 text-[#94a3b8] text-[11px]">-</div>';
             
-            let html = `<div class="flex items-center gap-1 w-full px-2 py-1 overflow-hidden">`;
-            html += `<span class="${bgClass} ${textClass} ${borderClass} px-1.5 py-0.5 rounded border text-[10px] font-bold shadow-sm truncate max-w-[85px] leading-tight" title="${parts[0]}">${parts[0]}</span>`;
-            if (parts.length > 1) {
-                html += `<span class="bg-slate-100 text-slate-600 border-slate-300 px-1.5 py-0.5 rounded border text-[10px] font-black shrink-0 cursor-help shadow-sm leading-tight" title="${parts.join(', ')}">+${parts.length - 1}</span>`;
-            }
+            let html = `<div class="flex flex-wrap gap-1 p-1.5 max-w-full">`;
+            parts.forEach(p => {
+                html += `<span class="${bgClass} ${textClass} ${borderClass} px-2 py-0.5 rounded border text-[10px] font-bold shadow-sm inline-block leading-tight">${p}</span>`;
+            });
             html += `</div>`;
             return html;
         }
 
+        // 🌟 เรนเดอร์ตัวตารางแบบ Excel Pro Max พร้อม Dropdown สตตัสและสถานีแก้ไขสดๆ
         function renderRepairListTable(data) {
             const tbody = document.getElementById('repair_list_body');
             if(!data || data.length === 0) { tbody.innerHTML = `<tr><td colspan="${columnsDef.length}" class="p-12 text-center text-slate-400 font-bold bg-white">📭 ไม่พบข้อมูลรถที่ตรงตามเงื่อนไข</td></tr>`; return; }
@@ -764,16 +749,20 @@
                             cellData = `<div class="text-emerald-600 text-[11px] font-mono font-bold text-center px-1 py-1.5">${deliveryDateStr || '-'}</div>`; 
                             break;
                         case 'main_part_name': 
-                            cellData = renderTagsLimit(j.main_part_name, 'bg-blue-50', 'text-blue-700', 'border-blue-200');
+                            cellData = renderAllTags(j.main_part_name, 'bg-blue-50', 'text-blue-700', 'border-blue-200');
                             break;
                         case 'sub_part_name': 
-                            cellData = renderTagsLimit(j.sub_part_name, 'bg-amber-50', 'text-amber-700', 'border-amber-200');
+                            cellData = renderAllTags(j.sub_part_name, 'bg-amber-50', 'text-amber-700', 'border-amber-200');
                             break;
                         case 'calculated_station': 
-                            cellData = `<div class="text-[#00320D] text-[11px] font-bold px-2 py-1.5 truncate" title="${j.calculated_station}"><i class="fa-solid fa-wrench text-slate-300 mr-1 text-[9px]"></i> ${j.calculated_station}</div>`; 
+                            // 🌟 Dropdown สถานี/ส่งต่อ
+                            const routeOptionsHtml = routingOptions.map(rt => `<option value="${rt}" ${j.department_routing === rt ? 'selected' : ''}>${rt}</option>`).join('');
+                            cellData = `<div class="px-1 py-1"><select onchange="fastUpdateField('${j.id}', 'department_routing', this.value)" class="inline-edit-select text-emerald-800">${routeOptionsHtml}</select></div>`; 
                             break;
                         case 'job_status': 
-                            cellData = `<div class="px-2 py-1.5 truncate"><span class="text-[10px] font-bold text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100" title="${j.job_status || '-'}">${j.job_status || '-'}</span></div>`; 
+                            // 🌟 Dropdown สตตัสงานซ่อม
+                            const statusOptionsHtml = statusOptions.map(st => `<option value="${st}" ${j.job_status === st ? 'selected' : ''}>${st}</option>`).join('');
+                            cellData = `<div class="px-1 py-1"><select onchange="fastUpdateField('${j.id}', 'job_status', this.value)" class="inline-edit-select text-[#00320D]">${statusOptionsHtml}</select></div>`; 
                             break;
                         case 'repair_notes': 
                             cellData = `<div class="px-1 py-1 w-full"><input type="text" value="${j.repair_notes || ''}" placeholder="-" onchange="fastUpdateField('${j.id}', 'repair_notes', this.value)" class="inline-edit-input text-left w-full"></div>`;
@@ -867,7 +856,7 @@
         }
 
         // ===============================================
-        // 📅 2. ปฏิทินปฏิบัติงานแนวตั้ง
+        // 📅 2. ปฏิทินปฏิบัติงานแนวตั้ง (กรกฎาคม)
         // ===============================================
         function renderCalendar() {
             const grid = document.getElementById('calendar_grid'); grid.innerHTML = '';
