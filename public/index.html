@@ -625,7 +625,7 @@
             } catch(e) { alert('❌ เกิดข้อผิดพลาดในการยิงออเดอร์'); btnElem.innerHTML = '<i class="fa-solid fa-paper-plane"></i> แอด'; }
         }
 
-   // 🌟 5. ฟังก์ชันติดตาม PO อัปเดตให้ปุ่มดินสอเรียก Pop-up ตัวใหม่!
+  // 🌟 5. ติดตามสถานะ PO (สลับมาเรียกใช้ Pop-up ตัวใหม่แล้ว 100%)
         async function loadPartsTrackingTable(carPlate) {
             const tbody = document.getElementById('track_parts_body');
             if (!carPlate) {
@@ -633,7 +633,7 @@
                 return;
             }
             try {
-                // บังคับไม่ให้จำแคช
+                // ป้องกันเบราว์เซอร์จำแคช
                 const res = await fetch(`${API_BASE_URL}/api/part-orders`, { cache: 'no-store' });
                 if (!res.ok) return;
                 const data = await res.json();
@@ -647,15 +647,13 @@
                 tbody.innerHTML = filtered.map(item => {
                     const orderId = item.id || item.order_id;
                     const hasETA = item.est_arrival_date && String(item.est_arrival_date).trim() !== '';
-                    
-                    // 🌟 เข้ารหัสหมายเหตุกันตัวอักษรพิเศษทำระบบพัง
                     const encodedNotes = encodeURIComponent(item.notes || '');
 
-                    // 🔒 ล็อกปุ่มจัดการหากมี ETA
+                    // 🔒 ล็อกปุ่มหากมี ETA
                     const actionButtons = hasETA 
                         ? `<span class="text-slate-400 text-[11px] font-bold flex items-center justify-center gap-1" title="สั่งของแล้ว ไม่สามารถแก้ไขได้"><i class="fa-solid fa-lock"></i> ล็อก</span>`
                         : `<div class="flex items-center justify-center gap-1">
-                               <!-- เปลี่ยนมาเรียกฟังก์ชันเปิด Pop-up ใหม่ -->
+                               <!-- 🎯 เปลี่ยนเป็น openEditPOModal เพื่อเรียก Pop-up ใหม่ -->
                                <button type="button" onclick="openEditPOModal('${orderId}', '${item.qty_ordered || 1}', '${encodedNotes}', '${carPlate}')" class="text-blue-500 hover:text-blue-700 hover:bg-blue-100 bg-blue-50 px-2 py-1 rounded text-xs font-bold transition shadow-sm" title="แก้ไขรายการนี้"><i class="fa-solid fa-pen"></i></button>
                                <button type="button" onclick="deletePO('${orderId}', '${carPlate}')" class="text-red-500 hover:text-red-700 hover:bg-red-100 bg-red-50 px-2 py-1 rounded text-xs font-bold transition shadow-sm" title="ลบรายการนี้"><i class="fa-solid fa-trash"></i></button>
                            </div>`;
@@ -680,7 +678,7 @@
             }
         }
 
-        // 🌟 ชุดฟังก์ชันควบคุม Pop-up แก้ไข PO สวยๆ
+        // 🌟 ฟังก์ชันเปิด Pop-up
         function openEditPOModal(id, qty, encodedNotes, carPlate) {
             const decodedNotes = decodeURIComponent(encodedNotes);
             document.getElementById('edit_po_modal_id').value = id;
@@ -691,17 +689,18 @@
             document.getElementById('editPOModal').classList.remove('hidden');
         }
 
+        // 🌟 ฟังก์ชันปิด Pop-up
         function closeEditPOModal() {
             document.getElementById('editPOModal').classList.add('hidden');
         }
 
-        // 🌟 ฟังก์ชันเซฟข้อมูลตอนกด "บันทึกข้อมูล" ใน Pop-up
+        // 🌟 ฟังก์ชันบันทึกข้อมูลจาก Pop-up สู่เซิร์ฟเวอร์
         async function submitEditPOModal(e) {
             e.preventDefault();
             const id = document.getElementById('edit_po_modal_id').value;
             const carPlate = document.getElementById('edit_po_modal_car_plate').value;
             const qty = parseInt(document.getElementById('edit_po_modal_qty').value) || 1;
-            const notes = document.getElementById('edit_po_modal_notes').value; // รับข้อความทั้งหมด รวมถึงการเว้นบรรทัด
+            const notes = document.getElementById('edit_po_modal_notes').value;
 
             const btn = document.getElementById('btn_submit_edit_po');
             const oldHtml = btn.innerHTML;
@@ -709,7 +708,7 @@
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
 
             try {
-                // ยิงอัปเดตไปที่เซิร์ฟเวอร์
+                // ส่งอัปเดตจำนวนสั่งซื้อและหมายเหตุ
                 await Promise.all([
                     fetch(`${API_BASE_URL}/api/part-orders/${id}/fast`, {
                         method: 'PUT',
@@ -723,16 +722,15 @@
                     })
                 ]);
 
-                // โชว์แจ้งเตือนด้านขวาล่าง
+                // โชว์แจ้งเตือนสำเร็จ
                 const toast = document.createElement('div');
-                toast.className = 'fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-6 py-3 rounded-xl shadow-2xl z-[200] flex items-center gap-2';
+                toast.className = 'fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-6 py-3 rounded-2xl shadow-2xl z-[200] flex items-center gap-2';
                 toast.innerHTML = `<i class="fa-solid fa-circle-check text-xl"></i> อัปเดตข้อมูลสำเร็จ!`;
                 document.body.appendChild(toast);
                 setTimeout(() => toast.remove(), 2500);
 
-                // ปิด Pop-up และโหลดตารางใหม่ให้ทันที
                 closeEditPOModal();
-                loadPartsTrackingTable(carPlate);
+                loadPartsTrackingTable(carPlate); // โหลดตารางใหม่ทันที
             } catch(err) {
                 alert('❌ แก้ไขข้อมูลไม่สำเร็จ'); 
             } finally {
