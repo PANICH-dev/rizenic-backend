@@ -43,7 +43,6 @@
         .modern-table td { @apply px-4 py-3 border-b border-slate-100 text-slate-800 font-medium; }
         .modern-table tr:hover { @apply bg-green-50/40 transition-colors; }
         
-        /* 🌟 Custom Styles for Schedule Calendar */
         .sched-cell { @apply bg-white border border-slate-200 rounded-xl p-2 min-h-[135px] flex flex-col justify-between hover:border-blue-500 transition-all cursor-pointer hover:shadow-md; }
         .quota-bar { @apply h-1.5 rounded-full bg-slate-200 overflow-hidden mt-0.5; }
         .quota-fill { @apply h-full transition-all duration-500; }
@@ -112,7 +111,13 @@
                         <div><label class="label-text">เบอร์โทรศัพท์ <span class="text-red-500">*</span></label><input type="text" id="phone_number" class="minimal-input font-mono" placeholder="08X-XXX-XXXX"></div>
                         <div><label class="label-text">ประเภทลูกค้า</label><select id="customer_type" class="minimal-input"><option value="">กำลังโหลด...</option></select></div>
                         <div><label class="label-text">รูปแบบการชำระเงิน/ประกัน</label><select id="payment_type" class="minimal-input"><option value="">กำลังโหลด...</option></select></div>
-                        <div><label class="label-text">ทะเบียนรถ <span class="text-red-500">*</span></label><input type="text" id="car_plate" class="minimal-input uppercase text-lg text-center tracking-widest font-black text-green-800 bg-green-50 border-green-200 focus:border-green-500 focus:ring-green-500/20" placeholder="กข 1234"></div>
+                        
+                        <!-- 🌟 เพิ่ม Event ดักจับการพิมพ์ทะเบียน เพื่อโหลดตาราง PO อัตโนมัติ -->
+                        <div>
+                            <label class="label-text">ทะเบียนรถ <span class="text-red-500">*</span></label>
+                            <input type="text" id="car_plate" oninput="loadPartsTrackingTable(this.value.trim())" onchange="loadPartsTrackingTable(this.value.trim())" class="minimal-input uppercase text-lg text-center tracking-widest font-black text-green-800 bg-green-50 border-green-200 focus:border-green-500 focus:ring-green-500/20" placeholder="กข 1234">
+                        </div>
+                        
                         <div>
                             <label class="label-text">ยี่ห้อรถ <span class="text-red-500">*</span></label>
                             <input type="text" id="car_brand" list="brand_list" class="minimal-input font-bold" value="Tesla" placeholder="พิมพ์ค้นหา..." onchange="updateCarModels(this.value)">
@@ -178,7 +183,7 @@
                     </div>
                 </div>
 
-                <!-- 🔍 บล็อก 5: PO Tracking (อัปเกรดปุ่มแก้ไขและล็อก ETA) -->
+                <!-- 🔍 บล็อก 5: PO Tracking -->
                 <div class="card-container">
                     <div class="section-header">
                         <h3 class="section-title"><i class="fa-solid fa-magnifying-glass-chart section-icon"></i> 5. ติดตามสถานะอะไหล่ (PO Tracking)</h3>
@@ -224,7 +229,7 @@
                 <!-- 🗓️ บล็อก 7/8 (Timeline & Submit) -->
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
                     
-                    <!-- 🌟 🏢 7. กำหนดการนัดหมาย -->
+                    <!-- 🏢 7. กำหนดการนัดหมาย -->
                     <div class="card-container lg:col-span-5 flex flex-col gap-3 !mb-0">
                         <div class="section-header">
                             <h3 class="section-title"><i class="fa-regular fa-calendar-days section-icon"></i> 7. กำหนดการนัดหมาย</h3>
@@ -259,7 +264,7 @@
                         </div>
                         <div class="space-y-6">
                             
-                            <!-- 🔥 ระดับความเสียหาย -->
+                            <!-- ระดับความเสียหาย -->
                             <div>
                                 <label class="label-text">ระดับความเสียหาย (Damage Level)</label>
                                 <div class="grid grid-cols-3 gap-3 mt-1">
@@ -335,6 +340,44 @@
                 <div id="sched_calendar_grid" class="grid grid-cols-7 gap-2 min-h-[400px]"></div>
                 <p class="text-center text-xs text-slate-500 mt-4 font-medium"><i class="fa-solid fa-circle-info text-blue-400"></i> คลิกที่วันที่เพื่อนำไปใส่อัตโนมัติในช่อง "วันที่รถเข้าจอดอู่"</p>
             </div>
+        </div>
+    </div>
+
+    <!-- 🌟 Modal: แก้ไขรายการสั่งซื้ออะไหล่ (PO Tracking Edit Pop-up) -->
+    <div id="editPOModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[150] flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden modal-fade border-t-4 border-[#00320D] flex flex-col">
+            <div class="bg-[#00320D] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md">
+                <h3 class="font-bold text-base flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square text-amber-400"></i> แก้ไขรายการสั่งซื้ออะไหล่
+                </h3>
+                <button type="button" onclick="closeEditPOModal()" class="text-slate-300 hover:text-red-400 transition text-2xl">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <form id="editPOForm" onsubmit="submitEditPOModal(event)" class="p-6 space-y-4 bg-slate-50">
+                <input type="hidden" id="edit_po_modal_id">
+                <input type="hidden" id="edit_po_modal_car_plate">
+                
+                <div>
+                    <label class="label-text text-slate-700 font-bold">จำนวนสั่งซื้อ (ชิ้น)</label>
+                    <input type="number" id="edit_po_modal_qty" required min="1" class="minimal-input font-black text-center text-xl text-amber-600 bg-white border-slate-300">
+                </div>
+                
+                <div>
+                    <label class="label-text text-slate-700 font-bold">หมายเหตุเพิ่มเติม</label>
+                    <textarea id="edit_po_modal_notes" rows="4" class="minimal-input bg-white border-slate-300 resize-none text-xs font-medium" placeholder="พิมพ์รายละเอียดหมายเหตุที่นี่..."></textarea>
+                </div>
+                
+                <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                    <button type="button" onclick="closeEditPOModal()" class="px-5 py-2.5 bg-white text-slate-600 text-xs font-bold rounded-xl border border-slate-300 hover:bg-slate-100 transition shadow-sm">
+                        ยกเลิก
+                    </button>
+                    <button type="submit" id="btn_submit_edit_po" class="px-6 py-2.5 bg-[#00320D] hover:bg-black text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-2 border border-green-800">
+                        <i class="fa-solid fa-floppy-disk text-amber-400"></i> บันทึกข้อมูล
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -612,7 +655,7 @@
                     body: JSON.stringify({
                         issue_date: new Date().toISOString().split('T')[0],
                         part_no: pNo, part_main_no: pMain, part_name: pName, qty: parseInt(pQty) || 1,
-                        car_plate: carPlate, qt_no: qtArr.join(','), so_no: soArr.join(','),
+                        car_plate: carPlate, qt_no: qtArr.join(', '), so_no: soArr.join(', '),
                         unit_price: 0, car_model: document.getElementById('car_model').value,
                         job_status: 'รอเข้าซ่อม', part_type: pType,
                         branch_name: sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่'
@@ -624,18 +667,70 @@
                 
             } catch(e) { alert('❌ เกิดข้อผิดพลาดในการยิงออเดอร์'); btnElem.innerHTML = '<i class="fa-solid fa-paper-plane"></i> แอด'; }
         }
-// 🌟 ฟังก์ชันเปิด Pop-up (เก็บค่าเก่าไว้เปรียบเทียบ)
+
+        // 🌟 5. ฟังก์ชันติดตามสถานะ PO (Smart Matching ทะเบียนรถ + ทะลวงแคช)
+        async function loadPartsTrackingTable(carPlate) {
+            const tbody = document.getElementById('track_parts_body');
+            if (!carPlate || !carPlate.trim()) {
+                tbody.innerHTML = `<tr><td colspan="11" class="text-center py-8 text-slate-400 text-xs font-bold">กรุณาระบุทะเบียนรถเพื่อติดตามสถานะอะไหล่</td></tr>`;
+                return;
+            }
+            try {
+                // ตัดเว้นวรรคและปรับเป็นอักษรใหญ่ เพื่อแมตช์ทะเบียนแม่นยำ 100%
+                const clean = str => String(str || '').replace(/\s+/g, '').toUpperCase();
+                const searchPlate = clean(carPlate);
+
+                const res = await fetch(`${API_BASE_URL}/api/part-orders?_t=` + new Date().getTime(), { cache: 'no-store' });
+                if (!res.ok) return;
+                const data = await res.json();
+                
+                const filtered = data.filter(p => clean(p.car_plate) === searchPlate);
+
+                if (filtered.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="11" class="text-center py-8 text-slate-400 text-xs font-bold">ไม่พบรายการสั่งซื้ออะไหล่สำหรับทะเบียน "${carPlate}"</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = filtered.map(item => {
+                    const orderId = item.id || item.order_id;
+                    const hasETA = item.est_arrival_date && String(item.est_arrival_date).trim() !== '';
+                    const encodedNotes = encodeURIComponent(item.notes || '');
+
+                    // 🔒 ล็อกปุ่มหากมี ETA
+                    const actionButtons = hasETA 
+                        ? `<span class="text-slate-400 text-[11px] font-bold flex items-center justify-center gap-1" title="สั่งของแล้ว ไม่สามารถแก้ไขได้"><i class="fa-solid fa-lock"></i> ล็อก</span>`
+                        : `<div class="flex items-center justify-center gap-1">
+                               <button type="button" onclick="openEditPOModal('${orderId}', '${item.qty_ordered || 1}', '${encodedNotes}', '${carPlate}')" class="text-blue-500 hover:text-blue-700 hover:bg-blue-100 bg-blue-50 px-2 py-1 rounded text-xs font-bold transition shadow-sm" title="แก้ไขรายการนี้"><i class="fa-solid fa-pen"></i></button>
+                               <button type="button" onclick="deletePO('${orderId}', '${carPlate}')" class="text-red-500 hover:text-red-700 hover:bg-red-100 bg-red-50 px-2 py-1 rounded text-xs font-bold transition shadow-sm" title="ลบรายการนี้"><i class="fa-solid fa-trash"></i></button>
+                           </div>`;
+
+                    return `
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="font-mono text-xs font-bold text-slate-600">${item.epc_no || '-'}</td>
+                        <td class="font-mono text-xs font-bold text-blue-700">${item.part_no || '-'}</td>
+                        <td class="font-bold text-slate-800 text-[11px] truncate max-w-[200px]" title="${item.part_name || '-'}">${item.part_name || '-'}</td>
+                        <td class="text-center font-bold text-amber-600">${item.qty_ordered || 0}</td>
+                        <td class="text-center font-bold text-emerald-600">${item.qty_received || 0}</td>
+                        <td><span class="px-2 py-1 rounded text-[10px] font-bold bg-slate-100 border text-slate-700 shadow-sm">${item.order_status || 'รอสั่งซื้อ'}</span></td>
+                        <td class="font-mono text-xs text-slate-500">${item.order_date ? String(item.order_date).split('T')[0] : '-'}</td>
+                        <td class="font-mono text-xs font-bold ${hasETA ? 'text-amber-600' : 'text-slate-400'}">${hasETA ? String(item.est_arrival_date).split('T')[0] : '-'}</td>
+                        <td class="font-mono text-xs text-emerald-600">${item.part_received_all_date ? String(item.part_received_all_date).split('T')[0] : '-'}</td>
+                        <td><span class="text-xs text-slate-500">${item.notes || '-'}</span></td>
+                        <td class="text-center py-1.5">${actionButtons}</td>
+                    </tr>
+                `}).join('');
+            } catch (e) {
+                console.error("Error loading tracking table:", e);
+            }
+        }
+
+        // 🌟 ฟังก์ชันเปิด Pop-up
         function openEditPOModal(id, qty, encodedNotes, carPlate) {
             const decodedNotes = decodeURIComponent(encodedNotes);
-            
             document.getElementById('edit_po_modal_id').value = id;
             document.getElementById('edit_po_modal_car_plate').value = carPlate;
-            
             document.getElementById('edit_po_modal_qty').value = qty;
-            document.getElementById('edit_po_modal_old_qty').value = qty; // เก็บค่าเก่า
-            
             document.getElementById('edit_po_modal_notes').value = decodedNotes;
-            document.getElementById('edit_po_modal_old_notes').value = decodedNotes; // เก็บค่าเก่า
             
             document.getElementById('editPOModal').classList.remove('hidden');
         }
@@ -645,23 +740,13 @@
             document.getElementById('editPOModal').classList.add('hidden');
         }
 
-        // 🌟 ฟังก์ชันบันทึกข้อมูลแบบต่อคิว (Sequential) แก้ปัญหาเซฟแล้วไม่อัปเดต
+        // 🌟 ฟังก์ชันบันทึกข้อมูลจาก Pop-up สู่เซิร์ฟเวอร์ (รองรับทั้ง /part-orders/:id และ /fast)
         async function submitEditPOModal(e) {
             e.preventDefault();
             const id = document.getElementById('edit_po_modal_id').value;
             const carPlate = document.getElementById('edit_po_modal_car_plate').value;
-            
-            const newQty = parseInt(document.getElementById('edit_po_modal_qty').value) || 1;
-            const oldQty = parseInt(document.getElementById('edit_po_modal_old_qty').value) || 1;
-            
-            const newNotes = document.getElementById('edit_po_modal_notes').value;
-            const oldNotes = document.getElementById('edit_po_modal_old_notes').value;
-
-            // ถ้าไม่ได้แก้อะไรเลย ให้ปิด Pop-up ไปเลย
-            if (newQty === oldQty && newNotes === oldNotes) {
-                closeEditPOModal();
-                return;
-            }
+            const qty = parseInt(document.getElementById('edit_po_modal_qty').value) || 1;
+            const notes = document.getElementById('edit_po_modal_notes').value;
 
             const btn = document.getElementById('btn_submit_edit_po');
             const oldHtml = btn.innerHTML;
@@ -669,26 +754,27 @@
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
 
             try {
-                // 1. ถ้าจำนวนเปลี่ยน ค่อยยิงเซฟจำนวน
-                if (newQty !== oldQty) {
+                // 1. ยิงอัปเดตแบบ Object เต็มรูปแบบไปยัง Endpoint หลักก่อน
+                const resMain = await fetch(`${API_BASE_URL}/api/part-orders/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ qty_ordered: qty, notes: notes })
+                });
+
+                // 2. ถ้า Endpoint หลักไม่รองรับ ให้สำรองยิง /fast ทีละฟิลด์
+                if (!resMain.ok) {
                     await fetch(`${API_BASE_URL}/api/part-orders/${id}/fast`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ field: 'qty_ordered', value: newQty })
+                        body: JSON.stringify({ field: 'qty_ordered', value: qty })
                     });
-                }
+                    
+                    await new Promise(resolve => setTimeout(resolve, 200));
 
-                // 🎯 หน่วงเวลา 400ms ถ้าแก้ทั้งคู่ ป้องกันฐานข้อมูลล็อก (Race Condition)
-                if (newQty !== oldQty && newNotes !== oldNotes) {
-                    await new Promise(resolve => setTimeout(resolve, 400));
-                }
-
-                // 2. ถ้าหมายเหตุเปลี่ยน ค่อยยิงเซฟหมายเหตุ
-                if (newNotes !== oldNotes) {
                     await fetch(`${API_BASE_URL}/api/part-orders/${id}/fast`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ field: 'notes', value: newNotes })
+                        body: JSON.stringify({ field: 'notes', value: notes })
                     });
                 }
 
@@ -750,7 +836,7 @@
                 document.getElementById('car_plate').value = job.car_plate || ''; 
                 document.getElementById('vin_no').value = job.vin_no || '';
                 
-                // 🌟 ระบบดึงเอกสารอ้างอิงอัตโนมัติ (ดึงจาก Report + ดึงเพิ่มจากแผนกอะไหล่)
+                // ระบบดึงเอกสารอ้างอิงอัตโนมัติ (ดึงจาก Report + ดึงเพิ่มจากแผนกอะไหล่)
                 document.getElementById('docs_body').innerHTML = '';
                 let qtArr = [], soArr = [];
                 if (job.qt_no) job.qt_no.split(',').forEach(v => { let val = v.trim(); if(val) { qtArr.push(val); addDocRow('QT', val); }});
@@ -919,7 +1005,7 @@
                                 })
                             });
 
-                            // 🌟 2. เพิ่มระบบ Auto-Booking จองอะไหล่อัตโนมัติ
+                            // 2. เพิ่มระบบ Auto-Booking จองอะไหล่อัตโนมัติ
                             await fetch(`${API_BASE_URL}/api/part-outbound`, {
                                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
@@ -1085,45 +1171,5 @@
 
         function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
     </script>
-
-<!-- 🌟 Modal: แก้ไขรายการสั่งซื้ออะไหล่ (PO Tracking Edit Pop-up) -->
-    <div id="editPOModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[150] flex items-center justify-center hidden p-4">
-        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden modal-fade border-t-4 border-[#00320D] flex flex-col">
-            <div class="bg-[#00320D] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md">
-                <h3 class="font-bold text-base flex items-center gap-2">
-                    <i class="fa-solid fa-pen-to-square text-amber-400"></i> แก้ไขรายการสั่งซื้ออะไหล่
-                </h3>
-                <button type="button" onclick="closeEditPOModal()" class="text-slate-300 hover:text-red-400 transition text-2xl">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            
-            <form id="editPOForm" onsubmit="submitEditPOModal(event)" class="p-6 space-y-4 bg-slate-50">
-                <input type="hidden" id="edit_po_modal_id">
-                <input type="hidden" id="edit_po_modal_car_plate">
-                <!-- 🎯 ตัวเก็บค่าเก่า ป้องกันข้อมูลชนกัน -->
-                <input type="hidden" id="edit_po_modal_old_qty">
-                <input type="hidden" id="edit_po_modal_old_notes">
-                
-                <div>
-                    <label class="label-text text-slate-700 font-bold">จำนวนสั่งซื้อ (ชิ้น)</label>
-                    <input type="number" id="edit_po_modal_qty" required min="1" class="minimal-input font-black text-center text-xl text-amber-600 bg-white border-slate-300">
-                </div>
-                
-                <div>
-                    <label class="label-text text-slate-700 font-bold">หมายเหตุเพิ่มเติม</label>
-                    <textarea id="edit_po_modal_notes" rows="4" class="minimal-input bg-white border-slate-300 resize-none text-xs font-medium" placeholder="พิมพ์รายละเอียดหมายเหตุที่นี่..."></textarea>
-                </div>
-                
-                <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
-                    <button type="button" onclick="closeEditPOModal()" class="px-5 py-2.5 bg-white text-slate-600 text-xs font-bold rounded-xl border border-slate-300 hover:bg-slate-100 transition shadow-sm">
-                        ยกเลิก
-                    </button>
-                    <button type="submit" id="btn_submit_edit_po" class="px-6 py-2.5 bg-[#00320D] hover:bg-black text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-2 border border-green-800">
-                        <i class="fa-solid fa-floppy-disk text-amber-400"></i> บันทึกข้อมูล
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
+</body>
 </html>
