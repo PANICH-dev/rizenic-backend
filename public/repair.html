@@ -249,7 +249,7 @@
                                 <tr id="repair_head_row"></tr>
                             </thead>
                             <tbody id="repair_list_body">
-                                <tr><td colspan="12" class="text-center py-10 text-slate-400"><i class="fa-solid fa-circle-notch fa-spin text-amber-500 text-xl mb-2 block"></i> กำลังโหลดข้อมูล...</td></tr>
+                                <tr><td colspan="14" class="text-center py-10 text-slate-400"><i class="fa-solid fa-circle-notch fa-spin text-amber-500 text-xl mb-2 block"></i> กำลังโหลดข้อมูล...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -388,6 +388,8 @@
                                 <option value="09.จอดรอเข้าซ่อม">09.จอดรอเข้าซ่อม</option>
                                 <option value="10.กำลังซ่อม">10.กำลังซ่อม</option>
                                 <option value="11.รถซ่อมเสร็จรอส่งมอบ">11.รถซ่อมเสร็จรอส่งมอบ</option>
+                                <option value="12.รอส่งมอบ">12.รอส่งมอบ</option>
+                                <option value="21.พักซ่อม">21.พักซ่อม</option>
                             </select>
                         </div>
                         <div>
@@ -396,6 +398,8 @@
                                 <option value="ซ่อม">ซ่อม (Repair)</option>
                                 <option value="บริการ">บริการ (SA)</option>
                                 <option value="อะไหล่">อะไหล่ (Parts)</option>
+                                <option value="บัญชี">บัญชี</option>
+                                <option value="รอดำเนินการ">รอดำเนินการ</option>
                             </select>
                         </div>
                     </div>
@@ -441,6 +445,8 @@
             "21.พักซ่อม"
         ];
 
+        const stationLevels = ["รอรับรถ", "01.เคาะ", "02.โป๊ว", "03.เตรียมพื้น", "04.พ่นสี", "05.ประกอบ", "06.ขัดสี", "07.QC", "08.แม็ก", "09.กระจก", "10.ฟิล์ม", "11.พักซ่อม", "12.รอส่งมอบ"];
+
         const stationsTimeline = [
             { id: 'chk_kho', code: '01', name: 'เคาะ' }, { id: 'chk_pou', code: '02', name: 'โป๊ว' }, 
             { id: 'chk_puan', code: '03', name: 'เตรียมพื้น' }, { id: 'chk_pon', code: '04', name: 'พ่นสี' }, 
@@ -450,20 +456,22 @@
             { id: 'chk_pak', code: '11', name: 'พักซ่อม' }, { id: 'chk_ready', code: '12', name: 'รอส่งมอบ' }
         ];
 
-        // 🌟 ตั้งค่าความกว้างคอลัมน์มาตรฐาน
+        // 🌟 เพิ่มคอลัมน์ "จำนวน(หลัก)" และ "จำนวน(รอง)" พร้อมตั้งค่าให้แสดง Counter บนหัวตาราง
         const columnsDef = [
             { idx: 0, key: 'action', title: 'Action', w: 70, filter: false },
             { idx: 1, key: 'car_plate', title: 'ทะเบียน', w: 110, filter: true },
             { idx: 2, key: 'car_brand', title: 'ยี่ห้อ/รุ่น', w: 140, filter: true },
-            { idx: 3, key: 'arrived_date', title: 'รถเข้า', w: 90, filter: true },
-            { idx: 4, key: 'target_finish_date', title: 'เป้าเสร็จ', w: 90, filter: true },
-            { idx: 5, key: 'repair_finish_date', title: 'เสร็จจริง', w: 110, filter: true },
-            { idx: 6, key: 'delivery_date', title: 'ส่งมอบ', w: 90, filter: true },
+            { idx: 3, key: 'arrived_date', title: 'รถเข้า', w: 90, filter: true, showCount: true },
+            { idx: 4, key: 'target_finish_date', title: 'เป้าเสร็จ', w: 90, filter: true, showCount: true },
+            { idx: 5, key: 'repair_finish_date', title: 'เสร็จจริง', w: 110, filter: true, showCount: true },
+            { idx: 6, key: 'delivery_date', title: 'ส่งมอบ', w: 90, filter: true, showCount: true },
             { idx: 7, key: 'main_part_name', title: 'ชิ้นหลัก', w: 220, filter: true },
-            { idx: 8, key: 'sub_part_name', title: 'ชิ้นรอง', w: 220, filter: true },
-            { idx: 9, key: 'calculated_station', title: 'สถานี', w: 120, filter: true },
-            { idx: 10, key: 'job_status', title: 'สเตตัส', w: 150, filter: true },
-            { idx: 11, key: 'repair_notes', title: 'หมายเหตุ', w: 180, filter: true }
+            { idx: 8, key: 'main_part_qty', title: 'จำนวน(หลัก)', w: 90, filter: true, showCount: true },
+            { idx: 9, key: 'sub_part_name', title: 'ชิ้นรอง', w: 220, filter: true },
+            { idx: 10, key: 'sub_part_qty', title: 'จำนวน(รอง)', w: 90, filter: true, showCount: true },
+            { idx: 11, key: 'calculated_station', title: 'ความคืบหน้าสถานี', w: 140, filter: true },
+            { idx: 12, key: 'job_status', title: 'สเตตัส', w: 150, filter: true },
+            { idx: 13, key: 'repair_notes', title: 'หมายเหตุ', w: 180, filter: true }
         ];
 
         function showToast(msg, type='success') {
@@ -529,15 +537,17 @@
             if(tabId === 'tab-calendar') renderCalendar();
         }
 
+        // 🌟 วาดหัวตารางพร้อม Span เปล่าๆ ไว้แสดงผลนับจำนวน
         function buildTableHeaders() {
             const tr = document.getElementById('repair_head_row'); let html = '';
             columnsDef.forEach(col => {
                 let filterIcon = col.filter ? `<i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, ${col.idx}, '${col.title}')"></i>` : '';
+                let countBadge = col.showCount ? `<span id="hdr_cnt_${col.key}" class="text-[10px] text-amber-300 font-bold ml-1 bg-[#002209] px-1.5 py-0.5 rounded-sm shadow-sm inline-block min-w-[20px] text-center">0</span>` : '';
                 html += `
                     <th class="group" style="width: ${col.w}px; min-width: ${col.w}px;">
                         <div class="flex justify-between items-center w-full h-full">
-                            <div class="cursor-pointer flex-1 overflow-hidden whitespace-nowrap text-ellipsis" onclick="${col.filter ? `sortTable(${col.idx})` : ''}">
-                                ${col.title} <i class="fa-solid fa-sort sort-icon"></i>
+                            <div class="cursor-pointer flex-1 overflow-hidden whitespace-nowrap text-ellipsis flex items-center" onclick="${col.filter ? `sortTable(${col.idx})` : ''}">
+                                ${col.title} ${countBadge} <i class="fa-solid fa-sort sort-icon"></i>
                             </div>
                             ${filterIcon}
                         </div>
@@ -548,7 +558,6 @@
             setTimeout(initResizableColumns, 300);
         }
 
-        // 🌟 ระบบยืด-หดความกว้างคอลัมน์ตารางแบบ Excel
         function initResizableColumns() {
             const cols = document.querySelectorAll('#repairTable th');
             cols.forEach(col => {
@@ -556,21 +565,16 @@
                 let startX = 0, startWidth = 0;
                 
                 const onMouseDown = function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    startX = e.clientX;
-                    startWidth = col.offsetWidth;
+                    e.preventDefault(); e.stopPropagation();
+                    startX = e.clientX; startWidth = col.offsetWidth;
                     resizer.classList.add('resizing');
-                    
                     document.addEventListener('mousemove', onMouseMove);
                     document.addEventListener('mouseup', onMouseUp);
                 };
                 
                 const onMouseMove = function(e) {
                     const newWidth = Math.max(45, startWidth + (e.clientX - startX));
-                    col.style.width = `${newWidth}px`;
-                    col.style.minWidth = `${newWidth}px`;
-                    col.style.maxWidth = `${newWidth}px`;
+                    col.style.width = `${newWidth}px`; col.style.minWidth = `${newWidth}px`; col.style.maxWidth = `${newWidth}px`;
                 };
                 
                 const onMouseUp = function() {
@@ -594,16 +598,13 @@
         }
 
         function toggleColumnVisibility(idx, isVisible) {
-            if (isVisible) hiddenCols.delete(idx);
-            else hiddenCols.add(idx);
+            if (isVisible) hiddenCols.delete(idx); else hiddenCols.add(idx);
             updateColumnStyles();
         }
 
         function updateColumnStyles() {
             let styleStr = '';
-            hiddenCols.forEach(idx => {
-                styleStr += `#repairTable th:nth-child(${idx + 1}), #repairTable td:nth-child(${idx + 1}) { display: none !important; }\n`;
-            });
+            hiddenCols.forEach(idx => { styleStr += `#repairTable th:nth-child(${idx + 1}), #repairTable td:nth-child(${idx + 1}) { display: none !important; }\n`; });
             document.getElementById('dynamic-col-styles').innerHTML = styleStr;
         }
 
@@ -693,35 +694,66 @@
             } catch(e) { showToast('อัปเดตไม่สำเร็จ', 'error'); }
         }
 
-        // 🌟 แสดงชิ้นส่วนทุกชิ้นแบบเต็มๆ ในตาราง (ไม่มีการตัดคำ +1)
+        async function fastUpdateStationDropdown(id, selectedLevel) {
+            const job = originalRepairJobs.find(j => String(j.id) === String(id));
+            if (!job) return;
+            const selectedIdx = stationLevels.indexOf(selectedLevel);
+            const payload = {
+                station_kho: selectedIdx >= 1, station_pou: selectedIdx >= 2, station_puan: selectedIdx >= 3,
+                station_pon: selectedIdx >= 4, station_prak: selectedIdx >= 5, station_kat: selectedIdx >= 6,
+                station_qc: selectedIdx >= 7, station_mag: selectedIdx >= 8, station_kraj: selectedIdx >= 9,
+                station_film: selectedIdx >= 10, station_pak: selectedIdx >= 11, station_ready: selectedIdx >= 12,
+                target_finish_date: job.target_finish_date || null, repair_finish_date: job.repair_finish_date || null,
+                delivery_date: job.delivery_date || null, job_status: job.job_status,
+                department_routing: job.department_routing, repair_notes: job.repair_notes
+            };
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/report/${id}/station`, {
+                    method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+                });
+                if(res.ok) {
+                    showToast('อัปเดตความคืบหน้าสถานีเรียบร้อย!');
+                    Object.assign(job, payload);
+                    job.calculated_station = computeHighestStationIFS(job);
+                    runTableFilters();
+                } else throw new Error();
+            } catch(e) { showToast('อัปเดตไม่สำเร็จ', 'error'); }
+        }
+
         function renderAllTags(partsStr, bgClass, textClass, borderClass) {
             if(!partsStr || !partsStr.trim()) return '<div class="px-3 py-2 text-[#94a3b8] text-[11px]">-</div>';
             const parts = partsStr.split(',').map(s => s.trim()).filter(Boolean);
             if(parts.length === 0) return '<div class="px-3 py-2 text-[#94a3b8] text-[11px]">-</div>';
-            
             let html = `<div class="flex flex-wrap gap-1 p-1.5 max-w-full">`;
-            parts.forEach(p => {
-                html += `<span class="${bgClass} ${textClass} ${borderClass} px-2 py-0.5 rounded border text-[10px] font-bold shadow-sm inline-block leading-tight">${p}</span>`;
-            });
-            html += `</div>`;
-            return html;
+            parts.forEach(p => { html += `<span class="${bgClass} ${textClass} ${borderClass} px-2 py-0.5 rounded border text-[10px] font-bold shadow-sm inline-block leading-tight">${p}</span>`; });
+            html += `</div>`; return html;
         }
 
-        // 🌟 เรนเดอร์ตัวตารางแบบ Excel Pro Max พร้อม Dropdown สตตัสแก้ไขสดๆ และสถานีช่างจริง
         function renderRepairListTable(data) {
             const tbody = document.getElementById('repair_list_body');
             if(!data || data.length === 0) { tbody.innerHTML = `<tr><td colspan="${columnsDef.length}" class="p-12 text-center text-slate-400 font-bold bg-white">📭 ไม่พบข้อมูลรถที่ตรงตามเงื่อนไข</td></tr>`; return; }
+
+            // 🌟 ตัวแปรเก็บผลรวมของหัวตารางแต่ละคอลัมน์
+            let cArr = 0, cTar = 0, cRep = 0, cDel = 0, sumMain = 0, sumSub = 0;
 
             tbody.innerHTML = data.map(j => {
                 const arrDateStr = j.arrived_date ? j.arrived_date.split('T')[0] : '';
                 const targetDateStr = j.target_finish_date ? j.target_finish_date.split('T')[0] : '';
                 const finishDateStr = j.repair_finish_date ? j.repair_finish_date.split('T')[0] : '';
                 const deliveryDateStr = j.delivery_date ? j.delivery_date.split('T')[0] : '';
-                
                 const isOverdue = checkOverdue(j);
                 
+                // คำนวณตัวนับ
+                if(arrDateStr) cArr++;
+                if(targetDateStr) cTar++;
+                if(finishDateStr) cRep++;
+                if(deliveryDateStr) cDel++;
+                let mQty = Number(j.main_part_qty) || (j.main_part_name ? j.main_part_name.split(',').filter(Boolean).length : 0);
+                let sQty = Number(j.sub_part_qty) || (j.sub_part_name ? j.sub_part_name.split(',').filter(Boolean).length : 0);
+                sumMain += mQty; sumSub += sQty;
+
                 let rowHtml = `<tr>`;
-                
                 columnsDef.forEach(col => {
                     let cellData = ''; 
                     switch(col.key) {
@@ -749,15 +781,20 @@
                         case 'main_part_name': 
                             cellData = renderAllTags(j.main_part_name, 'bg-blue-50', 'text-blue-700', 'border-blue-200');
                             break;
+                        case 'main_part_qty': 
+                            cellData = `<div class="text-center font-black text-[14px] text-blue-600">${mQty}</div>`; 
+                            break;
                         case 'sub_part_name': 
                             cellData = renderAllTags(j.sub_part_name, 'bg-amber-50', 'text-amber-700', 'border-amber-200');
                             break;
+                        case 'sub_part_qty': 
+                            cellData = `<div class="text-center font-black text-[14px] text-amber-600">${sQty}</div>`; 
+                            break;
                         case 'calculated_station': 
-                            // 🌟 สถานีช่างจริง (เคาะ, โป๊ว, ฯลฯ)
-                            cellData = `<div class="text-[#00320D] text-[11px] font-bold px-2 py-1.5 truncate" title="${j.calculated_station}"><i class="fa-solid fa-wrench text-amber-500 mr-1 text-[9px]"></i> ${j.calculated_station}</div>`; 
+                            const stationOptionsHtml = stationLevels.map(st => `<option value="${st}" ${j.calculated_station === st ? 'selected' : ''}>${st}</option>`).join('');
+                            cellData = `<div class="px-1 py-1"><select onchange="fastUpdateStationDropdown('${j.id}', this.value)" class="inline-edit-select text-amber-700 font-bold bg-amber-50 hover:bg-amber-100 border-amber-300">${stationOptionsHtml}</select></div>`; 
                             break;
                         case 'job_status': 
-                            // 🌟 Dropdown สตตัสงานซ่อม
                             const statusOptionsHtml = statusOptions.map(st => `<option value="${st}" ${j.job_status === st ? 'selected' : ''}>${st}</option>`).join('');
                             cellData = `<div class="px-1 py-1"><select onchange="fastUpdateField('${j.id}', 'job_status', this.value)" class="inline-edit-select text-[#00320D]">${statusOptionsHtml}</select></div>`; 
                             break;
@@ -771,6 +808,14 @@
             }).join('');
             
             document.getElementById('table_row_count').innerText = data.length;
+
+            // 🌟 อัปเดตตัวเลขในหัวตาราง
+            if(document.getElementById('hdr_cnt_arrived_date')) document.getElementById('hdr_cnt_arrived_date').innerText = cArr;
+            if(document.getElementById('hdr_cnt_target_finish_date')) document.getElementById('hdr_cnt_target_finish_date').innerText = cTar;
+            if(document.getElementById('hdr_cnt_repair_finish_date')) document.getElementById('hdr_cnt_repair_finish_date').innerText = cRep;
+            if(document.getElementById('hdr_cnt_delivery_date')) document.getElementById('hdr_cnt_delivery_date').innerText = cDel;
+            if(document.getElementById('hdr_cnt_main_part_qty')) document.getElementById('hdr_cnt_main_part_qty').innerText = sumMain;
+            if(document.getElementById('hdr_cnt_sub_part_qty')) document.getElementById('hdr_cnt_sub_part_qty').innerText = sumSub;
         }
 
         // ================= EXCEL FILTER LOGIC =================
@@ -780,7 +825,10 @@
             originalRepairJobs.forEach(job => {
                 let val = ''; const key = columnsDef[colIndex].key;
                 if(['arrived_date', 'target_finish_date', 'repair_finish_date', 'delivery_date'].includes(key)) { val = job[key] ? String(job[key]).split('T')[0] : ''; } 
-                else if (key === 'car_brand') { val = `${job.car_brand || ''} ${job.car_model || ''}`.trim(); } else { val = String(job[key] || '').trim(); }
+                else if (key === 'car_brand') { val = `${job.car_brand || ''} ${job.car_model || ''}`.trim(); } 
+                else if (key === 'main_part_qty') { val = String(Number(job.main_part_qty) || (job.main_part_name ? job.main_part_name.split(',').filter(Boolean).length : 0)); }
+                else if (key === 'sub_part_qty') { val = String(Number(job.sub_part_qty) || (job.sub_part_name ? job.sub_part_name.split(',').filter(Boolean).length : 0)); }
+                else { val = String(job[key] || '').trim(); }
                 uniqueValues.add(val);
             });
             const sortedValues = [...uniqueValues].sort(); const listDiv = document.getElementById('ef_checkbox_list'); listDiv.innerHTML = ''; const activeSet = activeFilters[colIndex];
@@ -827,7 +875,10 @@
                 for (let colIdx in activeFilters) {
                     const key = columnsDef[colIdx].key; let val = '';
                     if(['arrived_date', 'target_finish_date', 'repair_finish_date', 'delivery_date'].includes(key)) { val = job[key] ? String(job[key]).split('T')[0] : ''; } 
-                    else if (key === 'car_brand') { val = `${job.car_brand || ''} ${job.car_model || ''}`.trim(); } else { val = String(job[key] || '').trim(); }
+                    else if (key === 'car_brand') { val = `${job.car_brand || ''} ${job.car_model || ''}`.trim(); } 
+                    else if (key === 'main_part_qty') { val = String(Number(job.main_part_qty) || (job.main_part_name ? job.main_part_name.split(',').filter(Boolean).length : 0)); }
+                    else if (key === 'sub_part_qty') { val = String(Number(job.sub_part_qty) || (job.sub_part_name ? job.sub_part_name.split(',').filter(Boolean).length : 0)); }
+                    else { val = String(job[key] || '').trim(); }
                     if (!activeFilters[colIdx].has(val)) return false;
                 }
                 return true;
@@ -853,7 +904,7 @@
         }
 
         // ===============================================
-        // 📅 2. ปฏิทินปฏิบัติงานแนวตั้ง (กรกฎาคม)
+        // 📅 2. ปฏิทินปฏิบัติงานแนวตั้ง (เพิ่มเป้าโควตาชิ้นส่วน)
         // ===============================================
         function renderCalendar() {
             const grid = document.getElementById('calendar_grid'); grid.innerHTML = '';
@@ -875,15 +926,37 @@
                 if (maxInDay > monthMaxQty) monthMaxQty = maxInDay;
             }
 
+            // 🌟 ค้นหาโควตาของสาขานี้ ถ้าไม่เจอให้ลิมิตเป็น 0 ไว้
+            const branchQuota = allQuotas.find(q => q.branch_name === currentBranch) || { max_main_parts: 0, max_sub_parts: 0 };
+            const maxMain = branchQuota.max_main_parts || 0;
+            const maxSub = branchQuota.max_sub_parts || 0;
+
             for(let day = 1; day <= totalDays; day++) {
                 const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
                 
                 const arrivedQty = originalRepairJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length;
-                const targetQty = originalRepairJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).length;
+                const targetJobsInDay = originalRepairJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr);
+                const targetQty = targetJobsInDay.length;
                 const deliveryQty = originalRepairJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
+
+                // 🌟 คำนวณปริมาณงานชิ้นส่วนสำหรับวันที่เป็นเป้าหมายซ่อมเสร็จ
+                let sumMainDay = 0, sumSubDay = 0;
+                targetJobsInDay.forEach(j => {
+                    sumMainDay += Number(j.main_part_qty) || (j.main_part_name ? j.main_part_name.split(',').filter(Boolean).length : 0);
+                    sumSubDay += Number(j.sub_part_qty) || (j.sub_part_name ? j.sub_part_name.split(',').filter(Boolean).length : 0);
+                });
 
                 const overdueJobsInDay = originalRepairJobs.filter(j => (j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr) && checkOverdue(j));
                 const hasOverdue = overdueJobsInDay.length > 0;
+                
+                const overMain = maxMain > 0 && sumMainDay > maxMain;
+                const overSub = maxSub > 0 && sumSubDay > maxSub;
+
+                // 🌟 โค้ดแสดงกล่องโควตาชิ้นส่วนใต้ตัวเลขวันที่
+                let partsInfoHtml = `<div class="text-[9px] font-bold mb-1 leading-tight w-full space-y-1">
+                    <div class="flex justify-between items-center ${overMain ? 'bg-red-100 text-red-700' : 'bg-blue-50 text-blue-700'} px-1.5 py-0.5 rounded shadow-sm border ${overMain ? 'border-red-300' : 'border-blue-200'}" title="ชิ้นส่วนหลัก"><span>หลัก:</span> <span>${sumMainDay}${maxMain > 0 ? '/' + maxMain : ''}</span></div>
+                    <div class="flex justify-between items-center ${overSub ? 'bg-red-100 text-red-700' : 'bg-amber-50 text-amber-700'} px-1.5 py-0.5 rounded shadow-sm border ${overSub ? 'border-red-300' : 'border-amber-200'}" title="ชิ้นส่วนรอง"><span>รอง:</span> <span>${sumSubDay}${maxSub > 0 ? '/' + maxSub : ''}</span></div>
+                </div>`;
 
                 let barBlock = '';
                 if(arrivedQty > 0 || targetQty > 0 || deliveryQty > 0) {
@@ -904,6 +977,7 @@
                             <span class="calendar-day-label">${day}</span>
                             ${hasOverdue ? `<i class="fa-solid fa-circle-exclamation text-red-500 animate-pulse text-xs" title="มีรถดีเลย์ ${overdueJobsInDay.length} คัน!"></i>` : ''}
                         </div>
+                        ${partsInfoHtml}
                         <div class="w-full z-10 flex-1 flex flex-col justify-end">${barBlock}</div>
                     </div>`;
             }
