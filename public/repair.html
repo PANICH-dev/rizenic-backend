@@ -896,7 +896,7 @@
         // ===============================================
         // 🛠️ 4. อัปเดตช่าง และ ล็อกวันที่ให้แก้ไม่ได้ 100%
         // ===============================================
-        async function openModal(jobId) {
+async function openModal(jobId) {
             try {
                 const job = originalRepairJobs.find(j => String(j.id) === String(jobId));
                 if (!job) return alert('❌ ไม่พบข้อมูลรถคันนี้');
@@ -911,7 +911,7 @@
                 if(job.qt_no && job.qt_no.trim() !== '') { job.qt_no.split(',').forEach(v => { if(v.trim()) qtListDiv.innerHTML += `<span class="bg-white border border-slate-300 text-slate-700 px-2 py-0.5 rounded text-[10px] font-mono shadow-sm">${v.trim()}</span>`; }); } else { qtListDiv.innerHTML = `<span class="text-slate-400 text-[10px] italic">- ไม่มี -</span>`; }
                 if(job.so_no && job.so_no.trim() !== '') { job.so_no.split(',').forEach(v => { if(v.trim()) soListDiv.innerHTML += `<span class="bg-amber-50 border border-amber-300 text-amber-800 font-bold px-2 py-0.5 rounded text-[10px] font-mono shadow-sm">${v.trim()}</span>`; }); } else { soListDiv.innerHTML = `<span class="text-slate-400 text-[10px] italic">- ไม่มี -</span>`; }
                 
-                // 🌟 4. สามารถเพิ่มชิ้นส่วนหลัก ชิ้นส่วนรอง ได้
+                // 🎨 ดึงและเปิดให้แก้ไขชิ้นส่วนหลัก/รอง
                 document.getElementById('m_main_parts').value = job.main_part_name || '';
                 document.getElementById('m_sub_parts').value = job.sub_part_name || '';
 
@@ -929,7 +929,7 @@
                 
                 ['kho','pou','puan','pon','prak','kat','qc','mag','kraj','film','pak','ready'].forEach(s => document.getElementById(`chk_${s}`).checked = isTrue(job[`station_${s}`]));
                 
-                // 🌟 1. ดึงวันที่ (เป็นสีเทา กดแก้ไม่ได้แล้ว เพราะ readonly)
+                // 🌟 ดึงวันที่เป้าหมาย + นัดส่งมอบเดิมใส่ใน Input
                 document.getElementById('m_target_date').value = job.target_finish_date ? job.target_finish_date.split('T')[0] : '';
                 document.getElementById('m_repair_date').value = job.repair_finish_date ? job.repair_finish_date.split('T')[0] : '';
                 document.getElementById('m_delivery_date').value = job.delivery_date ? job.delivery_date.split('T')[0] : '';
@@ -943,12 +943,12 @@
             } catch(e) { alert('❌ เปิดหน้าต่างไม่สำเร็จ'); console.log(e); }
         }
 
-        function closeModal() { document.getElementById('stationModal').classList.add('hidden'); }
-
-        // 🌟 ถอดการบันทึก Target/Delivery ออกจาก Payload เพื่อไม่ให้ไปทับค่าเดิมใน DB ให้กลายเป็นค่าว่าง
+        // 🌟 ปรับปรุงการบันทึก: ส่งวันที่ target และ delivery กลับไปใน Payload ด้วย ป้องกันวันเดิมหาย!
         async function submitRepairStation() {
             const id = document.getElementById('m_job_id').value;
             const repairDateInput = document.getElementById('m_repair_date').value;
+            const targetDateInput = document.getElementById('m_target_date').value;
+            const deliveryDateInput = document.getElementById('m_delivery_date').value;
             const today = getTodayString();
             
             if (repairDateInput && repairDateInput < today) {
@@ -970,10 +970,11 @@
                 station_pak: document.getElementById('chk_pak').checked,
                 station_ready: document.getElementById('chk_ready').checked,
                 
-                // ถอด target_finish_date และ delivery_date ออกไปเลย! ช่างมีหน้าที่กดแค่วันเสร็จจริง (repair_finish_date)
+                // 🎯 ส่งค่าวันที่ target และ delivery กลับไปเสมอ (ถ้าไม่มีการแก้ก็จะเป็นค่าเดิม)
+                target_finish_date: targetDateInput || null,
                 repair_finish_date: repairDateInput || null,
+                delivery_date: deliveryDateInput || null,
                 
-                // 🌟 บันทึกชิ้นส่วนหลัก/รอง ที่ช่างพิมพ์อัปเดตเข้าไปใหม่
                 main_part_name: document.getElementById('m_main_parts').value.trim(),
                 sub_part_name: document.getElementById('m_sub_parts').value.trim(),
                 
