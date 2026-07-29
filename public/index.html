@@ -625,7 +625,7 @@
             } catch(e) { alert('❌ เกิดข้อผิดพลาดในการยิงออเดอร์'); btnElem.innerHTML = '<i class="fa-solid fa-paper-plane"></i> แอด'; }
         }
 
-        // 🌟 5. ฟังก์ชันติดตาม PO อัปเดตให้มีปุ่ม "แก้ไข (Prompt)" และ "ลบข้อมูล" ได้!
+       // 🌟 5. ฟังก์ชันติดตาม PO อัปเดตให้มีปุ่ม "แก้ไข (Prompt)" และ "ลบข้อมูล" ได้!
         async function loadPartsTrackingTable(carPlate) {
             const tbody = document.getElementById('track_parts_body');
             if (!carPlate) {
@@ -633,7 +633,8 @@
                 return;
             }
             try {
-                const res = await fetch(`${API_BASE_URL}/api/part-orders`);
+                // 🛑 เพิ่ม { cache: 'no-store' } บังคับให้เบราว์เซอร์ดึงข้อมูลใหม่เสมอ
+                const res = await fetch(`${API_BASE_URL}/api/part-orders`, { cache: 'no-store' });
                 if (!res.ok) return;
                 const data = await res.json();
                 const filtered = data.filter(p => p.car_plate === carPlate);
@@ -675,17 +676,20 @@
             }
         }
 
-        // 🌟 ฟังก์ชันเปิดหน้าต่าง Prompt เพื่อแก้ไขจำนวนและหมายเหตุ
+        // 🌟 ฟังก์ชันเปิดหน้าต่าง Prompt เพื่อแก้ไขจำนวนและหมายเหตุ (แก้บั๊กกด Cancel แล้ว)
         async function editPOPrompt(id, oldQty, oldNotes, carPlate) {
-            const newQty = prompt('แก้ไขจำนวนสั่งซื้อ:', oldQty);
-            if (newQty === null) return; 
-            const newNotes = prompt('แก้ไขหมายเหตุ:', oldNotes);
-            if (newNotes === null) return;
+            let newQty = prompt('แก้ไขจำนวนสั่งซื้อ:', oldQty);
+            if (newQty === null) newQty = oldQty; 
+            
+            let newNotes = prompt('แก้ไขหมายเหตุ:', oldNotes);
+            if (newNotes === null) newNotes = oldNotes;
+
+            if (newQty === oldQty && newNotes === oldNotes) return;
 
             try {
                 if (newQty !== oldQty) {
                     await fetch(`${API_BASE_URL}/api/part-orders/${id}/fast`, {
-                        method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ field: 'qty_ordered', value: newQty })
+                        method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ field: 'qty_ordered', value: parseInt(newQty) || 1 })
                     });
                 }
                 if (newNotes !== oldNotes) {
