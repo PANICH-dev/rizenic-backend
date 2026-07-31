@@ -504,7 +504,7 @@
         let userBranch = '';
         let currentViewSA = ''; 
 
-        // 🌟 ตั้งค่าโครงสร้างคอลัมน์มาตรฐาน
+        // 🌟 แก้ไข: actual_finish_date -> repair_finish_date ให้ตรงกับ DB ของหน้าสถานีซ่อม 🌟
         let columnsDef = [
             { idx: 1, key: 'action', title: 'จัดการ', width: 90 },
             { idx: 2, key: 'contact_date', title: 'วันที่ติดต่อ', width: 120 },
@@ -526,7 +526,7 @@
             { idx: 18, key: 'cost_part', title: 'ค่าอะไหล่', width: 100 },
             { idx: 19, key: 'cost_external', title: 'ค่าซ่อมภายนอก', width: 100 },
             { idx: 20, key: 'target_finish_date', title: 'เป้าหมายเสร็จ', width: 120 },
-            { idx: 21, key: 'actual_finish_date', title: 'วันที่เสร็จจริง', width: 120 },
+            { idx: 21, key: 'repair_finish_date', title: 'วันที่เสร็จจริง', width: 120 }, // 🌟 แก้ชื่อ Field
             { idx: 22, key: 'delivery_date', title: 'วันที่ส่งมอบ', width: 120 },
             { idx: 23, key: 'notes', title: 'หมายเหตุ', width: 200 },
             { idx: 24, key: 'job_status', title: 'สถานะงาน', width: 160 },
@@ -549,7 +549,7 @@
             'payment_type', 'customer_name', 'phone_number', 'damage_level', 
             'main_part_name', 'main_part_qty', 'sub_part_name', 'sub_part_qty', 
             'cost_labor', 'cost_part', 'cost_external', 'target_finish_date', 
-            'actual_finish_date', 'delivery_date', 'notes', 'job_status', 
+            'repair_finish_date', 'delivery_date', 'notes', 'job_status', 
             'epc_no', 'ordered_part_names', 'sa_owner', 'is_parked'
         ];
         
@@ -1240,20 +1240,36 @@
 
         async function fastUpdateJob(jobId, field, value) {
             // 🌟 แก้บั๊กบันทึกวันที่ล้มเหลว (ส่งค่าว่างไปพัง)
-            if (field.includes('date') && value === '') { value = null; }
+            let formattedValue = value;
+            if (field.includes('date')) {
+                if (value === '') { 
+                    formattedValue = null; 
+                } else if (value) {
+                    formattedValue = value; 
+                }
+            }
 
             try {
                 const res = await fetch(`${API_BASE_URL}/api/report/${jobId}/fast-date`, {
                     method: 'PUT', 
                     headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ field, value })
+                    body: JSON.stringify({ field, value: formattedValue })
                 });
+                
                 if (res.ok) {
-                    const jobIndex = allJobsData.findIndex(j => j.id === jobId);
-                    if(jobIndex > -1) allJobsData[jobIndex][field] = value;
+                    const jobIndex = allJobsData.findIndex(j => String(j.id) === String(jobId));
+                    if(jobIndex > -1) {
+                        allJobsData[jobIndex][field] = (field.includes('date') && formattedValue) ? formattedValue + 'T00:00:00.000Z' : formattedValue;
+                    }
                     showToast('อัปเดตข้อมูลอัตโนมัติสำเร็จ!');
-                    if(document.getElementById('tab-sa').classList.contains('active') && currentViewSA) openSADetail(currentViewSA);
-                } else throw new Error();
+                    
+                    applyFilters(); 
+                    if(document.getElementById('tab-sa').classList.contains('active') && currentViewSA) {
+                        openSADetail(currentViewSA);
+                    }
+                } else {
+                    throw new Error('Save failed');
+                }
             } catch (err) { 
                 showToast('บันทึกข้อมูลไม่สำเร็จ!', 'error'); 
                 loadJobsData(); 
@@ -1452,7 +1468,7 @@
                             cellData = `<select onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'job_status', this.value)" class="inline-edit-select bg-slate-50">${safeOptions}</select>`; 
                             break;
                         
-                        case 'contact_date': case 'appointment_date': case 'arrived_date': case 'target_finish_date': case 'expected_finish_date': case 'actual_finish_date': case 'delivery_date': 
+                        case 'contact_date': case 'appointment_date': case 'arrived_date': case 'target_finish_date': case 'expected_finish_date': case 'repair_finish_date': case 'delivery_date': 
                             cellData = `<input type="date" value="${job[col.key] ? String(job[col.key]).split('T')[0] : ''}" onchange="fastUpdateJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input font-mono text-slate-500 text-center">`; 
                             break;
                         case 'main_part_qty': case 'sub_part_qty': case 'cost_labor': case 'cost_part': case 'cost_external':
