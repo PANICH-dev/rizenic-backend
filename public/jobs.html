@@ -504,7 +504,7 @@
         let userBranch = '';
         let currentViewSA = ''; 
 
-        // 🌟 แก้ไข: actual_finish_date -> repair_finish_date ให้ตรงกับ DB ของหน้าสถานีซ่อม 🌟
+        // 🌟 แก้ไข: actual_finish_date -> repair_finish_date ให้ตรงกับ DB 🌟
         let columnsDef = [
             { idx: 1, key: 'action', title: 'จัดการ', width: 90 },
             { idx: 2, key: 'contact_date', title: 'วันที่ติดต่อ', width: 120 },
@@ -526,7 +526,7 @@
             { idx: 18, key: 'cost_part', title: 'ค่าอะไหล่', width: 100 },
             { idx: 19, key: 'cost_external', title: 'ค่าซ่อมภายนอก', width: 100 },
             { idx: 20, key: 'target_finish_date', title: 'เป้าหมายเสร็จ', width: 120 },
-            { idx: 21, key: 'repair_finish_date', title: 'วันที่เสร็จจริง', width: 120 }, // 🌟 แก้ชื่อ Field
+            { idx: 21, key: 'repair_finish_date', title: 'วันที่เสร็จจริง', width: 120 }, // 🌟 แก้ชื่อ Field ตรงนี้
             { idx: 22, key: 'delivery_date', title: 'วันที่ส่งมอบ', width: 120 },
             { idx: 23, key: 'notes', title: 'หมายเหตุ', width: 200 },
             { idx: 24, key: 'job_status', title: 'สถานะงาน', width: 160 },
@@ -909,7 +909,6 @@
                 }
                 if(poRes && poRes.ok) allPartOrders = await poRes.json();
                 
-                // 🌟 โหลด Master Parts ใส่ Datalist ไว้ใช้อ้างอิงอะไหล่หลัก/รอง
                 if(bpRes && bpRes.ok) {
                     const bodyParts = await bpRes.json();
                     const datalist = document.getElementById('body_parts_list');
@@ -1238,14 +1237,14 @@
             window.location.href = 'index.html'; 
         }
 
+        // 🌟 ฟังก์ชันบันทึกข้อมูลด่วน (แก้ไขป้องกันการส่งค่าว่างไป Backend) 🌟
         async function fastUpdateJob(jobId, field, value) {
-            // 🌟 แก้บั๊กบันทึกวันที่ล้มเหลว (ส่งค่าว่างไปพัง)
             let formattedValue = value;
-            if (field.includes('date')) {
-                if (value === '') { 
+            
+            // 🎯 ดักจับคอลัมน์ประเภท Date ทุกตัว ถ้ารถลบค่าออกเป็น "" ให้เปลี่ยนเป็น null
+            if (field.includes('date') || field === 'appointment_date' || field === 'repair_finish_date' || field === 'target_finish_date' || field === 'delivery_date') {
+                if (value === '' || value === undefined) { 
                     formattedValue = null; 
-                } else if (value) {
-                    formattedValue = value; 
                 }
             }
 
@@ -1253,7 +1252,7 @@
                 const res = await fetch(`${API_BASE_URL}/api/report/${jobId}/fast-date`, {
                     method: 'PUT', 
                     headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ field, value: formattedValue })
+                    body: JSON.stringify({ field: field, value: formattedValue })
                 });
                 
                 if (res.ok) {
@@ -1261,14 +1260,14 @@
                     if(jobIndex > -1) {
                         allJobsData[jobIndex][field] = (field.includes('date') && formattedValue) ? formattedValue + 'T00:00:00.000Z' : formattedValue;
                     }
-                    showToast('อัปเดตข้อมูลอัตโนมัติสำเร็จ!');
+                    showToast('อัปเดตข้อมูลสำเร็จแล้ว!');
                     
                     applyFilters(); 
                     if(document.getElementById('tab-sa').classList.contains('active') && currentViewSA) {
                         openSADetail(currentViewSA);
                     }
                 } else {
-                    throw new Error('Save failed');
+                    throw new Error('บันทึกไม่สำเร็จ');
                 }
             } catch (err) { 
                 showToast('บันทึกข้อมูลไม่สำเร็จ!', 'error'); 
@@ -1379,7 +1378,6 @@
             let allRowsHtml = '';
 
             data.forEach(job => {
-                // 🌟 ดึงข้อมูลอะไหล่ทั้งหมดที่สั่งสำหรับรถคันนี้
                 const carParts = (allPartOrders || []).filter(p => p.car_plate && job.car_plate && p.car_plate.trim().toUpperCase() === job.car_plate.trim().toUpperCase());
 
                 let rowHtml = '<tr>';
@@ -1398,14 +1396,12 @@
                             cellData = `<input type="text" value="${job.car_plate || ''}" onchange="fastUpdateJob('${job.id}', 'car_plate', this.value)" class="inline-edit-input font-black text-amber-700 bg-amber-50 text-center uppercase">`; 
                             break;
                         
-                        // 🌟 ดึง EPC จากแผนกอะไหล่ (ถ้ามี)
                         case 'epc_no':
                             const epcList = [...new Set(carParts.map(p => p.epc_no).filter(Boolean))];
                             const displayEpc = epcList.length > 0 ? epcList.join(', ') : (job.epc_no || '');
                             cellData = `<input type="text" value="${displayEpc}" onchange="fastUpdateJob('${job.id}', 'epc_no', this.value)" class="inline-edit-input text-slate-700 font-bold text-center" placeholder="-">`;
                             break;
                         
-                        // 🌟 รายการอะไหล่ค้างสั่งองค์รวม
                         case 'ordered_part_names':
                             let partsHTML = '<div class="px-2 py-1 flex flex-col gap-1 w-full whitespace-normal min-h-[30px]">';
                             if(carParts.length === 0) {
@@ -1421,7 +1417,6 @@
                             cellData = partsHTML;
                             break;
 
-                        // 🌟 แก้ไข: แปลงช่องต่างๆ เป็น Dropdown (Select) ให้คลิกแก้ในตารางได้ง่ายๆ
                         case 'customer_type':
                             let ctOpts = ['ทั่วไป', 'ประกันภัย', 'Fleet/องค์กร', 'VIP'].map(d => `<option value="${d}" ${job.customer_type === d ? 'selected' : ''}>${d}</option>`).join('');
                             if(job.customer_type && !['ทั่วไป', 'ประกันภัย', 'Fleet/องค์กร', 'VIP'].includes(job.customer_type)) ctOpts += `<option value="${job.customer_type}" selected>${job.customer_type}</option>`;
@@ -1452,7 +1447,6 @@
                             cellData = `<select onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'is_parked', this.value)" class="inline-edit-select ${isP === 'จอดซ่อม'?'text-blue-600 font-black':'text-slate-500'}">${pOpts}</select>`;
                             break;
                         
-                        // 🌟 อะไหล่หลัก/รอง ใช้ Input ผูก Datalist
                         case 'main_part_name':
                             cellData = `<input type="text" list="body_parts_list" value="${job.main_part_name || ''}" onchange="fastUpdateJob('${job.id}', 'main_part_name', this.value)" class="inline-edit-input text-slate-700" placeholder="-">`;
                             break;
@@ -1468,9 +1462,12 @@
                             cellData = `<select onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'job_status', this.value)" class="inline-edit-select bg-slate-50">${safeOptions}</select>`; 
                             break;
                         
+                        // 🎯 ปรับปรุงส่วนแสดงและอัปเดต Date input ให้ถูกต้อง 100% 🎯
                         case 'contact_date': case 'appointment_date': case 'arrived_date': case 'target_finish_date': case 'expected_finish_date': case 'repair_finish_date': case 'delivery_date': 
-                            cellData = `<input type="date" value="${job[col.key] ? String(job[col.key]).split('T')[0] : ''}" onchange="fastUpdateJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input font-mono text-slate-500 text-center">`; 
+                            const rawDateVal = job[col.key] ? String(job[col.key]).split('T')[0] : '';
+                            cellData = `<input type="date" value="${rawDateVal}" onchange="fastUpdateJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input font-mono text-slate-500 text-center">`; 
                             break;
+                        
                         case 'main_part_qty': case 'sub_part_qty': case 'cost_labor': case 'cost_part': case 'cost_external':
                             cellData = `<input type="number" value="${job[col.key] || ''}" onchange="fastUpdateJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input text-slate-700 text-right" placeholder="0">`;
                             break;
