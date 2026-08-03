@@ -116,20 +116,6 @@
                     <p class="text-slate-500 text-sm mt-1 font-bold">Service Advisor Portal</p>
                 </div>
 
-                <!-- 🚨 ป้ายสรุปเตือน OVERDUE ส่วนหัวด่วน 🚨 -->
-                <div class="flex flex-wrap gap-2 items-center bg-red-50 border border-red-200 p-2.5 rounded-2xl shadow-xs">
-                    <span class="text-xs font-black text-red-700 uppercase flex items-center gap-1.5 animate-pulse"><i class="fa-solid fa-triangle-exclamation text-red-600 text-sm"></i> OVERDUE เตือนด่วน:</span>
-                    <a href="jobs.html" class="px-2.5 py-1 bg-white border border-red-300 hover:bg-red-100 rounded-lg text-xs font-bold text-red-700 transition flex items-center gap-1 shadow-2xs">
-                        <span>เลยวันนัดเข้า:</span> <span id="ov_app_count_top" class="bg-red-600 text-white px-1.5 py-0.2 rounded-full font-black text-[11px]">0</span>
-                    </a>
-                    <a href="jobs.html" class="px-2.5 py-1 bg-white border border-amber-300 hover:bg-amber-100 rounded-lg text-xs font-bold text-amber-800 transition flex items-center gap-1 shadow-2xs">
-                        <span>ช้ากว่าเป้าเสร็จ:</span> <span id="ov_tgt_count_top" class="bg-amber-600 text-white px-1.5 py-0.2 rounded-full font-black text-[11px]">0</span>
-                    </a>
-                    <a href="jobs.html" class="px-2.5 py-1 bg-white border border-purple-300 hover:bg-purple-100 rounded-lg text-xs font-bold text-purple-800 transition flex items-center gap-1 shadow-2xs">
-                        <span>เลยวันส่งมอบ:</span> <span id="ov_del_count_top" class="bg-purple-600 text-white px-1.5 py-0.2 rounded-full font-black text-[11px]">0</span>
-                    </a>
-                </div>
-
                 <div id="edit_mode_badge" class="hidden flex items-center gap-3 bg-amber-50 pl-4 pr-1 py-1 rounded-full border border-amber-300 shadow-sm">
                     <span class="text-amber-700 text-xs font-bold animate-pulse"><i class="fa-solid fa-pen-to-square mr-1"></i> กำลังแก้ไขใบงาน: <span id="current_editing_id" class="font-mono bg-white px-2 py-0.5 rounded shadow-sm text-amber-700 border border-amber-200"></span></span>
                     <button type="button" onclick="cancelEditMode()" id="btn_cancel_edit" class="px-4 py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-bold rounded-full hover:bg-slate-100 hover:text-slate-900 transition shadow-sm">ยกเลิก</button>
@@ -430,20 +416,6 @@
         let globalCarData = [];
         let globalStatuses = [];
 
-        const activeProcessStatuses = [
-            '01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ', 
-            '04.รอลูกค้าอนุมัติ (เงินสด)', '05.อนุมัติแล้ว', '06.สั่งอะไหล่', 
-            '07.รอนัดหมายเข้าซ่อม', '08.นัดหมายแล้วรอเข้าซ่อม', '09.จอดรอเข้าซ่อม', 
-            '10.กำลังซ่อม', '11.รถซ่อมเสร็จรอส่งมอบ'
-        ];
-
-        const parkedStatuses = [
-            "09.จอดรอเข้าซ่อม", "10.กำลังซ่อม", "11.รถซ่อมเสร็จรอส่งมอบ", 
-            "12.ส่งมอบ", "13.วางบิลประกัน", "14.ชำระเงินสด", 
-            "15.วางบิล Tesla", "16.วางบิล EV ME", "17.รอออกบิล", 
-            "19.ออกบิลแล้ว", "20.จอดซ่อม TC", "21.พักซ่อม"
-        ];
-
         document.addEventListener('DOMContentLoaded', () => {
             if(sessionStorage.getItem('isLoggedIn') !== 'true') {
                 console.warn("เข้าสู่โหมดทดสอบ: บังคับสร้าง Session ชั่วคราว");
@@ -507,48 +479,9 @@
             document.getElementById('contact_date').value = new Date().toISOString().split('T')[0];
             selectDamage('เบา'); 
             loadInitialData(); addDocRow(); addPartRow(); checkCrossPageEditMode();
-            fetchOverdueAlerts();
         }
 
         function logout() { sessionStorage.clear(); window.location.reload(); }
-
-        async function fetchOverdueAlerts() {
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/reports`);
-                if (!res.ok) return;
-                const reports = await res.json();
-                
-                const todayStr = new Date().toISOString().split('T')[0];
-                let ovApp = 0, ovTgt = 0, ovDel = 0;
-
-                reports.forEach(j => {
-                    const st = j.job_status || '';
-                    const isProcessJob = activeProcessStatuses.some(status => st.includes(status) || st.startsWith(status.substring(0, 2)));
-
-                    if (isProcessJob) {
-                        const appVal = j.appointment_date ? String(j.appointment_date).split('T')[0] : '';
-                        if (appVal && appVal <= todayStr && j.is_parked !== 'จอดซ่อม' && !j.arrived_date) {
-                            ovApp++;
-                        }
-
-                        const tgtVal = j.target_finish_date ? String(j.target_finish_date).split('T')[0] : '';
-                        const actualVal = j.actual_finish_date || j.repair_finish_date;
-                        if (tgtVal && tgtVal < todayStr && !actualVal) {
-                            ovTgt++;
-                        }
-
-                        const delVal = j.delivery_date ? String(j.delivery_date).split('T')[0] : '';
-                        if (delVal && delVal < todayStr && !st.includes('ส่งมอบ') && !st.includes('12.')) {
-                            ovDel++;
-                        }
-                    }
-                });
-
-                document.getElementById('ov_app_count_top').innerText = ovApp;
-                document.getElementById('ov_tgt_count_top').innerText = ovTgt;
-                document.getElementById('ov_del_count_top').innerText = ovDel;
-            } catch(e) { console.error(e); }
-        }
 
         function autoMapRouting() {
             const selectedStatus = document.getElementById('job_status').value;
@@ -556,6 +489,12 @@
             const routeSelect = document.getElementById('department_routing');
             if(mapping && mapping.department) { routeSelect.value = mapping.department; }
             
+            const parkedStatuses = [
+                "09.จอดรอเข้าซ่อม", "10.กำลังซ่อม", "11.รถซ่อมเสร็จรอส่งมอบ", 
+                "12.ส่งมอบ", "13.วางบิลประกัน", "14.ชำระเงินสด", 
+                "15.วางบิล Tesla", "16.วางบิล EV ME", "17.รอออกบิล", 
+                "19.ออกบิลแล้ว", "20.จอดซ่อม TC", "21.พักซ่อม"
+            ];
             const isParked = parkedStatuses.some(st => selectedStatus.includes(st) || st.includes(selectedStatus));
             document.getElementById('park_status').value = isParked ? 'จอดซ่อม' : 'ไม่จอดซ่อม';
         }
@@ -1128,7 +1067,6 @@
                 
                 if (editId) { alert(`🎉 อัปเดตใบงานเรียบร้อย!`); loadPartsTrackingTable(formData.car_plate); btnSubmit.innerHTML = '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม'; btnSubmit.disabled = false; } 
                 else { alert(`🎉 เปิดบิลเรียบร้อย!`); cancelEditMode(); }
-                fetchOverdueAlerts();
                 
             } catch (e) { 
                 console.error(e);
