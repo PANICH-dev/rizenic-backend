@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RIZENIC ERP - ตารางใบงาน (Excel Grid Mode)</title>
+    <title>RIZENIC ERP - ตารางใบงาน (Ref Design Mode)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -18,21 +18,21 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; border: 2px solid #f8fafc; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
         
-        .minimal-input { @apply px-2.5 py-1 bg-white border border-slate-300 outline-none text-xs font-bold text-[#00320D] focus:border-green-600 focus:ring-1 focus:ring-green-600 shadow-sm rounded transition-all; }
+        .minimal-input { @apply px-2.5 py-1 bg-white border border-slate-300 outline-none text-xs font-bold text-[#00320D] focus:border-green-600 focus:ring-1 focus:ring-green-600 shadow-xs rounded transition-all; }
         
-        /* 🌟 ระบบตาราง ERP Grid สากล (มีเส้นขอบ + สลับสีแถว + ขยายคอลัมน์ได้) 🌟 */
+        /* 🌟 โครงสร้างตารางตาม Ref (หัวเขียว + เส้นชัด + สลับสีแถว + ลากขยายคอลัมน์ได้) 🌟 */
         .excel-table { @apply w-full text-left border-collapse whitespace-nowrap text-[12px] bg-white border border-slate-300; table-layout: fixed; }
         
         /* หัวตารางสีเขียวเข้ม #00320D */
-        .excel-table thead th { @apply relative px-2 py-2 bg-[#00320D] text-white border border-slate-600 font-bold sticky top-0 z-30 shadow-sm align-middle text-center select-none; }
+        .excel-table thead th { @apply relative px-2 py-2.5 bg-[#00320D] text-white border border-slate-600 font-bold sticky top-0 z-30 shadow-xs align-middle text-center select-none; }
         
         /* สลับสีแถว (Zebra Striping) & เส้นตารางชัดเจน */
         .excel-table tbody tr:nth-child(even) td { @apply bg-[#f8fafc]; }
         .excel-table tbody tr:nth-child(odd) td { @apply bg-white; }
         .excel-table tbody td { @apply p-1 border border-slate-300 text-slate-800 align-middle overflow-hidden relative transition-colors duration-100; }
         
-        /* ไฮไลท์เมื่อเมาส์ชี้ */
-        .excel-table tbody tr:hover td { @apply bg-amber-50 border-amber-300 text-slate-900; }
+        /* ไฮไลท์แถวเมื่อเมาส์ชี้ */
+        .excel-table tbody tr:hover td { @apply bg-blue-50/80 border-slate-400 text-slate-900; }
         
         /* ตัวลากขยายคอลัมน์ */
         .resizer { @apply absolute top-0 right-0 w-2 h-full cursor-col-resize z-40 hover:bg-amber-400 active:bg-amber-500 transition-colors opacity-70; }
@@ -40,14 +40,10 @@
         .sort-icon { @apply ml-1 opacity-40 transition-opacity group-hover:opacity-100 text-[10px]; }
         .filter-icon { @apply ml-1 text-slate-300 hover:text-amber-400 transition-colors p-0.5 cursor-pointer; }
         
-        /* Input & Select สไตล์โปร่งแสงแนบสนิทไปกับเส้นตาราง */
+        /* Input & Select แนบสนิทไปกับตาราง */
         .inline-edit-input { @apply w-full h-full border-0 bg-transparent px-2 py-1 outline-none font-medium text-slate-800 hover:bg-white focus:bg-white focus:ring-1 focus:ring-green-600 rounded-none m-0 text-[12px]; }
         .inline-edit-select { @apply w-full h-full border-0 bg-transparent px-1 py-1 outline-none font-bold text-slate-800 hover:bg-white focus:bg-white focus:ring-1 focus:ring-green-600 cursor-pointer rounded-none m-0 text-[12px]; }
         .readonly-input { @apply w-full h-full border-0 bg-transparent px-1 py-1 text-center font-black cursor-not-allowed outline-none select-none text-[12px]; }
-
-        /* Badge อะไหล่ */
-        .part-badge-main { @apply inline-block px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded text-[11px] font-bold shadow-2xs m-0.5; }
-        .part-badge-sub { @apply inline-block px-1.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded text-[11px] font-bold shadow-2xs m-0.5; }
 
         .bulk-table { @apply w-full text-left border-collapse whitespace-nowrap text-xs border border-slate-300; }
         .bulk-table th { @apply px-2 py-1.5 bg-slate-100 text-slate-800 border border-slate-300 font-bold sticky top-0 z-10 text-center; }
@@ -58,7 +54,7 @@
 </head>
 <body class="text-slate-800 h-screen flex flex-col">
 
-    <!-- 🔔 Toast -->
+    <!-- 🔔 Toast Notification -->
     <div id="toastMsg" class="fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-5 py-2.5 rounded shadow-2xl transform transition-all duration-300 translate-y-20 opacity-0 z-[200] flex items-center gap-2 border border-white/20 text-xs">
         <span id="toastContent"><i class="fa-solid fa-circle-check text-base"></i> บันทึกข้อมูลเรียบร้อย!</span>
     </div>
@@ -78,12 +74,12 @@
             <div id="ef_checkbox_list" class="max-h-44 overflow-y-auto space-y-0.5 custom-scrollbar pr-1"></div>
         </div>
         <div class="bg-slate-50 border-t border-slate-200 p-2 flex gap-2">
-            <button onclick="applyExcelFilter()" class="flex-1 bg-[#00320D] text-white font-bold py-1 rounded hover:bg-black transition shadow-xs"><i class="fa-solid fa-check"></i> ตกลง</button>
+            <button onclick="applyExcelFilter()" class="flex-1 bg-[#00320D] text-white font-bold py-1 rounded hover:bg-black transition shadow-2xs"><i class="fa-solid fa-check"></i> ตกลง</button>
             <button onclick="clearSpecificExcelFilter()" class="flex-1 bg-white text-slate-600 border border-slate-300 font-bold py-1 rounded hover:bg-slate-100 transition"><i class="fa-solid fa-eraser"></i> ล้าง</button>
         </div>
     </div>
 
-    <!-- Header -->
+    <!-- Header Bar -->
     <header class="bg-[#00320D] text-white shadow-md z-50 shrink-0 border-b-4 border-amber-500">
         <div class="px-4 py-2 flex justify-between items-center gap-4">
             <div class="flex items-center gap-3">
@@ -98,7 +94,7 @@
                 <div class="flex gap-1">
                     <a href="dashboard.html" class="px-2.5 py-1 rounded text-green-200 hover:bg-white/10 font-bold text-xs transition">แดชบอร์ด</a>
                     <a href="index.html" class="px-2.5 py-1 rounded text-green-200 hover:bg-white/10 font-bold text-xs transition">เปิดบิลซ่อม</a>
-                    <button class="px-2.5 py-1 rounded bg-white text-[#00320D] font-bold text-xs shadow-xs transition">บอร์ดใบงาน</button>
+                    <button class="px-2.5 py-1 rounded bg-white text-[#00320D] font-bold text-xs shadow-2xs transition">บอร์ดใบงาน</button>
                     <a href="repair.html" class="px-2.5 py-1 rounded text-green-200 hover:bg-white/10 font-bold text-xs transition">สถานีช่าง</a>
                     <a href="parts.html" class="px-2.5 py-1 rounded text-green-200 hover:bg-white/10 font-bold text-xs transition">แผนกอะไหล่</a>
                     <button onclick="logout()" class="px-2 py-1 text-red-300 hover:bg-red-500/20 rounded text-xs ml-1 transition"><i class="fa-solid fa-power-off"></i></button>
@@ -108,7 +104,7 @@
     </header>
 
     <!-- 🌟 Tab Navigation 🌟 -->
-    <div class="bg-white border-b border-slate-200 z-40 shrink-0 shadow-xs flex px-2 pt-1.5 gap-1 overflow-x-auto">
+    <div class="bg-white border-b border-slate-200 z-40 shrink-0 shadow-2xs flex px-2 pt-1.5 gap-1 overflow-x-auto">
         <a href="jobs.html" class="px-5 py-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50 flex items-center gap-2 transition-all rounded-t-lg"><i class="fa-solid fa-users text-blue-600"></i> 1. ภาพรวมทีมบริการ (SA)</a>
         <a href="jobs_table.html" class="px-5 py-2 text-xs font-bold border-b-2 border-[#00320D] text-[#00320D] bg-green-50/50 flex items-center gap-2 rounded-t-lg"><i class="fa-solid fa-file-excel text-emerald-600"></i> 2. ตารางใบงานทั้งหมด (Excel Mode)</a>
         <a href="history.html" class="px-5 py-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50 flex items-center gap-2 transition-all rounded-t-lg"><i class="fa-solid fa-clock-rotate-left text-purple-600"></i> 3. เช็คประวัติรถ (History)</a>
@@ -126,8 +122,8 @@
                 <select id="branch_filter_select" onchange="applyFilters()" class="minimal-input w-36 cursor-pointer"><option value="ALL">-- ทุกสาขา --</option></select>
             </div>
             <div class="flex items-center gap-1.5">
-                <span class="font-bold text-slate-600 uppercase"><i class="fa-solid fa-user-tie text-blue-700"></i> SA:</span>
-                <select id="sa_filter_select" onchange="applyFilters()" class="minimal-input w-36 cursor-pointer"><option value="">-- ทั้งหมด --</option></select>
+                <span class="font-bold text-slate-600 uppercase"><i class="fa-solid fa-user-tie text-blue-700"></i> กรอง SA ด่วน:</span>
+                <select id="sa_filter_select" onchange="applyFilters()" class="minimal-input w-36 cursor-pointer"><option value="">-- แสดง SA ทั้งหมด --</option></select>
             </div>
         </div>
         
@@ -145,9 +141,9 @@
         <div class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto custom-scrollbar pr-2" id="col_toggles_container"></div>
     </div>
 
-    <!-- 🌟 ตารางข้อมูลหลัก (แก้ปัญหาสโคลล์ + เส้นตาราง + หัวเขียว) 🌟 -->
+    <!-- 🌟 ตารางข้อมูลหลัก (แก้จุดสโคลล์ + เส้นตาราง + หัวเขียว + ปรับขนาดคอลัมน์ได้) 🌟 -->
     <main class="flex-1 overflow-hidden relative bg-slate-200 p-1.5 flex flex-col">
-        <div class="flex-1 overflow-auto custom-scrollbar bg-white border border-slate-300 shadow-xs relative" id="tableContainer">
+        <div class="flex-1 overflow-auto custom-scrollbar bg-white rounded-lg border border-slate-300 shadow-2xs relative" id="tableContainer">
             <table class="excel-table" id="jobsTable">
                 <thead id="jobs_table_head"></thead>
                 <tbody id="jobs_table_body">
@@ -168,7 +164,7 @@
                 <input type="text" id="parts_modal_search" onkeyup="filterPartsModalList()" class="minimal-input w-full" placeholder="🔍 พิมพ์ค้นหาชิ้นส่วน...">
                 <div class="flex gap-2">
                     <input type="text" id="parts_custom_add" class="minimal-input text-xs flex-1" placeholder="พิมพ์ชื่ออะไหล่เพิ่มเอง (นอกเหนือจากรายการ)...">
-                    <button onclick="addCustomPartToSelection()" class="px-3 py-1.5 bg-amber-500 text-slate-900 font-bold text-xs rounded hover:bg-amber-600 transition shadow-xs"><i class="fa-solid fa-plus"></i> เพิ่ม</button>
+                    <button onclick="addCustomPartToSelection()" class="px-3 py-1.5 bg-amber-500 text-slate-900 font-bold text-xs rounded hover:bg-amber-600 transition shadow-2xs"><i class="fa-solid fa-plus"></i> เพิ่ม</button>
                 </div>
             </div>
             <div class="flex-1 overflow-y-auto p-3 custom-scrollbar bg-white" id="parts_modal_checkbox_container"></div>
@@ -176,7 +172,7 @@
                 <span class="text-xs font-bold text-slate-500">เลือกแล้ว: <span id="parts_modal_selected_count" class="text-blue-600 font-black text-xs">0</span> ชิ้น</span>
                 <div class="flex gap-2">
                     <button onclick="closePartsSelectModal()" class="px-4 py-1.5 bg-slate-200 text-slate-700 font-bold text-xs rounded hover:bg-slate-300 transition">ยกเลิก</button>
-                    <button onclick="confirmPartsSelection()" class="px-5 py-1.5 bg-blue-600 text-white font-bold text-xs rounded hover:bg-blue-700 transition shadow-xs"><i class="fa-solid fa-check mr-1"></i> ยืนยัน</button>
+                    <button onclick="confirmPartsSelection()" class="px-5 py-1.5 bg-blue-600 text-white font-bold text-xs rounded hover:bg-blue-700 transition shadow-2xs"><i class="fa-solid fa-check mr-1"></i> ยืนยัน</button>
                 </div>
             </div>
         </div>
@@ -189,7 +185,7 @@
                 <h2 class="text-sm font-black flex items-center gap-2"><i class="fa-solid fa-bolt text-amber-400"></i> สร้างรายการด่วน (PDI / Fleet)</h2>
                 <div class="flex gap-2">
                     <button onclick="downloadExcelTemplate()" class="px-3 py-1.5 bg-green-800 rounded text-xs font-bold hover:bg-green-900 transition border border-green-600"><i class="fa-solid fa-download"></i> โหลดฟอร์ม</button>
-                    <label class="px-3 py-1.5 bg-amber-500 rounded text-xs font-bold text-slate-900 cursor-pointer hover:bg-amber-600 transition shadow-xs"><i class="fa-solid fa-upload"></i> อัปโหลด Excel <input type="file" id="excel_upload" class="hidden" onchange="handleExcelUpload(event)"></label>
+                    <label class="px-3 py-1.5 bg-amber-500 rounded text-xs font-bold text-slate-900 cursor-pointer hover:bg-amber-600 transition shadow-2xs"><i class="fa-solid fa-upload"></i> อัปโหลด Excel <input type="file" id="excel_upload" class="hidden" onchange="handleExcelUpload(event)"></label>
                     <button onclick="closeBulkModal()" class="ml-2 hover:text-red-300 text-xl transition"><i class="fa-solid fa-xmark"></i></button>
                 </div>
             </div>
@@ -230,13 +226,14 @@
             '19.ออกบิลแล้ว', '20.จอดซ่อม TC', '21.พักซ่อม'
         ];
 
+        // 🌟 โครงสร้างคอลัมน์มาตรฐานตาม Ref 🌟
         let columnsDef = [
-            { idx: 1, key: 'action', title: 'Action', width: 95 },
+            { idx: 1, key: 'action', title: 'Action', width: 90 },
             { idx: 2, key: 'car_plate', title: 'ทะเบียน', width: 110 },
-            { idx: 3, key: 'car_brand', title: 'ยี่ห้อ/รุ่น', width: 140 },
+            { idx: 3, key: 'car_brand', title: 'ยี่ห้อ/รุ่น', width: 135 },
             { idx: 4, key: 'arrived_date', title: 'รถเข้า', width: 115 },
             { idx: 5, key: 'target_finish_date', title: 'เป้าเสร็จ', width: 115 },
-            { idx: 6, key: 'repair_finish_date', title: 'เสร็จจริง', width: 125 },
+            { idx: 6, key: 'repair_finish_date', title: 'เสร็จจริง', width: 120 },
             { idx: 7, key: 'delivery_date', title: 'ส่งมอบ', width: 115 },
             { idx: 8, key: 'main_part_name', title: 'ชิ้นหลัก', width: 240 },
             { idx: 9, key: 'main_part_qty', title: 'จำนวน(หลัก)', width: 95 },
@@ -405,7 +402,7 @@
             styleTag.innerHTML = css;
         }
 
-        // 🌟 ปรับปรุงการขยายคอลัมน์ให้สมบูรณ์ 100% 🌟
+        // 🌟 ปรับระบบขยายคอลัมน์ให้ออกแบบรองรับการลากกว้าง-ยาว ยืดหยุ่นจริง 100% 🌟
         function initResizableColumns() {
             const cols = document.querySelectorAll('#jobsTable th');
             cols.forEach(col => {
@@ -469,7 +466,6 @@
         function getActiveJobsData() {
             return allJobsData.filter(job => {
                 const st = job.job_status || '';
-                // ตัดสถานะ 13-21 หรือที่มีการออกบิลแล้ว
                 if (excludedStatuses.some(ex => st.includes(ex) || st.startsWith(ex.substring(0, 2)))) return false;
                 if (job.billing_date || job.department_routing === 'บัญชี') return false;
                 return true;
@@ -478,7 +474,7 @@
 
         // ================= 🌟 FETCH DATA 🌟 =================
         async function loadJobsData() {
-            document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-20 text-slate-400 font-bold bg-white"><i class="fa-solid fa-circle-notch fa-spin text-3xl mb-3 text-green-800"></i><br>กำลังโหลดข้อมูล...</td></tr>`;
+            document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-20 text-slate-400 font-bold bg-white"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 text-green-800"></i><br>กำลังโหลดข้อมูล...</td></tr>`;
             try {
                 const results = await Promise.allSettled([
                     fetch(`${API_BASE_URL}/api/statuses`).then(res => res.json()),
@@ -505,7 +501,7 @@
                 initColumns(); 
                 buildSADropdown(); buildBranchDropdown(); applyFilters(); 
             } catch (error) {
-                document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-20 text-red-600 font-bold bg-white"><i class="fa-solid fa-triangle-exclamation text-3xl mb-3"></i><br>เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>`;
+                document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-20 text-red-600 font-bold bg-white"><i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i><br>เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>`;
             }
         }
 
@@ -636,7 +632,7 @@
             const saSelectedTxt = document.getElementById('sa_filter_select').value; 
             const branchSelectedTxt = document.getElementById('branch_filter_select').value; 
             
-            const activeData = getActiveJobsData(); // กรองเอาเฉพาะคิวซ่อม
+            const activeData = getActiveJobsData();
             
             const filteredData = activeData.filter(job => {
                 if (searchTxt) { const matchStr = Object.values(job).join(' ').toLowerCase(); if(!matchStr.includes(searchTxt)) return false; }
@@ -672,11 +668,9 @@
             rows.forEach(row => tbody.appendChild(row));
         }
 
-        function formatPartsBadges(partStr, type='main') {
+        function formatPartsText(partStr) {
             if(!partStr || partStr.trim() === '') return '<span class="text-slate-400 font-normal px-2">-</span>';
-            const parts = partStr.split(',');
-            const badgeClass = type === 'main' ? 'part-badge-main' : 'part-badge-sub';
-            return `<div class="px-1.5 py-1 flex flex-wrap gap-0.5 items-center whitespace-normal">${parts.map(p => `<span class="${badgeClass}">${p.trim()}</span>`).join('')}</div>`;
+            return `<div class="px-2 py-1 flex flex-wrap gap-1 items-center whitespace-normal leading-normal">${partStr}</div>`;
         }
 
         function renderTable(data) {
@@ -694,7 +688,6 @@
                 columnsDef.forEach(col => {
                     let cellData = ''; let cellClass = '';
                     switch(col.key) {
-                        // 🌟 คอลัมน์ Action เพิ่มปุ่มลบ (Delete) คืนมาให้ตามที่ขอครับ 🌟
                         case 'action': 
                             cellData = `<div class="flex items-center justify-center gap-1 w-full h-full p-1">
                                 <button onclick="event.stopPropagation(); goToEditJob('${job.id}')" class="px-2 py-1 text-[11px] font-bold text-slate-700 hover:text-blue-600 bg-white hover:bg-blue-50 border border-slate-300 rounded shadow-2xs transition" title="แก้ไข">
@@ -718,11 +711,11 @@
 
                         case 'main_part_name':
                             cellData = `<div onclick="event.stopPropagation(); openMultiPartsModal('${job.id}', 'main_part_name', '${(job.main_part_name||'').replace(/'/g, "\\'")}')" class="w-full h-full text-left cursor-pointer group">
-                                ${formatPartsBadges(job.main_part_name, 'main')}
+                                ${formatPartsText(job.main_part_name)}
                             </div>`; break;
                         case 'sub_part_name':
                             cellData = `<div onclick="event.stopPropagation(); openMultiPartsModal('${job.id}', 'sub_part_name', '${(job.sub_part_name||'').replace(/'/g, "\\'")}')" class="w-full h-full text-left cursor-pointer group">
-                                ${formatPartsBadges(job.sub_part_name, 'sub')}
+                                ${formatPartsText(job.sub_part_name)}
                             </div>`; break;
 
                         case 'main_part_qty': 
