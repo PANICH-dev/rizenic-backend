@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RIZENIC ERP - ตารางใบงาน (Ref Design Mode)</title>
+    <title>RIZENIC ERP - ตารางใบงาน (Ref Match Mode)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -18,37 +18,117 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; border: 2px solid #f8fafc; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
         
-        .minimal-input { @apply px-2.5 py-1 bg-white border border-slate-300 outline-none text-xs font-bold text-[#00320D] focus:border-green-600 focus:ring-1 focus:ring-green-600 shadow-xs rounded transition-all; }
-        
-        /* 🌟 โครงสร้างตารางตาม Ref (หัวเขียว + เส้นชัด + สลับสีแถว + ลากขยายคอลัมน์ได้) 🌟 */
-        .excel-table { @apply w-full text-left border-collapse whitespace-nowrap text-[12px] bg-white border border-slate-300; table-layout: fixed; }
+        /* 🌟 CSS ตารางสไตล์ Ref เป๊ะๆ 100% 🌟 */
+        .excel-table {
+            width: 100%;
+            text-align: left;
+            border-collapse: collapse;
+            white-space: nowrap;
+            font-size: 12px;
+            background-color: #ffffff;
+            table-layout: fixed;
+            border: 1px solid #cbd5e1;
+        }
         
         /* หัวตารางสีเขียวเข้ม #00320D */
-        .excel-table thead th { @apply relative px-2 py-2.5 bg-[#00320D] text-white border border-slate-600 font-bold sticky top-0 z-30 shadow-xs align-middle text-center select-none; }
-        
-        /* สลับสีแถว (Zebra Striping) & เส้นตารางชัดเจน */
-        .excel-table tbody tr:nth-child(even) td { @apply bg-[#f8fafc]; }
-        .excel-table tbody tr:nth-child(odd) td { @apply bg-white; }
-        .excel-table tbody td { @apply p-1 border border-slate-300 text-slate-800 align-middle overflow-hidden relative transition-colors duration-100; }
-        
-        /* ไฮไลท์แถวเมื่อเมาส์ชี้ */
-        .excel-table tbody tr:hover td { @apply bg-blue-50/80 border-slate-400 text-slate-900; }
-        
-        /* ตัวลากขยายคอลัมน์ */
-        .resizer { @apply absolute top-0 right-0 w-2 h-full cursor-col-resize z-40 hover:bg-amber-400 active:bg-amber-500 transition-colors opacity-70; }
-        
-        .sort-icon { @apply ml-1 opacity-40 transition-opacity group-hover:opacity-100 text-[10px]; }
-        .filter-icon { @apply ml-1 text-slate-300 hover:text-amber-400 transition-colors p-0.5 cursor-pointer; }
-        
-        /* Input & Select แนบสนิทไปกับตาราง */
-        .inline-edit-input { @apply w-full h-full border-0 bg-transparent px-2 py-1 outline-none font-medium text-slate-800 hover:bg-white focus:bg-white focus:ring-1 focus:ring-green-600 rounded-none m-0 text-[12px]; }
-        .inline-edit-select { @apply w-full h-full border-0 bg-transparent px-1 py-1 outline-none font-bold text-slate-800 hover:bg-white focus:bg-white focus:ring-1 focus:ring-green-600 cursor-pointer rounded-none m-0 text-[12px]; }
-        .readonly-input { @apply w-full h-full border-0 bg-transparent px-1 py-1 text-center font-black cursor-not-allowed outline-none select-none text-[12px]; }
+        .excel-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            background-color: #00320D !important;
+            color: #ffffff !important;
+            border: 1px solid #1e3a1e !important;
+            font-weight: 700;
+            padding: 8px 4px;
+            text-align: center;
+            user-select: none;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
 
-        .bulk-table { @apply w-full text-left border-collapse whitespace-nowrap text-xs border border-slate-300; }
-        .bulk-table th { @apply px-2 py-1.5 bg-slate-100 text-slate-800 border border-slate-300 font-bold sticky top-0 z-10 text-center; }
-        .bulk-table td { @apply p-0 border border-slate-300 bg-white; }
-        .bulk-input { @apply w-full h-full px-2 py-1 outline-none bg-slate-50 border-0 focus:bg-white focus:ring-1 focus:ring-green-600 font-mono text-xs; }
+        .excel-table tbody td {
+            padding: 2px 4px;
+            border: 1px solid #cbd5e1 !important;
+            color: #1e293b;
+            vertical-align: middle;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        /* สลับสีแถว Zebra Striping */
+        .excel-table tbody tr:nth-child(even) td { background-color: #f8fafc; }
+        .excel-table tbody tr:nth-child(odd) td { background-color: #ffffff; }
+        
+        /* ไฮไลท์สีเหลืองอ่อนเมื่อนำเมาส์ชี้ */
+        .excel-table tbody tr:hover td {
+            background-color: #fef3c7 !important;
+            border-color: #fcd34d !important;
+            color: #78350f !important;
+        }
+        
+        /* ตัวลากขยายความกว้างคอลัมน์ */
+        .resizer {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 6px;
+            height: 100%;
+            cursor: col-resize;
+            z-index: 40;
+            user-select: none;
+        }
+        .resizer:hover, .resizer.resizing {
+            background-color: #f59e0b !important;
+        }
+        
+        .sort-icon { margin-left: 4px; opacity: 0.5; font-size: 10px; }
+        .filter-icon { margin-left: 6px; color: #cbd5e1; cursor: pointer; }
+        .filter-icon:hover { color: #fbbf24; }
+        
+        .inline-edit-input {
+            width: 100%; height: 100%; border: 0; background: transparent;
+            padding: 4px 6px; outline: none; font-weight: 500; color: inherit; font-size: 12px;
+        }
+        .inline-edit-input:focus, .inline-edit-select:focus {
+            background-color: #ffffff !important;
+            box-shadow: inset 0 0 0 2px #3b82f6;
+        }
+        .inline-edit-select {
+            width: 100%; height: 100%; border: 0; background: transparent;
+            padding: 4px 4px; outline: none; font-weight: 700; color: inherit; cursor: pointer; font-size: 12px;
+        }
+
+        /* Badges ชิ้นส่วนตามรูปภาพ Ref */
+        .part-badge-main {
+            display: inline-block;
+            padding: 2px 8px;
+            background-color: #e0f2fe;
+            color: #0369a1;
+            border: 1px solid #bae6fd;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            margin: 1px;
+        }
+        .part-badge-sub {
+            display: inline-block;
+            padding: 2px 8px;
+            background-color: #fef3c7;
+            color: #b45309;
+            border: 1px solid #fde68a;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            margin: 1px;
+        }
+
+        .minimal-input {
+            padding: 4px 8px; background-color: #ffffff; border: 1px solid #cbd5e1;
+            outline: none; font-size: 12px; font-weight: 700; color: #00320D; border-radius: 6px;
+        }
+        .bulk-table { width: 100%; text-align: left; border-collapse: collapse; font-size: 12px; border: 1px solid #cbd5e1; }
+        .bulk-table th { padding: 6px; background-color: #f1f5f9; border: 1px solid #cbd5e1; font-weight: 700; text-align: center; }
+        .bulk-table td { padding: 0; border: 1px solid #cbd5e1; background-color: #ffffff; }
+        .bulk-input { width: 100%; height: 100%; padding: 6px; outline: none; background: transparent; border: 0; font-size: 12px; }
     </style>
     <style id="dynamic-col-styles"></style>
 </head>
@@ -62,7 +142,7 @@
     <!-- 🔍 Excel Filter Modal -->
     <div id="excelFilterModal" class="hidden fixed bg-white border border-slate-300 shadow-2xl rounded-lg w-64 z-[9999] flex-col overflow-hidden text-xs">
         <div class="bg-[#00320D] text-white border-b border-green-800 px-3 py-2 flex justify-between items-center">
-            <span class="font-bold flex items-center gap-1.5"><i class="fa-solid fa-filter text-amber-400"></i> <span id="ef_col_name"></span></span>
+            <span class="font-bold flex items-center gap-1.5"><i class="fa-solid fa-filter text-amber-400"></i> ตัวกรอง: <span id="ef_col_name" class="text-slate-300"></span></span>
             <button onclick="closeExcelFilter()" class="text-slate-300 hover:text-red-400 transition"><i class="fa-solid fa-xmark text-base"></i></button>
         </div>
         <div class="p-2.5 pb-1">
@@ -74,7 +154,7 @@
             <div id="ef_checkbox_list" class="max-h-44 overflow-y-auto space-y-0.5 custom-scrollbar pr-1"></div>
         </div>
         <div class="bg-slate-50 border-t border-slate-200 p-2 flex gap-2">
-            <button onclick="applyExcelFilter()" class="flex-1 bg-[#00320D] text-white font-bold py-1 rounded hover:bg-black transition shadow-2xs"><i class="fa-solid fa-check"></i> ตกลง</button>
+            <button onclick="applyExcelFilter()" class="flex-1 bg-[#00320D] text-white font-bold py-1 rounded hover:bg-black transition"><i class="fa-solid fa-check"></i> ตกลง</button>
             <button onclick="clearSpecificExcelFilter()" class="flex-1 bg-white text-slate-600 border border-slate-300 font-bold py-1 rounded hover:bg-slate-100 transition"><i class="fa-solid fa-eraser"></i> ล้าง</button>
         </div>
     </div>
@@ -94,7 +174,7 @@
                 <div class="flex gap-1">
                     <a href="dashboard.html" class="px-2.5 py-1 rounded text-green-200 hover:bg-white/10 font-bold text-xs transition">แดชบอร์ด</a>
                     <a href="index.html" class="px-2.5 py-1 rounded text-green-200 hover:bg-white/10 font-bold text-xs transition">เปิดบิลซ่อม</a>
-                    <button class="px-2.5 py-1 rounded bg-white text-[#00320D] font-bold text-xs shadow-2xs transition">บอร์ดใบงาน</button>
+                    <button class="px-2.5 py-1 rounded bg-white text-[#00320D] font-bold text-xs shadow-xs transition">บอร์ดใบงาน</button>
                     <a href="repair.html" class="px-2.5 py-1 rounded text-green-200 hover:bg-white/10 font-bold text-xs transition">สถานีช่าง</a>
                     <a href="parts.html" class="px-2.5 py-1 rounded text-green-200 hover:bg-white/10 font-bold text-xs transition">แผนกอะไหล่</a>
                     <button onclick="logout()" class="px-2 py-1 text-red-300 hover:bg-red-500/20 rounded text-xs ml-1 transition"><i class="fa-solid fa-power-off"></i></button>
@@ -129,10 +209,10 @@
         
         <div class="flex items-center justify-end gap-1.5 w-full lg:w-auto">
             <span class="font-bold text-slate-600 bg-white px-2.5 py-1 rounded border border-slate-200 mr-1 shadow-2xs">พบ: <span id="row_count" class="text-blue-700 font-black">0</span> คัน</span>
-            <button onclick="openBulkModal()" class="px-3 py-1 bg-emerald-600 text-white font-bold rounded text-xs hover:bg-emerald-700 transition shadow-2xs"><i class="fa-solid fa-bolt mr-1"></i> เพิ่มด่วน (PDI)</button>
-            <button onclick="toggleColManager()" class="px-2.5 py-1 bg-white text-slate-700 font-bold rounded text-xs border border-slate-300 hover:bg-slate-100 transition shadow-2xs"><i class="fa-solid fa-sliders"></i> ตั้งค่าคอลัมน์</button>
-            <button onclick="clearAllFilters()" class="px-2.5 py-1 bg-white text-slate-700 font-bold rounded text-xs border border-slate-300 hover:bg-slate-100 transition shadow-2xs"><i class="fa-solid fa-eraser"></i> ล้างฟิลเตอร์</button>
-            <button onclick="loadJobsData()" class="px-3 py-1 bg-[#00320D] text-white font-bold rounded text-xs hover:bg-black transition shadow-2xs"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
+            <button onclick="openBulkModal()" class="px-3 py-1 bg-emerald-600 text-white font-bold rounded text-xs hover:bg-emerald-700 transition"><i class="fa-solid fa-bolt mr-1"></i> เพิ่มด่วน (PDI)</button>
+            <button onclick="toggleColManager()" class="px-2.5 py-1 bg-white text-slate-700 font-bold rounded text-xs border border-slate-300 hover:bg-slate-100 transition"><i class="fa-solid fa-sliders"></i> ตั้งค่าคอลัมน์</button>
+            <button onclick="clearAllFilters()" class="px-2.5 py-1 bg-white text-slate-700 font-bold rounded text-xs border border-slate-300 hover:bg-slate-100 transition"><i class="fa-solid fa-eraser"></i> ล้างฟิลเตอร์</button>
+            <button onclick="loadJobsData()" class="px-3 py-1 bg-[#00320D] text-white font-bold rounded text-xs hover:bg-black transition"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
         </div>
     </div>
 
@@ -141,13 +221,13 @@
         <div class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto custom-scrollbar pr-2" id="col_toggles_container"></div>
     </div>
 
-    <!-- 🌟 ตารางข้อมูลหลัก (แก้จุดสโคลล์ + เส้นตาราง + หัวเขียว + ปรับขนาดคอลัมน์ได้) 🌟 -->
-    <main class="flex-1 overflow-hidden relative bg-slate-200 p-1.5 flex flex-col">
-        <div class="flex-1 overflow-auto custom-scrollbar bg-white rounded-lg border border-slate-300 shadow-2xs relative" id="tableContainer">
+    <!-- 🌟 ตารางข้อมูลหลัก (แก้สโคลล์ + ตัวลากขยาย + ดีไซน์ตรง Ref 100%) 🌟 -->
+    <main class="flex-1 overflow-hidden relative bg-slate-200 p-1 flex flex-col">
+        <div class="flex-1 overflow-auto custom-scrollbar bg-white border border-slate-300 shadow-2xs relative" id="tableContainer">
             <table class="excel-table" id="jobsTable">
                 <thead id="jobs_table_head"></thead>
                 <tbody id="jobs_table_body">
-                    <tr><td colspan="35" class="text-center py-20 text-slate-400 font-bold"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 text-green-700"></i><br>กำลังโหลดข้อมูลตาราง...</td></tr>
+                    <tr><td colspan="35" class="text-center py-20 text-slate-400 font-bold"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 text-green-800"></i><br>กำลังโหลดข้อมูล...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -164,7 +244,7 @@
                 <input type="text" id="parts_modal_search" onkeyup="filterPartsModalList()" class="minimal-input w-full" placeholder="🔍 พิมพ์ค้นหาชิ้นส่วน...">
                 <div class="flex gap-2">
                     <input type="text" id="parts_custom_add" class="minimal-input text-xs flex-1" placeholder="พิมพ์ชื่ออะไหล่เพิ่มเอง (นอกเหนือจากรายการ)...">
-                    <button onclick="addCustomPartToSelection()" class="px-3 py-1.5 bg-amber-500 text-slate-900 font-bold text-xs rounded hover:bg-amber-600 transition shadow-2xs"><i class="fa-solid fa-plus"></i> เพิ่ม</button>
+                    <button onclick="addCustomPartToSelection()" class="px-3 py-1.5 bg-amber-500 text-slate-900 font-bold text-xs rounded hover:bg-amber-600 transition"><i class="fa-solid fa-plus"></i> เพิ่ม</button>
                 </div>
             </div>
             <div class="flex-1 overflow-y-auto p-3 custom-scrollbar bg-white" id="parts_modal_checkbox_container"></div>
@@ -172,7 +252,7 @@
                 <span class="text-xs font-bold text-slate-500">เลือกแล้ว: <span id="parts_modal_selected_count" class="text-blue-600 font-black text-xs">0</span> ชิ้น</span>
                 <div class="flex gap-2">
                     <button onclick="closePartsSelectModal()" class="px-4 py-1.5 bg-slate-200 text-slate-700 font-bold text-xs rounded hover:bg-slate-300 transition">ยกเลิก</button>
-                    <button onclick="confirmPartsSelection()" class="px-5 py-1.5 bg-blue-600 text-white font-bold text-xs rounded hover:bg-blue-700 transition shadow-2xs"><i class="fa-solid fa-check mr-1"></i> ยืนยัน</button>
+                    <button onclick="confirmPartsSelection()" class="px-5 py-1.5 bg-blue-600 text-white font-bold text-xs rounded hover:bg-blue-700 transition"><i class="fa-solid fa-check mr-1"></i> ยืนยัน</button>
                 </div>
             </div>
         </div>
@@ -185,7 +265,7 @@
                 <h2 class="text-sm font-black flex items-center gap-2"><i class="fa-solid fa-bolt text-amber-400"></i> สร้างรายการด่วน (PDI / Fleet)</h2>
                 <div class="flex gap-2">
                     <button onclick="downloadExcelTemplate()" class="px-3 py-1.5 bg-green-800 rounded text-xs font-bold hover:bg-green-900 transition border border-green-600"><i class="fa-solid fa-download"></i> โหลดฟอร์ม</button>
-                    <label class="px-3 py-1.5 bg-amber-500 rounded text-xs font-bold text-slate-900 cursor-pointer hover:bg-amber-600 transition shadow-2xs"><i class="fa-solid fa-upload"></i> อัปโหลด Excel <input type="file" id="excel_upload" class="hidden" onchange="handleExcelUpload(event)"></label>
+                    <label class="px-3 py-1.5 bg-amber-500 rounded text-xs font-bold text-slate-900 cursor-pointer hover:bg-amber-600 transition"><i class="fa-solid fa-upload"></i> อัปโหลด Excel <input type="file" id="excel_upload" class="hidden" onchange="handleExcelUpload(event)"></label>
                     <button onclick="closeBulkModal()" class="ml-2 hover:text-red-300 text-xl transition"><i class="fa-solid fa-xmark"></i></button>
                 </div>
             </div>
@@ -226,7 +306,7 @@
             '19.ออกบิลแล้ว', '20.จอดซ่อม TC', '21.พักซ่อม'
         ];
 
-        // 🌟 โครงสร้างคอลัมน์มาตรฐานตาม Ref 🌟
+        // 🌟 โครงสร้างคอลัมน์มาตรฐาน 🌟
         let columnsDef = [
             { idx: 1, key: 'action', title: 'Action', width: 90 },
             { idx: 2, key: 'car_plate', title: 'ทะเบียน', width: 110 },
@@ -402,33 +482,32 @@
             styleTag.innerHTML = css;
         }
 
-        // 🌟 ปรับระบบขยายคอลัมน์ให้ออกแบบรองรับการลากกว้าง-ยาว ยืดหยุ่นจริง 100% 🌟
+        // 🌟 ระบบปรับขนาดคอลัมน์แบบลากกว้าง-ยาว ยืดหยุ่น 100% 🌟
         function initResizableColumns() {
             const cols = document.querySelectorAll('#jobsTable th');
             cols.forEach(col => {
                 const resizer = col.querySelector('.resizer'); if(!resizer) return;
-                let x = 0; let w = 0;
+                let startX = 0; let startWidth = 0;
                 
-                const md = (e) => { 
+                const onMouseDown = (e) => { 
                     e.stopPropagation(); e.preventDefault(); 
-                    x = e.clientX; w = col.offsetWidth; 
-                    document.addEventListener('mousemove', mm); 
-                    document.addEventListener('mouseup', mu); 
-                    resizer.classList.add('!bg-amber-400', 'opacity-100'); 
+                    startX = e.clientX; startWidth = col.offsetWidth; 
+                    resizer.classList.add('resizing');
+                    document.addEventListener('mousemove', onMouseMove); 
+                    document.addEventListener('mouseup', onMouseUp); 
                 };
-                const mm = (e) => { 
-                    const dx = e.clientX - x; 
-                    const newW = Math.max(50, w + dx);
-                    col.style.width = `${newW}px`; 
-                    col.style.minWidth = `${newW}px`; 
+                const onMouseMove = (e) => { 
+                    const newWidth = Math.max(50, startWidth + (e.clientX - startX));
+                    col.style.width = `${newWidth}px`; 
+                    col.style.minWidth = `${newWidth}px`; 
                 };
-                const mu = () => { 
-                    resizer.classList.remove('!bg-amber-400', 'opacity-100'); 
-                    document.removeEventListener('mousemove', mm); 
-                    document.removeEventListener('mouseup', mu); 
+                const onMouseUp = () => { 
+                    resizer.classList.remove('resizing');
+                    document.removeEventListener('mousemove', onMouseMove); 
+                    document.removeEventListener('mouseup', onMouseUp); 
                 };
-                resizer.removeEventListener('mousedown', md);
-                resizer.addEventListener('mousedown', md);
+                resizer.removeEventListener('mousedown', onMouseDown);
+                resizer.addEventListener('mousedown', onMouseDown);
             });
         }
 
@@ -462,7 +541,7 @@
         }
         function clearSpecificExcelFilter() { if(activeFilters[currentFilterKey]) delete activeFilters[currentFilterKey]; const thIcon = document.getElementById(`th_${currentFilterKey}`)?.querySelector('.filter-icon'); if(thIcon) { thIcon.classList.remove('text-amber-400'); thIcon.classList.add('text-slate-300'); } closeExcelFilter(); applyFilters(); }
 
-        // 🌟 ฟังก์ชันกรองตัดสถานะแผนกบัญชีออก 🌟
+        // 🌟 ฟังก์ชันกรองตัดสถานะแผนกบัญชี (13-21) ออกจากตาราง 🌟
         function getActiveJobsData() {
             return allJobsData.filter(job => {
                 const st = job.job_status || '';
@@ -688,12 +767,13 @@
                 columnsDef.forEach(col => {
                     let cellData = ''; let cellClass = '';
                     switch(col.key) {
+                        // 🌟 ปุ่ม Action ตาม Ref รูปภาพ 🌟
                         case 'action': 
-                            cellData = `<div class="flex items-center justify-center gap-1 w-full h-full p-1">
-                                <button onclick="event.stopPropagation(); goToEditJob('${job.id}')" class="px-2 py-1 text-[11px] font-bold text-slate-700 hover:text-blue-600 bg-white hover:bg-blue-50 border border-slate-300 rounded shadow-2xs transition" title="แก้ไข">
-                                    <i class="fa-solid fa-pen text-[10px]"></i> อัปเดต
+                            cellData = `<div class="flex items-center justify-center gap-1 w-full h-full p-0.5">
+                                <button onclick="event.stopPropagation(); goToEditJob('${job.id}')" class="bg-blue-600 hover:bg-blue-700 text-white p-1 rounded transition flex items-center justify-center w-6 h-6 shadow-2xs" title="อัปเดต/แก้ไข">
+                                    <i class="fa-solid fa-pen-to-square text-[11px]"></i>
                                 </button>
-                                <button onclick="event.stopPropagation(); deleteJobRow('${job.id}', '${job.car_plate || '-'}')" class="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="ลบใบงาน">
+                                <button onclick="event.stopPropagation(); deleteJobRow('${job.id}', '${job.car_plate || '-'}')" class="bg-red-500 hover:bg-red-600 text-white p-1 rounded transition flex items-center justify-center w-6 h-6 shadow-2xs" title="ลบใบงาน">
                                     <i class="fa-solid fa-trash-can text-[11px]"></i>
                                 </button>
                             </div>`; 
@@ -702,11 +782,11 @@
                         case 'car_plate': 
                             const isUrgent = job.damage_level === 'หนัก';
                             const alertIcon = isUrgent ? '<i class="fa-solid fa-circle-exclamation text-red-500 mr-1"></i>' : '';
-                            cellData = `<div class="px-2 py-1.5 text-center font-black text-rose-600">${alertIcon}${job.car_plate || '-'}</div>`; 
+                            cellData = `<div class="px-2 py-1 text-center font-black text-rose-600">${alertIcon}${job.car_plate || '-'}</div>`; 
                             break;
                             
                         case 'car_brand':
-                            cellData = `<div class="px-2 py-1.5 text-left font-bold text-slate-800">${job.car_brand || '-'} <span class="text-slate-400 font-medium text-[11px] ml-0.5">${job.car_model || ''}</span></div>`;
+                            cellData = `<div class="px-2 py-1 text-left font-bold text-slate-800">${job.car_brand || '-'} <span class="text-slate-400 font-medium text-[11px] ml-0.5">${job.car_model || ''}</span></div>`;
                             break;
 
                         case 'main_part_name':
