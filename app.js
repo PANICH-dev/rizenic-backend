@@ -614,16 +614,26 @@ app.put('/api/report/:id/fast-date', async (req, res) => {
   try {
     const { field, value } = req.body;
     
+    // 🌟 เพิ่มฟิลด์ที่ตกหล่นทั้งหมดให้ตรงกับตาราง jobs.html 🌟
     const validFields = [
-      'target_finish_date', 'repair_finish_date', 'delivery_date', 'contact_date', 'arrived_date', 'order_part_date', 'est_part_date',
+      'target_finish_date', 'repair_finish_date', 'delivery_date', 'contact_date', 'appointment_date', 'arrived_date', 'order_part_date', 'est_part_date',
       'car_plate', 'notes', 'qt_no', 'so_no', 'bl_no', 'sa_owner', 'damage_level', 'job_status',
-      'billing_date', 'ivn_no', 'cost_labor', 'cost_part', 'cost_external'
+      'billing_date', 'ivn_no', 'cost_labor', 'cost_part', 'cost_external',
+      'customer_type', 'car_brand', 'car_model', 'vin_no', 'payment_type', 
+      'customer_name', 'phone_number', 'main_part_name', 'sub_part_name',
+      'main_part_qty', 'sub_part_qty', 'is_parked', 'epc_no', 'part_status'
     ];
     if (!validFields.includes(field)) return res.status(400).json({ error: 'ไม่อนุญาตให้แก้ฟิลด์นี้' });
     
     let safeValue = value || null;
+    
+    // แปลงค่าเงินเป็น Float
     if (['cost_labor', 'cost_part', 'cost_external'].includes(field)) {
         safeValue = parseFloat(value) || 0;
+    }
+    // แปลงจำนวนชิ้นส่วนเป็น Integer
+    if (['main_part_qty', 'sub_part_qty'].includes(field)) {
+        safeValue = parseInt(value) || 0;
     }
 
     if (field === 'job_status') {
@@ -641,9 +651,10 @@ app.put('/api/report/:id/fast-date', async (req, res) => {
     const queryText = `UPDATE rizenicreport SET ${field} = $1 WHERE id = $2`;
     await pool.query(queryText, [safeValue, req.params.id]);
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { 
+      res.status(500).json({ error: err.message }); 
+  }
 });
-
 // ==========================================
 // 📦 API แผนกอะไหล่ (สั่งซื้อ / รับเข้า / เบิกจ่าย / สถานะ)
 // ==========================================

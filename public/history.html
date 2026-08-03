@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIZENIC ERP - Vehicle History</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap');
+        body { font-family: 'Kanit', sans-serif; background-color: #f8fafc; }
+        .bg-rizenic-green { background-color: #00320D; }
+        .custom-scrollbar::-webkit-scrollbar { height: 10px; width: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="text-slate-800 h-screen flex flex-col selection:bg-[#00320D] selection:text-white">
+
+    <!-- Header Area -->
+    <header class="bg-rizenic-green text-white shadow-md z-50 shrink-0 border-b border-green-800">
+        <div class="px-4 py-3 flex justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-clock-rotate-left text-purple-400 text-xl"></i>
+                <h1 class="text-lg font-black tracking-wider">VEHICLE <span class="text-purple-400">HISTORY</span></h1>
+            </div>
+            <nav class="flex items-center gap-3">
+                <div class="text-right border-r border-green-700 pr-4 hidden sm:block">
+                    <p class="text-xs font-bold" id="display_emp_name">Staff Name</p>
+                    <p class="text-[10px] text-green-300">สาขา: <span id="display_branch">Branch</span></p>
+                </div>
+                <div class="flex gap-1.5">
+                    <a href="dashboard.html" class="px-3 py-1.5 rounded-lg text-green-200 hover:bg-white/10 font-bold text-xs">แดชบอร์ด</a>
+                    <a href="index.html" class="px-3 py-1.5 rounded-lg text-green-200 hover:bg-white/10 font-bold text-xs">เปิดบิลซ่อม</a>
+                    <a href="jobs.html" class="px-3 py-1.5 rounded-lg text-green-200 hover:bg-white/10 font-bold text-xs">บอร์ดใบงาน</a>
+                    <button onclick="sessionStorage.clear(); window.location.href='index.html'" class="px-2 py-1.5 text-red-300 hover:bg-red-500/20 rounded-lg text-xs ml-1"><i class="fa-solid fa-power-off"></i></button>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 🌟 ระบบ Tab Navigation (ไฟล์แยก) 🌟 -->
+    <div class="bg-white border-b border-slate-200 z-40 shrink-0 shadow-sm flex overflow-x-auto px-2 pt-2">
+        <a href="jobs.html" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 rounded-t-xl transition-all"><i class="fa-solid fa-users text-blue-600"></i> 1. ภาพรวมทีมบริการ (SA)</a>
+        <a href="jobs_table.html" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 rounded-t-xl transition-all"><i class="fa-solid fa-file-excel text-emerald-600"></i> 2. ตารางใบงานทั้งหมด (Excel Mode)</a>
+        <a href="history.html" class="px-6 py-3.5 text-sm font-bold border-b-2 border-[#00320D] text-[#00320D] bg-blue-50/80 flex items-center gap-2 rounded-t-xl transition-all"><i class="fa-solid fa-clock-rotate-left text-purple-600"></i> 3. เช็คประวัติรถ (History)</a>
+    </div>
+
+    <!-- Main Content: History Search -->
+    <main class="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 p-6 flex flex-col">
+        <div class="max-w-5xl mx-auto w-full flex-1">
+            <div class="text-center mb-8 pt-4">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-purple-100 text-purple-600 mb-4 shadow-inner border border-purple-200">
+                    <i class="fa-solid fa-magnifying-glass text-2xl"></i>
+                </div>
+                <h2 class="text-3xl font-black text-[#00320D]">ค้นหาประวัติงานซ่อม <span class="text-purple-600">(Vehicle History)</span></h2>
+                <p class="text-slate-500 font-medium mt-2">กรอก ทะเบียนรถ หรือ หมายเลขตัวถัง (VIN) เพื่อดูประวัติการเข้าศูนย์และทำสี</p>
+            </div>
+            
+            <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200 flex flex-col sm:flex-row gap-4 justify-center items-end mb-8">
+                <div class="w-full sm:w-96">
+                    <label class="text-xs font-bold text-slate-500 uppercase mb-1 block">ทะเบียนรถ / เลขตัวถัง (VIN)</label>
+                    <input type="text" id="history_search_input" class="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl outline-none font-black text-lg text-center uppercase focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all shadow-sm" placeholder="เช่น กข 1234 หรือ VIN...">
+                </div>
+                <button onclick="searchVehicleHistory()" id="btn_search" class="w-full sm:w-auto px-8 py-3 bg-[#00320D] text-white font-black rounded-xl shadow-lg shadow-green-900/30 hover:bg-black transition-all transform hover:-translate-y-1"><i class="fa-solid fa-search mr-2"></i> ค้นหาประวัติ</button>
+            </div>
+            
+            <div id="history_results_container" class="space-y-6 hidden">
+                <div class="bg-gradient-to-r from-[#00320D] to-green-800 rounded-2xl p-6 shadow-md text-white flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center text-2xl font-black shadow-inner border border-white/20"><i class="fa-solid fa-car"></i></div>
+                        <div>
+                            <h3 class="text-2xl font-black tracking-widest uppercase" id="hist_car_plate">กข 1234</h3>
+                            <p class="text-green-300 font-medium text-sm" id="hist_car_model">Tesla Model 3</p>
+                        </div>
+                    </div>
+                    <div class="bg-white/10 px-4 py-2 rounded-lg border border-white/20 text-right w-full sm:w-auto">
+                        <p class="text-xs text-green-200 font-bold uppercase tracking-wider mb-0.5">รวมประวัติเข้าซ่อม</p>
+                        <p class="text-xl font-black"><span id="hist_total_visits">0</span> <span class="text-sm font-medium">ครั้ง</span></p>
+                    </div>
+                </div>
+                <div class="relative border-l-2 border-purple-200 ml-4 md:ml-8 space-y-8 pb-10" id="history_timeline_list"></div>
+            </div>
+            
+            <div id="history_empty_state" class="text-center py-16 hidden">
+                <i class="fa-solid fa-car-burst text-6xl text-slate-200 mb-4"></i>
+                <h3 class="text-xl font-bold text-slate-400">ไม่พบประวัติการซ่อมของรถคันนี้ในระบบ</h3>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE_URL = window.location.origin;
+        let allJobsData = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if(sessionStorage.getItem('isLoggedIn') !== 'true') { window.location.href = 'index.html'; return; }
+            document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name') || 'ไม่ระบุชื่อ';
+            document.getElementById('display_branch').innerText = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+
+            document.getElementById('history_search_input').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') searchVehicleHistory();
+            });
+
+            // Preload ข้อมูลเพื่อความรวดเร็วในการค้นหา
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/reports`);
+                if(res.ok) allJobsData = await res.json();
+            } catch(e) { console.error("Error loading history data"); }
+        });
+
+        function searchVehicleHistory() {
+            const searchTxt = document.getElementById('history_search_input').value.trim().toLowerCase();
+            const container = document.getElementById('history_results_container');
+            const emptyState = document.getElementById('history_empty_state');
+            const btn = document.getElementById('btn_search');
+            
+            if(!searchTxt) { container.classList.add('hidden'); emptyState.classList.add('hidden'); return; }
+            
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> ค้นหา...';
+            
+            setTimeout(() => {
+                const results = allJobsData.filter(j => (j.car_plate && j.car_plate.toLowerCase().includes(searchTxt)) || (j.vin_no && j.vin_no.toLowerCase().includes(searchTxt)));
+                
+                if(results.length === 0) { 
+                    container.classList.add('hidden'); emptyState.classList.remove('hidden'); 
+                    btn.innerHTML = '<i class="fa-solid fa-search mr-2"></i> ค้นหาประวัติ';
+                    return; 
+                }
+                
+                emptyState.classList.add('hidden'); container.classList.remove('hidden');
+                results.sort((a,b) => new Date(b.arrived_date || b.contact_date || 0) - new Date(a.arrived_date || a.contact_date || 0));
+                
+                const latest = results[0];
+                document.getElementById('hist_car_plate').innerText = latest.car_plate || 'ไม่ระบุทะเบียน';
+                document.getElementById('hist_car_model').innerText = `${latest.car_brand || ''} ${latest.car_model || ''} | VIN: ${latest.vin_no || '-'}`;
+                document.getElementById('hist_total_visits').innerText = results.length;
+                
+                const timeline = document.getElementById('history_timeline_list');
+                timeline.innerHTML = results.map((j, idx) => {
+                    const dDate = j.arrived_date ? j.arrived_date.split('T')[0] : (j.contact_date ? j.contact_date.split('T')[0] : 'ไม่ระบุวันที่');
+                    const damageColor = j.damage_level === 'หนัก' ? 'text-red-600' : (j.damage_level === 'กลาง' ? 'text-amber-500' : 'text-emerald-600');
+                    return `
+                        <div class="relative pl-8 md:pl-10">
+                            <div class="absolute -left-3 top-0 w-6 h-6 rounded-full bg-purple-500 border-4 border-white shadow-sm flex items-center justify-center text-white text-[10px] font-black">${results.length - idx}</div>
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 hover:border-purple-300 transition-colors">
+                                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 border-b border-slate-100 pb-3">
+                                    <div>
+                                        <p class="text-xs font-bold text-purple-600 mb-1"><i class="fa-regular fa-calendar"></i> วันที่เข้ารับบริการ: ${dDate}</p>
+                                        <h4 class="text-lg font-black text-slate-800">ลูกค้านำรถเข้าซ่อม (SA: ${j.sa_owner || '-'})</h4>
+                                    </div>
+                                    <span class="px-3 py-1 bg-slate-100 border border-slate-200 text-slate-600 text-xs font-bold rounded-lg shadow-sm">${j.job_status || '-'}</span>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <p class="text-xs text-slate-500 font-bold uppercase mb-1">รายละเอียดงาน</p>
+                                        <ul class="text-sm font-medium text-slate-700 space-y-1">
+                                            <li><i class="fa-solid fa-caret-right text-purple-400 mr-2"></i> ความเสียหาย: <span class="font-bold ${damageColor}">${j.damage_level || '-'}</span></li>
+                                            <li><i class="fa-solid fa-caret-right text-purple-400 mr-2"></i> ประเภทรับงาน: <span class="font-bold">${j.payment_type || '-'}</span></li>
+                                        </ul>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-slate-500 font-bold uppercase mb-1">หมายเหตุ / ความต้องการลูกค้า</p>
+                                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-sm text-slate-700 h-full">
+                                            ${j.notes || '<span class="text-slate-400 italic">ไม่มีหมายเหตุระบุไว้</span>'}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-4 pt-3 border-t border-slate-100 text-right">
+                                    <button onclick="goToEditJob('${j.id}')" class="text-xs font-bold text-blue-600 hover:text-blue-800 transition bg-blue-50 px-3 py-1.5 rounded border border-blue-200"><i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดดูใบงานนี้</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                btn.innerHTML = '<i class="fa-solid fa-search mr-2"></i> ค้นหาประวัติ';
+            }, 300); // จำลอง Loading เล็กน้อยให้ดู smooth
+        }
+
+        function goToEditJob(jobId) { 
+            sessionStorage.setItem('edit_job_id', jobId); 
+            window.location.href = 'index.html'; 
+        }
+    </script>
+</body>
+</html>
