@@ -38,13 +38,29 @@
         .calendar-cell.today .calendar-day-label { @apply text-amber-600 bg-amber-100 px-2 py-0.5 rounded shadow-sm; }
         .calendar-cell:hover .calendar-day-label { @apply text-amber-500; }
         
-        /* 🌟 ระบบตาราง Green Grid สำหรับรถจอดซ่อม 🌟 */
-        .excel-table { @apply w-full text-left border-collapse whitespace-nowrap text-[12px] bg-white border border-slate-300; table-layout: fixed; }
-        .excel-table thead th { @apply relative px-2 py-2 bg-[#00320D] text-white border border-slate-600 font-bold sticky top-0 z-10 shadow-sm align-middle text-center select-none tracking-wide; }
-        .excel-table tbody tr:nth-child(even) td { @apply bg-[#f8fafc]; }
-        .excel-table tbody tr:nth-child(odd) td { @apply bg-white; }
-        .excel-table tbody td { @apply p-1.5 border border-slate-300 text-slate-800 align-middle overflow-hidden relative transition-colors duration-100; }
-        .excel-table tbody tr:hover td { @apply bg-amber-50 border-amber-300 text-slate-900; }
+        /* 🌟 ตารางรถจอดซ่อมแบบ Minimal Green Grid (มีเส้นชัด + ปรับขนาดได้อิสระ) 🌟 */
+        .excel-table-parked {
+            width: 100%; text-align: left; border-collapse: collapse; white-space: nowrap;
+            font-size: 12px; background-color: #ffffff; table-layout: fixed; border: 1px solid #cbd5e1;
+        }
+        .excel-table-parked thead th {
+            position: sticky; top: 0; z-index: 20; background-color: #00320D !important;
+            color: #ffffff !important; border: 1px solid #1e3a1e !important; font-weight: 700;
+            padding: 6px 4px; text-align: center; user-select: none; box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .excel-table-parked tbody td {
+            padding: 3px 4px; border: 1px solid #cbd5e1 !important; color: #1e293b;
+            vertical-align: middle; overflow: hidden; position: relative;
+        }
+        .excel-table-parked tbody tr:nth-child(even) td { background-color: #f8fafc; }
+        .excel-table-parked tbody tr:nth-child(odd) td { background-color: #ffffff; }
+        .excel-table-parked tbody tr:hover td {
+            background-color: #fef3c7 !important; border-color: #fcd34d !important; color: #78350f !important;
+        }
+        .resizer-parked {
+            position: absolute; top: 0; right: 0; width: 6px; height: 100%; cursor: col-resize; z-index: 30; user-select: none;
+        }
+        .resizer-parked:hover, .resizer-parked.resizing { background-color: #f59e0b !important; }
 
         .simple-table { @apply w-full text-left border-collapse whitespace-nowrap text-xs bg-white; }
         .simple-table thead th { @apply px-4 py-2 bg-slate-100 border-b border-slate-200 font-bold sticky top-0 z-10 shadow-sm; }
@@ -153,25 +169,25 @@
                 </div>
             </div>
 
-            <!-- รถจอดซ่อม -->
+            <!-- 🌟 รถจอดซ่อม (ตารางมินิมอล หัวเขียว ขยายกว้าง-ยาวได้อย่างอิสระ) 🌟 -->
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[380px]">
                 <div class="bg-slate-50 px-5 py-3.5 border-b border-slate-200 flex justify-between items-center">
                     <h3 class="font-black text-[#00320D]"><i class="fa-solid fa-car text-amber-500"></i> รายการรถกำลังจอดซ่อมในศูนย์</h3>
                     <span class="bg-slate-200 text-slate-600 text-xs px-2 py-1 rounded font-bold">ยอดรวม: <span id="count_parked">0</span> คัน</span>
                 </div>
-                <div class="flex-1 overflow-auto custom-scrollbar p-2 bg-slate-100">
-                    <table class="excel-table">
+                <div class="flex-1 overflow-auto custom-scrollbar p-1.5 bg-slate-100">
+                    <table class="excel-table-parked" id="parkedTable">
                         <thead>
                             <tr>
-                                <th style="width: 70px;">จอด(วัน)</th>
-                                <th style="width: 100px;">ทะเบียน</th>
-                                <th style="width: 120px;">ยี่ห้อ/รุ่น</th>
-                                <th style="width: 130px;">ลูกค้า</th>
-                                <th style="width: 150px;">อัปเดตสถานะงาน</th>
-                                <th style="width: 100px;">สถานะจอด</th>
-                                <th style="width: 120px;">วันที่(เข้า/เป้า)</th>
-                                <th style="width: 160px;">ชิ้นส่วน(หลัก/รอง)</th>
-                                <th style="width: 60px;">ตาราง</th>
+                                <th style="width: 70px;">จอด(วัน)<div class="resizer-parked"></div></th>
+                                <th style="width: 100px;">ทะเบียน<div class="resizer-parked"></div></th>
+                                <th style="width: 130px;">ยี่ห้อ/รุ่น<div class="resizer-parked"></div></th>
+                                <th style="width: 130px;">ลูกค้า<div class="resizer-parked"></div></th>
+                                <th style="width: 160px;">อัปเดตสถานะงาน<div class="resizer-parked"></div></th>
+                                <th style="width: 100px;">สถานะจอด<div class="resizer-parked"></div></th>
+                                <th style="width: 120px;">วันที่(เข้า/เป้า)<div class="resizer-parked"></div></th>
+                                <th style="width: 170px;">ชิ้นส่วน(หลัก/รอง)<div class="resizer-parked"></div></th>
+                                <th style="width: 50px;">ตาราง</th>
                             </tr>
                         </thead>
                         <tbody id="sa_parked_body"></tbody>
@@ -251,7 +267,6 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            // 🔓 แก้ไขการเข้าถึงชั่วคราว: หากไม่มี Session ให้เปิดโหมดทดสอบเป็น Admin ทันที
             if(sessionStorage.getItem('isLoggedIn') !== 'true') { 
                 console.warn("เข้าสู่โหมดทดสอบ: บังคับสร้าง Session ชั่วคราว");
                 sessionStorage.setItem('isLoggedIn', 'true');
@@ -264,7 +279,6 @@
             userRole = sessionStorage.getItem('emp_role') || 'Admin';
             userBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
 
-            // ตรวจสอบสิทธิ์อีกครั้ง (ปลอดภัยไว้ก่อน)
             const allowedPages = (sessionStorage.getItem('accessible_pages') || '').split(',');
             if (!allowedPages.includes('jobs')) { 
                 alert('⛔ คุณไม่มีสิทธิ์เข้าถึงบอร์ดใบงานครับ!');
@@ -517,6 +531,7 @@
             document.getElementById('jobListModal').classList.remove('hidden');
         }
 
+        // 🌟 แสดงตารางรถจอดซ่อมแบบ Minimal Green Grid ลากกว้าง-ยาวได้ 🌟
         function renderSAParkedCars(jobs) {
             const tbody = document.getElementById('sa_parked_body'); 
             const parkedCars = jobs.filter(j => j.is_parked === 'จอดซ่อม'); 
@@ -560,6 +575,37 @@
                     <td class="text-center"><button onclick="goToExcelTabFilterPlate('${j.car_plate}')" class="bg-slate-100 border border-slate-300 text-slate-700 px-2 py-1 rounded text-[10px] font-bold hover:bg-slate-200 transition shadow-sm"><i class="fa-solid fa-up-right-from-square"></i></button></td>
                 </tr>`;
             }).join('');
+
+            setTimeout(initResizableParkedColumns, 300);
+        }
+
+        // 🌟 สคริปต์ปรับขนาดคอลัมน์ตารางรถจอดซ่อม 🌟
+        function initResizableParkedColumns() {
+            const cols = document.querySelectorAll('#parkedTable th');
+            cols.forEach(col => {
+                const resizer = col.querySelector('.resizer-parked'); if(!resizer) return;
+                let startX = 0; let startWidth = 0;
+                
+                const onMouseDown = (e) => { 
+                    e.stopPropagation(); e.preventDefault(); 
+                    startX = e.clientX; startWidth = col.offsetWidth; 
+                    resizer.classList.add('resizing');
+                    document.addEventListener('mousemove', onMouseMove); 
+                    document.addEventListener('mouseup', onMouseUp); 
+                };
+                const onMouseMove = (e) => { 
+                    const newWidth = Math.max(40, startWidth + (e.clientX - startX));
+                    col.style.width = `${newWidth}px`; 
+                    col.style.minWidth = `${newWidth}px`; 
+                };
+                const onMouseUp = () => { 
+                    resizer.classList.remove('resizing');
+                    document.removeEventListener('mousemove', onMouseMove); 
+                    document.removeEventListener('mouseup', onMouseUp); 
+                };
+                resizer.removeEventListener('mousedown', onMouseDown);
+                resizer.addEventListener('mousedown', onMouseDown);
+            });
         }
 
         function goToExcelTabFilterPlate(plate) { 
