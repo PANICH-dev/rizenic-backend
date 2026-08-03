@@ -687,7 +687,6 @@
             } catch(e) { console.log(e); }
         }
 
-        // 🌟 แก้ไขฟังก์ชันกด "แอด" สั่งซื้ออะไหล่ - แปลงชนิดข้อมูลตัวเลข ป้องกัน HTTP Bad Request 🌟
         async function sendSinglePO(btnElem) {
             const carPlate = document.getElementById('car_plate').value.trim();
             if(!carPlate) { alert('⚠️ กรุณากรอก "ทะเบียนรถ" ด้านบนก่อนยิงออเดอร์ครับ!'); return; }
@@ -695,11 +694,10 @@
             const tr = btnElem.closest('tr');
             const pNoInput = tr.querySelector('.part-no-input');
             const pNo = pNoInput ? pNoInput.value.trim() : ''; 
-            const pMain = tr.querySelector('.part-main-input')?.value?.trim() || '';
-            let pName = tr.querySelector('.part-name-input')?.value?.trim() || ''; 
-            const pType = tr.querySelector('.part-type-input')?.value?.trim() || 'อะไหล่หลัก';
-            const pQtyRaw = tr.querySelector('.part-qty-input')?.value;
-            const pQty = parseInt(pQtyRaw) || 1; // 👈 แปลงให้เป็น Int ชัวร์ๆ
+            const pMain = tr.querySelector('.part-main-input')?.value || '';
+            let pName = tr.querySelector('.part-name-input')?.value || ''; 
+            const pType = tr.querySelector('.part-type-input')?.value || 'อะไหล่หลัก';
+            const pQty = tr.querySelector('.part-qty-input')?.value || 1;
             
             if(!pNo) { alert('⚠️ กรุณาระบุบาร์โค้ดอะไหล่ก่อนสั่งซื้อ'); return; }
 
@@ -733,53 +731,19 @@
                 btnElem.disabled = true;
                 btnElem.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
                 
-                const payload = { 
-                    car_plate: carPlate, 
-                    vin_no: document.getElementById('vin_no')?.value || null, 
-                    car_model: document.getElementById('car_model')?.value || null, 
-                    qt_no: qtArr.length > 0 ? qtArr.join(', ') : null, 
-                    so_no: soArr.length > 0 ? soArr.join(', ') : null, 
-                    epc_no: null,
-                    part_no: pNo, 
-                    part_main_no: pMain || null, 
-                    part_name: pName, 
-                    qty_ordered: pQty, // 👈 ส่งตัวเลข
-                    part_type: pType, 
-                    branch_name: sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่', 
-                    order_status: 'รอสั่งซื้อ', 
-                    order_date: new Date().toISOString().split('T')[0]
-                };
-
                 const resPO = await fetch(`${API_BASE_URL}/api/part-orders`, {
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        car_plate: carPlate, vin_no: document.getElementById('vin_no').value, car_model: document.getElementById('car_model').value, 
+                        qt_no: qtArr.join(','), so_no: soArr.join(','), epc_no: null,
+                        part_no: pNo, part_main_no: pMain, part_name: pName, qty_ordered: pQty, part_type: pType, 
+                        branch_name: sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่', order_status: 'รอสั่งซื้อ', order_date: new Date().toISOString().split('T')[0]
+                    })
                 });
 
                 if (!resPO.ok) {
-                    let errDetail = '';
-                    try {
-                        const errJson = await resPO.json();
-                        errDetail = errJson.error || errJson.message || JSON.stringify(errJson);
-                    } catch(e) {
-                        errDetail = `HTTP ${resPO.status} ${resPO.statusText}`;
-                    }
-                    throw new Error(errDetail);
+                    throw new Error('บันทึกคำสั่งซื้ออะไหล่ไม่สำเร็จ');
                 }
-
-                try {
-                    await fetch(`${API_BASE_URL}/api/part-outbound`, {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            issue_date: new Date().toISOString().split('T')[0],
-                            part_no: pNo, part_main_no: pMain || null, part_name: pName, qty: pQty,
-                            car_plate: carPlate, qt_no: qtArr.join(', ') || null, so_no: soArr.join(', ') || null,
-                            unit_price: 0, car_model: document.getElementById('car_model')?.value || null,
-                            job_status: 'รอเข้าซ่อม', part_type: pType,
-                            branch_name: sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่'
-                        })
-                    });
-                } catch(errOut) {}
 
                 tr.remove(); 
                 const currentRows = document.querySelectorAll('#order_parts_body tr');
@@ -1147,7 +1111,7 @@
                         const pMain = tr.querySelector('.part-main-input')?.value;
                         const pName = tr.querySelector('.part-name-input')?.value; 
                         const pType = tr.querySelector('.part-type-input')?.value || 'อะไหล่หลัก';
-                        const pQty = parseInt(tr.querySelector('.part-qty-input')?.value) || 1;
+                        const pQty = tr.querySelector('.part-qty-input')?.value || '1';
                         
                         if (pNo && pName) {
                             await fetch(`${API_BASE_URL}/api/part-orders`, {
@@ -1158,20 +1122,6 @@
                                     part_no: pNo, part_main_no: pMain, part_name: pName, qty_ordered: pQty, part_type: pType, branch_name: formData.branch_name, order_status: 'รอสั่งซื้อ' 
                                 })
                             });
-
-                            try {
-                                await fetch(`${API_BASE_URL}/api/part-outbound`, {
-                                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        issue_date: new Date().toISOString().split('T')[0],
-                                        part_no: pNo, part_main_no: pMain, part_name: pName, qty: pQty,
-                                        car_plate: formData.car_plate, qt_no: qtArr.join(', '), so_no: soArr.join(', '),
-                                        unit_price: 0, car_model: formData.car_model,
-                                        job_status: 'รอเข้าซ่อม', part_type: pType,
-                                        branch_name: formData.branch_name
-                                    })
-                                });
-                            } catch(e) {}
                         }
                     }
                 }
