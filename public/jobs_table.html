@@ -11,65 +11,68 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap');
-        body { font-family: 'Kanit', sans-serif; background-color: #f4f6f9; overflow: hidden; }
-        .custom-scrollbar::-webkit-scrollbar { height: 10px; width: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; border: 2px solid #f1f5f9; }
+        body { font-family: 'Kanit', sans-serif; background-color: #f8fafc; overflow: hidden; }
+        .custom-scrollbar::-webkit-scrollbar { height: 12px; width: 12px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-left: 1px solid #e2e8f0; border-top: 1px solid #e2e8f0; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border: 2px solid #f1f5f9; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        .minimal-input { @apply px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none text-sm font-bold text-[#00320D] focus:border-[#00320D] focus:ring-2 focus:ring-green-500/20 shadow-sm; }
+        .minimal-input { @apply px-3 py-1.5 bg-white border border-slate-300 outline-none text-sm font-bold text-[#00320D] focus:border-amber-500 focus:ring-1 focus:ring-amber-500 shadow-sm; }
         
-        .excel-table { @apply w-full text-left border-collapse whitespace-nowrap text-[12px] bg-white; table-layout: fixed; }
-        .excel-table thead th { @apply relative px-0 py-0 bg-[#00320D] text-white border border-slate-500 font-bold sticky top-0 z-10 shadow-sm align-middle; }
-        .excel-table tbody td { @apply p-0 border border-slate-300 text-slate-700 align-middle overflow-hidden; }
-        .excel-table tbody tr:hover td { @apply bg-green-50/50 transition-colors; }
+        /* 🌟 ระบบตาราง Excel Pro Max (ดิบๆ แน่นๆ) 🌟 */
+        .excel-table { @apply w-full text-left border-collapse whitespace-nowrap text-[12px] bg-white border border-slate-400; table-layout: fixed; }
+        .excel-table thead th { @apply relative px-1 py-1.5 bg-[#00320D] text-white border border-slate-500 font-bold sticky top-0 z-10 shadow-sm align-middle text-center; }
+        .excel-table tbody td { @apply p-0 border border-slate-300 text-slate-800 align-middle overflow-hidden relative bg-white; }
+        .excel-table tbody tr:hover td { @apply bg-blue-50/60; }
         
         .resizer { @apply absolute top-0 right-0 w-1.5 h-full cursor-col-resize z-20 hover:bg-amber-400 transition-colors; }
         .sort-icon { @apply ml-1 opacity-40 transition-opacity group-hover:opacity-100 text-[10px]; }
-        .filter-icon { @apply ml-2 text-slate-400 hover:text-amber-400 transition-colors p-1.5 rounded hover:bg-white/20 cursor-pointer; }
+        .filter-icon { @apply ml-1.5 text-slate-400 hover:text-amber-400 transition-colors p-1 cursor-pointer; }
         
-        .inline-edit-input { @apply w-full h-full border-0 bg-transparent px-3 py-2 outline-none font-medium text-slate-900 transition-colors hover:bg-slate-50 focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500; }
-        .inline-edit-select { @apply w-full h-full border-0 bg-transparent px-2 py-2 outline-none font-bold text-slate-800 transition-colors cursor-pointer hover:bg-slate-50 focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500; }
+        /* Input & Select สไตล์แนบสนิทไปกับตาราง */
+        .inline-edit-input { @apply w-full h-full border-0 bg-transparent px-2 py-1 outline-none font-medium text-slate-900 transition-colors focus:bg-yellow-50 focus:ring-2 focus:ring-inset focus:ring-amber-400 rounded-none m-0; }
+        .inline-edit-select { @apply w-full h-full border-0 bg-transparent px-1 py-1 outline-none font-bold text-slate-800 transition-colors cursor-pointer focus:bg-yellow-50 focus:ring-2 focus:ring-inset focus:ring-amber-400 rounded-none m-0; }
+        .readonly-input { @apply w-full h-full border-0 bg-slate-100 px-2 py-1 text-center font-black text-slate-400 cursor-not-allowed outline-none select-none; }
 
-        .bulk-table { @apply w-full text-left border-collapse whitespace-nowrap text-sm; }
-        .bulk-table th { @apply px-2 py-2 bg-slate-100 text-slate-800 border border-slate-300 font-bold sticky top-0 z-10; }
+        .bulk-table { @apply w-full text-left border-collapse whitespace-nowrap text-sm border border-slate-400; }
+        .bulk-table th { @apply px-2 py-1.5 bg-slate-200 text-slate-800 border border-slate-400 font-bold sticky top-0 z-10 text-center; }
         .bulk-table td { @apply p-0 border border-slate-300 bg-white; }
-        .bulk-input { @apply w-full h-full px-3 py-2 outline-none bg-transparent focus:bg-blue-50 focus:ring-2 focus:ring-blue-500 font-mono text-sm; }
+        .bulk-input { @apply w-full h-full px-2 py-1.5 outline-none bg-transparent focus:bg-yellow-50 focus:ring-2 focus:ring-inset focus:ring-amber-500 font-mono text-sm m-0 rounded-none border-0; }
     </style>
     <style id="dynamic-col-styles"></style>
 </head>
 <body class="text-slate-800 h-screen flex flex-col">
 
     <!-- 🔔 Toast -->
-    <div id="toastMsg" class="fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 translate-y-20 opacity-0 z-[200] flex items-center gap-2 border border-white/20">
+    <div id="toastMsg" class="fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-6 py-3 rounded shadow-2xl transform transition-all duration-300 translate-y-20 opacity-0 z-[200] flex items-center gap-2 border border-white/20">
         <span id="toastContent"><i class="fa-solid fa-circle-check text-xl"></i> บันทึกข้อมูลเรียบร้อย!</span>
     </div>
 
     <!-- 🔍 Excel Filter Modal -->
-    <div id="excelFilterModal" class="hidden fixed bg-white border border-slate-200 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] rounded-xl w-64 z-[9999] flex-col overflow-hidden">
-        <div class="bg-slate-50 border-b border-slate-200 px-3 py-2.5 flex justify-between items-center">
-            <span class="font-bold text-[#00320D] text-xs flex items-center gap-1.5"><i class="fa-solid fa-filter text-amber-500"></i> ตัวกรอง: <span id="ef_col_name" class="text-slate-600"></span></span>
-            <button onclick="closeExcelFilter()" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
+    <div id="excelFilterModal" class="hidden fixed bg-white border border-slate-300 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] w-64 z-[9999] flex-col overflow-hidden">
+        <div class="bg-slate-100 border-b border-slate-300 px-3 py-2 flex justify-between items-center">
+            <span class="font-bold text-[#00320D] text-xs flex items-center gap-1.5"><i class="fa-solid fa-filter text-amber-600"></i> ตัวกรอง: <span id="ef_col_name" class="text-slate-600"></span></span>
+            <button onclick="closeExcelFilter()" class="text-slate-400 hover:text-red-600"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <div class="p-2.5 pb-1">
-            <input type="text" id="ef_search" class="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-amber-500 mb-2" placeholder="ค้นหา..." onkeyup="searchExcelFilter()">
-            <label class="flex items-center gap-2 px-1.5 py-1.5 border-b mb-1 cursor-pointer">
+        <div class="p-2 pb-1">
+            <input type="text" id="ef_search" class="w-full border border-slate-300 px-2 py-1 text-xs outline-none focus:border-amber-500 mb-2" placeholder="ค้นหา..." onkeyup="searchExcelFilter()">
+            <label class="flex items-center gap-2 px-1.5 py-1.5 border-b border-slate-200 mb-1 cursor-pointer hover:bg-slate-50">
                 <input type="checkbox" id="ef_select_all" checked onchange="toggleAllExcelFilters(this.checked)" class="w-3.5 h-3.5 accent-[#00320D] cursor-pointer">
                 <span class="text-xs font-bold">เลือกทั้งหมด</span>
             </label>
             <div id="ef_checkbox_list" class="max-h-40 overflow-y-auto space-y-0.5 custom-scrollbar pr-1"></div>
         </div>
-        <div class="bg-slate-50 border-t border-slate-200 p-2.5 flex gap-2">
-            <button onclick="applyExcelFilter()" class="flex-1 bg-[#00320D] text-white text-xs font-bold py-1.5 rounded-lg hover:bg-black transition"><i class="fa-solid fa-check"></i> ตกลง</button>
-            <button onclick="clearSpecificExcelFilter()" class="flex-1 bg-white text-slate-600 border border-slate-300 text-xs font-bold py-1.5 rounded-lg hover:bg-slate-100"><i class="fa-solid fa-eraser"></i> ล้าง</button>
+        <div class="bg-slate-100 border-t border-slate-300 p-2 flex gap-2">
+            <button onclick="applyExcelFilter()" class="flex-1 bg-[#00320D] text-white text-xs font-bold py-1.5 hover:bg-black transition border border-black"><i class="fa-solid fa-check"></i> ตกลง</button>
+            <button onclick="clearSpecificExcelFilter()" class="flex-1 bg-white text-slate-700 border border-slate-300 text-xs font-bold py-1.5 hover:bg-slate-50"><i class="fa-solid fa-eraser"></i> ล้าง</button>
         </div>
     </div>
 
     <!-- Header -->
-    <header class="bg-[#00320D] text-white shadow-md z-50 shrink-0 border-b border-green-800">
-        <div class="px-4 py-3 flex justify-between items-center gap-4">
+    <header class="bg-[#00320D] text-white shadow-md z-50 shrink-0 border-b-4 border-amber-500">
+        <div class="px-4 py-2 flex justify-between items-center gap-4">
             <div class="flex items-center gap-3">
                 <i class="fa-solid fa-table-list text-amber-400 text-xl"></i>
-                <h1 class="text-lg font-black tracking-wider">RIZENIC <span class="text-green-400">TRACKING</span></h1>
+                <h1 class="text-lg font-black tracking-wider">RIZENIC <span class="text-amber-400">TRACKING</span></h1>
             </div>
             <nav class="flex items-center gap-3">
                 <div class="text-right border-r border-green-700 pr-4 hidden sm:block">
@@ -77,107 +80,108 @@
                     <p class="text-[10px] text-green-300">สาขา: <span id="display_branch">Branch</span></p>
                 </div>
                 <div class="flex gap-1.5">
-                    <a href="dashboard.html" class="px-3 py-1.5 rounded-lg text-green-200 hover:bg-white/10 font-bold text-xs">แดชบอร์ด</a>
-                    <a href="index.html" class="px-3 py-1.5 rounded-lg text-green-200 hover:bg-white/10 font-bold text-xs">เปิดบิลซ่อม</a>
-                    <button class="px-3 py-1.5 rounded-lg bg-white text-[#00320D] font-bold text-xs shadow-sm">บอร์ดใบงาน</button>
-                    <a href="repair.html" class="px-3 py-1.5 rounded-lg text-green-200 hover:bg-white/10 font-bold text-xs">สถานีช่าง</a>
-                    <a href="parts.html" class="px-3 py-1.5 rounded-lg text-green-200 hover:bg-white/10 font-bold text-xs">แผนกอะไหล่</a>
-                    <button onclick="logout()" class="px-2 py-1.5 text-red-300 hover:bg-red-500/20 rounded-lg text-xs ml-1"><i class="fa-solid fa-power-off"></i></button>
+                    <a href="dashboard.html" class="px-3 py-1.5 text-green-200 hover:bg-white/10 font-bold text-xs border border-transparent hover:border-white/20">แดชบอร์ด</a>
+                    <a href="index.html" class="px-3 py-1.5 text-green-200 hover:bg-white/10 font-bold text-xs border border-transparent hover:border-white/20">เปิดบิลซ่อม</a>
+                    <button class="px-3 py-1.5 bg-white text-[#00320D] font-bold text-xs shadow-sm border border-white">บอร์ดใบงาน</button>
+                    <a href="repair.html" class="px-3 py-1.5 text-green-200 hover:bg-white/10 font-bold text-xs border border-transparent hover:border-white/20">สถานีช่าง</a>
+                    <a href="parts.html" class="px-3 py-1.5 text-green-200 hover:bg-white/10 font-bold text-xs border border-transparent hover:border-white/20">แผนกอะไหล่</a>
+                    <button onclick="logout()" class="px-2 py-1.5 text-red-300 hover:bg-red-500/20 text-xs ml-1 border border-transparent hover:border-red-400/50"><i class="fa-solid fa-power-off"></i></button>
                 </div>
             </nav>
         </div>
     </header>
 
     <!-- 🌟 Tab Navigation 🌟 -->
-    <div class="bg-white border-b border-slate-200 z-40 shrink-0 shadow-sm flex overflow-x-auto px-2 pt-2">
-        <a href="jobs.html" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 rounded-t-xl transition-all"><i class="fa-solid fa-users text-blue-600"></i> 1. ภาพรวมทีมบริการ (SA)</a>
-        <a href="jobs_table.html" class="px-6 py-3.5 text-sm font-bold border-b-2 border-[#00320D] text-[#00320D] bg-blue-50/80 flex items-center gap-2 rounded-t-xl transition-all"><i class="fa-solid fa-file-excel text-emerald-600"></i> 2. ตารางใบงานทั้งหมด (Excel Mode)</a>
-        <a href="history.html" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 rounded-t-xl transition-all"><i class="fa-solid fa-clock-rotate-left text-purple-600"></i> 3. เช็คประวัติรถ (History)</a>
+    <div class="bg-slate-200 border-b border-slate-300 z-40 shrink-0 flex px-2 pt-2 gap-1">
+        <a href="jobs.html" class="px-6 py-2 text-sm font-bold border border-b-0 border-transparent text-slate-600 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 transition-colors"><i class="fa-solid fa-users text-blue-600"></i> 1. ภาพรวมทีมบริการ (SA)</a>
+        <a href="jobs_table.html" class="px-6 py-2 text-sm font-bold border border-b-0 border-slate-400 text-[#00320D] bg-white flex items-center gap-2"><i class="fa-solid fa-file-excel text-emerald-600"></i> 2. ตารางใบงานทั้งหมด (Excel Mode)</a>
+        <a href="history.html" class="px-6 py-2 text-sm font-bold border border-b-0 border-transparent text-slate-600 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 transition-colors"><i class="fa-solid fa-clock-rotate-left text-purple-600"></i> 3. เช็คประวัติรถ (History)</a>
     </div>
 
     <!-- Main Content -->
-    <main class="flex-1 flex flex-col relative overflow-hidden">
+    <main class="flex-1 flex flex-col relative overflow-hidden bg-white">
         <!-- Filter Bar -->
-        <div class="bg-white border-b border-slate-200 p-3 shrink-0 shadow-sm z-40 flex flex-col lg:flex-row justify-between gap-3">
-            <div class="flex flex-wrap gap-3 items-center w-full lg:w-auto">
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-search"></i> ค้นหาด่วน:</span>
-                    <input type="text" id="search_input" onkeyup="debounceSearch()" class="minimal-input w-44" placeholder="พิมพ์ค้นหาทุกช่อง...">
+        <div class="bg-slate-100 border-b border-slate-300 p-2 shrink-0 z-40 flex flex-col lg:flex-row justify-between gap-3">
+            <div class="flex flex-wrap gap-2 items-center w-full lg:w-auto">
+                <div class="flex items-center gap-1.5">
+                    <span class="text-xs font-bold text-slate-600 uppercase"><i class="fa-solid fa-search"></i> ค้นหาด่วน:</span>
+                    <input type="text" id="search_input" onkeyup="debounceSearch()" class="minimal-input w-40 !py-1" placeholder="พิมพ์ค้นหา...">
                 </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-building text-emerald-600"></i> สาขา:</span>
-                    <select id="branch_filter_select" onchange="applyFilters()" class="minimal-input w-40 cursor-pointer"><option value="ALL">-- ทุกสาขา --</option></select>
+                <div class="flex items-center gap-1.5 ml-2">
+                    <span class="text-xs font-bold text-slate-600 uppercase"><i class="fa-solid fa-building text-emerald-700"></i> สาขา:</span>
+                    <select id="branch_filter_select" onchange="applyFilters()" class="minimal-input w-36 cursor-pointer !py-1"><option value="ALL">-- ทุกสาขา --</option></select>
                 </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-user-tie text-blue-600"></i> SA:</span>
-                    <select id="sa_filter_select" onchange="applyFilters()" class="minimal-input w-40 cursor-pointer"><option value="">-- ทั้งหมด --</option></select>
+                <div class="flex items-center gap-1.5 ml-2">
+                    <span class="text-xs font-bold text-slate-600 uppercase"><i class="fa-solid fa-user-tie text-blue-700"></i> SA:</span>
+                    <select id="sa_filter_select" onchange="applyFilters()" class="minimal-input w-32 cursor-pointer !py-1"><option value="">-- ทั้งหมด --</option></select>
                 </div>
             </div>
             
-            <div class="flex items-center justify-end gap-2 w-full lg:w-auto">
-                <span class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg border mr-2">พบ: <span id="row_count" class="text-blue-600 font-black text-sm">0</span> คัน</span>
-                <button onclick="openBulkModal()" class="px-4 py-2 bg-emerald-600 text-white font-bold rounded-lg text-xs shadow-md hover:bg-emerald-700 transition mr-2"><i class="fa-solid fa-bolt mr-1"></i> เพิ่มด่วน (PDI)</button>
-                <button onclick="toggleColManager()" class="px-3 py-2 bg-indigo-50 text-indigo-700 font-bold rounded-lg text-xs border border-indigo-200 hover:bg-indigo-100 transition shadow-sm"><i class="fa-solid fa-sliders"></i> คอลัมน์</button>
-                <button onclick="clearAllFilters()" class="px-3 py-2 bg-slate-100 text-slate-600 font-bold rounded-lg text-xs border border-slate-300 hover:bg-slate-200 transition shadow-sm"><i class="fa-solid fa-eraser"></i> ล้าง</button>
-                <button onclick="loadJobsData()" class="px-3 py-2 bg-[#00320D] text-white font-bold rounded-lg text-xs shadow hover:bg-black transition"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
+            <div class="flex items-center justify-end gap-1.5 w-full lg:w-auto">
+                <span class="text-xs font-bold text-slate-600 bg-white px-2 py-1 border border-slate-300 mr-2 shadow-inner">พบ: <span id="row_count" class="text-blue-700 font-black">0</span> คัน</span>
+                <button onclick="openBulkModal()" class="px-3 py-1 bg-emerald-600 text-white font-bold text-xs border border-emerald-800 hover:bg-emerald-700 transition shadow-sm mr-1"><i class="fa-solid fa-bolt mr-1"></i> เพิ่มด่วน (PDI)</button>
+                <button onclick="toggleColManager()" class="px-3 py-1 bg-slate-200 text-slate-800 font-bold text-xs border border-slate-400 hover:bg-slate-300 transition shadow-sm"><i class="fa-solid fa-sliders"></i> คอลัมน์</button>
+                <button onclick="clearAllFilters()" class="px-3 py-1 bg-slate-200 text-slate-800 font-bold text-xs border border-slate-400 hover:bg-slate-300 transition shadow-sm"><i class="fa-solid fa-eraser"></i> ล้างฟิลเตอร์</button>
+                <button onclick="loadJobsData()" class="px-3 py-1 bg-[#00320D] text-white font-bold text-xs border border-black hover:bg-black transition shadow-sm"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
             </div>
         </div>
 
-        <div id="colManagerPanel" class="hidden bg-slate-50 border-b border-slate-200 p-4 shrink-0 shadow-inner z-30">
-            <h3 class="text-xs font-black text-[#00320D] mb-3"><i class="fa-solid fa-up-down-left-right text-amber-500 mr-1"></i> ลากเพื่อสลับ หรือติ๊กเพื่อซ่อน (ระบบจำอัตโนมัติ)</h3>
-            <div class="flex flex-wrap gap-2 max-h-48 overflow-y-auto custom-scrollbar" id="col_toggles_container"></div>
+        <div id="colManagerPanel" class="hidden bg-slate-200 border-b border-slate-300 p-3 shrink-0 shadow-inner z-30">
+            <h3 class="text-xs font-black text-[#00320D] mb-2"><i class="fa-solid fa-up-down-left-right text-amber-600 mr-1"></i> ลากเพื่อสลับตำแหน่ง หรือ ติ๊กออกเพื่อซ่อนคอลัมน์ (บันทึกอัตโนมัติ)</h3>
+            <div class="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto custom-scrollbar pr-2" id="col_toggles_container"></div>
         </div>
 
-        <div class="flex-1 overflow-auto custom-scrollbar bg-slate-100 p-2 relative" id="tableContainer">
+        <!-- 🌟 ตารางข้อมูล 🌟 -->
+        <div class="flex-1 overflow-auto custom-scrollbar bg-slate-300 p-0 relative" id="tableContainer">
             <table class="excel-table" id="jobsTable">
                 <thead id="jobs_table_head"></thead>
                 <tbody id="jobs_table_body">
-                    <tr><td colspan="35" class="text-center py-10 text-slate-400 font-mono"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังโหลดข้อมูล...</td></tr>
+                    <tr><td colspan="35" class="text-center py-10 text-slate-500 font-bold bg-white"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังโหลดข้อมูลตาราง...</td></tr>
                 </tbody>
             </table>
         </div>
     </main>
 
     <!-- 🌟 Modal เลือกรายการอะไหล่หลายรายการ (Multi-Select Parts) 🌟 -->
-    <div id="partsSelectModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh] border border-slate-200">
-            <div class="bg-[#00320D] px-5 py-3.5 flex justify-between items-center text-white shrink-0">
+    <div id="partsSelectModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
+        <div class="bg-white shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh] border border-slate-400 rounded-sm">
+            <div class="bg-[#00320D] px-4 py-2 flex justify-between items-center text-white shrink-0 border-b border-black">
                 <h3 class="font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-list-check text-amber-400"></i> เลือก<span id="modal_parts_field_title">อะไหล่</span> (เลือกได้หลายชิ้น)</h3>
-                <button onclick="closePartsSelectModal()" class="hover:text-red-300 text-lg"><i class="fa-solid fa-xmark"></i></button>
+                <button onclick="closePartsSelectModal()" class="hover:text-red-400 text-lg"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div class="p-4 bg-slate-50 border-b shrink-0 space-y-2">
-                <input type="text" id="parts_modal_search" onkeyup="filterPartsModalList()" class="minimal-input w-full" placeholder="🔍 พิมพ์ค้นหาชิ้นส่วน...">
+            <div class="p-3 bg-slate-100 border-b border-slate-300 shrink-0 space-y-2">
+                <input type="text" id="parts_modal_search" onkeyup="filterPartsModalList()" class="minimal-input w-full !py-1.5" placeholder="🔍 พิมพ์ค้นหาชิ้นส่วน...">
                 <div class="flex gap-2">
-                    <input type="text" id="parts_custom_add" class="minimal-input text-xs flex-1" placeholder="พิมพ์ชื่ออะไหล่เพิ่มเองนอกเหนือจากรายการ...">
-                    <button onclick="addCustomPartToSelection()" class="px-3 py-1 bg-amber-500 text-slate-900 font-bold rounded-lg text-xs hover:bg-amber-600 transition"><i class="fa-solid fa-plus"></i> เพิ่ม</button>
+                    <input type="text" id="parts_custom_add" class="minimal-input text-xs flex-1 !py-1.5" placeholder="พิมพ์ชื่ออะไหล่เพิ่มเอง (นอกเหนือจากรายการ)...">
+                    <button onclick="addCustomPartToSelection()" class="px-3 py-1 bg-amber-500 text-slate-900 font-bold text-xs hover:bg-amber-600 border border-amber-700 transition"><i class="fa-solid fa-plus"></i> เพิ่ม</button>
                 </div>
             </div>
-            <div class="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-1.5" id="parts_modal_checkbox_container"></div>
-            <div class="bg-slate-50 p-4 border-t flex justify-between items-center shrink-0">
-                <span class="text-xs font-bold text-slate-500">เลือกแล้ว: <span id="parts_modal_selected_count" class="text-blue-600 font-black">0</span> รายการ</span>
+            <div class="flex-1 overflow-y-auto p-3 custom-scrollbar bg-white" id="parts_modal_checkbox_container"></div>
+            <div class="bg-slate-200 p-3 border-t border-slate-300 flex justify-between items-center shrink-0">
+                <span class="text-xs font-bold text-slate-600">เลือกแล้ว: <span id="parts_modal_selected_count" class="text-blue-700 font-black">0</span> ชิ้น</span>
                 <div class="flex gap-2">
-                    <button onclick="closePartsSelectModal()" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg text-xs hover:bg-slate-300">ยกเลิก</button>
-                    <button onclick="confirmPartsSelection()" class="px-6 py-2 bg-[#00320D] text-white font-bold rounded-lg text-xs hover:bg-black transition"><i class="fa-solid fa-check mr-1"></i> ยืนยันการเลือก</button>
+                    <button onclick="closePartsSelectModal()" class="px-4 py-1.5 bg-slate-300 text-slate-800 font-bold text-xs hover:bg-slate-400 border border-slate-400">ยกเลิก</button>
+                    <button onclick="confirmPartsSelection()" class="px-6 py-1.5 bg-[#00320D] text-white font-bold text-xs hover:bg-black border border-black transition"><i class="fa-solid fa-check mr-1"></i> ยืนยัน</button>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Modal เพิ่มข้อมูลด่วน (PDI) -->
-    <div id="bulkModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
-        <div class="bg-white w-full max-w-[98%] h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border-2 border-emerald-500">
-            <div class="bg-emerald-700 px-6 py-4 flex justify-between items-center text-white shrink-0">
-                <h2 class="text-lg font-black"><i class="fa-solid fa-file-excel text-emerald-300"></i> สร้างรายการด่วน (PDI / Fleet)</h2>
+    <div id="bulkModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+        <div class="bg-white w-full max-w-[98%] h-[90vh] shadow-2xl flex flex-col overflow-hidden border-2 border-emerald-600">
+            <div class="bg-emerald-800 px-4 py-3 flex justify-between items-center text-white shrink-0 border-b border-black">
+                <h2 class="text-base font-black flex items-center gap-2"><i class="fa-solid fa-file-excel text-emerald-400"></i> สร้างรายการด่วน (PDI / Fleet) - Excel Mode</h2>
                 <div class="flex gap-2">
-                    <button onclick="downloadExcelTemplate()" class="px-4 py-1.5 bg-emerald-800 rounded-lg text-xs font-bold hover:bg-emerald-900"><i class="fa-solid fa-download"></i> โหลดฟอร์ม</button>
-                    <label class="px-4 py-1.5 bg-amber-500 rounded-lg text-xs font-bold text-slate-900 cursor-pointer hover:bg-amber-600"><i class="fa-solid fa-upload"></i> อัปโหลด <input type="file" id="excel_upload" class="hidden" onchange="handleExcelUpload(event)"></label>
-                    <button onclick="closeBulkModal()" class="ml-4 hover:text-red-300 text-xl"><i class="fa-solid fa-xmark"></i></button>
+                    <button onclick="downloadExcelTemplate()" class="px-3 py-1 bg-emerald-700 border border-emerald-500 text-xs font-bold hover:bg-emerald-600"><i class="fa-solid fa-download"></i> โหลดฟอร์ม</button>
+                    <label class="px-3 py-1 bg-amber-500 border border-amber-700 text-xs font-bold text-slate-900 cursor-pointer hover:bg-amber-600"><i class="fa-solid fa-upload"></i> อัปโหลด <input type="file" id="excel_upload" class="hidden" onchange="handleExcelUpload(event)"></label>
+                    <button onclick="closeBulkModal()" class="ml-2 hover:text-red-400 text-xl"><i class="fa-solid fa-xmark"></i></button>
                 </div>
             </div>
-            <div class="flex-1 overflow-auto custom-scrollbar bg-slate-50"><table class="bulk-table"><thead id="bulk_table_head_tr"></thead><tbody id="bulk_table_body"></tbody></table></div>
-            <div class="bg-white p-4 border-t flex justify-between items-center shrink-0">
-                <button onclick="addBulkRow()" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg text-sm hover:bg-slate-300">+ เพิ่มแถว</button>
-                <button onclick="saveBulkData()" id="btn_save_bulk" class="px-8 py-2.5 bg-emerald-600 text-white font-black rounded-xl hover:bg-emerald-700 shadow-md"><i class="fa-solid fa-save"></i> บันทึกข้อมูล</button>
+            <div class="flex-1 overflow-auto custom-scrollbar bg-slate-300 p-2"><table class="bulk-table"><thead id="bulk_table_head_tr"></thead><tbody id="bulk_table_body"></tbody></table></div>
+            <div class="bg-slate-200 p-3 border-t border-slate-400 flex justify-between items-center shrink-0">
+                <button onclick="addBulkRow()" class="px-4 py-1.5 bg-white text-slate-800 font-bold text-xs border border-slate-400 hover:bg-slate-100">+ เพิ่มแถวใหม่</button>
+                <button onclick="saveBulkData()" id="btn_save_bulk" class="px-6 py-1.5 bg-emerald-700 text-white font-bold text-sm border border-emerald-900 hover:bg-emerald-800 shadow-sm"><i class="fa-solid fa-save"></i> บันทึกข้อมูลเข้าฐานข้อมูล</button>
             </div>
         </div>
     </div>
@@ -201,45 +205,45 @@
 
         // สำหรับ Multi-select Modal
         let activeJobIdForParts = null;
-        let activeFieldForParts = null; // 'main_part_name' หรือ 'sub_part_name'
+        let activeFieldForParts = null; 
         let selectedPartsSet = new Set();
 
         let columnsDef = [
-            { idx: 1, key: 'action', title: 'จัดการ', width: 90 },
-            { idx: 2, key: 'contact_date', title: 'วันที่ติดต่อ', width: 120 },
-            { idx: 3, key: 'appointment_date', title: 'วันที่นัดหมาย', width: 120 },
-            { idx: 4, key: 'car_plate', title: 'ทะเบียนรถ', width: 130 },
-            { idx: 5, key: 'customer_type', title: 'ประเภทลูกค้า', width: 130 },
-            { idx: 6, key: 'car_brand', title: 'ยี่ห้อ', width: 120 },
-            { idx: 7, key: 'car_model', title: 'รุ่นรถ', width: 130 },
-            { idx: 8, key: 'vin_no', title: 'เลขตัวถัง', width: 150 },
-            { idx: 9, key: 'payment_type', title: 'การชำระเงิน', width: 130 },
-            { idx: 10, key: 'customer_name', title: 'ชื่อลูกค้า', width: 150 },
-            { idx: 11, key: 'phone_number', title: 'เบอร์โทร', width: 120 },
-            { idx: 12, key: 'damage_level', title: 'ความเสียหาย', width: 120 },
-            { idx: 13, key: 'main_part_name', title: 'ชื่ออะไหล่หลัก', width: 220 },
-            { idx: 14, key: 'main_part_qty', title: 'จน.อะไหล่หลัก', width: 100 },
-            { idx: 15, key: 'sub_part_name', title: 'ชื่ออะไหล่รอง', width: 220 },
-            { idx: 16, key: 'sub_part_qty', title: 'จน.อะไหล่รอง', width: 100 },
-            { idx: 17, key: 'cost_labor', title: 'ค่าแรง', width: 100 },
-            { idx: 18, key: 'cost_part', title: 'ค่าอะไหล่', width: 100 },
-            { idx: 19, key: 'cost_external', title: 'ค่าซ่อมภายนอก', width: 100 },
-            { idx: 20, key: 'target_finish_date', title: 'เป้าหมายเสร็จ', width: 120 },
-            { idx: 21, key: 'repair_finish_date', title: 'วันที่เสร็จจริง', width: 120 },
-            { idx: 22, key: 'delivery_date', title: 'วันที่ส่งมอบ', width: 120 },
-            { idx: 23, key: 'notes', title: 'หมายเหตุ', width: 200 },
-            { idx: 24, key: 'job_status', title: 'สถานะงาน', width: 160 },
-            { idx: 25, key: 'epc_no', title: 'EPC No.', width: 130 },
-            { idx: 26, key: 'ordered_part_names', title: 'รายการอะไหล่ค้างสั่งองค์รวม', width: 280 },
-            { idx: 27, key: 'sa_owner', title: 'SA ผู้ดูแล', width: 130 },
-            { idx: 28, key: 'branch_name', title: 'สาขา', width: 120 },
-            { idx: 29, key: 'arrived_date', title: 'วันที่เข้าจอด', width: 120 },
-            { idx: 30, key: 'expected_finish_date', title: 'คาดการณ์เสร็จ', width: 120 },
-            { idx: 31, key: 'customer_phone', title: 'เบอร์ลูกค้าสำรอง', width: 130 },
-            { idx: 32, key: 'is_parked', title: 'สถานะรถจอดอู่', width: 130 },
-            { idx: 33, key: 'quotation_no', title: 'Quotation', width: 120 },
-            { idx: 34, key: 'job_order_no', title: 'Job Order', width: 120 },
-            { idx: 35, key: 'ivn_no', title: 'Invoice', width: 120 }
+            { idx: 1, key: 'action', title: 'จัดการ', width: 80 },
+            { idx: 2, key: 'contact_date', title: 'วันที่ติดต่อ', width: 110 },
+            { idx: 3, key: 'appointment_date', title: 'วันที่นัดหมาย', width: 110 },
+            { idx: 4, key: 'car_plate', title: 'ทะเบียนรถ', width: 110 },
+            { idx: 5, key: 'customer_type', title: 'ประเภทลูกค้า', width: 110 },
+            { idx: 6, key: 'car_brand', title: 'ยี่ห้อ', width: 100 },
+            { idx: 7, key: 'car_model', title: 'รุ่นรถ', width: 110 },
+            { idx: 8, key: 'vin_no', title: 'เลขตัวถัง', width: 140 },
+            { idx: 9, key: 'payment_type', title: 'การชำระเงิน', width: 110 },
+            { idx: 10, key: 'customer_name', title: 'ชื่อลูกค้า', width: 140 },
+            { idx: 11, key: 'phone_number', title: 'เบอร์โทร', width: 110 },
+            { idx: 12, key: 'damage_level', title: 'ความเสียหาย', width: 100 },
+            { idx: 13, key: 'main_part_name', title: 'ชื่ออะไหล่หลัก', width: 200 },
+            { idx: 14, key: 'main_part_qty', title: 'จน.อะไหล่หลัก', width: 90 },
+            { idx: 15, key: 'sub_part_name', title: 'ชื่ออะไหล่รอง', width: 200 },
+            { idx: 16, key: 'sub_part_qty', title: 'จน.อะไหล่รอง', width: 90 },
+            { idx: 17, key: 'cost_labor', title: 'ค่าแรง', width: 90 },
+            { idx: 18, key: 'cost_part', title: 'ค่าอะไหล่', width: 90 },
+            { idx: 19, key: 'cost_external', title: 'ค่าซ่อมภายนอก', width: 90 },
+            { idx: 20, key: 'target_finish_date', title: 'เป้าหมายเสร็จ', width: 110 },
+            { idx: 21, key: 'repair_finish_date', title: 'วันที่เสร็จจริง', width: 110 },
+            { idx: 22, key: 'delivery_date', title: 'วันที่ส่งมอบ', width: 110 },
+            { idx: 23, key: 'notes', title: 'หมายเหตุ', width: 180 },
+            { idx: 24, key: 'job_status', title: 'สถานะงาน', width: 140 },
+            { idx: 25, key: 'epc_no', title: 'EPC No.', width: 110 },
+            { idx: 26, key: 'ordered_part_names', title: 'รายการค้างสั่งองค์รวม', width: 250 },
+            { idx: 27, key: 'sa_owner', title: 'SA ผู้ดูแล', width: 110 },
+            { idx: 28, key: 'branch_name', title: 'สาขา', width: 100 },
+            { idx: 29, key: 'arrived_date', title: 'วันที่เข้าจอด', width: 110 },
+            { idx: 30, key: 'expected_finish_date', title: 'คาดการณ์เสร็จ', width: 110 },
+            { idx: 31, key: 'customer_phone', title: 'เบอร์ลูกค้าสำรอง', width: 120 },
+            { idx: 32, key: 'is_parked', title: 'สถานะรถจอดอู่', width: 110 },
+            { idx: 33, key: 'quotation_no', title: 'Quotation', width: 110 },
+            { idx: 34, key: 'job_order_no', title: 'Job Order', width: 110 },
+            { idx: 35, key: 'ivn_no', title: 'Invoice', width: 110 }
         ];
 
         const defaultVisibleKeys = ['action', 'contact_date', 'appointment_date', 'car_plate', 'customer_type', 'car_brand', 'car_model', 'vin_no', 'payment_type', 'customer_name', 'phone_number', 'damage_level', 'main_part_name', 'main_part_qty', 'sub_part_name', 'sub_part_qty', 'cost_labor', 'cost_part', 'cost_external', 'target_finish_date', 'repair_finish_date', 'delivery_date', 'notes', 'job_status', 'epc_no', 'ordered_part_names', 'sa_owner', 'is_parked'];
@@ -247,10 +251,10 @@
 
         function showToast(msg, type='success') {
             const toast = document.getElementById('toastMsg');
-            toast.className = `fixed bottom-5 right-5 font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 z-[200] flex items-center gap-2 border border-white/20 ${type === 'error' ? 'bg-red-600' : 'bg-emerald-600'} text-white`;
-            document.getElementById('toastContent').innerHTML = `<i class="fa-solid ${type==='error'?'fa-circle-xmark':'fa-circle-check'} text-xl"></i> ${msg}`;
+            toast.className = `fixed bottom-5 right-5 font-bold px-5 py-2.5 rounded shadow-2xl transform transition-all duration-300 z-[200] flex items-center gap-2 border border-white/20 ${type === 'error' ? 'bg-red-600' : 'bg-emerald-600'} text-white text-sm`;
+            document.getElementById('toastContent').innerHTML = `<i class="fa-solid ${type==='error'?'fa-circle-xmark':'fa-circle-check'} text-lg"></i> ${msg}`;
             toast.classList.remove('translate-y-20', 'opacity-0');
-            setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 2500);
+            setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 2000);
         }
 
         function getCellValue(cell) {
@@ -298,7 +302,6 @@
             initColumns();
             loadJobsData();
 
-            // เช็กคีย์เวิร์ดค้นหาจาก Session ถ้ามาจากหน้าอื่น
             const searchPlate = sessionStorage.getItem('search_plate');
             if(searchPlate) {
                 document.getElementById('search_input').value = searchPlate;
@@ -317,16 +320,18 @@
             const thead = document.getElementById('jobs_table_head'); let trHtml = '<tr>';
             columnsDef.forEach((col, renderIndex) => {
                 let filterIcon = col.key !== 'action' ? `<i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, ${col.idx}, '${col.title}')"></i>` : '';
-                let bgClass = col.key === 'car_plate' ? 'bg-amber-600 text-slate-900 border-amber-700' : (col.key === 'action' ? 'bg-blue-900 border-blue-800' : '');
-                trHtml += `<th class="relative group hover:bg-[#004a1f] select-none ${bgClass}" data-render-idx="${renderIndex + 1}" id="th_${col.idx}" style="width: ${col.width}px; min-width: ${col.width}px;">
-                    <div class="flex justify-between items-center w-full px-2 py-2 h-full"><div class="cursor-pointer flex-1 overflow-hidden whitespace-nowrap text-ellipsis" onclick="${col.key !== 'action' ? `sortTable(${col.idx})` : ''}">${col.title} <i class="fa-solid fa-sort sort-icon"></i></div>${filterIcon}</div><div class="resizer"></div></th>`;
+                trHtml += `<th class="relative group hover:bg-[#004a1f] select-none text-center" data-render-idx="${renderIndex + 1}" id="th_${col.idx}" style="width: ${col.width}px; min-width: ${col.width}px;">
+                    <div class="flex justify-between items-center w-full h-full">
+                        <div class="cursor-pointer flex-1 overflow-hidden whitespace-nowrap text-ellipsis" onclick="${col.key !== 'action' ? `sortTable(${col.idx})` : ''}">${col.title} <i class="fa-solid fa-sort sort-icon"></i></div>
+                        ${filterIcon}
+                    </div><div class="resizer"></div></th>`;
             });
             thead.innerHTML = trHtml + '</tr>';
 
             const toggleContainer = document.getElementById('col_toggles_container'); let togglesHtml = '';
             columnsDef.forEach(col => {
                 if(col.key === 'action') return; 
-                togglesHtml += `<label draggable="true" ondragstart="handleDragStart(event, ${col.idx})" ondragover="handleDragOver(event)" ondrop="handleDrop(event, ${col.idx})" ondragend="handleDragEnd(event)" class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 rounded-lg cursor-grab hover:bg-slate-100 shadow-sm"><i class="fa-solid fa-grip-vertical text-slate-400"></i><input type="checkbox" onchange="toggleColumnVisibility(${col.idx}, this.checked)" ${hiddenCols.has(col.idx) ? '' : 'checked'} class="accent-[#00320D] w-4 h-4"><span class="text-xs font-bold">${col.title}</span></label>`;
+                togglesHtml += `<label draggable="true" ondragstart="handleDragStart(event, ${col.idx})" ondragover="handleDragOver(event)" ondrop="handleDrop(event, ${col.idx})" ondragend="handleDragEnd(event)" class="flex items-center gap-1.5 px-2 py-1 bg-white border border-slate-300 cursor-grab hover:bg-slate-50"><i class="fa-solid fa-grip-vertical text-slate-400"></i><input type="checkbox" onchange="toggleColumnVisibility(${col.idx}, this.checked)" ${hiddenCols.has(col.idx) ? '' : 'checked'} class="accent-[#00320D] w-3.5 h-3.5"><span class="text-xs font-bold text-slate-700">${col.title}</span></label>`;
             });
             toggleContainer.innerHTML = togglesHtml;
 
@@ -358,9 +363,9 @@
             cols.forEach(col => {
                 const resizer = col.querySelector('.resizer'); if(!resizer) return;
                 let x = 0; let w = 0;
-                const md = (e) => { e.stopPropagation(); x = e.clientX; w = parseInt(window.getComputedStyle(col).width, 10); document.addEventListener('mousemove', mm); document.addEventListener('mouseup', mu); resizer.classList.add('bg-amber-400'); };
+                const md = (e) => { e.stopPropagation(); x = e.clientX; w = parseInt(window.getComputedStyle(col).width, 10); document.addEventListener('mousemove', mm); document.addEventListener('mouseup', mu); resizer.classList.add('bg-amber-500'); };
                 const mm = (e) => { col.style.width = `${w + (e.clientX - x)}px`; col.style.minWidth = `${w + (e.clientX - x)}px`; };
-                const mu = () => { resizer.classList.remove('bg-amber-400'); document.removeEventListener('mousemove', mm); document.removeEventListener('mouseup', mu); };
+                const mu = () => { resizer.classList.remove('bg-amber-500'); document.removeEventListener('mousemove', mm); document.removeEventListener('mouseup', mu); };
                 resizer.addEventListener('mousedown', md);
             });
         }
@@ -376,11 +381,11 @@
             const listDiv = document.getElementById('ef_checkbox_list'); listDiv.innerHTML = '';
             [...uniqueValues].sort().forEach(val => {
                 const isChecked = activeFilters[colIndex] ? activeFilters[colIndex].has(val) : true;
-                listDiv.innerHTML += `<label class="flex items-start gap-2 hover:bg-slate-100 p-1.5 rounded cursor-pointer ef-item"><input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''} class="ef-check accent-[#00320D] mt-0.5"><span class="text-slate-700 font-medium truncate w-full" title="${val}">${val === '' ? '(ว่าง)' : val}</span></label>`;
+                listDiv.innerHTML += `<label class="flex items-start gap-2 hover:bg-slate-100 p-1 rounded cursor-pointer ef-item border-b border-slate-100"><input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''} class="ef-check accent-[#00320D] mt-0.5"><span class="text-slate-800 text-xs font-medium w-full" title="${val}">${val === '' ? '(ว่าง)' : val}</span></label>`;
             });
             document.getElementById('ef_select_all').checked = Array.from(document.querySelectorAll('.ef-check')).every(cb => cb.checked);
             const modal = document.getElementById('excelFilterModal'); const rect = e.target.closest('th').getBoundingClientRect();
-            modal.style.top = (rect.bottom + window.scrollY + 8) + 'px'; let leftPos = rect.left + window.scrollX; if (leftPos + 260 > window.innerWidth) leftPos = window.innerWidth - 270;
+            modal.style.top = (rect.bottom + window.scrollY + 5) + 'px'; let leftPos = rect.left + window.scrollX; if (leftPos + 260 > window.innerWidth) leftPos = window.innerWidth - 270;
             modal.style.left = leftPos + 'px'; modal.classList.remove('hidden'); modal.classList.add('flex');
         }
         function closeExcelFilter() { document.getElementById('excelFilterModal').classList.add('hidden'); document.getElementById('excelFilterModal').classList.remove('flex'); }
@@ -397,7 +402,7 @@
 
         // ================= 🌟 FETCH DATA 🌟 =================
         async function loadJobsData() {
-            document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-10 text-slate-400 font-mono"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังโหลดข้อมูล...</td></tr>`;
+            document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-10 text-slate-500 font-bold bg-white"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังโหลดข้อมูล...</td></tr>`;
             try {
                 const results = await Promise.allSettled([
                     fetch(`${API_BASE_URL}/api/statuses`).then(res => res.json()),
@@ -418,7 +423,7 @@
                 
                 buildSADropdown(); buildBranchDropdown(); applyFilters(); 
             } catch (error) {
-                document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-10 text-red-500 font-bold">⚠️ เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>`;
+                document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-10 text-red-600 font-bold bg-white">⚠️ เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>`;
             }
         }
 
@@ -443,34 +448,23 @@
         // 🌟 อัปเดตข้อมูลลงฐานข้อมูล 🌟
         async function fastUpdateJob(jobId, field, value) {
             let formattedValue = value;
-            
-            // ดักจับฟิลด์ประเภท Date รวมถึง appointment_date
             if (field.includes('date') || ['appointment_date', 'repair_finish_date', 'target_finish_date', 'delivery_date', 'contact_date', 'arrived_date'].includes(field)) {
-                if (value === '' || value === undefined || value === null) {
-                    formattedValue = null;
-                }
+                if (value === '' || value === undefined || value === null) formattedValue = null;
             }
 
             try {
                 const res = await fetch(`${API_BASE_URL}/api/report/${jobId}/fast-date`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ field: field, value: formattedValue })
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ field: field, value: formattedValue })
                 });
 
                 if (res.ok) {
                     const jobIndex = allJobsData.findIndex(j => String(j.id) === String(jobId));
-                    if (jobIndex > -1) {
-                        allJobsData[jobIndex][field] = formattedValue;
-                    }
+                    if (jobIndex > -1) allJobsData[jobIndex][field] = formattedValue;
                     showToast('บันทึกข้อมูลเรียบร้อย!');
                     applyFilters();
-                } else {
-                    throw new Error('บันทึกไม่สำเร็จ');
-                }
+                } else throw new Error('บันทึกไม่สำเร็จ');
             } catch (err) {
-                showToast('บันทึกไม่สำเร็จ!', 'error');
-                loadJobsData();
+                showToast('บันทึกไม่สำเร็จ!', 'error'); loadJobsData();
             }
         }
 
@@ -485,78 +479,54 @@
 
         // ================= 🌟 MULTI-SELECT PARTS MODAL LOGIC 🌟 =================
         function openMultiPartsModal(jobId, fieldName, currentVal) {
-            activeJobIdForParts = jobId;
-            activeFieldForParts = fieldName;
-            
+            activeJobIdForParts = jobId; activeFieldForParts = fieldName;
             document.getElementById('modal_parts_field_title').innerText = fieldName === 'main_part_name' ? 'อะไหล่หลัก' : 'อะไหล่รอง';
-            
             selectedPartsSet.clear();
             if (currentVal && typeof currentVal === 'string') {
-                currentVal.split(',').forEach(p => {
-                    const trimmed = p.trim();
-                    if(trimmed) selectedPartsSet.add(trimmed);
-                });
+                currentVal.split(',').forEach(p => { const trimmed = p.trim(); if(trimmed) selectedPartsSet.add(trimmed); });
             }
-
             renderPartsModalCheckboxes();
             document.getElementById('parts_modal_search').value = '';
             document.getElementById('parts_custom_add').value = '';
             document.getElementById('partsSelectModal').classList.replace('hidden', 'flex');
         }
 
-        function closePartsSelectModal() {
-            document.getElementById('partsSelectModal').classList.replace('flex', 'hidden');
-        }
+        function closePartsSelectModal() { document.getElementById('partsSelectModal').classList.replace('flex', 'hidden'); }
 
         function renderPartsModalCheckboxes() {
-            const container = document.getElementById('parts_modal_checkbox_container');
-            let html = '';
-            
-            // รวมอะไหล่จาก Master และอะไหล่ที่ผู้ใช้พิมพ์เพิ่มเอง
+            const container = document.getElementById('parts_modal_checkbox_container'); let html = '';
             const masterList = allMasterParts.map(p => p.part_name);
             const combinedList = Array.from(new Set([...masterList, ...Array.from(selectedPartsSet)])).sort();
 
             combinedList.forEach(partName => {
                 const isChecked = selectedPartsSet.has(partName);
                 html += `
-                    <label class="flex items-center gap-2 p-2 hover:bg-slate-100 rounded-lg cursor-pointer border border-slate-100 part-item-row">
-                        <input type="checkbox" value="${partName}" ${isChecked ? 'checked' : ''} onchange="togglePartModalItem('${partName}', this.checked)" class="w-4 h-4 accent-[#00320D] rounded cursor-pointer">
-                        <span class="text-xs font-bold text-slate-800 flex-1">${partName}</span>
+                    <label class="flex items-center gap-2 p-1.5 hover:bg-slate-100 cursor-pointer border-b border-slate-100 part-item-row">
+                        <input type="checkbox" value="${partName}" ${isChecked ? 'checked' : ''} onchange="togglePartModalItem('${partName}', this.checked)" class="w-4 h-4 accent-[#00320D] cursor-pointer">
+                        <span class="text-xs font-bold text-slate-700 flex-1">${partName}</span>
                     </label>
                 `;
             });
-
             container.innerHTML = html || '<div class="text-center py-4 text-slate-400 text-xs">ไม่พบรายการอะไหล่</div>';
             updateSelectedPartsCount();
         }
 
         function togglePartModalItem(partName, isChecked) {
-            if (isChecked) selectedPartsSet.add(partName);
-            else selectedPartsSet.delete(partName);
+            if (isChecked) selectedPartsSet.add(partName); else selectedPartsSet.delete(partName);
             updateSelectedPartsCount();
         }
 
         function addCustomPartToSelection() {
-            const customInput = document.getElementById('parts_custom_add');
-            const val = customInput.value.trim();
-            if (val) {
-                selectedPartsSet.add(val);
-                customInput.value = '';
-                renderPartsModalCheckboxes();
-                showToast(`เพิ่ม '${val}' ในรายการเลือกแล้ว`);
-            }
+            const customInput = document.getElementById('parts_custom_add'); const val = customInput.value.trim();
+            if (val) { selectedPartsSet.add(val); customInput.value = ''; renderPartsModalCheckboxes(); showToast(`เพิ่ม '${val}' แล้ว`); }
         }
 
         function filterPartsModalList() {
             const txt = document.getElementById('parts_modal_search').value.toLowerCase();
-            document.querySelectorAll('#parts_modal_checkbox_container .part-item-row').forEach(row => {
-                row.style.display = row.innerText.toLowerCase().includes(txt) ? 'flex' : 'none';
-            });
+            document.querySelectorAll('#parts_modal_checkbox_container .part-item-row').forEach(row => { row.style.display = row.innerText.toLowerCase().includes(txt) ? 'flex' : 'none'; });
         }
 
-        function updateSelectedPartsCount() {
-            document.getElementById('parts_modal_selected_count').innerText = selectedPartsSet.size;
-        }
+        function updateSelectedPartsCount() { document.getElementById('parts_modal_selected_count').innerText = selectedPartsSet.size; }
 
         async function confirmPartsSelection() {
             const partsArray = Array.from(selectedPartsSet);
@@ -567,7 +537,6 @@
             // บันทึกทั้งชื่ออะไหล่แบบรวมสาย และจำนวนชิ้น
             await fastUpdateJob(activeJobIdForParts, activeFieldForParts, joinedPartsStr);
             await fastUpdateJob(activeJobIdForParts, qtyField, partsCount);
-
             closePartsSelectModal();
         }
 
@@ -578,10 +547,7 @@
             applyFilters();
         }
 
-        function debounceSearch() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(applyFilters, 300);
-        }
+        function debounceSearch() { clearTimeout(searchTimeout); searchTimeout = setTimeout(applyFilters, 300); }
 
         function applyFilters() {
             const searchTxt = document.getElementById('search_input').value.toLowerCase();
@@ -623,8 +589,8 @@
         }
 
         function renderTable(data) {
-            const tbody = document.getElementById('jobs_table_body'); // 🌟 Cache DOM ตรงนี้
-            if (!data || data.length === 0) { tbody.innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-10 text-slate-400 font-mono bg-white">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td></tr>`; return; }
+            const tbody = document.getElementById('jobs_table_body'); 
+            if (!data || data.length === 0) { tbody.innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-10 text-slate-500 font-bold bg-white">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td></tr>`; return; }
 
             let safeOptsGlobal = globalStatusOptionsHtml;
             let allRowsHtml = '';
@@ -636,64 +602,68 @@
                     let cellData = ''; let cellClass = '';
                     switch(col.key) {
                         case 'action': 
-                            cellData = `<div class="flex items-center justify-center gap-1 w-full h-full"><button onclick="goToEditJob('${job.id}')" class="bg-blue-600 text-white px-2 py-1 rounded shadow-sm hover:bg-blue-800" title="แก้ไขใบงาน"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteJobRow('${job.id}', '${job.car_plate || '-'}')" class="bg-red-500 text-white px-2 py-1 rounded shadow-sm hover:bg-red-700" title="ลบใบงานทิ้ง"><i class="fa-solid fa-trash-can"></i></button></div>`; 
+                            cellData = `<div class="flex items-center justify-center gap-1 w-full h-full"><button onclick="goToEditJob('${job.id}')" class="bg-blue-600 text-white px-2 py-0.5 rounded-sm hover:bg-blue-800" title="แก้ไขใบงาน"><i class="fa-solid fa-pen-to-square text-[10px]"></i></button><button onclick="deleteJobRow('${job.id}', '${job.car_plate || '-'}')" class="bg-red-500 text-white px-2 py-0.5 rounded-sm hover:bg-red-700" title="ลบใบงานทิ้ง"><i class="fa-solid fa-trash-can text-[10px]"></i></button></div>`; 
                             break;
                         case 'car_plate': cellData = `<input type="text" value="${job.car_plate || ''}" onchange="fastUpdateJob('${job.id}', 'car_plate', this.value)" class="inline-edit-input font-black text-amber-700 bg-amber-50 text-center uppercase">`; break;
                         case 'epc_no':
                             const epcList = [...new Set(carParts.map(p => p.epc_no).filter(Boolean))];
-                            cellData = `<input type="text" value="${epcList.length > 0 ? epcList.join(', ') : (job.epc_no || '')}" onchange="fastUpdateJob('${job.id}', 'epc_no', this.value)" class="inline-edit-input text-slate-700 font-bold text-center" placeholder="-">`;
+                            cellData = `<input type="text" value="${epcList.length > 0 ? epcList.join(', ') : (job.epc_no || '')}" onchange="fastUpdateJob('${job.id}', 'epc_no', this.value)" class="inline-edit-input text-slate-900 font-bold text-center" placeholder="-">`;
                             break;
                         case 'ordered_part_names':
-                            let partsHTML = '<div class="px-2 py-1 flex flex-col gap-1 w-full whitespace-normal min-h-[30px]">';
-                            if(carParts.length === 0) { partsHTML += '<span class="text-slate-400 italic text-[10px] mt-1">- ไม่มีรายการสั่งเบิก -</span>'; } 
-                            else { carParts.forEach(p => { let isC = (p.order_status||'').includes('ครบ') || (p.order_status||'').includes('มีของ'); partsHTML += `<span class="text-[10px] font-bold ${isC ? 'text-emerald-600' : ((p.order_status||'').includes('รอ') ? 'text-red-500' : 'text-amber-600')} leading-tight" title="${p.part_name}">• ${p.part_name} [${p.order_status||'รอสั่ง'}]</span>`; }); }
+                            let partsHTML = '<div class="px-2 py-1 flex flex-col w-full whitespace-normal min-h-[20px]">';
+                            if(carParts.length === 0) { partsHTML += '<span class="text-slate-400 italic text-[10px] mt-0.5">- ไม่มีรายการสั่งเบิก -</span>'; } 
+                            else { carParts.forEach(p => { let isC = (p.order_status||'').includes('ครบ') || (p.order_status||'').includes('มีของ'); partsHTML += `<span class="text-[10px] font-bold ${isC ? 'text-emerald-700' : ((p.order_status||'').includes('รอ') ? 'text-red-600' : 'text-amber-600')} leading-tight" title="${p.part_name}">• ${p.part_name} [${p.order_status||'รอสั่ง'}]</span>`; }); }
                             cellData = partsHTML + '</div>'; break;
                         case 'customer_type':
                             let ctOpts = ['ทั่วไป', 'ประกันภัย', 'Fleet/องค์กร', 'VIP'].map(d => `<option value="${d}" ${job.customer_type === d ? 'selected' : ''}>${d}</option>`).join('');
                             if(job.customer_type && !['ทั่วไป', 'ประกันภัย', 'Fleet/องค์กร', 'VIP'].includes(job.customer_type)) ctOpts += `<option value="${job.customer_type}" selected>${job.customer_type}</option>`;
-                            cellData = `<select onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'customer_type', this.value)" class="inline-edit-select text-slate-700"><option value="">- เลือก -</option>${ctOpts}</select>`; break;
+                            cellData = `<select onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'customer_type', this.value)" class="inline-edit-select"><option value="">- เลือก -</option>${ctOpts}</select>`; break;
                         case 'car_brand':
                             let cbOpts = ['Tesla', 'BYD', 'GWM', 'MG', 'AION', 'NETA', 'Honda', 'Toyota', 'Nissan'].map(d => `<option value="${d}" ${job.car_brand === d ? 'selected' : ''}>${d}</option>`).join('');
                             if(job.car_brand && !['Tesla', 'BYD', 'GWM', 'MG', 'AION', 'NETA', 'Honda', 'Toyota', 'Nissan'].includes(job.car_brand)) cbOpts += `<option value="${job.car_brand}" selected>${job.car_brand}</option>`;
-                            cellData = `<select onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'car_brand', this.value)" class="inline-edit-select text-slate-700"><option value="">- เลือก -</option>${cbOpts}</select>`; break;
+                            cellData = `<select onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'car_brand', this.value)" class="inline-edit-select"><option value="">- เลือก -</option>${cbOpts}</select>`; break;
                         case 'car_model':
                             let cmOpts = ['Model 3', 'Model Y', 'Atto 3', 'Dolphin', 'Seal', 'Good Cat', 'Ora 07'].map(d => `<option value="${d}" ${job.car_model === d ? 'selected' : ''}>${d}</option>`).join('');
                             if (job.car_model && !['Model 3', 'Model Y', 'Atto 3', 'Dolphin', 'Seal', 'Good Cat', 'Ora 07'].includes(job.car_model)) cmOpts += `<option value="${job.car_model}" selected>${job.car_model}</option>`;
-                            cellData = `<select onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'car_model', this.value)" class="inline-edit-select text-slate-700"><option value="">- เลือก -</option>${cmOpts}</select>`; break;
+                            cellData = `<select onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'car_model', this.value)" class="inline-edit-select"><option value="">- เลือก -</option>${cmOpts}</select>`; break;
                         case 'payment_type':
                             let ptOpts = ['เคลมประกัน', 'เงินสด', 'เคลม+เงินสด', 'ฟรี/Warranty'].map(d => `<option value="${d}" ${job.payment_type === d ? 'selected' : ''}>${d}</option>`).join('');
                             if(job.payment_type && !['เคลมประกัน', 'เงินสด', 'เคลม+เงินสด', 'ฟรี/Warranty'].includes(job.payment_type)) ptOpts += `<option value="${job.payment_type}" selected>${job.payment_type}</option>`;
-                            cellData = `<select onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'payment_type', this.value)" class="inline-edit-select text-slate-700"><option value="">- เลือก -</option>${ptOpts}</select>`; break;
+                            cellData = `<select onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'payment_type', this.value)" class="inline-edit-select"><option value="">- เลือก -</option>${ptOpts}</select>`; break;
                         case 'damage_level':
                             let dmgOpts = ['เบา', 'กลาง', 'หนัก'].map(d => `<option value="${d}" ${job.damage_level === d ? 'selected' : ''}>${d}</option>`).join('');
                             cellData = `<select onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'damage_level', this.value)" class="inline-edit-select ${job.damage_level === 'หนัก' ? 'text-red-600 font-bold' : 'text-amber-600 font-bold'}"><option value="">- เลือก -</option>${dmgOpts}</select>`; break;
                         case 'is_parked': 
                             let isP = job.is_parked || 'ไม่จอดซ่อม'; 
-                            cellData = `<select onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'is_parked', this.value)" class="inline-edit-select ${isP === 'จอดซ่อม'?'text-blue-600 font-black':'text-slate-500'}"><option value="ไม่จอดซ่อม" ${isP === 'ไม่จอดซ่อม'?'selected':''}>ไม่จอดซ่อม</option><option value="จอดซ่อม" ${isP === 'จอดซ่อม'?'selected':''}>จอดซ่อม</option></select>`; break;
-                        
-                        // 🌟 อะไหล่หลัก/รอง เปลี่ยนเป็นปุ่มกดเปิด Modal เลือกได้หลายชิ้น 🌟
-                        case 'main_part_name':
-                            cellData = `<button onclick="openMultiPartsModal('${job.id}', 'main_part_name', '${(job.main_part_name||'').replace(/'/g, "\\'")}')" class="w-full h-full text-left px-3 py-2 text-slate-700 hover:bg-blue-50 transition truncate font-medium flex justify-between items-center group">
-                                <span class="truncate">${job.main_part_name || '<span class="text-slate-400 italic">คลิกเพื่อเลือก...</span>'}</span>
-                                <i class="fa-solid fa-list-check text-slate-300 group-hover:text-blue-500 text-xs ml-1"></i>
-                            </button>`; break;
-                        case 'sub_part_name':
-                            cellData = `<button onclick="openMultiPartsModal('${job.id}', 'sub_part_name', '${(job.sub_part_name||'').replace(/'/g, "\\'")}')" class="w-full h-full text-left px-3 py-2 text-slate-700 hover:bg-blue-50 transition truncate font-medium flex justify-between items-center group">
-                                <span class="truncate">${job.sub_part_name || '<span class="text-slate-400 italic">คลิกเพื่อเลือก...</span>'}</span>
-                                <i class="fa-solid fa-list-check text-slate-300 group-hover:text-blue-500 text-xs ml-1"></i>
-                            </button>`; break;
-
+                            cellData = `<select onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'is_parked', this.value)" class="inline-edit-select ${isP === 'จอดซ่อม'?'text-blue-700 font-black':''}"><option value="ไม่จอดซ่อม" ${isP === 'ไม่จอดซ่อม'?'selected':''}>ไม่จอดซ่อม</option><option value="จอดซ่อม" ${isP === 'จอดซ่อม'?'selected':''}>จอดซ่อม</option></select>`; break;
                         case 'job_status': 
                             let sOpts = safeOptsGlobal; if(!sOpts.includes(`value="${job.job_status||''}"`)) sOpts = `<option value="${job.job_status||''}">${job.job_status||''}</option>` + sOpts; sOpts = sOpts.replace(`value="${job.job_status||''}"`, `value="${job.job_status||''}" selected`); 
-                            cellData = `<select onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'job_status', this.value)" class="inline-edit-select bg-slate-50">${sOpts}</select>`; break;
+                            cellData = `<select onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'job_status', this.value)" class="inline-edit-select bg-slate-100">${sOpts}</select>`; break;
+                        
+                        // 🌟 อะไหล่หลัก/รอง ล็อกปุ่มให้พอดีกรอบ
+                        case 'main_part_name':
+                            cellData = `<button onclick="openMultiPartsModal('${job.id}', 'main_part_name', '${(job.main_part_name||'').replace(/'/g, "\\'")}')" class="w-full h-full text-left px-2 py-1.5 text-slate-800 hover:bg-yellow-50 transition truncate font-medium flex justify-between items-center group rounded-none">
+                                <span class="truncate">${job.main_part_name || '<span class="text-slate-400 italic font-normal">...คลิกเลือก</span>'}</span>
+                                <i class="fa-solid fa-caret-down text-slate-400"></i>
+                            </button>`; break;
+                        case 'sub_part_name':
+                            cellData = `<button onclick="openMultiPartsModal('${job.id}', 'sub_part_name', '${(job.sub_part_name||'').replace(/'/g, "\\'")}')" class="w-full h-full text-left px-2 py-1.5 text-slate-800 hover:bg-yellow-50 transition truncate font-medium flex justify-between items-center group rounded-none">
+                                <span class="truncate">${job.sub_part_name || '<span class="text-slate-400 italic font-normal">...คลิกเลือก</span>'}</span>
+                                <i class="fa-solid fa-caret-down text-slate-400"></i>
+                            </button>`; break;
+                        
+                        // 🌟 ล็อกช่องจำนวนเป็น Readonly[cite: 12] 🌟
+                        case 'main_part_qty': case 'sub_part_qty':
+                            cellData = `<input type="number" value="${job[col.key] || 0}" class="readonly-input" readonly title="ระบบคำนวณอัตโนมัติจากการเลือกชิ้นส่วนอะไหล่">`; break;
+                        
+                        case 'cost_labor': case 'cost_part': case 'cost_external':
+                            cellData = `<input type="number" value="${job[col.key] || ''}" onchange="fastUpdateJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input text-right" placeholder="0">`; break;
                         case 'contact_date': case 'appointment_date': case 'arrived_date': case 'target_finish_date': case 'expected_finish_date': case 'repair_finish_date': case 'delivery_date': 
-                            cellData = `<input type="date" value="${job[col.key] ? String(job[col.key]).split('T')[0] : ''}" onchange="fastUpdateJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input font-mono text-slate-500 text-center">`; break;
-                        case 'main_part_qty': case 'sub_part_qty': case 'cost_labor': case 'cost_part': case 'cost_external':
-                            cellData = `<input type="number" value="${job[col.key] || ''}" onchange="fastUpdateJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input text-slate-700 text-right" placeholder="0">`; break;
+                            cellData = `<input type="date" value="${job[col.key] ? String(job[col.key]).split('T')[0] : ''}" onchange="fastUpdateJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input font-mono text-center">`; break;
                         case 'notes': case 'qt_no': case 'so_no': case 'bl_no': case 'quotation_no': case 'job_order_no': case 'ivn_no': case 'sa_owner': case 'customer_phone':
-                            cellData = `<input type="text" value="${job[col.key] || ''}" onchange="fastUpdateJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input text-slate-700" placeholder="-">`; break;
-                        case 'branch_name': cellData = `<div class="px-3 py-1 font-bold text-[#00320D]">${job.branch_name || '-'}</div>`; break;
-                        default: cellData = `<div class="px-3 py-1 truncate" title="${job[col.key]}">${job[col.key] || '-'}</div>`; break;
+                            cellData = `<input type="text" value="${job[col.key] || ''}" onchange="fastUpdateJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input" placeholder="-">`; break;
+                        case 'branch_name': cellData = `<div class="px-2 py-1.5 font-bold text-slate-800">${job.branch_name || '-'}</div>`; break;
+                        default: cellData = `<div class="px-2 py-1.5 truncate" title="${job[col.key]}">${job[col.key] || '-'}</div>`; break;
                     }
                     rowHtml += `<td class="${cellClass}">${cellData}</td>`;
                 });
@@ -704,8 +674,8 @@
 
         // ================= 🌟 BULK INSERT (PDI) 🌟 =================
         function openBulkModal() {
-            const pdiCols = columnsDef.filter(c => c.key !== 'action'); let thHtml = '<th class="w-10 min-w-[50px] text-center bg-slate-200 sticky left-0 z-20">#</th>';
-            pdiCols.forEach(c => thHtml += `<th class="min-w-[150px] px-2 bg-slate-100">${c.title} <button type="button" onclick="copyDown('${c.key}')" class="copy-down-btn mt-1"><i class="fa-solid fa-arrow-down"></i></button></th>`);
+            const pdiCols = columnsDef.filter(c => c.key !== 'action'); let thHtml = '<th class="w-10 min-w-[40px] text-center bg-slate-300 border border-slate-400 sticky left-0 z-20">#</th>';
+            pdiCols.forEach(c => thHtml += `<th class="min-w-[120px] px-2 bg-slate-200">${c.title} <button type="button" onclick="copyDown('${c.key}')" class="copy-down-btn mt-1"><i class="fa-solid fa-arrow-down"></i></button></th>`);
             document.getElementById('bulk_table_head_tr').innerHTML = thHtml; document.getElementById('bulk_table_body').innerHTML = ''; 
             for(let i=0; i<10; i++) addBulkRow(); 
             document.querySelectorAll('.bulk-input-sa_owner').forEach(i => i.value = sessionStorage.getItem('emp_name') || '');
@@ -715,14 +685,14 @@
 
         function addBulkRow(rowData = null) {
             const tbody = document.getElementById('bulk_table_body'); const rowCount = tbody.children.length + 1;
-            const tr = document.createElement('tr'); tr.className = 'bulk-row hover:bg-blue-50/30 transition-colors';
-            let tdHtml = `<td class="text-center text-xs text-slate-400 font-mono bg-slate-50 border-r border-slate-300 p-2 sticky left-0 z-10">${rowCount}</td>`;
+            const tr = document.createElement('tr'); tr.className = 'bulk-row hover:bg-yellow-50 transition-colors';
+            let tdHtml = `<td class="text-center text-xs text-slate-500 font-mono bg-slate-100 border-r border-slate-400 p-0 sticky left-0 z-10">${rowCount}</td>`;
             columnsDef.filter(c => c.key !== 'action').forEach(c => {
                 const val = rowData ? (rowData[c.title] || '') : '';
-                if (c.key.includes('date')) tdHtml += `<td class="p-0"><input type="date" class="bulk-input bulk-input-${c.key} text-xs w-full outline-none px-2 py-1" value="${val ? new Date(val).toISOString().split('T')[0] : ''}"></td>`;
-                else if (c.key === 'job_status') tdHtml += `<td class="p-0"><select class="bulk-input bulk-input-${c.key} text-xs font-bold w-full outline-none px-2 py-1 bg-white"><option value="09.จอดรอเข้าซ่อม" ${val==='09.จอดรอเข้าซ่อม'?'selected':''}>09.จอดรอเข้าซ่อม</option><option value="10.กำลังซ่อม" ${val==='10.กำลังซ่อม'?'selected':''}>10.กำลังซ่อม</option><option value="06.สั่งอะไหล่" ${val==='06.สั่งอะไหล่'?'selected':''}>06.สั่งอะไหล่</option><option value="${val}" ${val && !['09.จอดรอเข้าซ่อม','10.กำลังซ่อม','06.สั่งอะไหล่'].includes(val)?'selected':'hidden'}>${val}</option></select></td>`;
-                else if (c.key === 'is_parked') tdHtml += `<td class="p-0"><select class="bulk-input bulk-input-${c.key} text-xs font-bold w-full outline-none px-2 py-1 bg-white"><option value="ไม่จอดซ่อม" ${val==='ไม่จอดซ่อม'?'selected':''}>ไม่จอดซ่อม</option><option value="จอดซ่อม" ${val==='จอดซ่อม'?'selected':''}>จอดซ่อม</option></select></td>`;
-                else tdHtml += `<td class="p-0"><input type="text" class="bulk-input bulk-input-${c.key} ${c.key==='car_plate'?'font-black text-blue-700 uppercase bg-amber-50/50':''} text-xs w-full outline-none px-2 py-1" placeholder="${c.title}" value="${val}"></td>`;
+                if (c.key.includes('date')) tdHtml += `<td class="p-0"><input type="date" class="bulk-input bulk-input-${c.key}" value="${val ? new Date(val).toISOString().split('T')[0] : ''}"></td>`;
+                else if (c.key === 'job_status') tdHtml += `<td class="p-0"><select class="bulk-input bulk-input-${c.key}"><option value="09.จอดรอเข้าซ่อม" ${val==='09.จอดรอเข้าซ่อม'?'selected':''}>09.จอดรอเข้าซ่อม</option><option value="10.กำลังซ่อม" ${val==='10.กำลังซ่อม'?'selected':''}>10.กำลังซ่อม</option><option value="06.สั่งอะไหล่" ${val==='06.สั่งอะไหล่'?'selected':''}>06.สั่งอะไหล่</option><option value="${val}" ${val && !['09.จอดรอเข้าซ่อม','10.กำลังซ่อม','06.สั่งอะไหล่'].includes(val)?'selected':'hidden'}>${val}</option></select></td>`;
+                else if (c.key === 'is_parked') tdHtml += `<td class="p-0"><select class="bulk-input bulk-input-${c.key}"><option value="ไม่จอดซ่อม" ${val==='ไม่จอดซ่อม'?'selected':''}>ไม่จอดซ่อม</option><option value="จอดซ่อม" ${val==='จอดซ่อม'?'selected':''}>จอดซ่อม</option></select></td>`;
+                else tdHtml += `<td class="p-0"><input type="text" class="bulk-input bulk-input-${c.key} ${c.key==='car_plate'?'font-black text-blue-700 uppercase bg-amber-50/50':''}" placeholder="${c.title}" value="${val}"></td>`;
             });
             tr.innerHTML = tdHtml; tbody.appendChild(tr);
         }
