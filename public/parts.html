@@ -53,7 +53,7 @@
 </head>
 <body class="text-slate-800 h-screen flex flex-col selection:bg-[#00320D] selection:text-white">
 
-    <!-- Login Screen -->
+    <!-- 🌟 Login Screen 🌟 -->
     <div id="login-screen" class="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-[100] flex items-center justify-center">
         <div class="bg-white p-10 rounded-3xl shadow-2xl w-full max-w-md text-center transform transition-all border border-slate-200">
             <div class="flex items-center justify-center gap-3 mb-6"><div class="bg-gradient-to-tr from-[#00320D] to-green-600 w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg"><i class="fa-solid fa-boxes-stacked text-2xl text-white"></i></div></div>
@@ -67,7 +67,7 @@
         </div>
     </div>
 
-    <!-- Main App Wrapper -->
+    <!-- 🌟 Main App Wrapper 🌟 -->
     <div id="main-app" class="hidden flex-col h-full w-full">
 
         <div id="toastMsg" class="fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 translate-y-20 opacity-0 z-[200] flex items-center gap-2 border border-white/20">
@@ -408,7 +408,8 @@
                         
                         <div><label class="label-text">ประมาณการณ์เข้า (ETA)</label><input type="date" id="po_est" class="minimal-input font-mono"></div>
                         <div><label class="label-text text-emerald-600 font-black">วันที่อะไหล่เข้าครบแล้ว</label><input type="date" id="po_rcv_all_date" class="minimal-input font-mono bg-emerald-50 border-emerald-300 text-emerald-900"></div>
-                        <div class="md:col-span-2"><label class="label-text text-blue-600">สถานะมาร์คของ (Admin)</label><select id="po_bo" class="minimal-input font-bold text-blue-800 border-blue-300 bg-blue-50"><option value="รอสั่งซื้อ">รอสั่งซื้อ</option></select></div>
+                        <!-- 🎯 ปรับให้ค่าเริ่มต้นของสถานะมาร์คของเป็น 'รออะไหล่' -->
+                        <div class="md:col-span-2"><label class="label-text text-blue-600">สถานะมาร์คของ (Admin)</label><select id="po_bo" class="minimal-input font-bold text-blue-800 border-blue-300 bg-blue-50"><option value="รออะไหล่">รออะไหล่</option></select></div>
                         
                         <div><label class="label-text text-blue-600">ทะเบียนรถ *</label><input type="text" id="po_plate" required class="minimal-input uppercase border-blue-200" onblur="fetchJobDataByPlate('po')" placeholder="กข 1234"></div>
                         <div class="md:col-span-2"><label class="label-text text-blue-600">สแกนบาร์โค้ดอะไหล่ (Part 2) *</label><input type="text" id="po_part_no" required class="minimal-input font-mono uppercase bg-blue-50 border-blue-200 text-blue-900" onblur="fetchMasterPart('po')" placeholder="Part Number..."></div>
@@ -720,7 +721,7 @@
                     const statusData = await resStatuses.json();
                     allPOStatuses = statusData.map(s => s.status_name || s);
                 }
-                if(!allPOStatuses || allPOStatuses.length === 0) { allPOStatuses = ['รอสั่งซื้อ', '06.สั่งอะไหล่', 'สั่งซื้อแล้ว', 'รออะไหล่', 'ติด Back Order', 'อะไหล่มาครบแล้ว', 'ตัดสต๊อก (มีของ)', 'ยกเลิก']; }
+                if(!allPOStatuses || allPOStatuses.length === 0) { allPOStatuses = ['รออะไหล่', 'รอสั่งซื้อ', '06.สั่งอะไหล่', 'สั่งซื้อแล้ว', 'ติด Back Order', 'อะไหล่มาครบแล้ว', 'ตัดสต๊อก (มีของ)', 'ยกเลิก']; }
 
             } catch(e) { console.error("API Error", e); }
             loadSAOrders(); loadPOTracking(); loadInbound(); loadOutbound(); loadStockInHouse(); loadMasterParts(); loadCarModelsGrid();
@@ -754,7 +755,7 @@
 
                     let partsPreviewHTML = '<div class="flex flex-col gap-1 p-1">';
                     if(carPartsItems.length === 0) partsPreviewHTML += `<span class="text-slate-400 italic">⚠️ ไม่มีรายการอะไหล่</span>`;
-                    else { carPartsItems.forEach(p => { partsPreviewHTML += `<div class="text-[11px] font-medium"><span class="font-mono text-blue-700 font-bold">${p.part_no}</span> | ${p.part_name} (x${p.qty_ordered}) [${p.order_status||'รอสั่งซื้อ'}]</div>`; }); }
+                    else { carPartsItems.forEach(p => { partsPreviewHTML += `<div class="text-[11px] font-medium"><span class="font-mono text-blue-700 font-bold">${p.part_no}</span> | ${p.part_name} (x${p.qty_ordered}) [${p.order_status||'รออะไหล่'}]</div>`; }); }
                     partsPreviewHTML += '</div>';
 
                     return `
@@ -799,16 +800,23 @@
             if(carParts.length > 0) {
                 carParts.forEach((p, idx) => {
                     const orderId = p.order_id || p.id;
-                    let currentStatus = p.order_status || 'รอสั่งซื้อ';
-                    let dropdownHtml = allPOStatuses.map(s => `<option value="${s}" ${currentStatus === s ? 'selected' : ''}>${s}</option>`).join('');
-                    if(!dropdownHtml.includes('ตัดสต๊อก')) dropdownHtml += `<option value="ตัดสต๊อก (มีของ)" ${currentStatus === 'ตัดสต๊อก (มีของ)' ? 'selected' : ''}>✔️ ตัดสต๊อก (มีของ)</option>`;
+                    // 🎯 กำหนดค่าเริ่มต้นของสถานะให้เป็น 'รออะไหล่' หากไม่มีข้อมูล
+                    let currentStatus = p.order_status || 'รออะไหล่';
+                    
+                    let dropdownHtml = allPOStatuses.map(s => {
+                        return `<option value="${s}" ${currentStatus === s ? 'selected' : ''}>${s}</option>`;
+                    }).join('');
+                    
+                    if(!dropdownHtml.includes('ตัดสต๊อก')) {
+                        dropdownHtml += `<option value="ตัดสต๊อก (มีของ)" ${currentStatus === 'ตัดสต๊อก (มีของ)' ? 'selected' : ''}>✔️ ตัดสต๊อก (มีของ)</option>`;
+                    }
                     if(!dropdownHtml.includes('selected')) dropdownHtml = `<option value="${currentStatus}" selected>${currentStatus}</option>` + dropdownHtml;
 
                     html += `
                     <tr data-id="${orderId}" class="hover:bg-amber-50/50 transition-colors group">
                         <td class="excel-cell text-center font-black text-slate-400 bg-slate-50">${idx + 1}</td>
                         <td class="excel-cell"><input type="text" class="excel-input font-mono text-amber-700 font-bold po-epc" value="${p.epc_no || ''}"></td>
-                        <td class="excel-cell"><input type="text" class="excel-input font-mono font-bold text-blue-700 po-partno" value="${p.part_no || ''}" onblur="fetchMasterPartInline(this)"></td>
+                        <td class="excel-cell"><input type="text" class="excel-input font-mono font-bold text-blue-700 po-partno" value="${p.part_no || ''}"></td>
                         <td class="excel-cell"><input type="text" class="excel-input font-mono text-slate-500 po-main" value="${p.part_main_no || ''}"></td>
                         <td class="excel-cell"><input type="text" class="excel-input font-medium po-partname" value="${p.part_name || ''}"></td>
                         <td class="excel-cell"><input type="number" class="excel-input text-center font-black text-lg text-emerald-700 bg-emerald-50 focus:bg-white po-qty" value="${p.qty_ordered || 1}"></td>
@@ -832,8 +840,11 @@
             const emptyRow = document.getElementById('empty_po_row'); if(emptyRow) emptyRow.closest('tr').remove();
             
             const epcNo = document.getElementById('modal_epc').value || '';
-            let dropdownHtml = allPOStatuses.map(s => `<option value="${s}">${s}</option>`).join('');
+            
+            // 🎯 ตั้งให้ 'รออะไหล่' เป็นค่า Selected ตั้งต้นเมื่อกดเพิ่มแถวใหม่
+            let dropdownHtml = allPOStatuses.map(s => `<option value="${s}" ${s==='รออะไหล่'?'selected':''}>${s}</option>`).join('');
             if(!dropdownHtml.includes('ตัดสต๊อก')) dropdownHtml += `<option value="ตัดสต๊อก (มีของ)">✔️ ตัดสต๊อก (มีของ)</option>`;
+            if(!dropdownHtml.includes('selected')) dropdownHtml = `<option value="รออะไหล่" selected>รออะไหล่</option>` + dropdownHtml;
             
             const tr = document.createElement('tr'); tr.className = "hover:bg-amber-50/50 transition-colors group bg-blue-50/30";
             tr.innerHTML = `
@@ -867,7 +878,6 @@
             } catch(e) {}
         }
 
-        // 🌟 แก้ INP 
         function saveSAAlertUpdate(e) {
             e.preventDefault(); 
             const submitBtn = e.target.querySelector('button[type="submit"]');
@@ -890,7 +900,8 @@
                     const epcNo = row.querySelector('.po-epc') ? row.querySelector('.po-epc').value.trim() : ''; 
                     const mainNo = row.querySelector('.po-main') ? row.querySelector('.po-main').value.trim() : '';
                     const qty = parseInt(row.querySelector('.po-qty')?.value) || 1; 
-                    const status = row.querySelector('.po-status')?.value || 'รอสั่งซื้อ';
+                    // 🎯 ตั้งค่าเริ่มต้นสถานะมาร์คของเป็น 'รออะไหล่'
+                    const status = row.querySelector('.po-status')?.value || 'รออะไหล่';
                     const eta = row.querySelector('.po-eta')?.value || null; 
                     const notes = row.querySelector('.po-note')?.value || '';
                     const isStocked = status === 'ตัดสต๊อก (มีของ)';
@@ -907,7 +918,7 @@
                                 method: 'POST', headers: {'Content-Type': 'application/json'},
                                 body: JSON.stringify({
                                     qt_no: (job.qt_no || '').split(',')[0].trim(), so_no: (job.so_no || '').split(',')[0].trim(), epc_no: epcNo, order_date: getTodayString(), est_arrival_date: eta, car_plate: carPlate, vin_no: job.vin_no || null, car_model: job.car_model || null,
-                                    part_main_no: mainNo, part_no: partNo, part_name: partName, qty_ordered: qty, part_type: 'อะไหล่หลัก', notes: notes, branch_name: currentBranch, order_status: status || 'รอสั่งซื้อ'
+                                    part_main_no: mainNo, part_no: partNo, part_name: partName, qty_ordered: qty, part_type: 'อะไหล่หลัก', notes: notes, branch_name: currentBranch, order_status: status || 'รออะไหล่'
                                 })
                             }));
                         }
@@ -939,7 +950,7 @@
             }
         }
 
-        // 🌟 2. Excel Paste (Multi-Paste) 
+        // ================= 2. EXCEL PASTE =================
         function openExcelPasteModal(targetType) {
             document.getElementById('paste_target_type').value = targetType;
             const thead = document.getElementById('paste_grid_thead');
@@ -1009,7 +1020,7 @@
                                 body: JSON.stringify({
                                     car_plate: plate || '-', part_no: pNo || '-', epc_no: epc || null, part_main_no: mainNo || null,
                                     part_name: pName || '-', qty_ordered: isNaN(qty) ? 1 : qty, est_arrival_date: eta || null,
-                                    branch_name: currentBranch, order_status: 'รอสั่งซื้อ', order_date: getTodayString()
+                                    branch_name: currentBranch, order_status: 'รออะไหล่', order_date: getTodayString()
                                 })
                             }));
                         }
@@ -1060,7 +1071,8 @@
                 let html = '';
                 myPOs.forEach(o => {
                     const orderId = o.order_id || o.id;
-                    let currentStatus = o.order_status || 'รอสั่งซื้อ';
+                    // 🎯 ตั้งสถานะเริ่มต้นเป็น 'รออะไหล่'
+                    let currentStatus = o.order_status || 'รออะไหล่';
                     let dropdownHtml = allPOStatuses.map(s => `<option value="${s}" ${currentStatus === s ? 'selected' : ''}>${s}</option>`).join('');
                     if(!dropdownHtml.includes('selected')) dropdownHtml = `<option value="${currentStatus}" selected>${currentStatus}</option>` + dropdownHtml;
 
@@ -1089,13 +1101,14 @@
                 tbody.innerHTML = html;
             } catch(e){}
         }
+
         function toggleCompletedPO() { hideCompletedPO = !hideCompletedPO; loadPOTracking(); }
 
         function openPOModal() {
             document.getElementById('poForm').reset();
             document.getElementById('edit_po_id').value = '';
             document.getElementById('po_date').value = getTodayString();
-            document.getElementById('po_bo').innerHTML = allPOStatuses.map(s => `<option value="${s}">${s}</option>`).join('');
+            document.getElementById('po_bo').innerHTML = allPOStatuses.map(s => `<option value="${s}" ${s==='รออะไหล่'?'selected':''}>${s}</option>`).join('');
             document.getElementById('poModal').classList.replace('hidden', 'flex');
         }
         function closePOModal() { document.getElementById('poModal').classList.replace('flex', 'hidden'); }
@@ -1104,7 +1117,7 @@
             const payload = {
                 qt_no: document.getElementById('po_qt').value, so_no: document.getElementById('po_so').value, epc_no: document.getElementById('po_epc').value, 
                 order_date: document.getElementById('po_date').value, est_arrival_date: document.getElementById('po_est').value || null, part_received_all_date: document.getElementById('po_rcv_all_date').value || null,
-                order_status: document.getElementById('po_bo').value, car_plate: document.getElementById('po_plate').value.toUpperCase(), part_no: document.getElementById('po_part_no').value.toUpperCase(), 
+                order_status: document.getElementById('po_bo').value || 'รออะไหล่', car_plate: document.getElementById('po_plate').value.toUpperCase(), part_no: document.getElementById('po_part_no').value.toUpperCase(), 
                 qty_ordered: parseInt(document.getElementById('po_qty').value) || 1, notes: document.getElementById('po_note').value, part_main_no: document.getElementById('po_part_main').value,
                 part_name: document.getElementById('po_part_name').value, part_type: document.getElementById('po_type').value || 'อะไหล่หลัก', car_model: document.getElementById('po_model').value, 
                 vin_no: document.getElementById('po_vin').value, branch_name: currentBranch
@@ -1371,6 +1384,11 @@
             try { const res = await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }); if(!res.ok) throw new Error(); showToast('บันทึกมาสเตอร์สำเร็จ!'); closeMasterModal(); loadAllData(); } catch(e) { showToast('บันทึกไม่สำเร็จ', 'error'); }
         }
 
+        async function deleteRow(endpoint) {
+            if(confirm('🚨 ยืนยันการลบข้อมูลรายการนี้แบบถาวร?')) {
+                try { const res = await fetch(API_BASE_URL + endpoint, { method: 'DELETE' }); if(!res.ok) throw new Error(); showToast('ลบข้อมูลเรียบร้อย'); loadAllData(); } catch(e) { showToast('ลบไม่สำเร็จ', 'error'); }
+            }
+        }
     </script>
 </body>
 </html>
