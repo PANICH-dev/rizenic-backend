@@ -689,6 +689,7 @@ app.put('/api/part-orders/:id', async (req, res) => {
       epc_no, order_status, est_arrival_date, received_date,
       qt_no, so_no, order_date, car_plate, vin_no, car_model, part_type, notes
     } = req.body;
+
     await pool.query(`
       UPDATE rizenic_part_orders 
       SET part_no = COALESCE($1, part_no), 
@@ -709,13 +710,29 @@ app.put('/api/part-orders/:id', async (req, res) => {
           notes = $16
       WHERE order_id = $17
     `, [
-      part_no, part_main_no || null, part_name, qty_ordered,
-      epc_no || null, order_status, est_arrival_date || null, received_date || null,
-      qt_no, so_no, order_date, car_plate, vin_no, car_model, part_type, notes || null,
+      part_no || null, 
+      part_main_no || null, 
+      part_name || null, 
+      qty_ordered || null,
+      epc_no || null, 
+      order_status || null, 
+      est_arrival_date || null, 
+      received_date || null,
+      qt_no || null, 
+      so_no || null, 
+      order_date || null, 
+      car_plate || null, 
+      vin_no || null, 
+      car_model || null, 
+      part_type || null, 
+      notes || null,
       req.params.id
     ]);
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { 
+    console.error("PUT Part Order Error:", e);
+    res.status(500).json({ error: e.message }); 
+  }
 });
 app.put('/api/part-orders/:id/fast', async (req, res) => {
   try {

@@ -892,18 +892,15 @@ async function saveSAAlertUpdate(e) {
                     const carPlate = document.getElementById('modal_job_id').value;
                     const rows = document.querySelectorAll('#modal_dynamic_table_container tbody tr');
                     
-                    // 🎯 จุดที่ 6, 9: ค้นหาข้อมูล Job ครั้งเดียว นอกลูป และจัดการค่า Null ทันที
                     const job = allGlobalJobs.find(j => cleanStr(j.car_plate) === cleanStr(carPlate)) || {};
                     const qtNo = (job.qt_no || '').split(',')[0].trim() || null;
                     const soNo = (job.so_no || '').split(',')[0].trim() || null;
                     const vinNo = job.vin_no || null;
                     const carModel = job.car_model || null;
 
-                    // 🎯 จุดที่ 5: เตรียม Task Array เพื่อสั่งรันขนานด้วย Promise.allSettled (เพิ่มความเร็วหลายเท่า)
                     const tasks = Array.from(rows).map(async (row) => {
                         const orderId = String(row.getAttribute('data-id') || '');
                         
-                        // 🎯 จุดที่ 10: แคช DOM Query ลดการควานหา Node หลายรอบ ลดภาระ Browser
                         const pNoInp = row.querySelector('.po-partno');
                         const pNameInp = row.querySelector('.po-partname');
                         const epcInp = row.querySelector('.po-epc');
@@ -916,28 +913,25 @@ async function saveSAAlertUpdate(e) {
                         const partNo = pNoInp ? pNoInp.value.trim() : '';
                         const partName = pNameInp ? pNameInp.value.trim() : '';
                         
-                        // ข้ามแถวที่ไม่มีข้อมูล
                         if(!partNo && !partName) return Promise.resolve(); 
 
                         const epcNo = epcInp ? epcInp.value.trim() : null; 
                         const mainNo = mainInp ? mainInp.value.trim() : null;
-                        const qty = parseInt(qtyInp?.value, 10) || 1; // 🎯 จุดที่ 7: ระบุ 10 ใน parseInt เสมอ
+                        const qty = parseInt(qtyInp?.value, 10) || 1; 
                         const status = statusInp?.value || 'รออะไหล่';
                         
+                        // 🎯 จุดสำคัญ: ป้องกันค่าว่าง หรือ Date ที่ผิด Format
                         let eta = etaInp?.value;
                         eta = (eta && eta.trim() !== '') ? eta.trim() : null; 
                         
                         const notes = noteInp?.value || null;
                         const isStocked = status === 'ตัดสต๊อก (มีของ)';
 
-                        // 🎯 จุดที่ 8: เขียนเช็ก ID ให้สั้นและอ่านง่าย
                         const isValidId = orderId && !['NEW', 'undefined', 'null', ''].includes(orderId);
 
                         if(isValidId) {
-                            // 🟢 อัปเดตรายการเดิม
                             const p = allGlobalParts.find(x => String(x.id || x.order_id) === orderId) || {};
                             
-                            // 🎯 จุดที่ 11: แปลงค่า received_date ให้ปลอดภัย
                             const rcvDate = p.received_date ? String(p.received_date).split('T')[0] : null;
                             const ordDate = p.order_date ? String(p.order_date).split('T')[0] : null;
 
@@ -950,13 +944,16 @@ async function saveSAAlertUpdate(e) {
                                 car_model: p.car_model || carModel, part_type: p.part_type || 'อะไหล่หลัก'
                             };
 
-                            // ยิงอัปเดต Part Order
                             await fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, {
                                 method: 'PUT', headers: {'Content-Type': 'application/json'},
                                 body: JSON.stringify(updatePayload)
-                            }).then(res => { if(!res.ok) throw new Error('PUT Error'); });
+                            }).then(async res => { 
+                                if(!res.ok) {
+                                    const errDetails = await res.text();
+                                    throw new Error(`PUT Error: ${errDetails}`);
+                                }
+                            });
 
-                            // 🎯 จุดที่ 2: อัปเดตตาราง Outbound ไปพร้อมกันด้วยเพื่อไม่ให้ยอดเพี้ยน
                             const matchingOutbound = allOutbounds.find(o => cleanStr(o.car_plate) === cleanStr(carPlate) && cleanStr(o.part_no) === cleanStr(partNo) && o.job_status === 'รอเข้าซ่อม');
                             if (matchingOutbound) {
                                 await fetch(`${API_BASE_URL}/api/part-outbound/${matchingOutbound.outbound_id || matchingOutbound.id}/fast`, {
@@ -966,9 +963,6 @@ async function saveSAAlertUpdate(e) {
                             }
 
                         } else {
-                            // 🟢 เพิ่มรายการใหม่
-                            
-                            // 🎯 จุดที่ 1: บันทึกลงตารางสั่งซื้อศูนย์ (เฉพาะถ้ายังไม่ได้ของ)
                             if (!isStocked) {
                                 await fetch(`${API_BASE_URL}/api/part-orders`, {
                                     method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -979,10 +973,14 @@ async function saveSAAlertUpdate(e) {
                                         part_name: partName || '-', qty_ordered: qty, part_type: 'อะไหล่หลัก', 
                                         notes: notes, branch_name: currentBranch, order_status: status
                                     })
-                                }).then(res => { if(!res.ok) throw new Error('POST PO Error'); });
+                                }).then(async res => { 
+                                    if(!res.ok) {
+                                        const errDetails = await res.text();
+                                        throw new Error(`POST PO Error: ${errDetails}`);
+                                    }
+                                });
                             }
                             
-                            // บันทึกตารางเบิกจอง (สร้างเป็นตัวจองอะไหล่เพื่อให้ SA เห็นสต๊อก)
                             await fetch(`${API_BASE_URL}/api/part-outbound`, {
                                 method: 'POST', headers: {'Content-Type': 'application/json'},
                                 body: JSON.stringify({
@@ -992,11 +990,15 @@ async function saveSAAlertUpdate(e) {
                                     job_status: isStocked ? 'เบิกอะไหล่' : 'รอเข้าซ่อม', 
                                     part_type: 'อะไหล่หลัก', branch_name: currentBranch
                                 })
-                            }).then(res => { if(!res.ok) throw new Error('POST Outbound Error'); });
+                            }).then(async res => { 
+                                if(!res.ok) {
+                                    const errDetails = await res.text();
+                                    throw new Error(`POST Outbound Error: ${errDetails}`);
+                                }
+                            });
                         }
-                    }); // สิ้นสุดการสร้าง Task Array
+                    }); 
 
-                    // กรองเฉพาะบรรทัดที่ทำงานจริง (เอา Undefined ออก)
                     const validTasks = tasks.filter(t => t !== undefined);
 
                     if(validTasks.length === 0) { 
@@ -1006,17 +1008,15 @@ async function saveSAAlertUpdate(e) {
                         return; 
                     }
 
-                    // 🎯 จุดที่ 5: ให้คำสั่ง API ทั้งหมดยิงขนานกัน (Parallel) เพื่อความรวดเร็วสุดขีด
                     const results = await Promise.allSettled(validTasks);
                     const failed = results.filter(r => r.status === 'rejected');
 
-                    // 🎯 จุดที่ 4, 13: รอข้อมูลโหลดเสร็จค่อยปิด Modal และโชว์ Toast
                     await loadAllData(); 
                     closeAlertModal();
 
-                    // เช็กสถานะการแจ้งเตือน (Partial Save)
                     if (failed.length === validTasks.length) {
-                        showToast('บันทึกผิดพลาดทั้งหมด โปรดเช็คข้อมูล', 'error');
+                        const failReason = failed[0].reason?.message || 'Unknown Error';
+                        showToast(`บันทึกพลาด! สาเหตุ: ${failReason.substring(0, 50)}`, 'error');
                     } else if (failed.length > 0) {
                         showToast('บันทึกสำเร็จบางส่วน มีบางรายการผิดพลาด', 'error');
                     } else {
@@ -1025,9 +1025,8 @@ async function saveSAAlertUpdate(e) {
 
                 } catch(err) { 
                     console.error("Save Alert Error:", err);
-                    showToast('บันทึกผิดพลาด โปรดเช็คข้อมูล', 'error'); 
+                    showToast(`พังร้ายแรง: ${err.message}`, 'error'); 
                 } finally { 
-                    // ปลดล็อกปุ่มเสมอ
                     submitBtn.innerHTML = originalText; 
                     submitBtn.disabled = false; 
                 }
