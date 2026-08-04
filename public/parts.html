@@ -880,7 +880,7 @@
             } catch(e) {}
         }
 
- function saveSAAlertUpdate(e) {
+function saveSAAlertUpdate(e) {
             e.preventDefault(); 
             const submitBtn = e.target.querySelector('button[type="submit"]');
             const originalText = submitBtn.innerHTML; 
@@ -905,56 +905,60 @@
                         const qty = parseInt(row.querySelector('.po-qty')?.value) || 1; 
                         const status = row.querySelector('.po-status')?.value || 'รออะไหล่';
                         
-                        // 🎯 จัดการวันที่: แปลงค่าว่างให้เป็น null เสมอ
+                        // 🎯 ป้องกัน SQL Error: แปลงวันที่ว่างให้เป็น null เสมอ
                         let eta = row.querySelector('.po-eta')?.value;
-                        eta = (eta && eta.trim() !== '') ? eta : null; 
+                        eta = (eta && eta.trim() !== '') ? eta.trim() : null; 
                         
                         const notes = row.querySelector('.po-note')?.value || '';
                         const isStocked = status === 'ตัดสต๊อก (มีของ)';
 
-                        const isValidId = orderId && orderId !== 'undefined' && orderId !== 'null' && orderId !== '';
+                        const isValidId = orderId && orderId !== 'undefined' && orderId !== 'null' && orderId !== 'NEW';
 
                         if(isValidId) {
-                            // 🎯 ดึงข้อมูลเดิมมาอ้างอิง เพื่อไม่ให้ฟิลด์อื่นหายไปจนกลายเป็น undefined
                             const p = allGlobalParts.find(x => String(x.id || x.order_id) === String(orderId)) || {};
                             
+                            // 🎯 ดึงวันที่เก่าออกมา ถ้าไม่มีให้เป็น null เพื่อป้องกัน Error
+                            const rcvDate = p.received_date ? String(p.received_date).split('T')[0] : null;
+                            const ordDate = p.order_date ? String(p.order_date).split('T')[0] : null;
+
                             const updatePayload = {
                                 epc_no: epcNo || null, 
                                 part_no: partNo || '-', 
                                 part_main_no: mainNo || null, 
                                 part_name: partName || '-', 
                                 qty_ordered: qty, 
-                                order_status: status, 
-                                est_arrival_date: eta, 
+                                order_status: status || 'รออะไหล่', 
+                                est_arrival_date: eta, // 👈 ส่ง null หรือ YYYY-MM-DD
                                 notes: notes || null,
-                                // ส่งค่าเดิมกลับไปเพื่อป้องกัน Database แครช (undefined error)
-                                received_date: p.received_date || null,
+                                received_date: rcvDate,
                                 qt_no: p.qt_no || null,
                                 so_no: p.so_no || null,
-                                order_date: p.order_date || null,
-                                car_plate: p.car_plate || null,
-                                vin_no: p.vin_no || null,
-                                car_model: p.car_model || null,
+                                order_date: ordDate,
+                                car_plate: p.car_plate || carPlate || null,
+                                vin_no: p.vin_no || job.vin_no || null,
+                                car_model: p.car_model || job.car_model || null,
                                 part_type: p.part_type || 'อะไหล่หลัก'
                             };
 
                             promises.push(
                                 fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, {
-                                    method: 'PUT', headers: {'Content-Type': 'application/json'},
+                                    method: 'PUT', 
+                                    headers: {'Content-Type': 'application/json'},
                                     body: JSON.stringify(updatePayload)
-                                }).then(res => { if(!res.ok) throw new Error(`PUT Error`); return res; })
+                                }).then(res => { if(!res.ok) throw new Error(`PUT Error Status ${res.status}`); return res; })
                             );
                         } else {
                             if (!isStocked) {
                                 promises.push(
                                     fetch(`${API_BASE_URL}/api/part-orders`, {
-                                        method: 'POST', headers: {'Content-Type': 'application/json'},
+                                        method: 'POST', 
+                                        headers: {'Content-Type': 'application/json'},
                                         body: JSON.stringify({
                                             qt_no: (job.qt_no || '').split(',')[0].trim() || null, 
                                             so_no: (job.so_no || '').split(',')[0].trim() || null, 
                                             epc_no: epcNo || null, 
                                             order_date: getTodayString(), 
-                                            est_arrival_date: eta, 
+                                            est_arrival_date: eta, // 👈 ส่ง null หรือ YYYY-MM-DD
                                             car_plate: carPlate || null, 
                                             vin_no: job.vin_no || null, 
                                             car_model: job.car_model || null,
@@ -965,7 +969,7 @@
                                             part_type: 'อะไหล่หลัก', 
                                             notes: notes || null, 
                                             branch_name: currentBranch, 
-                                            order_status: status
+                                            order_status: status || 'รออะไหล่'
                                         })
                                     }).then(res => { if(!res.ok) throw new Error(`POST PO Error`); return res; })
                                 );
@@ -973,7 +977,8 @@
                             
                             promises.push(
                                 fetch(`${API_BASE_URL}/api/part-outbound`, {
-                                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                                    method: 'POST', 
+                                    headers: {'Content-Type': 'application/json'},
                                     body: JSON.stringify({
                                         issue_date: getTodayString(), 
                                         part_no: partNo || '-', 
@@ -1001,7 +1006,6 @@
                         return; 
                     }
 
-                    // รอให้ทุก API สำเร็จทั้งหมด
                     await Promise.all(promises); 
                     
                     closeAlertModal(); 
@@ -1009,7 +1013,7 @@
                     requestAnimationFrame(() => loadAllData());
 
                 } catch(err) { 
-                    console.error(err);
+                    console.error("Save Alert Error:", err);
                     showToast('บันทึกผิดพลาด โปรดเช็คข้อมูล', 'error'); 
                 } finally { 
                     submitBtn.innerHTML = originalText; 
