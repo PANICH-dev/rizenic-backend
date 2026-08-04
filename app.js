@@ -7,7 +7,7 @@ const app = express();
 const port = process.env.PORT || 3000; 
 
 app.use(cors()); 
-app.use(express.json({ limit: '10mb' })); // 🌟 เพิ่ม Limit ป้องกันข้อมูล Excel เยอะเกิน
+app.use(express.json({ limit: '10mb' })); 
 
 // บังคับไม่ให้ Express และ Vercel จำ Cache ไฟล์ในโฟลเดอร์ public
 app.use(express.static(path.join(__dirname, 'public'), {
@@ -29,17 +29,15 @@ const pool = new Pool({
 app.post('/api/sync-dynamic', async (req, res) => {
     const { tableName, primaryKey, data } = req.body;
 
-    // เช็กว่าส่งข้อมูลมาครบไหม
     if (!tableName || !data || !Array.isArray(data) || data.length === 0) {
         return res.status(400).json({ error: "ข้อมูล Payload ไม่ถูกต้องครับนาย" });
     }
 
     const client = await pool.connect();
     try {
-        await client.query('BEGIN'); // เริ่ม Transaction
+        await client.query('BEGIN'); 
 
         for (const row of data) {
-            // ดึงเฉพาะคอลัมน์ที่มีข้อมูลส่งมา
             const rowKeys = Object.keys(row);
             if (rowKeys.length === 0) continue;
 
@@ -47,12 +45,9 @@ app.post('/api/sync-dynamic', async (req, res) => {
             const valuePlaceholders = rowKeys.map((_, idx) => `$${idx + 1}`).join(', ');
             const values = rowKeys.map(k => row[k]);
 
-            // สร้างคำสั่ง INSERT อัตโนมัติ
             let sql = `INSERT INTO ${tableName} (${colsStr}) VALUES (${valuePlaceholders})`;
 
-            // ถ้ามี Primary Key ให้สร้างเงื่อนไข ON CONFLICT เพื่ออัปเดตข้อมูลทับของเดิม
             if (primaryKey) {
-                // กรอง Primary Key และพวก ID ที่เป็น Auto Increment ออกจากการ Update
                 const updateCols = rowKeys.filter(col => col !== primaryKey && col !== 'id' && col !== 'part_id');
                 if (updateCols.length > 0) {
                     const updateStr = updateCols.map(col => `${col} = EXCLUDED.${col}`).join(', ');
@@ -62,14 +57,13 @@ app.post('/api/sync-dynamic', async (req, res) => {
                 }
             }
 
-            // ยิงข้อมูลลง DB ทีละแถว
             await client.query(sql, values);
         }
 
-        await client.query('COMMIT'); // ผ่านหมด บันทึกจริง
+        await client.query('COMMIT'); 
         res.json({ success: true, message: `อัปโหลดเข้าตาราง ${tableName} สำเร็จ ${data.length} รายการ!` });
     } catch (err) {
-        await client.query('ROLLBACK'); // ถ้าพัง ยกเลิกทั้งหมด
+        await client.query('ROLLBACK'); 
         console.error(`Dynamic Sync Error [${tableName}]:`, err);
         res.status(500).json({ error: err.message });
     } finally {
@@ -84,7 +78,6 @@ async function checkColorPartsQuota(branch_name, dateStr, newMainQty, newSubQty,
     if (!dateStr || !branch_name) return null; 
     const targetDate = dateStr.split('T')[0]; 
     
-    // 1. ดึงโควต้าของสาขาและวันที่ระบุ
     const quotaRes = await pool.query(`
         SELECT * FROM rizenic_quotas 
         WHERE branch_name = $1 
@@ -98,7 +91,6 @@ async function checkColorPartsQuota(branch_name, dateStr, newMainQty, newSubQty,
     
     if (maxMainParts === 0 && maxSubParts === 0) return null; 
     
-    // 2. ดึงยอดชิ้นส่วน "หลัก" และ "รอง" ที่รับไว้แล้วในวันนั้น
     let sumQuery = `
         SELECT 
             COALESCE(SUM(main_part_qty), 0) as total_main,
@@ -120,7 +112,6 @@ async function checkColorPartsQuota(branch_name, dateStr, newMainQty, newSubQty,
     const requestingMainTotal = parseInt(newMainQty) || 0;
     const requestingSubTotal = parseInt(newSubQty) || 0;
     
-    // 3. เช็กเงื่อนไขการเกินโควต้าทีละส่วน
     let errorMsg = [];
     if (maxMainParts > 0 && (currentMainTotal + requestingMainTotal > maxMainParts)) {
         errorMsg.push(`ชิ้นส่วนหลักเกินโควต้า! (รับได้ ${maxMainParts} ชิ้น, ปัจจุบันมี ${currentMainTotal} ชิ้น, คุณกำลังเพิ่ม ${requestingMainTotal} ชิ้น)`);
@@ -482,7 +473,6 @@ app.post('/api/report', async (req, res) => {
       department_routing, is_parked
     } = req.body;
 
-    // 🌟 เช็กโควต้าชิ้นส่วนทำสี ก่อนกดบันทึก
     const quotaErrorMsg = await checkColorPartsQuota(branch_name, arrived_date, main_part_qty, sub_part_qty, null);
     if (quotaErrorMsg) {
         return res.status(400).json({ error: quotaErrorMsg });
@@ -535,7 +525,6 @@ app.put('/api/report/:id', async (req, res) => {
       department_routing, is_parked
     } = req.body;
 
-    // 🌟 เช็กโควต้าชิ้นส่วนทำสี ก่อนกดแก้ไข
     const quotaErrorMsg = await checkColorPartsQuota(branch_name, arrived_date, main_part_qty, sub_part_qty, req.params.id);
     if (quotaErrorMsg) {
         return res.status(400).json({ error: quotaErrorMsg });
@@ -734,16 +723,18 @@ app.put('/api/part-orders/:id', async (req, res) => {
     res.status(500).json({ error: e.message }); 
   }
 });
+
+// 🎯 แก้ไขจุดพิมพ์ผิด aapp เป็น app และขยายฟิลด์ที่แก้อัตโนมัติได้
 app.put('/api/part-orders/:id/fast', async (req, res) => {
   try {
     const { field, value } = req.body;
-    // 🎯 เพิ่มอนุญาตให้แก้ Part, Main, Name, Plate, Notes ได้
     const validFields = ['epc_no', 'part_no', 'part_main_no', 'part_name', 'qty_ordered', 'order_status', 'est_arrival_date', 'part_received_all_date', 'notes', 'car_plate'];
     if (!validFields.includes(field)) return res.status(400).json({ error: 'ไม่อนุญาตให้แก้ฟิลด์นี้' });
     await pool.query(`UPDATE rizenic_part_orders SET ${field} = $1 WHERE order_id = $2`, [value || null, req.params.id]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
 app.delete('/api/part-orders/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM rizenic_part_orders WHERE order_id = $1', [req.params.id]);
@@ -786,36 +777,29 @@ app.post('/api/part-inbound', async (req, res) => {
     res.status(201).json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
 app.get('/api/part-inbound', async (req, res) => {
   try { res.json((await pool.query('SELECT * FROM rizenic_part_inbound ORDER BY inbound_id DESC')).rows); } 
   catch (e) { res.status(500).json({ error: e.message }); }
 });
+
+// 🎯 ขยายฟิลด์ที่แก้อัตโนมัติได้ใน Inbound
 app.put('/api/part-inbound/:id/fast', async (req, res) => {
   try {
     const { field, value } = req.body;
-    // 🎯 เพิ่มให้แก้ EPC, Part, Main, Name ได้
     const validFields = ['received_date', 'qty', 'unit_price', 'epc_no', 'part_no', 'part_main_no', 'part_name'];
-    if (!validFields.includes(field)) return res.status(400).json({ error: 'ไม่อนุญาต' });
+    if (!validFields.includes(field)) return res.status(400).json({ error: 'ไม่อนุญาตให้แก้ฟิลด์นี้' });
     await pool.query(`UPDATE rizenic_part_inbound SET ${field} = $1 WHERE inbound_id = $2`, [value || null, req.params.id]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
-app.put('/api/part-outbound/:id/fast', async (req, res) => {
-  try {
-    const { field, value } = req.body;
-    // 🎯 เพิ่มอนุญาตให้แก้ทุกตัวในใบเบิก
-    const validFields = ['issue_date', 'qty', 'job_status', 'part_no', 'part_main_no', 'part_name', 'car_plate', 'qt_no', 'so_no'];
-    if (!validFields.includes(field)) return res.status(400).json({ error: 'ไม่อนุญาต' });
-    await pool.query(`UPDATE rizenic_part_outbound SET ${field} = $1 WHERE outbound_id = $2`, [value || null, req.params.id]);
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
+
 app.delete('/api/part-inbound/:id', async (req, res) => {
   try { await pool.query('DELETE FROM rizenic_part_inbound WHERE inbound_id=$1', [req.params.id]); res.json({ success: true }); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 📤 การเบิก/จอง (Outbound)
+// Outbound
 app.post('/api/part-outbound', async (req, res) => {
   try {
     const { issue_date, part_no, part_main_no, part_name, qty, car_plate, qt_no, so_no, unit_price, part_type, car_model, job_status, branch_name } = req.body;
@@ -831,10 +815,12 @@ app.post('/api/part-outbound', async (req, res) => {
     res.status(201).json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
 app.get('/api/part-outbound', async (req, res) => {
   try { res.json((await pool.query('SELECT * FROM rizenic_part_outbound ORDER BY outbound_id DESC')).rows); } 
   catch (e) { res.status(500).json({ error: e.message }); }
 });
+
 app.put('/api/part-outbound/:id', async (req, res) => {
   try {
     const { issue_date, part_no, part_name, qty, car_plate, qt_no, so_no, job_status } = req.body;
@@ -845,15 +831,18 @@ app.put('/api/part-outbound/:id', async (req, res) => {
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
+// 🎯 ขยายฟิลด์ที่แก้อัตโนมัติได้ใน Outbound
 app.put('/api/part-outbound/:id/fast', async (req, res) => {
   try {
     const { field, value } = req.body;
-    const validFields = ['issue_date', 'qty', 'job_status'];
-    if (!validFields.includes(field)) return res.status(400).json({ error: 'ไม่อนุญาต' });
+    const validFields = ['issue_date', 'qty', 'job_status', 'part_no', 'part_main_no', 'part_name', 'car_plate', 'qt_no', 'so_no'];
+    if (!validFields.includes(field)) return res.status(400).json({ error: 'ไม่อนุญาตให้แก้ฟิลด์นี้' });
     await pool.query(`UPDATE rizenic_part_outbound SET ${field} = $1 WHERE outbound_id = $2`, [value || null, req.params.id]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
 app.delete('/api/part-outbound/:id', async (req, res) => {
   try { await pool.query('DELETE FROM rizenic_part_outbound WHERE outbound_id=$1', [req.params.id]); res.json({ success: true }); }
   catch (e) { res.status(500).json({ error: e.message }); }
@@ -884,8 +873,9 @@ app.get('/api/parts-inventory', async (req, res) => {
     res.json(result.rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
 // ==========================================
-// 🎨 API บันทึก/ดึง ค่าการเลือกคอลัมน์รายบุคคล (User Column Preferences)
+// 🎨 API บันทึก/ดึง ค่าการเลือกคอลัมน์รายบุคคล
 // ==========================================
 app.get('/api/user-preferences/:empName', async (req, res) => {
   try {

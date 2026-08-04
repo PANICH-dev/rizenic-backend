@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     enterApp();
 
-    // Listener สำหรับดักจับการวาง (Paste) แบบตาราง Grid Excel
+    // 🌟 Listener สำหรับดักจับการวาง (Paste) แบบตาราง Grid Excel
     const pasteBody = document.getElementById('paste_grid_tbody');
     if (pasteBody) {
         pasteBody.addEventListener('paste', function(e) {
@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (input && !input.readOnly) { 
                             let valToSet = colData.trim();
                             
-                            // 🌟 แปลง format Excel (DD/MM) ให้ลงช่อง Date ได้
+                            // 🌟 แปลง format Excel (DD/MM/YYYY) เป็น (YYYY-MM-DD)
                             if (input.type === 'date') {
                                 const dParts = valToSet.split(/[\/\-]/);
                                 if(dParts.length === 3) {
@@ -81,6 +81,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if(currentTr) autoFillGridRow(currentTr);
             });
         });
+    }
+});
 
 async function handleLogin(e) {
     e.preventDefault();
@@ -514,19 +516,11 @@ function openExcelPasteModal(targetType) {
     
     let cols = [];
     if (targetType === 'po') {
-        cols = ['ทะเบียนรถ', 'EPC No *', 'บาร์โค้ด', 'ยอดสั่ง *', 'คาดการณ์เข้า', 'ชื่ออะไหล่ (Auto)'];
+        cols = ['ทะเบียนรถ', 'EPC No *', 'บาร์โค้ด', 'ยอดสั่ง *', 'คาดการณ์เข้า', 'ชื่ออะไหล่ (Auto)', 'MAIN No (Auto)'];
         document.getElementById('paste_modal_title').innerHTML = '<i class="fa-solid fa-bolt text-amber-500"></i> แอดใบสั่งซื้อศูนย์หลายรายการด่วน (Excel Paste)';
-        document.getElementById('paste_instructions_text').innerHTML = `
-            <i class="fa-solid fa-circle-info mr-1 text-blue-600"></i> <b>วิธีใช้งาน:</b> เรียงคอลัมน์ใน Excel: <span class="text-blue-700 font-black">ทะเบียนรถ | EPC No | บาร์โค้ด | ยอดสั่ง | คาดการณ์เข้า</span> จากนั้น Copy มาวางในตารางนี้<br>
-            <span class="text-amber-600 font-normal">* <b>พิเศษ:</b> ถ้ากรอกแค่ EPC และ ยอดสั่ง ระบบจะดึง "บาร์โค้ด" และ "ชื่ออะไหล่" ให้อัตโนมัติ!</span>
-        `;
     } else {
-        cols = ['วันที่รับ', 'EPC No *', 'บาร์โค้ด', 'จำนวน *', 'ชื่ออะไหล่ (Auto)'];
+        cols = ['วันที่รับ', 'EPC No *', 'บาร์โค้ด', 'จำนวน *', 'ชื่ออะไหล่ (Auto)', 'MAIN No (Auto)'];
         document.getElementById('paste_modal_title').innerHTML = '<i class="fa-solid fa-bolt text-emerald-500"></i> รับเข้าคลังแบบด่วน (Excel Paste)';
-        document.getElementById('paste_instructions_text').innerHTML = `
-            <i class="fa-solid fa-circle-info mr-1 text-blue-600"></i> <b>วิธีใช้งาน:</b> เรียงคอลัมน์ใน Excel: <span class="text-emerald-700 font-black">วันที่รับ | EPC No | บาร์โค้ด | จำนวน</span> จากนั้น Copy มาวางในตารางนี้<br>
-            <span class="text-amber-600 font-normal">* <b>พิเศษ:</b> ถ้ากรอกแค่ EPC และ จำนวน ระบบจะดึง "บาร์โค้ด" และ "ชื่ออะไหล่" ให้อัตโนมัติ!</span>
-        `;
     }
     
     thead.innerHTML = `<tr><th class="excel-grid-th bg-[#00320D] text-white w-10 text-center">#</th>` + 
@@ -540,6 +534,7 @@ function openExcelPasteModal(targetType) {
 
 function closeExcelPasteModal() { document.getElementById('excelPasteModal').classList.replace('flex', 'hidden'); }
 
+// 🎯 กำหนดให้ช่องวันที่เป็น type="date"
 function addPasteRow() {
     const targetType = document.getElementById('paste_target_type').value;
     const tbody = document.getElementById('paste_grid_tbody');
@@ -551,7 +546,6 @@ function addPasteRow() {
     for(let c=0; c<colsCount; c++) {
         const isReadonly = (targetType === 'po' && (c === 5 || c === 6)) || (targetType === 'inbound' && (c === 4 || c === 5));
         
-        // 🌟 กำหนดให้ช่องวันที่เป็น type="date"
         let inputType = "text";
         let defaultVal = "";
         if (targetType === 'po' && c === 4) inputType = "date"; 
@@ -565,6 +559,7 @@ function addPasteRow() {
     tbody.appendChild(tr);
 }
 
+// 🎯 ดึงข้อมูลจาก Master Data API แบบ Real-time
 async function autoFillGridRow(tr) {
     const targetType = document.getElementById('paste_target_type').value;
     const inputs = tr.querySelectorAll('input');
@@ -586,7 +581,6 @@ async function autoFillGridRow(tr) {
         foundPart = allGlobalParts.find(g => (pNo && cleanStr(g.part_no) === cleanStr(pNo)) || (epc && cleanStr(g.epc_no) === cleanStr(epc)));
     }
     
-    // 🌟 ดึงข้อมูลตรงจาก Master Data API ทันที ถ้าไม่เจอใน Cache
     if (!foundPart && pNo) {
         try {
             if (inputs[nameIdx]) inputs[nameIdx].value = 'กำลังค้นหา...';
@@ -637,20 +631,22 @@ function processExcelPasteData() {
                 const qty = parseInt(inputs[3].value.trim());
                 const eta = inputs[4].value.trim() || null;
                 let pName = inputs[5].value.trim();
+                let mainInp = inputs[6] ? inputs[6].value.trim() : null;
                 
                 if (pNo || epc) {
-                    let mainNo = null;
-                    const mPart = allMasterPartsData.find(m => cleanStr(m.part_no) === cleanStr(pNo));
-                    if(mPart) mainNo = mPart.part_main_no;
-                    else {
-                        const gPart = allGlobalParts.find(g => cleanStr(g.part_no) === cleanStr(pNo) || (epc && cleanStr(g.epc_no) === cleanStr(epc)));
-                        if(gPart) mainNo = gPart.part_main_no;
+                    if(!mainInp || mainInp === '-') {
+                        const mPart = allMasterPartsData.find(m => cleanStr(m.part_no) === cleanStr(pNo));
+                        if(mPart) mainInp = mPart.part_main_no;
+                        else {
+                            const gPart = allGlobalParts.find(g => cleanStr(g.part_no) === cleanStr(pNo) || (epc && cleanStr(g.epc_no) === cleanStr(epc)));
+                            if(gPart) mainInp = gPart.part_main_no;
+                        }
                     }
 
                     promises.push(fetch(`${API_BASE_URL}/api/part-orders`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            car_plate: plate, part_no: pNo || '-', epc_no: epc || null, part_main_no: mainNo,
+                            car_plate: plate, part_no: pNo || '-', epc_no: epc || null, part_main_no: mainInp || null,
                             part_name: pName || '-', qty_ordered: isNaN(qty) ? 1 : qty, est_arrival_date: eta,
                             branch_name: currentBranch, order_status: 'รออะไหล่', order_date: getTodayString() 
                         })
@@ -662,20 +658,21 @@ function processExcelPasteData() {
                 const pNo = inputs[2].value.trim();
                 const qty = parseInt(inputs[3].value.trim());
                 let pName = inputs[4].value.trim();
+                let mainInp = inputs[5] ? inputs[5].value.trim() : null;
                 
                 if (pNo || epc) {
-                    let mainNo = null; let model = null; let price = 0;
+                    let model = null; let price = 0;
                     const mPart = allMasterPartsData.find(m => cleanStr(m.part_no) === cleanStr(pNo));
-                    if(mPart) { mainNo = mPart.part_main_no; model = mPart.car_model; price = mPart.unit_price; }
+                    if(mPart) { if(!mainInp || mainInp==='-') mainInp = mPart.part_main_no; model = mPart.car_model; price = mPart.unit_price; }
                     else {
                         const gPart = allGlobalParts.find(g => cleanStr(g.part_no) === cleanStr(pNo) || (epc && cleanStr(g.epc_no) === cleanStr(epc)));
-                        if(gPart) { mainNo = gPart.part_main_no; model = gPart.car_model; price = gPart.unit_price; }
+                        if(gPart) { if(!mainInp || mainInp==='-') mainInp = gPart.part_main_no; model = gPart.car_model; price = gPart.unit_price; }
                     }
 
                     promises.push(fetch(`${API_BASE_URL}/api/part-inbound`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            received_date: rDate, epc_no: epc || null, part_no: pNo || '-', part_main_no: mainNo,
+                            received_date: rDate, epc_no: epc || null, part_no: pNo || '-', part_main_no: mainInp || null,
                             part_name: pName || '-', car_model: model, qty: isNaN(qty) ? 1 : qty, unit_price: price, branch_name: currentBranch
                         })
                     }));
