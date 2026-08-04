@@ -58,7 +58,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 cols.forEach((colData, j) => {
                     if (startCol + j < numCols) {
                         const input = pasteBody.querySelector(`input[data-row="${startRow + i}"][data-col="${startCol + j}"]`);
-                        if (input && !input.readOnly) { input.value = colData.trim(); }
+                        if (input && !input.readOnly) { 
+                            let valToSet = colData.trim();
+                            
+                            // 🌟 แปลง format Excel (DD/MM) ให้ลงช่อง Date ได้
+                            if (input.type === 'date') {
+                                const dParts = valToSet.split(/[\/\-]/);
+                                if(dParts.length === 3) {
+                                    let d = dParts[0].padStart(2, '0');
+                                    let m = dParts[1].padStart(2, '0');
+                                    let y = dParts[2];
+                                    if(y.length === 2) y = '20' + y;
+                                    valToSet = `${y}-${m}-${d}`;
+                                }
+                            }
+                            input.value = valToSet; 
+                        }
                     }
                 });
                 
@@ -66,8 +81,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if(currentTr) autoFillGridRow(currentTr);
             });
         });
-    }
-});
 
 async function handleLogin(e) {
     e.preventDefault();
@@ -536,13 +549,23 @@ function addPasteRow() {
     let tr = document.createElement('tr');
     tr.innerHTML = `<td class="excel-cell text-center font-bold text-slate-400 bg-slate-50">${rIdx + 1}</td>`;
     for(let c=0; c<colsCount; c++) {
-        const isReadonly = (targetType === 'po' && c === 5) || (targetType === 'inbound' && c === 4);
-        tr.innerHTML += `<td class="excel-cell"><input type="text" class="excel-input paste-cell w-full ${isReadonly ? 'bg-slate-100 text-slate-500 font-bold text-center' : ''}" data-row="${rIdx}" data-col="${c}" ${isReadonly ? 'readonly tabindex="-1"' : ''} onblur="autoFillGridRow(this.closest('tr'))"></td>`;
+        const isReadonly = (targetType === 'po' && (c === 5 || c === 6)) || (targetType === 'inbound' && (c === 4 || c === 5));
+        
+        // 🌟 กำหนดให้ช่องวันที่เป็น type="date"
+        let inputType = "text";
+        let defaultVal = "";
+        if (targetType === 'po' && c === 4) inputType = "date"; 
+        if (targetType === 'inbound' && c === 0) { 
+            inputType = "date"; 
+            defaultVal = getTodayString(); 
+        }
+        
+        tr.innerHTML += `<td class="excel-cell"><input type="${inputType}" value="${defaultVal}" class="excel-input paste-cell w-full ${isReadonly ? 'bg-slate-100 text-slate-500 font-bold text-center' : ''}" data-row="${rIdx}" data-col="${c}" ${isReadonly ? 'readonly tabindex="-1"' : ''} onblur="autoFillGridRow(this.closest('tr'))"></td>`;
     }
     tbody.appendChild(tr);
 }
 
-function autoFillGridRow(tr) {
+async function autoFillGridRow(tr) {
     const targetType = document.getElementById('paste_target_type').value;
     const inputs = tr.querySelectorAll('input');
     if(inputs.length < 4) return;
@@ -550,6 +573,7 @@ function autoFillGridRow(tr) {
     const epcIdx = 1; 
     const pNoIdx = 2; 
     const nameIdx = targetType === 'po' ? 5 : 4;
+    const mainIdx = targetType === 'po' ? 6 : 5; 
     
     let epc = inputs[epcIdx].value.trim();
     let pNo = inputs[pNoIdx].value.trim();
@@ -562,10 +586,31 @@ function autoFillGridRow(tr) {
         foundPart = allGlobalParts.find(g => (pNo && cleanStr(g.part_no) === cleanStr(pNo)) || (epc && cleanStr(g.epc_no) === cleanStr(epc)));
     }
     
+    // 🌟 ดึงข้อมูลตรงจาก Master Data API ทันที ถ้าไม่เจอใน Cache
+    if (!foundPart && pNo) {
+        try {
+            if (inputs[nameIdx]) inputs[nameIdx].value = 'กำลังค้นหา...';
+            const res = await fetch(`${API_BASE_URL}/api/parts/check/${encodeURIComponent(pNo)}`);
+            if (res.ok) {
+                const resData = await res.json();
+                const data = Array.isArray(resData) ? resData[0] : (resData.data ? (Array.isArray(resData.data) ? resData.data[0] : resData.data) : resData);
+                if (data && (data.part_name || data.part_no)) {
+                    foundPart = data;
+                    allMasterPartsData.push(foundPart); 
+                }
+            }
+        } catch(e) {}
+    }
+    
     if (foundPart) {
         if (!pNo && foundPart.part_no) inputs[pNoIdx].value = foundPart.part_no;
         if (!epc && foundPart.epc_no) inputs[epcIdx].value = foundPart.epc_no;
         if (inputs[nameIdx]) inputs[nameIdx].value = foundPart.part_name || '-';
+        if (inputs[mainIdx]) inputs[mainIdx].value = foundPart.part_main_no || '-';
+    } else {
+        if (inputs[nameIdx] && inputs[nameIdx].value === 'กำลังค้นหา...') {
+            inputs[nameIdx].value = 'ไม่พบในระบบ'; 
+        }
     }
 }
 

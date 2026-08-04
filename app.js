@@ -737,7 +737,8 @@ app.put('/api/part-orders/:id', async (req, res) => {
 app.put('/api/part-orders/:id/fast', async (req, res) => {
   try {
     const { field, value } = req.body;
-    const validFields = ['epc_no', 'order_status', 'qty_ordered', 'est_arrival_date'];
+    // 🎯 เพิ่มอนุญาตให้แก้ Part, Main, Name, Plate, Notes ได้
+    const validFields = ['epc_no', 'part_no', 'part_main_no', 'part_name', 'qty_ordered', 'order_status', 'est_arrival_date', 'part_received_all_date', 'notes', 'car_plate'];
     if (!validFields.includes(field)) return res.status(400).json({ error: 'ไม่อนุญาตให้แก้ฟิลด์นี้' });
     await pool.query(`UPDATE rizenic_part_orders SET ${field} = $1 WHERE order_id = $2`, [value || null, req.params.id]);
     res.json({ success: true });
@@ -789,22 +790,23 @@ app.get('/api/part-inbound', async (req, res) => {
   try { res.json((await pool.query('SELECT * FROM rizenic_part_inbound ORDER BY inbound_id DESC')).rows); } 
   catch (e) { res.status(500).json({ error: e.message }); }
 });
-app.put('/api/part-inbound/:id', async (req, res) => {
-  try {
-    const { received_date, epc_no, part_no, part_name, qty, unit_price } = req.body;
-    await pool.query(
-      `UPDATE rizenic_part_inbound SET received_date=$1, epc_no=$2, part_no=$3, part_name=$4, qty=$5, unit_price=$6 WHERE inbound_id=$7`,
-      [received_date, epc_no, part_no, part_name, parseInt(qty), parseFloat(unit_price), req.params.id]
-    );
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
 app.put('/api/part-inbound/:id/fast', async (req, res) => {
   try {
     const { field, value } = req.body;
-    const validFields = ['received_date', 'qty', 'unit_price'];
+    // 🎯 เพิ่มให้แก้ EPC, Part, Main, Name ได้
+    const validFields = ['received_date', 'qty', 'unit_price', 'epc_no', 'part_no', 'part_main_no', 'part_name'];
     if (!validFields.includes(field)) return res.status(400).json({ error: 'ไม่อนุญาต' });
     await pool.query(`UPDATE rizenic_part_inbound SET ${field} = $1 WHERE inbound_id = $2`, [value || null, req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.put('/api/part-outbound/:id/fast', async (req, res) => {
+  try {
+    const { field, value } = req.body;
+    // 🎯 เพิ่มอนุญาตให้แก้ทุกตัวในใบเบิก
+    const validFields = ['issue_date', 'qty', 'job_status', 'part_no', 'part_main_no', 'part_name', 'car_plate', 'qt_no', 'so_no'];
+    if (!validFields.includes(field)) return res.status(400).json({ error: 'ไม่อนุญาต' });
+    await pool.query(`UPDATE rizenic_part_outbound SET ${field} = $1 WHERE outbound_id = $2`, [value || null, req.params.id]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
