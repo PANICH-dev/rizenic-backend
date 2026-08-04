@@ -418,12 +418,9 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             if(sessionStorage.getItem('isLoggedIn') !== 'true') {
-                console.warn("เข้าสู่โหมดทดสอบ: บังคับสร้าง Session ชั่วคราว");
-                sessionStorage.setItem('isLoggedIn', 'true');
-                sessionStorage.setItem('emp_role', 'Admin');
-                sessionStorage.setItem('emp_name', 'Admin Test');
-                sessionStorage.setItem('emp_branch', 'สำนักงานใหญ่');
-                sessionStorage.setItem('accessible_pages', 'index,jobs,jobs_table,history,dashboard,repair,parts');
+                document.getElementById('login-screen').classList.remove('hidden');
+                document.getElementById('main-app').classList.add('hidden');
+                return;
             }
             enterApp();
         });
@@ -456,25 +453,19 @@
                     
                     const accessiblePages = data.employee.accessible_pages || '';
                     sessionStorage.setItem('accessible_pages', accessiblePages);
-                    const pagesArray = accessiblePages.split(',').filter(Boolean);
-
-                    if (pagesArray.length === 0) {
-                        alert('⛔ ไอดีของคุณยังไม่มีสิทธิ์เข้าหน้าใดเลย กรุณาติดต่อแอดมินครับ!');
-                        sessionStorage.clear(); return;
-                    }
-
-                    if (pagesArray.includes('dashboard')) { window.location.href = 'dashboard.html'; }
-                    else if (pagesArray.includes('index')) { enterApp(); } 
-                    else { window.location.href = pagesArray[0] + '.html'; }
+                    
+                    // เมื่อล็อกอินให้เข้าหน้าแดชบอร์ดทันที ตามความต้องการ
+                    window.location.href = 'dashboard.html';
                 } else alert('❌ ' + data.error);
             } catch (err) { alert('❌ ระบบขัดข้อง'); }
         }
 
         function enterApp() {
-            document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name') || 'Admin Test';
-            document.getElementById('display_branch').innerText = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('main-app').classList.remove('hidden');
+            
+            document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name') || 'Admin Test';
+            document.getElementById('display_branch').innerText = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
             
             document.getElementById('contact_date').value = new Date().toISOString().split('T')[0];
             selectDamage('เบา'); 
@@ -626,17 +617,17 @@
             } catch(e) { console.log(e); }
         }
 
+        // 🌟 แก้ไขฟังก์ชันกด "แอด": บันทึก PO และเบิก/จองอะไหล่ (Outbound) พร้อมกัน
         async function sendSinglePO(btnElem) {
             const carPlate = document.getElementById('car_plate').value.trim();
             if(!carPlate) { alert('⚠️ กรุณากรอก "ทะเบียนรถ" ด้านบนก่อนยิงออเดอร์ครับ!'); return; }
 
             const tr = btnElem.closest('tr');
-            const pNoInput = tr.querySelector('.part-no-input');
-            const pNo = pNoInput ? pNoInput.value.trim() : ''; 
-            const pMain = tr.querySelector('.part-main-input')?.value || '';
-            let pName = tr.querySelector('.part-name-input')?.value || ''; 
-            const pType = tr.querySelector('.part-type-input')?.value || 'อะไหล่หลัก';
-            const pQty = tr.querySelector('.part-qty-input')?.value || 1;
+            const pNo = tr.querySelector('.part-no-input')?.value?.trim() || ''; 
+            const pMain = tr.querySelector('.part-main-input')?.value?.trim() || '';
+            let pName = tr.querySelector('.part-name-input')?.value?.trim() || ''; 
+            const pType = tr.querySelector('.part-type-input')?.value?.trim() || 'อะไหล่หลัก';
+            const pQty = parseInt(tr.querySelector('.part-qty-input')?.value) || 1;
             
             if(!pNo) { alert('⚠️ กรุณาระบุบาร์โค้ดอะไหล่ก่อนสั่งซื้อ'); return; }
 
@@ -670,12 +661,13 @@
                 btnElem.disabled = true;
                 btnElem.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
                 
+                // 1. บันทึกคำสั่งซื้อ
                 const resPO = await fetch(`${API_BASE_URL}/api/part-orders`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
-                        car_plate: carPlate, vin_no: document.getElementById('vin_no').value, car_model: document.getElementById('car_model').value, 
-                        qt_no: qtArr.join(','), so_no: soArr.join(','), epc_no: null,
-                        part_no: pNo, part_main_no: pMain, part_name: pName, qty_ordered: pQty, part_type: pType, 
+                        car_plate: carPlate, vin_no: document.getElementById('vin_no')?.value || null, car_model: document.getElementById('car_model')?.value || null, 
+                        qt_no: qtArr.join(',') || null, so_no: soArr.join(',') || null, epc_no: null,
+                        part_no: pNo, part_main_no: pMain || null, part_name: pName, qty_ordered: pQty, part_type: pType, 
                         branch_name: sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่', order_status: 'รอสั่งซื้อ', order_date: new Date().toISOString().split('T')[0]
                     })
                 });
@@ -684,15 +676,27 @@
                     throw new Error('บันทึกคำสั่งซื้ออะไหล่ไม่สำเร็จ');
                 }
 
+                // 2. บันทึกเบิก/จองอะไหล่ (Outbound) ให้ด้วยทันที
+                await fetch(`${API_BASE_URL}/api/part-outbound`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        issue_date: new Date().toISOString().split('T')[0],
+                        part_no: pNo, part_main_no: pMain || null, part_name: pName, qty: pQty,
+                        car_plate: carPlate, qt_no: qtArr.join(',') || null, so_no: soArr.join(',') || null,
+                        unit_price: 0, car_model: document.getElementById('car_model')?.value || null,
+                        job_status: 'รอเข้าซ่อม', part_type: pType,
+                        branch_name: sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่'
+                    })
+                }).catch(e => console.warn(e));
+
                 tr.remove(); 
-                const currentRows = document.querySelectorAll('#order_parts_body tr');
-                if (currentRows.length === 0) {
+                if (document.querySelectorAll('#order_parts_body tr').length === 0) {
                     addPartRow();
                 }
 
                 const toast = document.createElement('div');
                 toast.className = 'fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-5 py-2.5 rounded-xl shadow-2xl z-[200] flex items-center gap-2 border border-white/20 text-xs';
-                toast.innerHTML = `<i class="fa-solid fa-circle-check text-base"></i> แอดสั่งซื้ออะไหล่เรียบร้อย!`;
+                toast.innerHTML = `<i class="fa-solid fa-circle-check text-base"></i> แอดสั่งซื้อและจองอะไหล่เรียบร้อย!`;
                 document.body.appendChild(toast);
                 setTimeout(() => toast.remove(), 2500);
 
@@ -1053,6 +1057,7 @@
                         const pQty = tr.querySelector('.part-qty-input')?.value || '1';
                         
                         if (pNo && pName) {
+                            // 1. บันทึกคำสั่งซื้อ
                             await fetch(`${API_BASE_URL}/api/part-orders`, {
                                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ 
@@ -1061,6 +1066,19 @@
                                     part_no: pNo, part_main_no: pMain, part_name: pName, qty_ordered: pQty, part_type: pType, branch_name: formData.branch_name, order_status: 'รอสั่งซื้อ' 
                                 })
                             });
+
+                            // 2. บันทึกจองอะไหล่ (Outbound) ให้ด้วยทันที
+                            await fetch(`${API_BASE_URL}/api/part-outbound`, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    issue_date: new Date().toISOString().split('T')[0],
+                                    part_no: pNo, part_main_no: pMain || null, part_name: pName, qty: pQty,
+                                    car_plate: formData.car_plate, qt_no: qtArr.join(',') || null, so_no: soArr.join(',') || null,
+                                    unit_price: 0, car_model: formData.car_model || null,
+                                    job_status: 'รอเข้าซ่อม', part_type: pType,
+                                    branch_name: formData.branch_name
+                                })
+                            }).catch(e => console.warn(e));
                         }
                     }
                 }
