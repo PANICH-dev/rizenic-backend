@@ -1011,6 +1011,7 @@ async function saveSAAlertUpdate(e) {
                     const results = await Promise.allSettled(validTasks);
                     const failed = results.filter(r => r.status === 'rejected');
 
+                    // รอข้อมูลโหลดเสร็จค่อยปิด Modal และโชว์ Toast
                     await loadAllData(); 
                     closeAlertModal();
 
@@ -1024,7 +1025,7 @@ async function saveSAAlertUpdate(e) {
                     }
 
                 } catch(err) { 
-                    console.error("Save Alert Error:", err);
+                    console.error("Save Alert Critical Error:", err);
                     showToast(`พังร้ายแรง: ${err.message}`, 'error'); 
                 } finally { 
                     submitBtn.innerHTML = originalText; 
@@ -1033,6 +1034,20 @@ async function saveSAAlertUpdate(e) {
             }, 16);
         }
 
+        // 🎯 ฟังก์ชันปิด Modal โต๊ะคีย์อะไหล่
+        function closeAlertModal() {
+            const modal = document.getElementById('alertModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        async function deletePOItem(id) {
+            if(confirm('🚨 ลบรายการสั่งซื้อนี้?')) {
+                try { await fetch(`${API_BASE_URL}/api/part-orders/${id}`, { method: 'DELETE' }); showToast('ลบสำเร็จ'); closeAlertModal(); loadAllData(); } catch(e){}
+            }
+        }
         async function deletePOItem(id) {
             if(confirm('🚨 ลบรายการสั่งซื้อนี้?')) {
                 try { await fetch(`${API_BASE_URL}/api/part-orders/${id}`, { method: 'DELETE' }); showToast('ลบสำเร็จ'); closeAlertModal(); loadAllData(); } catch(e){}
