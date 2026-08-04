@@ -599,16 +599,26 @@ app.put('/api/report/:id/station', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ==========================================
+// 🚀 API อัปเดตด่วน (ใบงานหลัก)
+// ==========================================
 app.put('/api/report/:id/fast-date', async (req, res) => {
   try {
     const { field, value } = req.body;
     
+    // 🌟 อัปเดต: เพิ่มชื่อคอลัมน์ทั้งหมดที่อนุญาตให้แก้ไขด่วนจากหน้าตารางได้
     const validFields = [
       'target_finish_date', 'repair_finish_date', 'delivery_date', 'contact_date', 'arrived_date', 'order_part_date', 'est_part_date',
       'car_plate', 'notes', 'qt_no', 'so_no', 'bl_no', 'sa_owner', 'damage_level', 'job_status',
-      'billing_date', 'ivn_no', 'cost_labor', 'cost_part', 'cost_external'
+      'billing_date', 'ivn_no', 'cost_labor', 'cost_part', 'cost_external',
+      'department_routing', 'is_parked', 'customer_type', 'payment_type', 
+      'car_brand', 'car_model', 'vin_no', 'customer_name', 'phone_number', 
+      'customer_phone', 'epc_no', 'quotation_no', 'job_order_no'
     ];
-    if (!validFields.includes(field)) return res.status(400).json({ error: 'ไม่อนุญาตให้แก้ฟิลด์นี้' });
+
+    if (!validFields.includes(field)) {
+        return res.status(400).json({ error: 'ไม่อนุญาตให้แก้ฟิลด์นี้' });
+    }
     
     let safeValue = value || null;
     if (['cost_labor', 'cost_part', 'cost_external'].includes(field)) {
