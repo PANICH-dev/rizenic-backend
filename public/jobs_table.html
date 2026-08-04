@@ -287,6 +287,8 @@
         let allInsurances = [];
         
         let globalStatusOptionsHtml = '';
+        let globalStatuses = []; 
+
         let userRole = '';
         let userBranch = '';
         
@@ -299,14 +301,12 @@
         let activeFieldForParts = null; 
         let selectedPartsSet = new Set();
 
-        // 🌟 รายการสถานะแผนกบัญชี/ยกเลิก ที่ต้องการตัดออกจากตารางบอร์ดใบงาน 🌟
         const excludedStatuses = [
             '13.วางบิลประกัน', '14.ชำระเงินสด', '15.วางบิล Tesla', 
             '16.วางบิล EV ME', '17.รอออกบิล', '18.ลูกค้ายกเลิก', 
             '19.ออกบิลแล้ว', '20.จอดซ่อม TC', '21.พักซ่อม'
         ];
 
-        // 🌟 โครงสร้างคอลัมน์มาตรฐาน 🌟
         let columnsDef = [
             { idx: 1, key: 'action', title: 'Action', width: 90 },
             { idx: 2, key: 'car_plate', title: 'ทะเบียน', width: 110 },
@@ -332,19 +332,20 @@
             { idx: 22, key: 'cost_external', title: 'ค่าซ่อมภายนอก', width: 95 },
             { idx: 23, key: 'notes', title: 'หมายเหตุ', width: 180 },
             { idx: 24, key: 'job_status', title: 'สถานะงาน', width: 140 },
-            { idx: 25, key: 'epc_no', title: 'EPC No.', width: 115 },
-            { idx: 26, key: 'ordered_part_names', title: 'รายการค้างสั่งองค์รวม', width: 240 },
-            { idx: 27, key: 'sa_owner', title: 'SA ผู้ดูแล', width: 115 },
-            { idx: 28, key: 'branch_name', title: 'สาขา', width: 105 },
-            { idx: 29, key: 'expected_finish_date', title: 'คาดการณ์เสร็จ', width: 120 },
-            { idx: 30, key: 'customer_phone', title: 'เบอร์ลูกค้าสำรอง', width: 125 },
-            { idx: 31, key: 'is_parked', title: 'สถานะรถจอดอู่', width: 115 },
-            { idx: 32, key: 'quotation_no', title: 'Quotation', width: 115 },
-            { idx: 33, key: 'job_order_no', title: 'Job Order', width: 115 },
-            { idx: 34, key: 'ivn_no', title: 'Invoice', width: 115 }
+            { idx: 25, key: 'department_routing', title: 'ส่งไปยังแผนก', width: 120 },
+            { idx: 26, key: 'epc_no', title: 'EPC No.', width: 115 },
+            { idx: 27, key: 'ordered_part_names', title: 'รายการค้างสั่งองค์รวม', width: 240 },
+            { idx: 28, key: 'sa_owner', title: 'SA ผู้ดูแล', width: 115 },
+            { idx: 29, key: 'branch_name', title: 'สาขา', width: 105 },
+            { idx: 30, key: 'expected_finish_date', title: 'คาดการณ์เสร็จ', width: 120 },
+            { idx: 31, key: 'customer_phone', title: 'เบอร์ลูกค้าสำรอง', width: 125 },
+            { idx: 32, key: 'is_parked', title: 'สถานะรถจอดอู่', width: 115 },
+            { idx: 33, key: 'quotation_no', title: 'Quotation', width: 115 },
+            { idx: 34, key: 'job_order_no', title: 'Job Order', width: 115 },
+            { idx: 35, key: 'ivn_no', title: 'Invoice', width: 115 }
         ];
 
-        const defaultVisibleKeys = ['action', 'car_plate', 'car_brand', 'arrived_date', 'target_finish_date', 'repair_finish_date', 'delivery_date', 'main_part_name', 'main_part_qty', 'sub_part_name', 'sub_part_qty', 'contact_date', 'appointment_date', 'customer_type', 'vin_no', 'payment_type', 'customer_name', 'phone_number', 'damage_level', 'job_status', 'sa_owner'];
+        const defaultVisibleKeys = ['action', 'car_plate', 'car_brand', 'arrived_date', 'target_finish_date', 'repair_finish_date', 'delivery_date', 'main_part_name', 'main_part_qty', 'sub_part_name', 'sub_part_qty', 'contact_date', 'appointment_date', 'customer_type', 'vin_no', 'payment_type', 'customer_name', 'phone_number', 'damage_level', 'job_status', 'department_routing', 'sa_owner'];
         let hiddenCols = new Set(columnsDef.filter(c => !defaultVisibleKeys.includes(c.key)).map(c => c.idx));
 
         function showToast(msg, type='success') {
@@ -414,41 +415,11 @@
 
         function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
 
-        function getHeaderCounts() {
-            let counts = { arrived: 0, target: 0, repair: 0, delivery: 0, mainParts: 0, subParts: 0 };
-            const activeData = getActiveJobsData();
-            activeData.forEach(j => {
-                if(j.arrived_date) counts.arrived++;
-                if(j.target_finish_date) counts.target++;
-                if(j.repair_finish_date) counts.repair++;
-                if(j.delivery_date) counts.delivery++;
-                counts.mainParts += (parseInt(j.main_part_qty) || 0);
-                counts.subParts += (parseInt(j.sub_part_qty) || 0);
-            });
-            return counts;
-        }
-
         function initColumns() {
-            const counts = getHeaderCounts();
             const thead = document.getElementById('jobs_table_head'); let trHtml = '<tr>';
             columnsDef.forEach((col, renderIndex) => {
                 let filterIcon = col.key !== 'action' ? `<i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, ${col.idx}, '${col.title}')"></i>` : '';
-                
-                let countBadge = '';
-                if (col.key === 'arrived_date' && counts.arrived > 0) countBadge = `<span class="bg-amber-500 text-slate-900 text-[10px] font-black px-1.5 py-0.2 rounded-full ml-1">${counts.arrived}</span>`;
-                if (col.key === 'target_finish_date' && counts.target > 0) countBadge = `<span class="bg-amber-500 text-slate-900 text-[10px] font-black px-1.5 py-0.2 rounded-full ml-1">${counts.target}</span>`;
-                if (col.key === 'repair_finish_date' && counts.repair > 0) countBadge = `<span class="bg-amber-500 text-slate-900 text-[10px] font-black px-1.5 py-0.2 rounded-full ml-1">${counts.repair}</span>`;
-                if (col.key === 'delivery_date' && counts.delivery > 0) countBadge = `<span class="bg-amber-500 text-slate-900 text-[10px] font-black px-1.5 py-0.2 rounded-full ml-1">${counts.delivery}</span>`;
-                if (col.key === 'main_part_qty' && counts.mainParts > 0) countBadge = `<span class="bg-amber-500 text-slate-900 text-[10px] font-black px-1.5 py-0.2 rounded-full ml-1">${counts.mainParts}</span>`;
-                if (col.key === 'sub_part_qty' && counts.subParts > 0) countBadge = `<span class="bg-amber-500 text-slate-900 text-[10px] font-black px-1.5 py-0.2 rounded-full ml-1">${counts.subParts}</span>`;
-
-                trHtml += `<th class="group select-none text-center" data-render-idx="${renderIndex + 1}" id="th_${col.idx}" style="width: ${col.width}px; min-width: ${col.width}px;">
-                    <div class="flex justify-between items-center w-full h-full px-1">
-                        <div class="cursor-pointer flex-1 overflow-hidden whitespace-nowrap text-ellipsis flex items-center justify-center" onclick="${col.key !== 'action' ? `sortTable(${col.idx})` : ''}">
-                            <span>${col.title}</span>${countBadge} <i class="fa-solid fa-sort sort-icon"></i>
-                        </div>
-                        ${filterIcon}
-                    </div><div class="resizer"></div></th>`;
+                trHtml += `<th class="group select-none" data-render-idx="${renderIndex + 1}" id="th_${col.idx}" style="width: ${col.width}px; min-width: ${col.width}px;"><div class="flex justify-between items-center w-full h-full px-1"><div class="cursor-pointer flex-1 overflow-hidden whitespace-nowrap text-ellipsis flex items-center justify-center" onclick="${col.key !== 'action' ? `sortTable(${col.idx})` : ''}"><span>${col.title}</span> <i class="fa-solid fa-sort sort-icon"></i></div>${filterIcon}</div><div class="resizer"></div></th>`;
             });
             thead.innerHTML = trHtml + '</tr>';
 
@@ -482,7 +453,6 @@
             styleTag.innerHTML = css;
         }
 
-        // 🌟 ระบบปรับขนาดคอลัมน์แบบลากกว้าง-ยาว ยืดหยุ่น 100% 🌟
         function initResizableColumns() {
             const cols = document.querySelectorAll('#jobsTable th');
             cols.forEach(col => {
@@ -514,7 +484,7 @@
         function openExcelFilter(e, colIndex, title) {
             e.stopPropagation(); currentFilterKey = colIndex; document.getElementById('ef_col_name').innerText = title; document.getElementById('ef_search').value = '';
             const uniqueValues = new Set();
-            getActiveJobsData().forEach(job => {
+            allJobsData.forEach(job => {
                 const colDef = columnsDef.find(c => c.idx === colIndex); if(!colDef) return;
                 let val = job[colDef.key]; if(colDef.key.includes('date')) val = val ? String(val).split('T')[0] : ''; else val = String(val || '').trim();
                 uniqueValues.add(val);
@@ -522,7 +492,7 @@
             const listDiv = document.getElementById('ef_checkbox_list'); listDiv.innerHTML = '';
             [...uniqueValues].sort().forEach(val => {
                 const isChecked = activeFilters[colIndex] ? activeFilters[colIndex].has(val) : true;
-                listDiv.innerHTML += `<label class="flex items-center gap-2 p-1.5 hover:bg-slate-100 rounded cursor-pointer ef-item transition"><input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''} class="ef-check accent-[#00320D] w-3.5 h-3.5"><span class="text-slate-700 text-xs font-medium w-full truncate" title="${val}">${val === '' ? '(ว่าง)' : val}</span></label>`;
+                listDiv.innerHTML += `<label class="flex items-center gap-2 p-1.5 hover:bg-slate-100 rounded cursor-pointer ef-item transition"><input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''} class="ef-check accent-[#00320D] w-3.5 h-3.5 rounded"><span class="text-slate-700 text-xs font-medium w-full truncate" title="${val}">${val === '' ? '(ว่าง)' : val}</span></label>`;
             });
             document.getElementById('ef_select_all').checked = Array.from(document.querySelectorAll('.ef-check')).every(cb => cb.checked);
             const modal = document.getElementById('excelFilterModal'); const rect = e.target.closest('th').getBoundingClientRect();
@@ -541,7 +511,6 @@
         }
         function clearSpecificExcelFilter() { if(activeFilters[currentFilterKey]) delete activeFilters[currentFilterKey]; const thIcon = document.getElementById(`th_${currentFilterKey}`)?.querySelector('.filter-icon'); if(thIcon) { thIcon.classList.remove('text-amber-400'); thIcon.classList.add('text-slate-300'); } closeExcelFilter(); applyFilters(); }
 
-        // 🌟 ฟังก์ชันกรองตัดสถานะแผนกบัญชี (13-21) ออกจากตาราง 🌟
         function getActiveJobsData() {
             return allJobsData.filter(job => {
                 const st = job.job_status || '';
@@ -551,9 +520,8 @@
             });
         }
 
-        // ================= 🌟 FETCH DATA 🌟 =================
         async function loadJobsData() {
-            document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-20 text-slate-400 font-bold bg-white"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 text-green-800"></i><br>กำลังโหลดข้อมูล...</td></tr>`;
+            document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="35" class="text-center py-20 text-slate-400 font-bold bg-white"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 text-green-800"></i><br>กำลังโหลดข้อมูล...</td></tr>`;
             try {
                 const results = await Promise.allSettled([
                     fetch(`${API_BASE_URL}/api/statuses`).then(res => res.json()),
@@ -565,7 +533,8 @@
                 ]);
 
                 if (results[0].status === 'fulfilled') {
-                    globalStatusOptionsHtml = results[0].value.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
+                    globalStatuses = results[0].value;
+                    globalStatusOptionsHtml = globalStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
                 }
                 if (results[1].status === 'fulfilled') allPartOrders = results[1].value;
                 if (results[2].status === 'fulfilled') allMasterParts = results[2].value;
@@ -580,7 +549,7 @@
                 initColumns(); 
                 buildSADropdown(); buildBranchDropdown(); applyFilters(); 
             } catch (error) {
-                document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-20 text-red-600 font-bold bg-white"><i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i><br>เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>`;
+                document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="35" class="text-center py-20 text-red-600 font-bold bg-white"><i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i><br>เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>`;
             }
         }
 
@@ -604,7 +573,20 @@
 
         function goToEditJob(jobId) { sessionStorage.setItem('edit_job_id', jobId); window.location.href = 'index.html'; }
 
-        async function fastUpdateJob(jobId, field, value) {
+        async function autoMapRouting(jobId, newStatus) {
+            const mapping = globalStatuses.find(s => s.status_name === newStatus);
+            if(mapping && mapping.department) {
+                const newDept = mapping.department;
+                const row = document.getElementById(`row_${jobId}`);
+                if(row) {
+                    const routingSelect = row.querySelector('.routing-select');
+                    if(routingSelect) routingSelect.value = newDept;
+                }
+                await fastUpdateJob(jobId, 'department_routing', newDept, true);
+            }
+        }
+
+        async function fastUpdateJob(jobId, field, value, silent = false) {
             let formattedValue = value;
             if (field.includes('date') || ['appointment_date', 'repair_finish_date', 'target_finish_date', 'delivery_date', 'contact_date', 'arrived_date'].includes(field)) {
                 if (value === '' || value === undefined || value === null) formattedValue = null;
@@ -618,11 +600,17 @@
                 if (res.ok) {
                     const jobIndex = allJobsData.findIndex(j => String(j.id) === String(jobId));
                     if (jobIndex > -1) allJobsData[jobIndex][field] = formattedValue;
-                    showToast('บันทึกข้อมูลเรียบร้อย!');
-                    applyFilters();
+                    
+                    if(!silent) showToast('บันทึกข้อมูลเรียบร้อย!');
+                    
+                    if(field === 'job_status') {
+                        await autoMapRouting(jobId, value);
+                    }
+                    
+                    if(!silent) applyFilters();
                 } else throw new Error('บันทึกไม่สำเร็จ');
             } catch (err) {
-                showToast('บันทึกไม่สำเร็จ!', 'error'); loadJobsData();
+                if(!silent) showToast('บันทึกไม่สำเร็จ!', 'error'); 
             }
         }
 
@@ -635,7 +623,6 @@
             } catch (e) { showToast('เกิดข้อผิดพลาดในการลบ', 'error'); }
         }
 
-        // ================= 🌟 MULTI-SELECT PARTS MODAL LOGIC 🌟 =================
         function openMultiPartsModal(jobId, fieldName, currentVal) {
             activeJobIdForParts = jobId; activeFieldForParts = fieldName;
             document.getElementById('modal_parts_field_title').innerText = fieldName === 'main_part_name' ? 'อะไหล่หลัก' : 'อะไหล่รอง';
@@ -692,8 +679,8 @@
             const partsCount = partsArray.length;
             const qtyField = activeFieldForParts === 'main_part_name' ? 'main_part_qty' : 'sub_part_qty';
 
-            await fastUpdateJob(activeJobIdForParts, activeFieldForParts, joinedPartsStr);
-            await fastUpdateJob(activeJobIdForParts, qtyField, partsCount);
+            await fastUpdateJob(activeJobIdForParts, activeFieldForParts, joinedPartsStr, true);
+            await fastUpdateJob(activeJobIdForParts, qtyField, partsCount, false);
             closePartsSelectModal();
         }
 
@@ -747,14 +734,16 @@
             rows.forEach(row => tbody.appendChild(row));
         }
 
-        function formatPartsText(partStr) {
+        function formatPartsText(partStr, type) {
             if(!partStr || partStr.trim() === '') return '<span class="text-slate-400 font-normal px-2">-</span>';
-            return `<div class="px-2 py-1 flex flex-wrap gap-1 items-center whitespace-normal leading-normal">${partStr}</div>`;
+            return `<div class="px-2 py-1 flex flex-wrap gap-1 items-center whitespace-normal leading-normal">
+                ${partStr.split(',').map(p => p.trim()).filter(Boolean).map(p => `<span class="${type === 'main' ? 'part-badge-main' : 'part-badge-sub'}">${p}</span>`).join('')}
+            </div>`;
         }
 
         function renderTable(data) {
             const tbody = document.getElementById('jobs_table_body'); 
-            if (!data || data.length === 0) { tbody.innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-16 text-slate-400 font-bold bg-white">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td></tr>`; return; }
+            if (!data || data.length === 0) { tbody.innerHTML = `<tr><td colspan="35" class="text-center py-16 text-slate-400 font-bold bg-white">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td></tr>`; return; }
 
             let safeOptsGlobal = globalStatusOptionsHtml;
             let allRowsHtml = '';
@@ -762,12 +751,11 @@
             data.forEach(job => {
                 const carParts = (allPartOrders || []).filter(p => p.car_plate && job.car_plate && p.car_plate.trim().toUpperCase() === job.car_plate.trim().toUpperCase());
                 
-                let rowHtml = `<tr ondblclick="goToEditJob('${job.id}')" title="ดับเบิ้ลคลิกเพื่อเปิดใบงานนี้">`;
+                let rowHtml = `<tr id="row_${job.id}" ondblclick="goToEditJob('${job.id}')" title="ดับเบิ้ลคลิกเพื่อเปิดใบงานนี้">`;
                 
                 columnsDef.forEach(col => {
                     let cellData = ''; let cellClass = '';
                     switch(col.key) {
-                        // 🌟 ปุ่ม Action ตาม Ref รูปภาพ 🌟
                         case 'action': 
                             cellData = `<div class="flex items-center justify-center gap-1 w-full h-full p-0.5">
                                 <button onclick="event.stopPropagation(); goToEditJob('${job.id}')" class="bg-blue-600 hover:bg-blue-700 text-white p-1 rounded transition flex items-center justify-center w-6 h-6 shadow-2xs" title="อัปเดต/แก้ไข">
@@ -791,11 +779,11 @@
 
                         case 'main_part_name':
                             cellData = `<div onclick="event.stopPropagation(); openMultiPartsModal('${job.id}', 'main_part_name', '${(job.main_part_name||'').replace(/'/g, "\\'")}')" class="w-full h-full text-left cursor-pointer group">
-                                ${formatPartsText(job.main_part_name)}
+                                ${formatPartsText(job.main_part_name, 'main')}
                             </div>`; break;
                         case 'sub_part_name':
                             cellData = `<div onclick="event.stopPropagation(); openMultiPartsModal('${job.id}', 'sub_part_name', '${(job.sub_part_name||'').replace(/'/g, "\\'")}')" class="w-full h-full text-left cursor-pointer group">
-                                ${formatPartsText(job.sub_part_name)}
+                                ${formatPartsText(job.sub_part_name, 'sub')}
                             </div>`; break;
 
                         case 'main_part_qty': 
@@ -835,6 +823,11 @@
                             let sOpts = safeOptsGlobal; if(!sOpts.includes(`value="${job.job_status||''}"`)) sOpts = `<option value="${job.job_status||''}">${job.job_status||''}</option>` + sOpts; sOpts = sOpts.replace(`value="${job.job_status||''}"`, `value="${job.job_status||''}" selected`); 
                             cellData = `<select onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'job_status', this.value)" class="inline-edit-select text-blue-700 font-bold">${sOpts}</select>`; break;
                         
+                        case 'department_routing':
+                            let curRouting = job.department_routing || 'รอดำเนินการ';
+                            let routingOpts = ['รอดำเนินการ', 'บริการ', 'อะไหล่', 'ซ่อม', 'บัญชี'].map(r => `<option value="${r}" ${curRouting === r ? 'selected' : ''}>${r}</option>`).join('');
+                            cellData = `<select onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'department_routing', this.value)" class="inline-edit-select routing-select text-emerald-700 font-black">${routingOpts}</select>`; break;
+
                         case 'cost_labor': case 'cost_part': case 'cost_external':
                             cellData = `<input type="number" value="${job[col.key] || ''}" onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input text-right" placeholder="0">`; break;
                         case 'contact_date': case 'appointment_date': case 'expected_finish_date': 
@@ -856,7 +849,6 @@
             tbody.innerHTML = allRowsHtml; 
         }
 
-        // ================= 🌟 BULK INSERT (PDI) 🌟 =================
         function openBulkModal() {
             const pdiCols = columnsDef.filter(c => c.key !== 'action'); let thHtml = '<th class="w-10 min-w-[40px] text-center bg-slate-200 border-b border-slate-300 sticky left-0 z-20">#</th>';
             pdiCols.forEach(c => thHtml += `<th class="min-w-[150px] px-2 bg-slate-100 border-b border-slate-300">${c.title} <button type="button" onclick="copyDown('${c.key}')" class="text-blue-600 hover:text-blue-800 ml-1"><i class="fa-solid fa-arrow-down"></i></button></th>`);
@@ -876,6 +868,7 @@
                 if (c.key.includes('date')) tdHtml += `<td class="p-0 border-r border-slate-200"><input type="date" class="bulk-input bulk-input-${c.key}" value="${val ? new Date(val).toISOString().split('T')[0] : ''}"></td>`;
                 else if (c.key === 'job_status') tdHtml += `<td class="p-0 border-r border-slate-200"><select class="bulk-input bulk-input-${c.key}"><option value="09.จอดรอเข้าซ่อม" ${val==='09.จอดรอเข้าซ่อม'?'selected':''}>09.จอดรอเข้าซ่อม</option><option value="10.กำลังซ่อม" ${val==='10.กำลังซ่อม'?'selected':''}>10.กำลังซ่อม</option><option value="06.สั่งอะไหล่" ${val==='06.สั่งอะไหล่'?'selected':''}>06.สั่งอะไหล่</option><option value="${val}" ${val && !['09.จอดรอเข้าซ่อม','10.กำลังซ่อม','06.สั่งอะไหล่'].includes(val)?'selected':'hidden'}>${val}</option></select></td>`;
                 else if (c.key === 'is_parked') tdHtml += `<td class="p-0 border-r border-slate-200"><select class="bulk-input bulk-input-${c.key}"><option value="ไม่จอดซ่อม" ${val==='ไม่จอดซ่อม'?'selected':''}>ไม่จอดซ่อม</option><option value="จอดซ่อม" ${val==='จอดซ่อม'?'selected':''}>จอดซ่อม</option></select></td>`;
+                else if (c.key === 'department_routing') tdHtml += `<td class="p-0 border-r border-slate-200"><select class="bulk-input bulk-input-${c.key}"><option value="รอดำเนินการ">รอดำเนินการ</option><option value="บริการ">บริการ</option><option value="อะไหล่">อะไหล่</option><option value="ซ่อม" selected>ซ่อม</option><option value="บัญชี">บัญชี</option></select></td>`;
                 else tdHtml += `<td class="p-0 border-r border-slate-200"><input type="text" class="bulk-input bulk-input-${c.key} ${c.key==='car_plate'?'font-black text-blue-700 uppercase bg-amber-50/30':''}" placeholder="${c.title}" value="${val}"></td>`;
             });
             tr.innerHTML = tdHtml; tbody.appendChild(tr);
@@ -883,7 +876,7 @@
 
         function downloadExcelTemplate() {
             let row = {}; columnsDef.filter(c => c.key !== 'action').forEach(c => { row[c.title] = ''; });
-            row['ทะเบียนรถ'] = 'กข 1234'; row['ยี่ห้อ'] = 'Tesla'; row['รุ่นรถ'] = 'Model 3'; row['วันที่เข้าจอด'] = '2024-01-15'; row['สถานะงาน'] = '09.จอดรอเข้าซ่อม';
+            row['ทะเบียนรถ'] = 'กข 1234'; row['ยี่ห้อ'] = 'Tesla'; row['รุ่นรถ'] = 'Model 3'; row['วันที่เข้าจอด'] = '2024-01-15'; row['สถานะงาน'] = '09.จอดรอเข้าซ่อม'; row['ส่งไปยังแผนก'] = 'ซ่อม';
             const ws = XLSX.utils.json_to_sheet([row]); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "PDI_Full_Template"); XLSX.writeFile(wb, "RIZENIC_PDI_Full_Template.xlsx");
         }
 
