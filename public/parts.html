@@ -888,68 +888,122 @@
             submitBtn.disabled = true;
 
             setTimeout(async () => {
-                const carPlate = document.getElementById('modal_job_id').value;
-                const rows = document.querySelectorAll('#modal_dynamic_table_container tbody tr');
-                let promises = []; 
-                const job = allGlobalJobs.find(j => cleanStr(j.car_plate) === cleanStr(carPlate)) || {};
-
-                rows.forEach(row => {
-                    const orderId = row.getAttribute('data-id');
-                    const partNo = row.querySelector('.po-partno') ? row.querySelector('.po-partno').value.trim() : '';
-                    const partName = row.querySelector('.po-partname') ? row.querySelector('.po-partname').value.trim() : '';
-                    if(!partNo && !partName) return;
-
-                    const epcNo = row.querySelector('.po-epc') ? row.querySelector('.po-epc').value.trim() : ''; 
-                    const mainNo = row.querySelector('.po-main') ? row.querySelector('.po-main').value.trim() : '';
-                    const qty = parseInt(row.querySelector('.po-qty')?.value) || 1; 
-                    // 🎯 ตั้งค่าเริ่มต้นสถานะมาร์คของเป็น 'รออะไหล่'
-                    const status = row.querySelector('.po-status')?.value || 'รออะไหล่';
-                    const eta = row.querySelector('.po-eta')?.value || null; 
-                    const notes = row.querySelector('.po-note')?.value || '';
-                    const isStocked = status === 'ตัดสต๊อก (มีของ)';
-
-                    if(orderId) {
-                        const p = allGlobalParts.find(x => String(x.id || x.order_id) === String(orderId)) || {};
-                        promises.push(fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, {
-                            method: 'PUT', headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({...p, epc_no: epcNo, part_no: partNo, part_main_no: mainNo, part_name: partName, qty_ordered: qty, order_status: status, est_arrival_date: eta, notes: notes})
-                        }));
-                    } else {
-                        if (!isStocked) {
-                            promises.push(fetch(`${API_BASE_URL}/api/part-orders`, {
-                                method: 'POST', headers: {'Content-Type': 'application/json'},
-                                body: JSON.stringify({
-                                    qt_no: (job.qt_no || '').split(',')[0].trim(), so_no: (job.so_no || '').split(',')[0].trim(), epc_no: epcNo, order_date: getTodayString(), est_arrival_date: eta, car_plate: carPlate, vin_no: job.vin_no || null, car_model: job.car_model || null,
-                                    part_main_no: mainNo, part_no: partNo, part_name: partName, qty_ordered: qty, part_type: 'อะไหล่หลัก', notes: notes, branch_name: currentBranch, order_status: status || 'รออะไหล่'
-                                })
-                            }));
-                        }
-                        promises.push(fetch(`${API_BASE_URL}/api/part-outbound`, {
-                            method: 'POST', headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({
-                                issue_date: getTodayString(), part_no: partNo, part_main_no: mainNo, part_name: partName, qty: qty, car_plate: carPlate, qt_no: (job.qt_no || '').split(',')[0].trim(), so_no: (job.so_no || '').split(',')[0].trim(),
-                                unit_price: 0, car_model: job.car_model || null, job_status: isStocked ? 'เบิกอะไหล่' : 'รอเข้าซ่อม', part_type: 'อะไหล่หลัก', branch_name: currentBranch
-                            })
-                        }));
-                    }
-                });
-
-                if(promises.length === 0) { 
-                    showToast('ไม่มีข้อมูลบันทึก', 'success'); 
-                    submitBtn.innerHTML = originalText; 
-                    submitBtn.disabled = false; 
-                    return; 
-                }
-
                 try {
+                    const carPlate = document.getElementById('modal_job_id').value;
+                    const rows = document.querySelectorAll('#modal_dynamic_table_container tbody tr');
+                    let promises = []; 
+                    const job = allGlobalJobs.find(j => cleanStr(j.car_plate) === cleanStr(carPlate)) || {};
+
+                    rows.forEach(row => {
+                        const orderId = row.getAttribute('data-id');
+                        const partNo = row.querySelector('.po-partno') ? row.querySelector('.po-partno').value.trim() : '';
+                        const partName = row.querySelector('.po-partname') ? row.querySelector('.po-partname').value.trim() : '';
+                        if(!partNo && !partName) return;
+
+                        const epcNo = row.querySelector('.po-epc') ? row.querySelector('.po-epc').value.trim() : ''; 
+                        const mainNo = row.querySelector('.po-main') ? row.querySelector('.po-main').value.trim() : '';
+                        const qty = parseInt(row.querySelector('.po-qty')?.value) || 1; 
+                        const status = row.querySelector('.po-status')?.value || 'รออะไหล่';
+                        
+                        // 🎯 จัดการวันที่: ถ้าว่างเปล่าให้ส่งเป็น null เข้า DB
+                        let eta = row.querySelector('.po-eta')?.value;
+                        eta = (eta && eta.trim() !== '') ? eta : null; 
+                        
+                        const notes = row.querySelector('.po-note')?.value || '';
+                        const isStocked = status === 'ตัดสต๊อก (มีของ)';
+
+                        // ป้องกัน ID เป็นคำว่า "undefined" หรือ "null"
+                        const isValidId = orderId && orderId !== 'undefined' && orderId !== 'null' && orderId !== '';
+
+                        if(isValidId) {
+                            // 🎯 อัปเดตของเดิม: ส่งเฉพาะฟิลด์ที่จำเป็น ป้องกัน Backend Reject
+                            const updatePayload = {
+                                epc_no: epcNo || null, 
+                                part_no: partNo, 
+                                part_main_no: mainNo || null, 
+                                part_name: partName, 
+                                qty_ordered: qty, 
+                                order_status: status, 
+                                est_arrival_date: eta, 
+                                notes: notes
+                            };
+
+                            promises.push(
+                                fetch(`${API_BASE_URL}/api/part-orders/${orderId}`, {
+                                    method: 'PUT', headers: {'Content-Type': 'application/json'},
+                                    body: JSON.stringify(updatePayload)
+                                }).then(res => { if(!res.ok) throw new Error(`PUT Error: ${res.status}`); return res; })
+                            );
+                        } else {
+                            // 🎯 เพิ่มของใหม่
+                            if (!isStocked) {
+                                promises.push(
+                                    fetch(`${API_BASE_URL}/api/part-orders`, {
+                                        method: 'POST', headers: {'Content-Type': 'application/json'},
+                                        body: JSON.stringify({
+                                            qt_no: (job.qt_no || '').split(',')[0].trim() || null, 
+                                            so_no: (job.so_no || '').split(',')[0].trim() || null, 
+                                            epc_no: epcNo || null, 
+                                            order_date: getTodayString(), 
+                                            est_arrival_date: eta, 
+                                            car_plate: carPlate, 
+                                            vin_no: job.vin_no || null, 
+                                            car_model: job.car_model || null,
+                                            part_main_no: mainNo || null, 
+                                            part_no: partNo, 
+                                            part_name: partName, 
+                                            qty_ordered: qty, 
+                                            part_type: 'อะไหล่หลัก', 
+                                            notes: notes, 
+                                            branch_name: currentBranch, 
+                                            order_status: status
+                                        })
+                                    }).then(res => { if(!res.ok) throw new Error(`POST PO Error`); return res; })
+                                );
+                            }
+                            
+                            promises.push(
+                                fetch(`${API_BASE_URL}/api/part-outbound`, {
+                                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                                    body: JSON.stringify({
+                                        issue_date: getTodayString(), 
+                                        part_no: partNo, 
+                                        part_main_no: mainNo || null, 
+                                        part_name: partName, 
+                                        qty: qty, 
+                                        car_plate: carPlate, 
+                                        qt_no: (job.qt_no || '').split(',')[0].trim() || null, 
+                                        so_no: (job.so_no || '').split(',')[0].trim() || null,
+                                        unit_price: 0, 
+                                        car_model: job.car_model || null, 
+                                        job_status: isStocked ? 'เบิกอะไหล่' : 'รอเข้าซ่อม', 
+                                        part_type: 'อะไหล่หลัก', 
+                                        branch_name: currentBranch
+                                    })
+                                }).then(res => { if(!res.ok) throw new Error(`POST Outbound Error`); return res; })
+                            );
+                        }
+                    });
+
+                    if(promises.length === 0) { 
+                        showToast('ไม่มีข้อมูลให้บันทึก', 'success'); 
+                        submitBtn.innerHTML = originalText; 
+                        submitBtn.disabled = false; 
+                        return; 
+                    }
+
+                    // รอให้ทุก API สำเร็จทั้งหมด
                     await Promise.all(promises); 
+                    
                     closeAlertModal(); 
                     showToast('บันทึกโต๊ะคีย์เรียบร้อย!');
                     requestAnimationFrame(() => loadAllData());
+
                 } catch(err) { 
-                    showToast('บันทึกผิดพลาด', 'error'); 
+                    console.error(err);
+                    showToast('บันทึกผิดพลาด โปรดเช็คข้อมูล', 'error'); 
                 } finally { 
-                    // 🎯 ไม่ว่าจะสำเร็จหรือพัง ก็คืนค่าให้ปุ่มกลับมาเป็นปกติเสมอ
+                    // คืนสถานะปุ่มเสมอ
                     submitBtn.innerHTML = originalText; 
                     submitBtn.disabled = false; 
                 }
