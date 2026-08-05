@@ -189,14 +189,27 @@ async function loadAllData() {
     loadSAOrders(); loadPOTracking(); loadInbound(); loadOutbound(); loadStockInHouse(); loadMasterParts(); loadCarModelsGrid();
 }
 
+// 🌟 ประกาศตัวแปรเก็บเวลาหน่วงไว้ด้านนอก
+let filterTimeouts = {};
+
 function filterTableByText(tbodyId, text) {
-    const q = text.toLowerCase().trim();
-    const rows = document.querySelectorAll(`#${tbodyId} tr`);
-    rows.forEach(row => {
-        if (row.cells.length === 1 && row.cells[0].colSpan > 1) return;
-        const rowText = row.innerText.toLowerCase();
-        row.style.display = rowText.includes(q) ? '' : 'none';
-    });
+    // 🌟 1. ล้างคิวเก่าทิ้งถ้าผู้ใช้ยังพิมพ์ไม่เสร็จ
+    if (filterTimeouts[tbodyId]) {
+        clearTimeout(filterTimeouts[tbodyId]);
+    }
+    
+    // 🌟 2. หน่วงเวลา 300ms (0.3 วินาที) รอให้หยุดพิมพ์ก่อนค่อยเริ่มค้นหาทีเดียว
+    filterTimeouts[tbodyId] = setTimeout(() => {
+        const q = text.toLowerCase().trim();
+        const rows = document.querySelectorAll(`#${tbodyId} tr`);
+        
+        rows.forEach(row => {
+            if (row.cells.length === 1 && row.cells[0].colSpan > 1) return;
+            // 🌟 3. เปลี่ยนจาก innerText เป็น textContent (เร็วกว่าเดิม 3-4 เท่า เพราะไม่อ่าน CSS)
+            const rowText = row.textContent.toLowerCase();
+            row.style.display = rowText.includes(q) ? '' : 'none';
+        });
+    }, 300); 
 }
 
 // ================= 1. SA ALERTS =================
