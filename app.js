@@ -928,6 +928,61 @@ app.post('/api/user-preferences', async (req, res) => {
   }
 });
 
+// ==========================================
+// 📲 API ส่งข้อความเข้ากลุ่ม LINE ผ่าน Messaging API (PUSH MESSAGE)
+// ==========================================
+app.post('/api/send-line-notify', async (req, res) => {
+  try {
+    const { message } = req.body;
+    
+    // 🔑 1. Token และ Group ID
+    const CHANNEL_ACCESS_TOKEN = "8HD+RiU29gzrrA9rsNPSKFcYxD6gPToVSfQBsUvNOe33b/YPvR4W8iMSIiVJhTZLRP8hbaBPq9l/vEgf1sr/9wmf5lLRzBZGnTNhnujtHKbl5o2ElywUmxsS8Vl8x6l9R7vZdG8ZbAEdsr+8gI1+dQdB04t89/1O/w1cDnyilFU=";
+    const GROUP_ID = "C18d1af3a6e1276578261b6bcd8721c68"; 
+
+    if (!message) {
+      return res.status(400).json({ error: "ไม่มีข้อความให้ส่ง" });
+    }
+
+    // 🚀 2. ยิงไปยังปลายทาง Push Message ของ LINE Messaging API
+    const response = await fetch('https://api.line.me/v2/bot/message/push', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${CHANNEL_ACCESS_TOKEN}`
+      },
+      body: JSON.stringify({
+        to: GROUP_ID,
+        messages: [
+          {
+            type: "text",
+            text: message
+          }
+        ]
+      })
+    });
+
+    if (response.ok) {
+      res.json({ success: true, message: "ส่งเข้ากลุ่ม LINE เรียบร้อยครับ!" });
+    } else {
+      const errData = await response.json();
+      console.error("LINE API Error:", errData);
+      res.status(response.status).json({ error: "ส่ง LINE ไม่สำเร็จ: " + (errData.message || JSON.stringify(errData)) });
+    }
+  } catch (error) {
+    console.error("Push Message Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// 🚀 Start Server
+// ==========================================
+if (require.main === module) {
+    app.listen(port, () => console.log(`🚀 พร้อมที่: http://localhost:${port}`));
+}
+
+module.exports = app;
+
 if (require.main === module) {
     app.listen(port, () => console.log(`🚀 พร้อมที่: http://localhost:${port}`));
 }

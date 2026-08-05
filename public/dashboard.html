@@ -270,6 +270,10 @@
                     <button onclick="renderDailyReport()" class="bg-[#00320D] hover:bg-black text-white px-3 py-1.5 rounded text-xs font-bold transition shadow-sm">
                         <i class="fa-solid fa-search"></i> ค้นหา
                     </button>
+                    <!-- ปุ่มส่งไลน์ -->
+                    <button onclick="sendReportToLine()" id="btnSendLine" class="bg-[#00c300] hover:bg-[#00e000] text-white px-3 py-1.5 rounded text-xs font-bold transition shadow-sm flex items-center gap-1.5 ml-2">
+                        <i class="fa-brands fa-line text-base"></i> ส่งไลน์
+                    </button>
                 </div>
             </div>
             <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-8 divide-y md:divide-y-0 md:divide-x divide-slate-200">
@@ -1411,6 +1415,66 @@
         }
 
         function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
+
+        // ==============================================
+        // 🚀 ส่งข้อมูล Report ไปที่ LINE
+        // ==========================================
+        async function sendReportToLine() {
+            const btn = document.getElementById('btnSendLine');
+            const orgHtml = btn.innerHTML;
+            
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังส่ง...`;
+            btn.disabled = true;
+
+            try {
+                const startDate = document.getElementById('report_start_date').value;
+                const endDate = document.getElementById('report_end_date').value;
+                const branchValue = document.getElementById('branchFilter').value;
+                const branchName = branchValue === 'all' ? 'ทุกสาขา' : branchValue;
+                
+                let msg = `\n📋 RIZENIC Report\nสาขา: ${branchName}\nช่วงเวลา: ${startDate || 'ไม่ระบุ'} ถึง ${endDate || 'ไม่ระบุ'}\n`;
+                
+                if (!window.currentReportDef) {
+                    throw new Error("ยังไม่มีข้อมูล Report กรุณากดค้นหาก่อนครับ");
+                }
+
+                const categories = {
+                    'customers': '\n👥 จำแนกประเภทลูกค้า',
+                    'workStatus': '\n🛠️ สถานะงานซ่อม',
+                    'finance': '\n💵 การเงิน & ออกบิล'
+                };
+
+                for (const [catKey, catTitle] of Object.entries(categories)) {
+                    msg += catTitle + '\n';
+                    window.currentReportDef[catKey].forEach(item => {
+                        const count = filteredJobs.filter(item.filter).length;
+                        if (count > 0) {
+                            msg += `${item.icon} ${item.label}: ${count}\n`;
+                        }
+                    });
+                }
+
+                const res = await fetch(`${API_BASE_URL}/api/send-line-notify`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: msg })
+                });
+
+                const data = await res.json();
+                
+                if (data.success) {
+                    alert("✅ ส่งข้อมูลเข้า LINE สำเร็จแล้วครับ!");
+                } else {
+                    alert("❌ ส่งไม่สำเร็จ: " + (data.error || "เกิดข้อผิดพลาด"));
+                }
+
+            } catch (err) {
+                alert("❌ ขัดข้อง: " + err.message);
+            } finally {
+                btn.innerHTML = orgHtml;
+                btn.disabled = false;
+            }
+        }
 
     </script>
 </body>
