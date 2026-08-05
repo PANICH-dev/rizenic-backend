@@ -282,7 +282,7 @@ function openCarPartsDetailsModal(carPlate, epcNo) {
             <tr data-id="${orderId}" class="hover:bg-amber-50/50 transition-colors group">
                 <td class="excel-cell text-center font-black text-slate-400 bg-slate-50">${idx + 1}</td>
                 <td class="excel-cell"><input type="text" class="excel-input font-mono text-amber-700 font-bold po-epc" value="${p.epc_no || ''}"></td>
-                <td class="excel-cell"><input type="text" class="excel-input font-mono font-bold text-blue-700 po-partno" value="${p.part_no || ''}" onblur="fetchMasterPartInline(this)"></td>
+                <td class="excel-cell"><input type="text" list="master_parts_datalist" class="excel-input font-mono font-bold text-blue-700 po-partno" value="${p.part_no || ''}" onchange="fetchMasterPartInline(this)" onblur="fetchMasterPartInline(this)"></td>
                 <td class="excel-cell"><input type="text" class="excel-input font-mono text-slate-500 po-main" value="${p.part_main_no || ''}"></td>
                 <td class="excel-cell"><input type="text" class="excel-input font-medium po-partname" value="${p.part_name || ''}"></td>
                 <td class="excel-cell"><input type="number" class="excel-input text-center font-black text-lg text-emerald-700 bg-emerald-50 focus:bg-white po-qty" value="${p.qty_ordered || 1}"></td>
@@ -314,7 +314,7 @@ function addNewPORow(carPlate) {
     tr.innerHTML = `
         <td class="excel-cell text-center font-black text-blue-500 bg-blue-50">NEW</td>
         <td class="excel-cell"><input type="text" class="excel-input font-mono text-amber-700 font-bold po-epc" value="${epcNo}"></td>
-        <td class="excel-cell"><input type="text" class="excel-input font-mono font-bold text-blue-700 po-partno" value="" onblur="fetchMasterPartInline(this)" placeholder="บาร์โค้ด..."></td>
+        <td class="excel-cell"><input type="text" list="master_parts_datalist" class="excel-input font-mono font-bold text-blue-700 po-partno" value="" onchange="fetchMasterPartInline(this)" onblur="fetchMasterPartInline(this)" placeholder="บาร์โค้ด..."></td>
         <td class="excel-cell"><input type="text" class="excel-input font-mono text-slate-500 po-main" value=""></td>
         <td class="excel-cell"><input type="text" class="excel-input font-medium po-partname" value=""></td>
         <td class="excel-cell"><input type="number" class="excel-input text-center font-black text-lg text-emerald-700 bg-emerald-50 focus:bg-white po-qty" value="1"></td>
@@ -329,14 +329,42 @@ function addNewPORow(carPlate) {
 async function fetchMasterPartInline(inputElem) {
     const n = inputElem.value.trim(); if(!n) return;
     try {
-        const res = await fetch(`${API_BASE_URL}/api/parts/check/${encodeURIComponent(n)}`); 
-        if(res.ok) {
-            const data = await res.json();
-            if(data && data.part_name) {
-                const tr = inputElem.closest('tr');
-                const mainInp = tr.querySelector('.po-main'); const nameInp = tr.querySelector('.po-partname');
-                if(mainInp && !mainInp.value) mainInp.value = data.part_main_no || '-';
-                if(nameInp && !nameInp.value) nameInp.value = data.part_name || '-';
+        const tr = inputElem.closest('tr');
+        const mainInp = tr.querySelector('.po-main'); 
+        const nameInp = tr.querySelector('.po-partname');
+        const noteInp = tr.querySelector('.po-note');
+        
+        // 🌟 1. ดึงข้อมูลจาก Local Master Data ทันทีที่เลือก Dropdown (เร็วขึ้น 10 เท่า)
+        let data = allMasterPartsData.find(m => cleanStr(m.part_no) === cleanStr(n));
+        
+        // 🌟 2. ถ้าพิมพ์ของใหม่ที่ยังไม่เคยมีในเครื่อง ค่อยวิ่งไปหาจาก Database
+        if (!data) {
+            const res = await fetch(`${API_BASE_URL}/api/parts/check/${encodeURIComponent(n)}`); 
+            if(res.ok) data = await res.json();
+        }
+
+        if(data && data.part_name) {
+            if(mainInp && !mainInp.value) mainInp.value = data.part_main_no || '-';
+            if(nameInp && !nameInp.value) nameInp.value = data.part_name || '-';
+            
+            // ระบบคำนวณและแจ้งเตือนจำนวนสต๊อกในหมายเหตุ
+            const branchIn = allInbounds.filter(i => i.branch_name === currentBranch && cleanStr(i.part_no) === cleanStr(n));
+            const branchOut = allOutbounds.filter(o => o.branch_name === currentBranch && cleanStr(o.part_no) === cleanStr(n));
+            
+            const tIn = branchIn.reduce((sum, item) => sum + (parseInt(item.qty) || 0), 0);
+            const tOutIssued = branchOut.filter(o => o.job_status !== 'รอเข้าซ่อม').reduce((sum, item) => sum + (parseInt(item.qty) || 0), 0);
+            const tOutBooked = branchOut.filter(o => o.job_status === 'รอเข้าซ่อม').reduce((sum, item) => sum + (parseInt(item.qty) || 0), 0);
+            
+            const availableStock = tIn - tOutIssued - tOutBooked;
+            
+            if(noteInp) {
+                if (availableStock > 0) {
+                    noteInp.value = `📦 มีพร้อมใช้ในคลัง ${availableStock} ชิ้น`;
+                    noteInp.classList.add('text-emerald-700', 'font-black', 'bg-emerald-100');
+                } else {
+                    if(noteInp.value.includes('มีพร้อมใช้ในคลัง')) noteInp.value = '';
+                    noteInp.classList.remove('text-emerald-700', 'font-black', 'bg-emerald-100');
+                }
             }
         }
     } catch(e) {}
@@ -973,6 +1001,21 @@ function loadMasterParts() {
         fetch(`${API_BASE_URL}/api/parts?branch=${encodeURIComponent(currentBranch)}`).then(res => res.json()).then(data => {
             allMasterPartsData = data;
             document.getElementById('master_table_body').innerHTML = data.map(p => `<tr><td class="font-mono font-bold text-blue-600 px-2">${p.part_no}</td><td class="font-bold px-2 truncate">${p.part_name}</td><td class="font-mono text-slate-400 text-xs px-2">${p.part_main_no||'-'}</td><td class="text-xs text-slate-600 font-bold px-2 truncate" title="${p.car_model}">${p.car_model||'-'}</td><td class="text-[10px] font-bold text-slate-500 uppercase px-2"><span class="bg-slate-100 px-1.5 py-0.5 rounded border">${p.part_category||'-'}</span></td><td class="font-mono text-right font-bold text-emerald-700 px-2">${parseFloat(p.unit_price||0).toFixed(2)}</td><td class="font-mono text-xs text-center px-2">${p.location||'-'}</td><td class="text-center flex justify-center gap-1 py-1"><button onclick="openMasterModal('${p.part_no}')" class="text-blue-500 hover:text-blue-700 bg-blue-50 px-2 py-0.5 rounded"><i class="fa-solid fa-pen"></i></button><button onclick="deleteRow('/api/parts/${p.part_id}')" class="text-red-500 hover:text-red-700 bg-red-50 px-2 py-0.5 rounded"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
+            
+            // 🌟 สร้าง Datalist (Dropdown อัจฉริยะ) ฝังไว้ในระบบ
+            let dl = document.getElementById('master_parts_datalist');
+            if(!dl) {
+                dl = document.createElement('datalist');
+                dl.id = 'master_parts_datalist';
+                document.body.appendChild(dl);
+            }
+            dl.innerHTML = data.map(p => `<option value="${p.part_no}">${p.part_name}</option>`).join('');
+            
+            // 🌟 ผูก Dropdown ให้กับช่องกรอกอะไหล่ในทุกๆ หน้าต่างอัตโนมัติ (ไม่ต้องไปแก้ HTML)
+            ['po_part_no', 'out_part_no', 'edit_in_part_no', 'master_part_no'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.setAttribute('list', 'master_parts_datalist');
+            });
         });
     } catch(e){}
 }
