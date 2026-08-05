@@ -326,6 +326,7 @@ function addNewPORow(carPlate) {
     tbody.appendChild(tr);
 }
 
+// 🌟 อัปเดต 1: ปลดล็อกบังคับเขียนทับ และ โชว์จำนวนสต๊อก
 async function fetchMasterPartInline(inputElem) {
     const n = inputElem.value.trim(); if(!n) return;
     try {
@@ -334,20 +335,17 @@ async function fetchMasterPartInline(inputElem) {
         const nameInp = tr.querySelector('.po-partname');
         const noteInp = tr.querySelector('.po-note');
         
-        // 🌟 1. ดึงข้อมูลจาก Local Master Data ทันทีที่เลือก Dropdown (เร็วขึ้น 10 เท่า)
         let data = allMasterPartsData.find(m => cleanStr(m.part_no) === cleanStr(n));
         
-        // 🌟 2. ถ้าพิมพ์ของใหม่ที่ยังไม่เคยมีในเครื่อง ค่อยวิ่งไปหาจาก Database
         if (!data) {
             const res = await fetch(`${API_BASE_URL}/api/parts/check/${encodeURIComponent(n)}`); 
             if(res.ok) data = await res.json();
         }
 
-        if(data && data.part_name) {
-            if(mainInp && !mainInp.value) mainInp.value = data.part_main_no || '-';
-            if(nameInp && !nameInp.value) nameInp.value = data.part_name || '-';
+        if(data && (data.part_name || data.part_no)) {
+            if(mainInp) mainInp.value = data.part_main_no || '-';
+            if(nameInp) nameInp.value = data.part_name || '-';
             
-            // ระบบคำนวณและแจ้งเตือนจำนวนสต๊อกในหมายเหตุ
             const branchIn = allInbounds.filter(i => i.branch_name === currentBranch && cleanStr(i.part_no) === cleanStr(n));
             const branchOut = allOutbounds.filter(o => o.branch_name === currentBranch && cleanStr(o.part_no) === cleanStr(n));
             
@@ -562,7 +560,6 @@ function openExcelPasteModal(targetType) {
 
 function closeExcelPasteModal() { document.getElementById('excelPasteModal').classList.replace('flex', 'hidden'); }
 
-// 🎯 กำหนดให้ช่องวันที่เป็น type="date"
 function addPasteRow() {
     const targetType = document.getElementById('paste_target_type').value;
     const tbody = document.getElementById('paste_grid_tbody');
@@ -587,7 +584,6 @@ function addPasteRow() {
     tbody.appendChild(tr);
 }
 
-// 🎯 ดึงข้อมูลจาก Master Data API แบบ Real-time
 async function autoFillGridRow(tr) {
     const targetType = document.getElementById('paste_target_type').value;
     const inputs = tr.querySelectorAll('input');
@@ -723,7 +719,6 @@ function processExcelPasteData() {
     }, 10);
 }
 
-// ================= PO Tracking & Others =================
 function loadPOTracking() {
     try {
         const tbody = document.getElementById('po_table_body');
@@ -790,12 +785,20 @@ async function submitPO(e) {
         if(!res.ok) throw new Error(); showToast('บันทึก PO สำเร็จ!'); closePOModal(); loadAllData();
     } catch(err) { showToast('เกิดข้อผิดพลาด', 'error'); }
 }
+
+// 🌟 อัปเดต 2: ให้ Modal ต่างๆ ดึงข้อมูลจาก Local ก่อน และบังคับทับข้อมูล
 async function fetchMasterPart(p) {
     const input = document.getElementById(`${p}_part_no`); if(!input) return;
     const n = input.value.trim(); if(!n) return;
     try {
-        const res = await fetch(`${API_BASE_URL}/api/parts/check/${encodeURIComponent(n)}`); const d = await res.json();
-        if(d && d.part_name) {
+        let d = allMasterPartsData.find(m => cleanStr(m.part_no) === cleanStr(n));
+        
+        if (!d) {
+            const res = await fetch(`${API_BASE_URL}/api/parts/check/${encodeURIComponent(n)}`); 
+            if(res.ok) d = await res.json();
+        }
+        
+        if(d && (d.part_name || d.part_no)) {
             if(document.getElementById(`${p}_part_main`)) document.getElementById(`${p}_part_main`).value = d.part_main_no || '-';
             if(document.getElementById(`${p}_part_name`)) document.getElementById(`${p}_part_name`).value = d.part_name || '-';
             if(document.getElementById(`${p}_model`)) document.getElementById(`${p}_model`).value = d.car_model || '-';
@@ -995,14 +998,13 @@ function searchStockTable() {
     for (let i = 0; i < trs.length; i++) { if(trs[i].cells.length === 1) continue; const rowText = trs[i].textContent.toLowerCase(); trs[i].style.display = rowText.includes(input) ? "" : "none"; }
 }
 
-// ================= 6. MASTER PARTS =================
+// 🌟 อัปเดต 3: สร้าง Datalist และติด Event ทันทีที่เลือก
 function loadMasterParts() {
     try {
         fetch(`${API_BASE_URL}/api/parts?branch=${encodeURIComponent(currentBranch)}`).then(res => res.json()).then(data => {
             allMasterPartsData = data;
             document.getElementById('master_table_body').innerHTML = data.map(p => `<tr><td class="font-mono font-bold text-blue-600 px-2">${p.part_no}</td><td class="font-bold px-2 truncate">${p.part_name}</td><td class="font-mono text-slate-400 text-xs px-2">${p.part_main_no||'-'}</td><td class="text-xs text-slate-600 font-bold px-2 truncate" title="${p.car_model}">${p.car_model||'-'}</td><td class="text-[10px] font-bold text-slate-500 uppercase px-2"><span class="bg-slate-100 px-1.5 py-0.5 rounded border">${p.part_category||'-'}</span></td><td class="font-mono text-right font-bold text-emerald-700 px-2">${parseFloat(p.unit_price||0).toFixed(2)}</td><td class="font-mono text-xs text-center px-2">${p.location||'-'}</td><td class="text-center flex justify-center gap-1 py-1"><button onclick="openMasterModal('${p.part_no}')" class="text-blue-500 hover:text-blue-700 bg-blue-50 px-2 py-0.5 rounded"><i class="fa-solid fa-pen"></i></button><button onclick="deleteRow('/api/parts/${p.part_id}')" class="text-red-500 hover:text-red-700 bg-red-50 px-2 py-0.5 rounded"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
             
-            // 🌟 สร้าง Datalist (Dropdown อัจฉริยะ) ฝังไว้ในระบบ
             let dl = document.getElementById('master_parts_datalist');
             if(!dl) {
                 dl = document.createElement('datalist');
@@ -1011,14 +1013,22 @@ function loadMasterParts() {
             }
             dl.innerHTML = data.map(p => `<option value="${p.part_no}">${p.part_name}</option>`).join('');
             
-            // 🌟 ผูก Dropdown ให้กับช่องกรอกอะไหล่ในทุกๆ หน้าต่างอัตโนมัติ (ไม่ต้องไปแก้ HTML)
             ['po_part_no', 'out_part_no', 'edit_in_part_no', 'master_part_no'].forEach(id => {
                 const el = document.getElementById(id);
-                if(el) el.setAttribute('list', 'master_parts_datalist');
+                if(el) {
+                    el.setAttribute('list', 'master_parts_datalist');
+                    // ดัก Event ตอนคลิกเลือก Dropdown ให้ดึงชื่อมาโชว์ทันที
+                    el.addEventListener('input', function() {
+                        const prefix = id.replace('_part_no', ''); // แยกเอาคำหน้าไปใช้
+                        if (prefix === 'master') return; // หน้ามาสเตอร์ไม่ต้องดึงทับ
+                        fetchMasterPart(prefix);
+                    });
+                }
             });
         });
     } catch(e){}
 }
+
 async function loadCarModelsGrid() {
     try {
         const res = await fetch(`${API_BASE_URL}/api/car-models`); if (!res.ok) throw new Error(); allCarModelsFromDB = await res.json();
