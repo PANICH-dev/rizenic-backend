@@ -1016,7 +1016,9 @@ function loadMasterParts() {
     try {
         fetch(`${API_BASE_URL}/api/parts?branch=${encodeURIComponent(currentBranch)}`).then(res => res.json()).then(data => {
             allMasterPartsData = data;
-            document.getElementById('master_table_body').innerHTML = data.map(p => `<tr><td class="font-mono font-bold text-blue-600 px-2">${p.part_no}</td><td class="font-bold px-2 truncate">${p.part_name}</td><td class="font-mono text-slate-400 text-xs px-2">${p.part_main_no||'-'}</td><td class="text-xs text-slate-600 font-bold px-2 truncate" title="${p.car_model}">${p.car_model||'-'}</td><td class="text-[10px] font-bold text-slate-500 uppercase px-2"><span class="bg-slate-100 px-1.5 py-0.5 rounded border">${p.part_category||'-'}</span></td><td class="font-mono text-right font-bold text-emerald-700 px-2">${parseFloat(p.unit_price||0).toFixed(2)}</td><td class="font-mono text-xs text-center px-2">${p.location||'-'}</td><td class="text-center flex justify-center gap-1 py-1"><button onclick="openMasterModal('${p.part_no}')" class="text-blue-500 hover:text-blue-700 bg-blue-50 px-2 py-0.5 rounded"><i class="fa-solid fa-pen"></i></button><button onclick="deleteRow('/api/parts/${p.part_id}')" class="text-red-500 hover:text-red-700 bg-red-50 px-2 py-0.5 rounded"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
+            // 🚀 แก้ไข: แสดงแค่ 100 รายการแรกเพื่อไม่ให้ DOM โหลดหนัก
+            const displayData = data.slice(0, 100);
+            document.getElementById('master_table_body').innerHTML = displayData.map(p => `<tr><td class="font-mono font-bold text-blue-600 px-2">${p.part_no}</td><td class="font-bold px-2 truncate">${p.part_name}</td><td class="font-mono text-slate-400 text-xs px-2">${p.part_main_no||'-'}</td><td class="text-xs text-slate-600 font-bold px-2 truncate" title="${p.car_model}">${p.car_model||'-'}</td><td class="text-[10px] font-bold text-slate-500 uppercase px-2"><span class="bg-slate-100 px-1.5 py-0.5 rounded border">${p.part_category||'-'}</span></td><td class="font-mono text-right font-bold text-emerald-700 px-2">${parseFloat(p.unit_price||0).toFixed(2)}</td><td class="font-mono text-xs text-center px-2">${p.location||'-'}</td><td class="text-center flex justify-center gap-1 py-1"><button onclick="openMasterModal('${p.part_no}')" class="text-blue-500 hover:text-blue-700 bg-blue-50 px-2 py-0.5 rounded"><i class="fa-solid fa-pen"></i></button><button onclick="deleteRow('/api/parts/${p.part_id}')" class="text-red-500 hover:text-red-700 bg-red-50 px-2 py-0.5 rounded"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
             
             let dl = document.getElementById('master_parts_datalist');
             if(!dl) {
@@ -1040,6 +1042,46 @@ function loadMasterParts() {
             });
         });
     } catch(e){}
+}
+
+// 🚀 ฟังก์ชันค้นหามาสเตอร์ที่เร็วกว่าเดิม (ค้นหาจาก Data Array โดยตรง)
+function searchMasterTable() {
+    if (filterTimeouts['master_table_body']) clearTimeout(filterTimeouts['master_table_body']);
+    
+    filterTimeouts['master_table_body'] = setTimeout(() => {
+        const inputElem = document.querySelector('input[onkeyup*="searchMasterTable"]');
+        if (!inputElem) return;
+        
+        const input = inputElem.value.toLowerCase().trim();
+        
+        const filteredData = allMasterPartsData.filter(p => {
+            const searchStr = `${p.part_no||''} ${p.part_name||''} ${p.part_main_no||''} ${p.car_model||''} ${p.part_category||''}`.toLowerCase();
+            return searchStr.includes(input);
+        });
+
+        const displayData = filteredData.slice(0, 100);
+        const tbody = document.getElementById('master_table_body');
+        
+        if (displayData.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400">❌ ไม่พบข้อมูลที่ค้นหา</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = displayData.map(p => `
+            <tr>
+                <td class="font-mono font-bold text-blue-600 px-2">${p.part_no}</td>
+                <td class="font-bold px-2 truncate">${p.part_name}</td>
+                <td class="font-mono text-slate-400 text-xs px-2">${p.part_main_no||'-'}</td>
+                <td class="text-xs text-slate-600 font-bold px-2 truncate" title="${p.car_model}">${p.car_model||'-'}</td>
+                <td class="text-[10px] font-bold text-slate-500 uppercase px-2"><span class="bg-slate-100 px-1.5 py-0.5 rounded border">${p.part_category||'-'}</span></td>
+                <td class="font-mono text-right font-bold text-emerald-700 px-2">${parseFloat(p.unit_price||0).toFixed(2)}</td>
+                <td class="font-mono text-xs text-center px-2">${p.location||'-'}</td>
+                <td class="text-center flex justify-center gap-1 py-1">
+                    <button onclick="openMasterModal('${p.part_no}')" class="text-blue-500 hover:text-blue-700 bg-blue-50 px-2 py-0.5 rounded"><i class="fa-solid fa-pen"></i></button>
+                    <button onclick="deleteRow('/api/parts/${p.part_id}')" class="text-red-500 hover:text-red-700 bg-red-50 px-2 py-0.5 rounded"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>`).join('');
+    }, 300);
 }
 
 async function loadCarModelsGrid() {
