@@ -131,6 +131,13 @@
                         <h3 class="section-title"><i class="fa-solid fa-user section-icon"></i> 1. ข้อมูลลูกค้าและรถยนต์</h3>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <!-- 🌟 เพิ่มช่อง SA ผู้รับผิดชอบตรงนี้ -->
+                        <div>
+                            <label class="label-text">SA ผู้รับผิดชอบ <span class="text-red-500">*</span></label>
+                            <input type="text" id="sa_owner_input" list="sa_list" class="minimal-input font-black text-blue-700 bg-blue-50 border-blue-200 focus:border-blue-500" placeholder="ระบุชื่อ SA">
+                            <datalist id="sa_list"></datalist>
+                        </div>
+
                         <div><label class="label-text">ชื่อลูกค้า <span class="text-red-500">*</span></label><input type="text" id="customer_name" class="minimal-input" placeholder="ระบุชื่อลูกค้า"></div>
                         <div><label class="label-text">เบอร์โทรศัพท์ <span class="text-red-500">*</span></label><input type="text" id="phone_number" class="minimal-input font-mono" placeholder="08X-XXX-XXXX"></div>
                         <div><label class="label-text">ประเภทลูกค้า</label><select id="customer_type" class="minimal-input"><option value="">กำลังโหลด...</option></select></div>
@@ -467,6 +474,9 @@
             document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name') || 'Admin Test';
             document.getElementById('display_branch').innerText = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
             
+            // ใส่ชื่อคนที่ล็อกอินลงไปในช่อง SA อัตโนมัติเวลาเปิดหน้าสร้างบิล
+            document.getElementById('sa_owner_input').value = sessionStorage.getItem('emp_name') || '';
+
             document.getElementById('contact_date').value = new Date().toISOString().split('T')[0];
             selectDamage('เบา'); 
             loadInitialData(); addDocRow(); addPartRow(); checkCrossPageEditMode();
@@ -491,6 +501,18 @@
         }
 
         async function loadInitialData() {
+            // ดึงรายชื่อพนักงานทั้งหมดมาใส่ใน Datalist SA
+            fetch(`${API_BASE_URL}/api/employees`).then(async r => {
+                if(r.ok) {
+                    const data = await r.json();
+                    const saList = document.getElementById('sa_list');
+                    saList.innerHTML = '';
+                    data.forEach(emp => {
+                        saList.innerHTML += `<option value="${emp.employee_name}">`;
+                    });
+                }
+            }).catch(() => {});
+
             fetch(`${API_BASE_URL}/api/statuses`).then(async r => {
                 if(!r.ok) throw new Error('API Error'); 
                 globalStatuses = await r.json();
@@ -885,6 +907,9 @@
                 document.getElementById('btn_submit_sa').innerHTML = '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม';
                 updateStationProgress(job);
 
+                // ดึงชื่อ SA เดิมมาใส่ในช่อง SA หากเป็นการแก้ไข
+                document.getElementById('sa_owner_input').value = job.sa_owner || sessionStorage.getItem('emp_name') || '';
+
                 document.getElementById('customer_name').value = job.customer_name || ''; 
                 document.getElementById('phone_number').value = job.phone_number || '';
                 document.getElementById('car_brand').value = job.car_brand || 'Tesla';
@@ -962,6 +987,10 @@
             selectDamage('เบา');
             document.getElementById('department_routing').value = 'รอดำเนินการ';
             document.getElementById('park_status').value = 'ไม่จอดซ่อม';
+            
+            // รีเซ็ต SA ให้กลับไปเป็นชื่อคนล็อกอิน
+            document.getElementById('sa_owner_input').value = sessionStorage.getItem('emp_name') || '';
+            
             updateStationProgress(null);
         }
 
@@ -969,6 +998,7 @@
             event.preventDefault(); 
             
             const requiredFields = [
+                { id: 'sa_owner_input', name: 'SA ผู้รับผิดชอบ' },
                 { id: 'customer_name', name: 'ชื่อลูกค้า' },
                 { id: 'car_plate', name: 'ทะเบียนรถ' },
                 { id: 'job_status', name: 'สถานะใบงาน' }
@@ -993,7 +1023,7 @@
             const routingDept = document.getElementById('department_routing').value || 'รอดำเนินการ';
             
             const formData = {
-                sa_owner: sessionStorage.getItem('emp_name'), 
+                sa_owner: document.getElementById('sa_owner_input').value.trim(), 
                 branch_name: sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่',
                 customer_name: document.getElementById('customer_name').value, 
                 phone_number: document.getElementById('phone_number').value,

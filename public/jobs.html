@@ -761,14 +761,16 @@
             window.location.href = 'index.html'; 
         }
 
-        async function fastUpdateJob(jobId, field, value) {
-            let formattedValue = value;
-            
-            if (field.includes('date') || field === 'appointment_date' || field === 'repair_finish_date' || field === 'target_finish_date' || field === 'delivery_date') {
-                if (value === '' || value === undefined) { 
-                    formattedValue = null; 
-                }
-            }
+        // ฟังก์ชันในหน้า jobs.html
+async function fastUpdateJob(jobId, field, value) {
+    // ...
+    const res = await fetch(`${API_BASE_URL}/api/report/${jobId}/fast-date`, {
+        method: 'PUT', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ field: field, value: formattedValue }) // 👈 ส่งไปแค่ Field ที่แก้!
+    });
+    // ...
+}
 
             try {
                 const res = await fetch(`${API_BASE_URL}/api/report/${jobId}/fast-date`, {
