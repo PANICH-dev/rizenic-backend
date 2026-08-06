@@ -761,16 +761,11 @@
             window.location.href = 'index.html'; 
         }
 
-        // ฟังก์ชันในหน้า jobs.html
-async function fastUpdateJob(jobId, field, value) {
-    // ...
-    const res = await fetch(`${API_BASE_URL}/api/report/${jobId}/fast-date`, {
-        method: 'PUT', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ field: field, value: formattedValue }) // 👈 ส่งไปแค่ Field ที่แก้!
-    });
-    // ...
-}
+        async function fastUpdateJob(jobId, field, value, silent = false) {
+            let formattedValue = value;
+            if (field.includes('date') || ['appointment_date', 'repair_finish_date', 'target_finish_date', 'delivery_date', 'contact_date', 'arrived_date'].includes(field)) {
+                if (value === '' || value === undefined || value === null) formattedValue = null;
+            }
 
             try {
                 const res = await fetch(`${API_BASE_URL}/api/report/${jobId}/fast-date`, {
@@ -778,22 +773,20 @@ async function fastUpdateJob(jobId, field, value) {
                     headers: { 'Content-Type': 'application/json' }, 
                     body: JSON.stringify({ field: field, value: formattedValue })
                 });
-                
+
                 if (res.ok) {
                     const jobIndex = allJobsData.findIndex(j => String(j.id) === String(jobId));
-                    if(jobIndex > -1) {
+                    if (jobIndex > -1) {
                         allJobsData[jobIndex][field] = formattedValue;
                     }
-                    showToast('อัปเดตสำเร็จ!');
+                    if (!silent) showToast('อัปเดตข้อมูลเรียบร้อย!');
                     
-                    if(currentViewSA) {
+                    if (currentViewSA) {
                         refreshSADashboardFilter();
                     }
-                } else {
-                    throw new Error('บันทึกไม่สำเร็จ');
-                }
-            } catch (err) { 
-                showToast('บันทึกข้อมูลไม่สำเร็จ!', 'error'); 
+                } else throw new Error('บันทึกไม่สำเร็จ');
+            } catch (err) {
+                if (!silent) showToast('บันทึกข้อมูลไม่สำเร็จ!', 'error'); 
                 loadJobsData(); 
             }
         }
