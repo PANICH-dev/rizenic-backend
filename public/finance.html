@@ -436,12 +436,27 @@
         }
 
         // 🌟 ฟังก์ชันส่งค่าวางบิล 🌟
+        // 🌟 ฟังก์ชันส่งค่าวางบิล & รองรับบวกเลขอัตโนมัติ 🌟
         async function fastUpdateAcc(jobId, field, value) {
             try {
                 let valToSend = value;
                 
                 if (['cost_labor', 'cost_part', 'cost_external'].includes(field)) {
-                    valToSend = String(value || '0').replace(/,/g, ''); 
+                    // 1. ตัดคอมม่าออกก่อน
+                    let cleanValue = String(value || '0').replace(/,/g, '');
+                    
+                    // 2. ถ้ามีเครื่องหมายคณิตศาสตร์ (+, -, *, /) ให้คำนวณอัตโนมัติ
+                    if (/[+\-*/]/.test(cleanValue)) {
+                        try {
+                            // ใช้ Function แทน eval เพื่อความปลอดภัยและหลีกเลี่ยง error
+                            cleanValue = new Function('return ' + cleanValue)(); 
+                        } catch (e) {
+                            console.warn("พิมพ์สูตรเลขผิด", e);
+                            showToast('รูปแบบตัวเลขไม่ถูกต้อง', 'error');
+                            return; // ถ้าบวกผิด ให้หยุดทำต่อ
+                        }
+                    }
+                    valToSend = parseFloat(cleanValue) || 0;
                 } else if (field === 'billing_date' || field === 'insurance_payment_date') {
                     valToSend = value && String(value).trim() !== '' ? value : null;
                 }
@@ -459,7 +474,7 @@
                     showToast('อัปเดตข้อมูลอัตโนมัติสำเร็จ!');
                     
                     if (['cost_labor', 'cost_part', 'cost_external'].includes(field)) {
-                        applyFilters(); 
+                        applyFilters(); // โหลดใหม่เพื่อโชว์เลขสวยๆ พร้อมลูกน้ำ
                     } else if (field === 'billing_date' || field === 'insurance_payment_date' || field === 'job_status') {
                         buildYearDropdown(); 
                         applyFilters(); 
