@@ -453,7 +453,6 @@ app.get('/api/reports', async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-/ 👇👇👇 เพิ่มโค้ดชุดนี้เข้าไปครับ 👇👇👇
 app.delete('/api/report/:id', async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM rizenicreport WHERE id = $1', [req.params.id]);
@@ -466,6 +465,8 @@ app.delete('/api/report/:id', async (req, res) => {
     res.status(500).json({ error: err.message }); 
   }
 });
+
+
 
 app.get('/api/report/:id', async (req, res) => {
   try {

@@ -615,12 +615,32 @@
         }
 
         async function deleteJobRow(jobId, carPlate) {
-            if (!confirm(`🚨 ยืนยันการลบใบงานรถทะเบียน [ ${carPlate} ] ?`)) return;
+            if (!confirm(`🚨 ยืนยันการลบใบงานรถทะเบียน [ ${carPlate} ] ?\n(ข้อมูลจะถูกลบออกจากฐานข้อมูลถาวร)`)) return;
+            
             try {
+                // ยิงคำสั่งลบไปที่เซิร์ฟเวอร์
                 const res = await fetch(`${API_BASE_URL}/api/report/${jobId}`, { method: 'DELETE' });
-                if (res.ok) { showToast(`ลบรายการสำเร็จ`); await loadJobsData(); } 
-                else showToast('ไม่สามารถลบได้', 'error'); 
-            } catch (e) { showToast('เกิดข้อผิดพลาดในการลบ', 'error'); }
+                
+                if (res.ok) { 
+                    // ถ้าลบในฐานข้อมูลสำเร็จ ให้เราเตะมันออกจากตัวแปร allJobsData เลย
+                    allJobsData = allJobsData.filter(j => String(j.id) !== String(jobId));
+                    
+                    // และลบแถวนั้นออกจากหน้าจอตารางทันที โดยไม่ต้องโหลดใหม่ทั้งหน้า
+                    const rowToRemove = document.getElementById(`row_${jobId}`);
+                    if (rowToRemove) rowToRemove.remove();
+                    
+                    // อัปเดตตัวเลข "พบ: X คัน" ด้านบนตาราง
+                    const currentRowCount = document.querySelectorAll('#jobs_table_body tr[id^="row_"]').length;
+                    document.getElementById('row_count').innerText = currentRowCount;
+                    
+                    showToast(`✅ ลบรายการทะเบียน ${carPlate} สำเร็จ`);
+                } else {
+                    const errData = await res.json();
+                    showToast('ไม่สามารถลบได้: ' + (errData.error || 'Unknown Error'), 'error'); 
+                }
+            } catch (e) { 
+                showToast('❌ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์', 'error'); 
+            }
         }
 
         function openMultiPartsModal(jobId, fieldName, currentVal) {
