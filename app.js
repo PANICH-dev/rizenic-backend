@@ -447,9 +447,24 @@ app.delete('/api/body-parts/:id', async (req, res) => {
 // ==========================================
 // 📋 API ระบบจัดการใบงานซ่อมหลัก (rizenicreport)
 // ==========================================
+
 app.get('/api/reports', async (req, res) => {
   try { res.json((await pool.query('SELECT * FROM rizenicreport ORDER BY id DESC')).rows); } 
   catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/ 👇👇👇 เพิ่มโค้ดชุดนี้เข้าไปครับ 👇👇👇
+app.delete('/api/report/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM rizenicreport WHERE id = $1', [req.params.id]);
+    if (result.rowCount > 0) {
+      res.json({ success: true, message: 'ลบข้อมูลสำเร็จ' });
+    } else {
+      res.status(404).json({ error: 'ไม่พบใบงานที่ต้องการลบ' });
+    }
+  } catch (err) { 
+    res.status(500).json({ error: err.message }); 
+  }
 });
 
 app.get('/api/report/:id', async (req, res) => {
