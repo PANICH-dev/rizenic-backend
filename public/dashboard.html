@@ -730,6 +730,8 @@
             const start = document.getElementById('report_start_date').value || getFirstDayOfMonth();
             const end = document.getElementById('report_end_date').value || getLastDayOfMonth();
             const reportMonth = start.substring(0, 7);
+            
+            const todayDate = new Date().toISOString().split('T')[0];
 
             const activeContacts = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end));
             const uniqueCustomerTypes = [...new Set(activeContacts.map(j => (j.customer_type || 'ไม่ระบุ').trim()))].sort();
@@ -742,8 +744,9 @@
 
             const reportDef = {
                 customers: [
-                    { label: "ติดต่อช่วงเวลาที่เลือก (รวม)", icon: "👥", filter: j => isDateInRange(j.contact_date, start, end) },
+                    { label: "ติดต่อประจำวัน (Today)", icon: "🔥", filter: j => j.contact_date && j.contact_date.startsWith(todayDate) },
                     { label: "ติดต่อรวมประจำเดือน", icon: "📅", filter: j => j.contact_date && j.contact_date.startsWith(reportMonth) },
+                    { label: "ติดต่อช่วงเวลาที่เลือก (รวม)", icon: "👥", filter: j => isDateInRange(j.contact_date, start, end) },
                     ...dynamicCustomerTypes
                 ],
                 workStatus: [
@@ -1458,18 +1461,39 @@
                     });
                 }
 
-                const res = await fetch(`${API_BASE_URL}/api/send-line-notify`, {
+                // 🌟 1. กำหนด Token และ Group ID ให้ตรงกับสาขาที่เลือก
+                let targetToken = "efozQEitp897aA1P7s36CFmg2DtjzSGjV4jWcSI/HJzUvI1MYMsag0dz87ZAQIymuuiE0VRiVpmyl97SakBszSmjvoTcFAmZuvP5Sxz7vutfh2Ptrs5kcfd26bixrx65a6YkV2vU3RrQt0ESwSDcwgdB04t89/1O/w1cDnyilFU=";
+                let targetGroup = "C108e09bf596a6b6ced05b97bd0e7d171"; // รหัสกลุ่ม Navamin (ตั้งเป็นค่าเริ่มต้น หรือแก้ไขตามเงื่อนไขด้านล่าง)
+
+                if (branchValue === 'Navamin' || branchValue === 'สาขานวมินทร์') {
+                    targetGroup = "C108e09bf596a6b6ced05b97bd0e7d171"; // กลุ่ม Navamin
+                } else if (branchValue === 'Rangsit' || branchValue === 'สาขารังสิต') {
+                    targetGroup = "ใส่_ID_กลุ่มของรังสิตตรงนี้"; // ⚠️ นายต้องเอา ID กลุ่มรังสิตมาใส่ตรงนี้ครับ
+                } else {
+                    // กรณีเป็นสาขาอื่น หรือเลือก "ทุกสาขา" ให้ส่งเข้ากลุ่มไหน (แก้ไขได้ครับ)
+                    targetGroup = "C108e09bf596a6b6ced05b97bd0e7d171"; 
+                }
+
+                // 🌟 2. ส่งข้อมูลไปที่ Backend ให้ยิงเข้า LINE (ต้องแก้ Backend ให้รับ Token/Group จากเว็บด้วย)
+                // หรือส่งตรงจากหน้าเว็บเลยแบบนี้ (อาจติดปัญหา CORS ถ้าไม่ได้ตั้งค่า Webhook LINE ไว้)
+                const res = await fetch('https://api.line.me/v2/bot/message/push', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: msg })
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${targetToken}`
+                    },
+                    body: JSON.stringify({
+                        to: targetGroup,
+                        messages: [{ type: "text", text: msg }]
+                    })
                 });
 
-                const data = await res.json();
-                
-                if (data.success) {
-                    alert("✅ ส่งข้อมูลเข้า LINE สำเร็จแล้วครับ!");
+                if (res.ok) {
+                    alert(`✅ ส่งข้อมูลเข้ากลุ่ม LINE สาขา ${branchName} สำเร็จแล้วครับ!`);
                 } else {
-                    alert("❌ ส่งไม่สำเร็จ: " + (data.error || "เกิดข้อผิดพลาด"));
+                    const errData = await res.json();
+                    console.error("LINE API Error:", errData);
+                    alert("❌ ส่งไม่สำเร็จ: " + (errData.message || JSON.stringify(errData)));
                 }
 
             } catch (err) {
