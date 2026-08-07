@@ -680,30 +680,34 @@ app.get('/api/part-orders', async (req, res) => {
   try { res.json((await pool.query('SELECT * FROM rizenic_part_orders ORDER BY order_id DESC')).rows); } 
   catch (e) { res.status(500).json({ error: e.message }); }
 });
+// ==========================================
+// API สั่งเบิกอะไหล่ (เพิ่มการรับค่า job_id)
+// ==========================================
 app.post('/api/part-orders', async (req, res) => {
   try {
     const d = req.body;
     const queryText = `
       INSERT INTO rizenic_part_orders (
         qt_no, so_no, epc_no, order_date, est_arrival_date, car_plate,
-        vin_no, car_model, part_main_no, part_no, part_name, qty_ordered, qty_received, order_status, part_type, branch_name, notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 0, 'รอสั่งซื้อ', $13, $14, $15) RETURNING *;
+        vin_no, car_model, part_main_no, part_no, part_name, qty_ordered, qty_received, order_status, part_type, branch_name, notes, job_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 0, 'รอสั่งซื้อ', $13, $14, $15, $16) RETURNING *;
     `;
     const values = [
       d.qt_no || null, d.so_no || null, d.epc_no || null, d.order_date, d.est_arrival_date || null, d.car_plate || null,
       d.vin_no || null, d.car_model || null, d.part_main_no || null, d.part_no, d.part_name, parseInt(d.qty_ordered) || 1,
-      d.part_type || 'อะไหล่แท้', d.branch_name, d.notes || null
+      d.part_type || 'อะไหล่แท้', d.branch_name, d.notes || null, d.job_id || null
     ];
     const result = await pool.query(queryText, values);
     res.status(201).json({ success: true, data: result.rows[0] });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
 app.put('/api/part-orders/:id', async (req, res) => {
   try {
     const { 
       part_no, part_main_no, part_name, qty_ordered, 
       epc_no, order_status, est_arrival_date, received_date,
-      qt_no, so_no, order_date, car_plate, vin_no, car_model, part_type, notes
+      qt_no, so_no, order_date, car_plate, vin_no, car_model, part_type, notes, job_id
     } = req.body;
 
     await pool.query(`
@@ -723,34 +727,18 @@ app.put('/api/part-orders/:id', async (req, res) => {
           vin_no = COALESCE($13, vin_no),
           car_model = COALESCE($14, car_model),
           part_type = COALESCE($15, part_type),
-          notes = $16
-      WHERE order_id = $17
+          notes = $16,
+          job_id = COALESCE($17, job_id)
+      WHERE order_id = $18
     `, [
-      part_no || null, 
-      part_main_no || null, 
-      part_name || null, 
-      qty_ordered || null,
-      epc_no || null, 
-      order_status || null, 
-      est_arrival_date || null, 
-      received_date || null,
-      qt_no || null, 
-      so_no || null, 
-      order_date || null, 
-      car_plate || null, 
-      vin_no || null, 
-      car_model || null, 
-      part_type || null, 
-      notes || null,
-      req.params.id
+      part_no || null, part_main_no || null, part_name || null, qty_ordered || null, epc_no || null, 
+      order_status || null, est_arrival_date || null, received_date || null, qt_no || null, so_no || null, 
+      order_date || null, car_plate || null, vin_no || null, car_model || null, part_type || null, notes || null,
+      job_id || null, req.params.id
     ]);
     res.json({ success: true });
-  } catch (e) { 
-    console.error("PUT Part Order Error:", e);
-    res.status(500).json({ error: e.message }); 
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
-
 // 🎯 แก้ไขจุดพิมพ์ผิด aapp เป็น app และขยายฟิลด์ที่แก้อัตโนมัติได้
 app.put('/api/part-orders/:id/fast', async (req, res) => {
   try {

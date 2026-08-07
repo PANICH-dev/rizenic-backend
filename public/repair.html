@@ -1050,7 +1050,20 @@
             const station = computeHighestStationIFS(j);
             const mainPartsStr = j.main_part_name && j.main_part_name.trim() !== '' ? j.main_part_name : '-';
             const subPartsStr = j.sub_part_name && j.sub_part_name.trim() !== '' ? j.sub_part_name : '-';
-            const carParts = allPartOrders.filter(po => po.car_plate === j.car_plate && po.order_status !== 'ยกเลิก');
+            
+            // 🌟 กรองอะไหล่ประจำเป็นการ์ดเล็ก (ใช้ j)
+            const carParts = allPartOrders.filter(po => {
+                if (po.order_status === 'ยกเลิก') return false;
+                
+                // 🌟 1. เช็กผ่าน Job ID ก่อน (แก้จาก job.id เป็น j.id)
+                if (po.job_id) return String(po.job_id) === String(j.id); 
+                
+                // 🌟 2. Fallback ข้อมูลเก่า
+                if (po.car_plate !== j.car_plate) return false;
+                if (j.qt_no && po.qt_no && j.qt_no.includes(po.qt_no)) return true;
+                if (j.so_no && po.so_no && j.so_no.includes(po.so_no)) return true;
+                return (!po.qt_no && !po.so_no);
+            });
             let partsHTML = '';
             if(carParts.length > 0) {
                 partsHTML = carParts.map(p => {
@@ -1317,7 +1330,19 @@
                 subPartsList = job.sub_part_name ? job.sub_part_name.split(',').map(s => s.trim()).filter(Boolean) : [];
                 renderBodyPartsUI();
 
-                const carParts = allPartOrders.filter(po => po.car_plate === job.car_plate && po.order_status !== 'ยกเลิก');
+                const carParts = allPartOrders.filter(po => {
+                    if (po.order_status === 'ยกเลิก') return false;
+                    
+                    // 🌟 1. เช็กผ่าน Job ID ก่อนเลย ชัวร์สุด!
+                    if (po.job_id) return String(po.job_id) === String(job.id); 
+                    
+                    // 🌟 2. ถ้าเป็นข้อมูลเก่าที่ยังไม่มี Job ID ให้เช็กผ่าน ทะเบียน + เลขใบเสนอราคา (Fallback)
+                    if (po.car_plate !== job.car_plate) return false;
+                    if (job.qt_no && po.qt_no && job.qt_no.includes(po.qt_no)) return true;
+                    if (job.so_no && po.so_no && job.so_no.includes(po.so_no)) return true;
+                    return (!po.qt_no && !po.so_no);
+                });
+
                 const partsListEl = document.getElementById('m_parts_list');
                 if(partsListEl) {
                     if(carParts.length > 0) {
@@ -1448,3 +1473,4 @@
     </script>
 </body>
 </html>
+]

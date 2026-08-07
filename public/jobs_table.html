@@ -769,7 +769,18 @@
             let allRowsHtml = '';
 
             data.forEach(job => {
-                const carParts = (allPartOrders || []).filter(p => p.car_plate && job.car_plate && p.car_plate.trim().toUpperCase() === job.car_plate.trim().toUpperCase());
+                const carParts = (allPartOrders || []).filter(p => {
+                    if (p.order_status === 'ยกเลิก') return false;
+                    // 🌟 1. ยึด Job ID เป็นหลักสุดยอด!
+                    if (p.job_id) return String(p.job_id) === String(job.id);
+                    
+                    // 🌟 2. ถ้ารายการเก่าไม่มี Job ID ค่อยถอยไปใช้ลอจิกเทียบทะเบียน+QT สำรอง
+                    if (!p.car_plate || !job.car_plate) return false;
+                    if (p.car_plate.trim().toUpperCase() !== job.car_plate.trim().toUpperCase()) return false;
+                    if (job.qt_no && p.qt_no && job.qt_no.includes(p.qt_no)) return true;
+                    if (job.so_no && p.so_no && job.so_no.includes(p.so_no)) return true;
+                    return (!p.qt_no && !p.so_no);
+                });
                 
                 let rowHtml = `<tr id="row_${job.id}" ondblclick="goToEditJob('${job.id}')" title="ดับเบิ้ลคลิกเพื่อเปิดใบงานนี้">`;
                 

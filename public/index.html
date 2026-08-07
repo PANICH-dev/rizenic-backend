@@ -131,7 +131,6 @@
                         <h3 class="section-title"><i class="fa-solid fa-user section-icon"></i> 1. ข้อมูลลูกค้าและรถยนต์</h3>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        <!-- 🌟 เพิ่มช่อง SA ผู้รับผิดชอบตรงนี้ -->
                         <div>
                             <label class="label-text">SA ผู้รับผิดชอบ <span class="text-red-500">*</span></label>
                             <input type="text" id="sa_owner_input" list="sa_list" class="minimal-input font-black text-blue-700 bg-blue-50 border-blue-200 focus:border-blue-500" placeholder="ระบุชื่อ SA">
@@ -679,6 +678,8 @@
                 if(val) { if(type === 'QT') qtArr.push(val); if(type === 'SO') soArr.push(val); }
             });
 
+            const currentJobId = document.getElementById('sa_report_id')?.value || null;
+
             try {
                 btnElem.disabled = true;
                 btnElem.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
@@ -687,6 +688,7 @@
                 const resPO = await fetch(`${API_BASE_URL}/api/part-orders`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
+                        job_id: currentJobId,
                         car_plate: carPlate, vin_no: document.getElementById('vin_no')?.value || null, car_model: document.getElementById('car_model')?.value || null, 
                         qt_no: qtArr.join(',') || null, so_no: soArr.join(',') || null, epc_no: null,
                         part_no: pNo, part_main_no: pMain || null, part_name: pName, qty_ordered: pQty, part_type: pType, 
@@ -702,6 +704,7 @@
                 await fetch(`${API_BASE_URL}/api/part-outbound`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
+                        job_id: currentJobId,
                         issue_date: new Date().toISOString().split('T')[0],
                         part_no: pNo, part_main_no: pMain || null, part_name: pName, qty: pQty,
                         car_plate: carPlate, qt_no: qtArr.join(',') || null, so_no: soArr.join(',') || null,
@@ -1077,6 +1080,10 @@
                     btnSubmit.innerHTML = oldBtnText; btnSubmit.disabled = false; return;
                 }
 
+                // 🌟 อ่านคำตอบและดึง job_id เพื่อนำไปสั่งอะไหล่
+                const resJson = await response.json();
+                const savedJobId = editId || resJson?.insertedId || null;
+
                 if (routingDept.includes('อะไหล่') || formData.job_status.includes('06.สั่งอะไหล่')) {
                     const partRows = document.querySelectorAll('#order_parts_body tr');
                     for (let tr of partRows) {
@@ -1091,6 +1098,7 @@
                             await fetch(`${API_BASE_URL}/api/part-orders`, {
                                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ 
+                                    job_id: savedJobId,
                                     qt_no: qtArr.join(', '), so_no: soArr.join(', '), epc_no: null,
                                     order_date: new Date().toISOString().split('T')[0], car_plate: formData.car_plate, vin_no: formData.vin_no, car_model: formData.car_model, 
                                     part_no: pNo, part_main_no: pMain, part_name: pName, qty_ordered: pQty, part_type: pType, branch_name: formData.branch_name, order_status: 'รอสั่งซื้อ' 
@@ -1101,6 +1109,7 @@
                             await fetch(`${API_BASE_URL}/api/part-outbound`, {
                                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
+                                    job_id: savedJobId,
                                     issue_date: new Date().toISOString().split('T')[0],
                                     part_no: pNo, part_main_no: pMain || null, part_name: pName, qty: pQty,
                                     car_plate: formData.car_plate, qt_no: qtArr.join(',') || null, so_no: soArr.join(',') || null,
