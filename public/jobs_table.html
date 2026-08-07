@@ -768,13 +768,14 @@
             let safeOptsGlobal = globalStatusOptionsHtml;
             let allRowsHtml = '';
 
+            // 🌟 ตั้งค่าตัวแปรวันปัจจุบันเวลา 00:00:00 (ใช้เทียบ Overdue)
+            const today = new Date();
+            today.setHours(0,0,0,0);
+
             data.forEach(job => {
                 const carParts = (allPartOrders || []).filter(p => {
                     if (p.order_status === 'ยกเลิก') return false;
-                    // 🌟 1. ยึด Job ID เป็นหลักสุดยอด!
                     if (p.job_id) return String(p.job_id) === String(job.id);
-                    
-                    // 🌟 2. ถ้ารายการเก่าไม่มี Job ID ค่อยถอยไปใช้ลอจิกเทียบทะเบียน+QT สำรอง
                     if (!p.car_plate || !job.car_plate) return false;
                     if (p.car_plate.trim().toUpperCase() !== job.car_plate.trim().toUpperCase()) return false;
                     if (job.qt_no && p.qt_no && job.qt_no.includes(p.qt_no)) return true;
@@ -799,10 +800,10 @@
                             break;
                         
                         case 'car_plate': 
-    const isUrgent = job.damage_level === 'หนัก';
-    const alertIcon = isUrgent ? '<i class="fa-solid fa-circle-exclamation text-red-500 mr-1"></i>' : '';
-    cellData = `<div class="px-2 py-1 text-center text-slate-800">${alertIcon}${job.car_plate || '-'}</div>`; 
-    break;
+                            const isUrgent = job.damage_level === 'หนัก';
+                            const alertIcon = isUrgent ? '<i class="fa-solid fa-circle-exclamation text-red-500 mr-1"></i>' : '';
+                            cellData = `<div class="px-2 py-1 text-center text-slate-800">${alertIcon}${job.car_plate || '-'}</div>`; 
+                            break;
                             
                         case 'car_brand':
                             cellData = `<div class="px-2 py-1 text-left font-bold text-slate-800">${job.car_brand || '-'} <span class="text-slate-400 font-medium text-[11px] ml-0.5">${job.car_model || ''}</span></div>`;
@@ -824,8 +825,20 @@
 
                         case 'arrived_date': 
                             cellData = `<input type="date" value="${job.arrived_date ? String(job.arrived_date).split('T')[0] : ''}" onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'arrived_date', this.value)" class="inline-edit-input font-mono text-center text-slate-500">`; break;
+                        
+                        // 🚨🚨 1. เงื่อนไขไฟเตือน: กำหนดซ่อมเสร็จเลยเป้าหมาย และยังอยู่แผนกซ่อม 🚨🚨
                         case 'target_finish_date': 
-                            cellData = `<input type="date" value="${job.target_finish_date ? String(job.target_finish_date).split('T')[0] : ''}" onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'target_finish_date', this.value)" class="inline-edit-input font-mono text-center font-bold text-rose-600">`; break;
+                            let targetAlert = '';
+                            let isInRepair = (job.department_routing === 'ซ่อม' || (job.job_status && job.job_status.includes('กำลังซ่อม')));
+                            if (job.target_finish_date && isInRepair) {
+                                let tDate = new Date(job.target_finish_date); tDate.setHours(0,0,0,0);
+                                if (today > tDate) {
+                                    targetAlert = `<i class="fa-solid fa-fire text-amber-500 animate-pulse absolute right-2 top-1/2 -translate-y-1/2" title="เลยเป้าหมายซ่อมเสร็จแล้ว!"></i>`;
+                                }
+                            }
+                            cellData = `<div class="relative w-full h-full"><input type="date" value="${job.target_finish_date ? String(job.target_finish_date).split('T')[0] : ''}" onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'target_finish_date', this.value)" class="inline-edit-input font-mono text-center font-bold ${targetAlert ? 'text-amber-600 pr-6' : 'text-rose-600'}">${targetAlert}</div>`; 
+                            break;
+                            
                         case 'repair_finish_date': 
                             cellData = `<input type="date" value="${job.repair_finish_date ? String(job.repair_finish_date).split('T')[0] : ''}" onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'repair_finish_date', this.value)" class="inline-edit-input font-mono text-center font-bold text-slate-800">`; break;
                         case 'delivery_date': 
@@ -861,7 +874,20 @@
 
                         case 'cost_labor': case 'cost_part': case 'cost_external':
                             cellData = `<input type="number" value="${job[col.key] || ''}" onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input text-right" placeholder="0">`; break;
-                        case 'contact_date': case 'appointment_date': case 'expected_finish_date': 
+                        
+                        // 🚨🚨 2. เงื่อนไขไฟเตือน: นัดหมายรถเข้าแล้ว แต่สถานะยังไม่เข้าจอดซ่อม 🚨🚨
+                        case 'appointment_date':
+                            let apptAlert = '';
+                            if (job.appointment_date && job.is_parked !== 'จอดซ่อม') {
+                                let aDate = new Date(job.appointment_date); aDate.setHours(0,0,0,0);
+                                if (today > aDate) {
+                                    apptAlert = `<i class="fa-solid fa-triangle-exclamation text-red-500 animate-pulse absolute right-2 top-1/2 -translate-y-1/2" title="เลยวันนัดหมายแล้วรถยังไม่เข้า!"></i>`;
+                                }
+                            }
+                            cellData = `<div class="relative w-full h-full"><input type="date" value="${job.appointment_date ? String(job.appointment_date).split('T')[0] : ''}" onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'appointment_date', this.value)" class="inline-edit-input font-mono text-center ${apptAlert ? 'pr-6 font-bold text-red-600' : ''}">${apptAlert}</div>`;
+                            break;
+
+                        case 'contact_date': case 'expected_finish_date': 
                             cellData = `<input type="date" value="${job[col.key] ? String(job[col.key]).split('T')[0] : ''}" onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input font-mono text-center">`; break;
                         
                         case 'ordered_part_names':
