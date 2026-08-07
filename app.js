@@ -933,30 +933,45 @@ app.post('/api/user-preferences', async (req, res) => {
   }
 });
 
-// ==========================================
+/// ==========================================
 // 📲 API ส่งข้อความเข้ากลุ่ม LINE ผ่าน Messaging API (PUSH MESSAGE)
 // ==========================================
 app.post('/api/send-line-notify', async (req, res) => {
   try {
-    const { message } = req.body;
+    const { branch, message } = req.body;
     
-    // 🔑 1. Token และ Group ID
-    const CHANNEL_ACCESS_TOKEN = "8HD+RiU29gzrrA9rsNPSKFcYxD6gPToVSfQBsUvNOe33b/YPvR4W8iMSIiVJhTZLRP8hbaBPq9l/vEgf1sr/9wmf5lLRzBZGnTNhnujtHKbl5o2ElywUmxsS8Vl8x6l9R7vZdG8ZbAEdsr+8gI1+dQdB04t89/1O/w1cDnyilFU=";
-    const GROUP_ID = "C18d1af3a6e1276578261b6bcd8721c68"; 
-
     if (!message) {
       return res.status(400).json({ error: "ไม่มีข้อความให้ส่ง" });
     }
 
-    // 🚀 2. ยิงไปยังปลายทาง Push Message ของ LINE Messaging API
+    // 🔑 ตัวแปรเก็บ Token และ Group ID
+    let targetToken = "";
+    let targetGroup = ""; 
+
+    // 🎯 เช็คว่าส่งมาจากสาขาไหน แล้วใส่ค่าให้ตรง
+    if (branch === 'Rangsit' || branch === 'สาขารังสิต') {
+        // ของสาขารังสิต
+        targetToken = "8HD+RiU29gzrrA9rsNPSKFcYxD6gPToVSfQBsUvNOe33b/YPvR4W8iMSIiVJhTZLRP8hbaBPq9l/vEgf1sr/9wmf5lLRzBZGnTNhnujtHKbl5o2ElywUmxsS8Vl8x6l9R7vZdG8ZbAEdsr+8gI1+dQdB04t89/1O/w1cDnyilFU=";
+        targetGroup = "C18d1af3a6e1276578261b6bcd8721c68";
+    } else if (branch === 'Navamin' || branch === 'สาขานวมินทร์') {
+        // ของสาขานวมินทร์
+        targetToken = "b8+30ArMTub2ZaBzcG6ZJIOGORThU/C7kLWHzEO2uUNllohDlsWH/n6HR9003VhBALf+7oJX1wIjarabMGclzgqGQ34Xy4nhxE7Tsvs/VUjuQ8gh6xpeEFtuS+GIbCWLDdrcTdxxHy+iVt2XGsoaQQdB04t89/1O/w1cDnyilFU=";
+        targetGroup = "C108e09bf596a6b6ced05b97bd0e7d171";
+    } else {
+        // กรณีกันเหนียว (Fallback) ถ้าระบุสาขาไม่ตรง ให้ยิงเข้านวมินทร์เป็นค่าเริ่มต้น
+        targetToken = "b8+30ArMTub2ZaBzcG6ZJIOGORThU/C7kLWHzEO2uUNllohDlsWH/n6HR9003VhBALf+7oJX1wIjarabMGclzgqGQ34Xy4nhxE7Tsvs/VUjuQ8gh6xpeEFtuS+GIbCWLDdrcTdxxHy+iVt2XGsoaQQdB04t89/1O/w1cDnyilFU=";
+        targetGroup = "C108e09bf596a6b6ced05b97bd0e7d171";
+    }
+
+    // 🚀 ยิงไปยังปลายทาง Push Message ของ LINE Messaging API
     const response = await fetch('https://api.line.me/v2/bot/message/push', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${CHANNEL_ACCESS_TOKEN}`
+        'Authorization': `Bearer ${targetToken}`
       },
       body: JSON.stringify({
-        to: GROUP_ID,
+        to: targetGroup,
         messages: [
           {
             type: "text",

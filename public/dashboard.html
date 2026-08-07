@@ -270,10 +270,15 @@
                     <button onclick="renderDailyReport()" class="bg-[#00320D] hover:bg-black text-white px-3 py-1.5 rounded text-xs font-bold transition shadow-sm">
                         <i class="fa-solid fa-search"></i> ค้นหา
                     </button>
-                    <!-- ปุ่มส่งไลน์ -->
-                    <button onclick="sendReportToLine()" id="btnSendLine" class="bg-[#00c300] hover:bg-[#00e000] text-white px-3 py-1.5 rounded text-xs font-bold transition shadow-sm flex items-center gap-1.5 ml-2">
-                        <i class="fa-brands fa-line text-base"></i> ส่งไลน์
-                    </button>
+                    <!-- ปุ่มส่งไลน์แยก 2 สาขา -->
+                    <div class="flex gap-2 ml-2">
+                        <button onclick="sendReportToLine('Navamin')" id="btnSendLine_Navamin" class="bg-[#00c300] hover:bg-[#00e000] text-white px-3 py-1.5 rounded text-xs font-bold transition shadow-sm flex items-center gap-1.5">
+                            <i class="fa-brands fa-line text-base"></i> นวมินทร์
+                        </button>
+                        <button onclick="sendReportToLine('Rangsit')" id="btnSendLine_Rangsit" class="bg-[#00c300] hover:bg-[#00e000] text-white px-3 py-1.5 rounded text-xs font-bold transition shadow-sm flex items-center gap-1.5">
+                            <i class="fa-brands fa-line text-base"></i> รังสิต
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-8 divide-y md:divide-y-0 md:divide-x divide-slate-200">
@@ -1407,8 +1412,6 @@
 
         async function fastUpdateJob(jobId, field, value) {
             try {
-                // 🛑 ในหน้า Dashboard ถ้ามีการอัปเดตสถานะหรือฟิลด์อื่นๆ 
-                // ให้ส่งไปแค่ฟิลด์ที่ต้องการแก้เท่านั้น ไม่ต้องส่ง sa_owner กลับไปทับแล้วครับ
                 const res = await fetch(`${API_BASE_URL}/api/report/${jobId}/fast-date`, {
                     method: 'PUT', 
                     headers: { 'Content-Type': 'application/json' }, 
@@ -1430,8 +1433,8 @@
         // ==============================================
         // 🚀 ส่งข้อมูล Report ไปที่ LINE
         // ==========================================
-        async function sendReportToLine() {
-            const btn = document.getElementById('btnSendLine');
+        async function sendReportToLine(targetBranch) {
+            const btn = document.getElementById(`btnSendLine_${targetBranch}`);
             const orgHtml = btn.innerHTML;
             
             btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังส่ง...`;
@@ -1440,14 +1443,19 @@
             try {
                 const startDate = document.getElementById('report_start_date').value;
                 const endDate = document.getElementById('report_end_date').value;
-                const branchValue = document.getElementById('branchFilter').value;
-                const branchName = branchValue === 'all' ? 'ทุกสาขา' : branchValue;
+                const branchName = targetBranch === 'Navamin' ? 'สาขานวมินทร์' : 'สาขารังสิต';
                 
                 let msg = `\n📋 RIZENIC Report\nสาขา: ${branchName}\nช่วงเวลา: ${startDate || 'ไม่ระบุ'} ถึง ${endDate || 'ไม่ระบุ'}\n`;
                 
                 if (!window.currentReportDef) {
-                    throw new Error("ยังไม่มีข้อมูล Report กรุณากดค้นหาก่อนครับ");
+                    throw new Error("ยังไม่มีข้อมูล Report กรุณากดค้นหาบนหน้าจอก่อนครับ");
                 }
+
+                // 🌟 ดึงข้อมูลเฉพาะสาขาที่กดปุ่ม เพื่อให้ยอดเป๊ะ 100%
+                const branchJobs = allJobs.filter(j => 
+                    (targetBranch === 'Navamin' && (j.branch_name === 'Navamin' || j.branch_name === 'สาขานวมินทร์')) ||
+                    (targetBranch === 'Rangsit' && (j.branch_name === 'Rangsit' || j.branch_name === 'สาขารังสิต'))
+                );
 
                 const categories = {
                     'customers': '\n👥 จำแนกประเภทลูกค้า',
@@ -1458,46 +1466,29 @@
                 for (const [catKey, catTitle] of Object.entries(categories)) {
                     msg += catTitle + '\n';
                     window.currentReportDef[catKey].forEach(item => {
-                        const count = filteredJobs.filter(item.filter).length;
+                        // นับยอดจากข้อมูลสาขาที่เลือก
+                        const count = branchJobs.filter(item.filter).length;
                         if (count > 0) {
                             msg += `${item.icon} ${item.label}: ${count}\n`;
                         }
                     });
                 }
 
-                // 🌟 1. กำหนด Token และ Group ID ให้ตรงกับสาขาที่เลือก
-                let targetToken = "efozQEitp897aA1P7s36CFmg2DtjzSGjV4jWcSI/HJzUvI1MYMsag0dz87ZAQIymuuiE0VRiVpmyl97SakBszSmjvoTcFAmZuvP5Sxz7vutfh2Ptrs5kcfd26bixrx65a6YkV2vU3RrQt0ESwSDcwgdB04t89/1O/w1cDnyilFU=";
-                let targetGroup = "C108e09bf596a6b6ced05b97bd0e7d171"; // รหัสกลุ่ม Navamin (ตั้งเป็นค่าเริ่มต้น หรือแก้ไขตามเงื่อนไขด้านล่าง)
-
-                if (branchValue === 'Navamin' || branchValue === 'สาขานวมินทร์') {
-                    targetGroup = "C108e09bf596a6b6ced05b97bd0e7d171"; // กลุ่ม Navamin
-                } else if (branchValue === 'Rangsit' || branchValue === 'สาขารังสิต') {
-                    targetGroup = "ใส่_ID_กลุ่มของรังสิตตรงนี้"; // ⚠️ นายต้องเอา ID กลุ่มรังสิตมาใส่ตรงนี้ครับ
-                } else {
-                    // กรณีเป็นสาขาอื่น หรือเลือก "ทุกสาขา" ให้ส่งเข้ากลุ่มไหน (แก้ไขได้ครับ)
-                    targetGroup = "C108e09bf596a6b6ced05b97bd0e7d171"; 
-                }
-
-                // 🌟 2. ส่งข้อมูลไปที่ Backend ให้ยิงเข้า LINE (ต้องแก้ Backend ให้รับ Token/Group จากเว็บด้วย)
-                // หรือส่งตรงจากหน้าเว็บเลยแบบนี้ (อาจติดปัญหา CORS ถ้าไม่ได้ตั้งค่า Webhook LINE ไว้)
-                const res = await fetch('https://api.line.me/v2/bot/message/push', {
+                // 🌟 ยิงหาหลังบ้านของเรา (เปลี่ยน URL ให้ตรงกับ app.js ตัวใหม่)
+                const res = await fetch(`${API_BASE_URL}/api/send-line-notify`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${targetToken}`
-                    },
-                    body: JSON.stringify({
-                        to: targetGroup,
-                        messages: [{ type: "text", text: msg }]
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        branch: targetBranch, // ส่งค่าสาขาไปให้หลังบ้านเลือก Group ID
+                        message: msg 
                     })
                 });
 
                 if (res.ok) {
-                    alert(`✅ ส่งข้อมูลเข้ากลุ่ม LINE สาขา ${branchName} สำเร็จแล้วครับ!`);
+                    alert(`✅ ส่งข้อมูลเข้ากลุ่ม LINE ${branchName} สำเร็จแล้วครับ!`);
                 } else {
                     const errData = await res.json();
-                    console.error("LINE API Error:", errData);
-                    alert("❌ ส่งไม่สำเร็จ: " + (errData.message || JSON.stringify(errData)));
+                    throw new Error(errData.error || "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
                 }
 
             } catch (err) {
