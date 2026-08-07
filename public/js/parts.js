@@ -33,7 +33,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     enterApp();
 
-    // 🌟 Listener สำหรับดักจับการวาง (Paste) แบบตาราง Grid Excel
     const pasteBody = document.getElementById('paste_grid_tbody');
     if (pasteBody) {
         pasteBody.addEventListener('paste', function(e) {
@@ -61,7 +60,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (input && !input.readOnly) { 
                             let valToSet = colData.trim();
                             
-                            // 🌟 แปลง format Excel (DD/MM/YYYY) เป็น (YYYY-MM-DD)
                             if (input.type === 'date') {
                                 const dParts = valToSet.split(/[\/\-]/);
                                 if(dParts.length === 3) {
@@ -260,7 +258,6 @@ function loadSAOrders() {
             if(carPartsItems.length === 0) partsPreviewHTML += `<span class="text-slate-400 italic">⚠️ ไม่มีรายการอะไหล่</span>`;
             else { 
                 carPartsItems.forEach(p => { 
-                    // 🌟 เพิ่มการแสดง Order ID
                     partsPreviewHTML += `<div class="text-[11px] font-medium"><span class="bg-slate-200 text-slate-600 px-1 rounded text-[9px] font-black mr-1">#${p.order_id || p.id}</span><span class="font-mono text-blue-700 font-bold">${p.part_no}</span> | ${p.part_name} (x${p.qty_ordered}) [${p.order_status||'รออะไหล่'}]</div>`; 
                 }); 
             }
@@ -778,9 +775,10 @@ function loadPOTracking() {
             // 🌟 เพิ่ม Badge โชว์ ID
             html += `
             <tr>
+                <!-- 🌟 เพิ่ม ID สต๊อกในคอลัมน์แรก -->
+                <td class="font-mono p-1 text-center bg-blue-50/50"><span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-[10px] font-black shadow-sm">ID: ${orderId}</span></td>
                 <td class="font-mono p-1 text-center">
-                    <span class="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-[9px] font-black mr-1 shadow-sm">ID: ${orderId}</span>
-                    <input type="text" value="${o.epc_no || ''}" onchange="fastUpdatePO('${orderId}', 'epc_no', this.value)" class="inline-edit-input font-bold text-amber-700 text-center w-20">
+                    <input type="text" value="${o.epc_no || ''}" onchange="fastUpdatePO('${orderId}', 'epc_no', this.value)" class="inline-edit-input font-bold text-amber-700 text-center w-full">
                 </td>
                 <td class="font-mono p-1"><input type="text" value="${o.part_no || ''}" onchange="fastUpdatePO('${orderId}', 'part_no', this.value)" class="inline-edit-input font-bold text-blue-600"></td>
                 <td class="px-2 text-center font-black text-rose-600">
@@ -843,7 +841,7 @@ function loadInbound() {
         tbody.innerHTML = allInbounds.filter(d => d.branch_name === currentBranch).slice(0, 50).map(d => `
             <tr>
                 <!-- 🌟 เพิ่ม ID สต๊อก -->
-                <td class="font-mono p-1 text-center"><span class="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded text-[9px] font-black mr-1 shadow-sm">ID: ${d.inbound_id || d.id}</span></td>
+                <td class="font-mono p-1 text-center bg-emerald-50"><span class="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded text-[10px] font-black shadow-sm">ID: ${d.inbound_id || d.id}</span></td>
                 <td class="font-mono p-1"><input type="date" value="${d.received_date ? String(d.received_date).split('T')[0] : ''}" onchange="fastUpdateInbound('${d.inbound_id}', 'received_date', this.value)" class="inline-edit-input text-center"></td>
                 <td class="font-mono p-1"><input type="text" value="${d.epc_no||''}" onchange="fastUpdateInbound('${d.inbound_id}', 'epc_no', this.value)" class="inline-edit-input text-center text-amber-700 font-bold"></td>
                 <td class="font-mono p-1"><input type="text" value="${d.part_no||''}" onchange="fastUpdateInbound('${d.inbound_id}', 'part_no', this.value)" class="inline-edit-input font-bold text-emerald-600"></td>
@@ -922,16 +920,16 @@ function loadOutbound() {
     try {
         const tbody = document.getElementById('outbound_table_body');
         const filteredOutb = allOutbounds.filter(d => d.branch_name === currentBranch);
-        if(filteredOutb.length === 0) { tbody.innerHTML = `<tr><td colspan="11" class="text-center py-8 text-slate-400">ไม่มีประวัติการเบิก/จอง</td></tr>`; return; }
+        if(filteredOutb.length === 0) { tbody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400">ไม่มีประวัติการเบิก/จอง</td></tr>`; return; }
 
         tbody.innerHTML = filteredOutb.map((d, index) => {
             const outId = d.outbound_id || d.id; const isBook = d.job_status === 'รอเข้าซ่อม'; const badgeColor = isBook ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700';
             return `
             <tr>
-                <td class="text-center bg-slate-50 font-bold px-2">
-                    <!-- 🌟 เพิ่ม ID เบิกจ่าย -->
-                    <span class="bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded text-[9px] font-black shadow-sm block mb-1">ID: ${outId}</span>
+                <td class="text-center bg-purple-50 font-bold px-2">
+                    <span class="bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded text-[10px] font-black shadow-sm block">ID: ${outId}</span>
                 </td>
+                <td class="text-center bg-slate-50 font-bold px-2">${index + 1}</td>
                 <td class="font-mono p-1"><input type="date" value="${d.issue_date ? String(d.issue_date).split('T')[0] : ''}" onchange="fastUpdateOutbound('${outId}', 'issue_date', this.value)" class="inline-edit-input text-center"></td>
                 <td class="text-center p-1"><select onchange="fastUpdateOutbound('${outId}', 'job_status', this.value)" class="inline-edit-select ${badgeColor} w-full font-black text-center"><option value="รอเข้าซ่อม" ${isBook ? 'selected' : ''}>⏳ จองอะไหล่</option><option value="เบิกอะไหล่" ${!isBook ? 'selected' : ''}>📦 ตัดสต๊อกจริง</option></select></td>
                 <td class="font-mono p-1"><input type="text" value="${d.part_no||''}" onchange="fastUpdateOutbound('${outId}', 'part_no', this.value)" class="inline-edit-input font-bold text-blue-700 text-center"></td>
@@ -1019,6 +1017,10 @@ async function loadStockInHouse() {
             document.getElementById('stock_table_body').innerHTML = activeStock.map(s => `<tr><td class="font-mono font-bold text-amber-700 bg-amber-50/30 px-2 text-center border-r border-slate-300">${s.part_main_no}</td><td class="font-mono text-blue-600 px-2 text-[10px] truncate max-w-[150px]" title="${s.part_no}">${s.part_no}</td><td class="font-bold text-[#00320D] px-2 truncate max-w-[200px]" title="${s.part_name}">${s.part_name}</td><td class="text-center font-black text-slate-600 bg-slate-50 px-2 border-l border-slate-300">${s.physicalStock}</td><td class="text-center font-black text-amber-600 bg-amber-50/30 px-2">${s.totalBooked}</td><td class="text-center font-black text-emerald-600 bg-emerald-50/50 px-2 border-r border-slate-300">${s.availableStock}</td><td class="text-center font-mono text-xs px-2">${s.location}</td><td class="text-slate-500 text-[10px] px-2 truncate max-w-[150px]">${s.car_model}</td><td class="text-right font-mono font-bold text-emerald-700 px-2">${parseFloat(s.unit_price).toFixed(2)}</td><td class="text-center text-[10px] font-bold text-slate-500 uppercase px-2"><span class="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300">${s.part_category}</span></td></tr>`).join('');
         });
     } catch(e) {}
+}
+function searchStockTable() {
+    const input = document.getElementById("stock_search_input").value.toLowerCase(); const trs = document.getElementById("stock_table_body").getElementsByTagName("tr");
+    for (let i = 0; i < trs.length; i++) { if(trs[i].cells.length === 1) continue; const rowText = trs[i].textContent.toLowerCase(); trs[i].style.display = rowText.includes(input) ? "" : "none"; }
 }
 
 // 🌟 อัปเดต 3: สร้าง Datalist และติด Event ทันทีที่เลือก
