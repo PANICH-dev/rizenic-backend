@@ -1263,4 +1263,66 @@ document.addEventListener('click', function(event) {
     if (modal && !modal.classList.contains('hidden') && !modal.contains(event.target) && !event.target.classList.contains('filter-icon')) {
         closeExcelFilter();
     }
-});]
+});
+
+// ==========================================
+// 📏 ระบบลากขยายความกว้างคอลัมน์ (Resizer) สำหรับทุกตารางใน Parts
+// ==========================================
+function initResizableColumns() {
+    // หาตารางทั้งหมดในหน้า Parts ที่มีคลาส modern-table
+    const tables = document.querySelectorAll('.modern-table');
+    
+    tables.forEach(table => {
+        const cols = table.querySelectorAll('th');
+        cols.forEach(col => {
+            const resizer = col.querySelector('.resizer');
+            if (!resizer) return; // ถ้าคอลัมน์ไหนไม่มี resizer ให้ข้ามไป
+
+            let startX = 0;
+            let startWidth = 0;
+
+            const onMouseDown = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                startX = e.clientX;
+                startWidth = col.offsetWidth;
+                resizer.classList.add('bg-amber-400'); // เปลี่ยนสีตอนลากให้เห็นชัดๆ
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            };
+
+            const onMouseMove = function(e) {
+                // คำนวณความกว้างใหม่ และตั้งค่าขีดจำกัดขั้นต่ำ (min-width) ที่ 40px
+                const newWidth = Math.max(40, startWidth + (e.clientX - startX));
+                col.style.width = `${newWidth}px`;
+                col.style.minWidth = `${newWidth}px`;
+                col.style.maxWidth = `${newWidth}px`; // บังคับไม่ให้โดนเนื้อหาบีบ
+            };
+
+            const onMouseUp = function() {
+                resizer.classList.remove('bg-amber-400');
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            };
+
+            // ล้าง Event เดิมก่อนกันบั๊กซ้อนกัน แล้วค่อยใส่ใหม่
+            resizer.removeEventListener('mousedown', onMouseDown);
+            resizer.addEventListener('mousedown', onMouseDown);
+        });
+    });
+}
+
+// 🌟 ให้ระบบสั่งทำงานตอนโหลดหน้าเว็บเสร็จ
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(initResizableColumns, 500);
+});
+
+// 🌟 หากตารางไหนมีการโหลดใหม่ (เช่น รีเฟรชข้อมูล) ให้เรียกใช้ฟังก์ชันนี้ซ้ำด้วย
+// ผมจะแอบใส่คำสั่งนี้พ่วงเข้าไปในฟังก์ชันโหลดข้อมูลด้วยครับ
+const originalLoadAllData = loadAllData;
+loadAllData = async function() {
+    await originalLoadAllData();
+    setTimeout(initResizableColumns, 500); // เรียกใช้งานหลังจากเรนเดอร์ตารางเสร็จ
+};
+
