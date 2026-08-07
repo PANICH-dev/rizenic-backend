@@ -286,7 +286,6 @@ function openCarPartsDetailsModal(carPlate, epcNo) {
     const container = document.getElementById('modal_dynamic_table_container');
     const matchedJob = allGlobalJobs.find(j => cleanStr(j.car_plate) === cleanStr(carPlate)) || {};
     
-    // ดึงอะไหล่ที่ผูกกับรถ หรือผูกกับ Job ID นี้
     const carParts = (allGlobalParts || []).filter(p => cleanStr(p.car_plate) === cleanStr(carPlate) && (p.job_id == matchedJob.id || !p.job_id));
     
     let html = `
@@ -466,7 +465,7 @@ async function saveSAAlertUpdate(e) {
                     const ordDate = p.order_date ? String(p.order_date).split('T')[0] : null;
 
                     const updatePayload = {
-                        job_id: job.id || null, // 🌟 แนบ Job ID
+                        job_id: job.id || null, 
                         epc_no: epcNo, part_no: partNo || '-', part_main_no: mainNo, 
                         part_name: partName || '-', qty_ordered: qty, order_status: status, 
                         est_arrival_date: eta, notes: notes, received_date: rcvDate,
@@ -495,7 +494,7 @@ async function saveSAAlertUpdate(e) {
                         await fetch(`${API_BASE_URL}/api/part-orders`, {
                             method: 'POST', headers: {'Content-Type': 'application/json'},
                             body: JSON.stringify({
-                                job_id: job.id || null, // 🌟 แนบ Job ID
+                                job_id: job.id || null, 
                                 qt_no: qtNo, so_no: soNo, epc_no: epcNo, order_date: getTodayString(), 
                                 est_arrival_date: eta, car_plate: carPlate || null, vin_no: vinNo, 
                                 car_model: carModel, part_main_no: mainNo, part_no: partNo || '-', 
@@ -510,7 +509,7 @@ async function saveSAAlertUpdate(e) {
                     await fetch(`${API_BASE_URL}/api/part-outbound`, {
                         method: 'POST', headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({
-                            job_id: job.id || null, // 🌟 แนบ Job ID
+                            job_id: job.id || null, 
                             issue_date: getTodayString(), part_no: partNo || '-', part_main_no: mainNo, 
                             part_name: partName || '-', qty: qty, car_plate: carPlate || null, 
                             qt_no: qtNo, so_no: soNo, unit_price: 0, car_model: carModel, 
@@ -698,13 +697,12 @@ function processExcelPasteData() {
                         }
                     }
 
-                    // 🌟 หา Job ID
                     const matchedJob = allGlobalJobs.find(j => cleanStr(j.car_plate) === cleanStr(plate)) || {};
 
                     promises.push(fetch(`${API_BASE_URL}/api/part-orders`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            job_id: matchedJob.id || null, // 🌟 แนบ Job ID
+                            job_id: matchedJob.id || null, 
                             car_plate: plate, part_no: pNo || '-', epc_no: epc || null, part_main_no: mainInp || null,
                             part_name: pName || '-', qty_ordered: isNaN(qty) ? 1 : qty, est_arrival_date: eta,
                             branch_name: currentBranch, order_status: 'รออะไหล่', order_date: getTodayString() 
@@ -772,19 +770,12 @@ function loadPOTracking() {
             const isAllReceived = rcvQty >= (parseInt(o.qty_ordered) || 1);
             if (hideCompletedPO && isAllReceived) return;
 
-            // 🌟 เพิ่ม Badge โชว์ ID
             html += `
             <tr>
-                <!-- 🌟 เพิ่ม ID สต๊อกในคอลัมน์แรก -->
                 <td class="font-mono p-1 text-center bg-blue-50/50"><span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-[10px] font-black shadow-sm">ID: ${orderId}</span></td>
-                <td class="font-mono p-1 text-center">
-                    <input type="text" value="${o.epc_no || ''}" onchange="fastUpdatePO('${orderId}', 'epc_no', this.value)" class="inline-edit-input font-bold text-amber-700 text-center w-full">
-                </td>
+                <td class="font-mono p-1 text-center"><input type="text" value="${o.epc_no || ''}" onchange="fastUpdatePO('${orderId}', 'epc_no', this.value)" class="inline-edit-input font-bold text-amber-700 text-center w-full"></td>
                 <td class="font-mono p-1"><input type="text" value="${o.part_no || ''}" onchange="fastUpdatePO('${orderId}', 'part_no', this.value)" class="inline-edit-input font-bold text-blue-600"></td>
-                <td class="px-2 text-center font-black text-rose-600">
-                    ${o.car_plate || '-'}
-                    ${o.job_id ? `<div class="text-[9px] text-amber-600 mt-0.5 font-bold">Job: ${o.job_id}</div>` : ''}
-                </td>
+                <td class="px-2 text-center font-black text-rose-600">${o.car_plate || '-'}${o.job_id ? `<div class="text-[9px] text-amber-600 mt-0.5 font-bold">Job: ${o.job_id}</div>` : ''}</td>
                 <td class="p-1"><select onchange="fastUpdatePO('${orderId}', 'order_status', this.value)" class="inline-edit-select bg-slate-50 w-full">${dropdownHtml}</select></td>
                 <td class="text-center p-1"><input type="number" value="${o.qty_ordered}" onchange="fastUpdatePO('${orderId}', 'qty_ordered', this.value)" class="inline-edit-input font-black text-center w-full"></td>
                 <td class="text-center font-black text-emerald-600">${rcvQty}</td>
@@ -814,12 +805,11 @@ function closePOModal() { document.getElementById('poModal').classList.replace('
 async function submitPO(e) {
     e.preventDefault();
     
-    // 🌟 ค้นหา Job ID จากทะเบียนรถที่กรอก
     const carPlateVal = document.getElementById('po_plate').value.toUpperCase().trim();
     const matchedJob = allGlobalJobs.find(j => cleanStr(j.car_plate) === carPlateVal) || {};
 
     const payload = {
-        job_id: matchedJob.id || null, // 🌟 แนบ Job ID
+        job_id: matchedJob.id || null, 
         qt_no: document.getElementById('po_qt').value, so_no: document.getElementById('po_so').value, epc_no: document.getElementById('po_epc').value, 
         order_date: document.getElementById('po_date').value, est_arrival_date: document.getElementById('po_est').value || null, part_received_all_date: document.getElementById('po_rcv_all_date').value || null,
         order_status: document.getElementById('po_bo').value || 'รออะไหล่', car_plate: carPlateVal, part_no: document.getElementById('po_part_no').value.toUpperCase(), 
@@ -840,8 +830,7 @@ function loadInbound() {
         const tbody = document.getElementById('inbound_table_body');
         tbody.innerHTML = allInbounds.filter(d => d.branch_name === currentBranch).slice(0, 50).map(d => `
             <tr>
-                <!-- 🌟 เพิ่ม ID สต๊อก -->
-                <td class="font-mono p-1 text-center bg-emerald-50"><span class="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded text-[10px] font-black shadow-sm">ID: ${d.inbound_id || d.id}</span></td>
+                <td class="font-mono p-1 text-center bg-emerald-50"><span class="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded text-[9px] font-black shadow-sm">ID: ${d.inbound_id || d.id}</span></td>
                 <td class="font-mono p-1"><input type="date" value="${d.received_date ? String(d.received_date).split('T')[0] : ''}" onchange="fastUpdateInbound('${d.inbound_id}', 'received_date', this.value)" class="inline-edit-input text-center"></td>
                 <td class="font-mono p-1"><input type="text" value="${d.epc_no||''}" onchange="fastUpdateInbound('${d.inbound_id}', 'epc_no', this.value)" class="inline-edit-input text-center text-amber-700 font-bold"></td>
                 <td class="font-mono p-1"><input type="text" value="${d.part_no||''}" onchange="fastUpdateInbound('${d.inbound_id}', 'part_no', this.value)" class="inline-edit-input font-bold text-emerald-600"></td>
@@ -927,7 +916,7 @@ function loadOutbound() {
             return `
             <tr>
                 <td class="text-center bg-purple-50 font-bold px-2">
-                    <span class="bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded text-[10px] font-black shadow-sm block">ID: ${outId}</span>
+                    <span class="bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded text-[9px] font-black shadow-sm block">ID: ${outId}</span>
                 </td>
                 <td class="text-center bg-slate-50 font-bold px-2">${index + 1}</td>
                 <td class="font-mono p-1"><input type="date" value="${d.issue_date ? String(d.issue_date).split('T')[0] : ''}" onchange="fastUpdateOutbound('${outId}', 'issue_date', this.value)" class="inline-edit-input text-center"></td>
@@ -971,7 +960,7 @@ async function submitOutbound(e) {
     const matchedJob = allGlobalJobs.find(j => cleanStr(j.car_plate) === carPlateVal) || {};
 
     const payload = {
-        job_id: matchedJob.id || null, // 🌟 แนบ Job ID
+        job_id: matchedJob.id || null, 
         issue_date: document.getElementById('out_date').value, part_no: document.getElementById('out_part_no').value, qty: parseInt(document.getElementById('out_qty').value),
         car_plate: carPlateVal, qt_no: document.getElementById('out_qt').value, so_no: document.getElementById('out_so').value,
         part_main_no: document.getElementById('out_part_main').value, part_name: document.getElementById('out_part_name').value, unit_price: parseFloat(document.getElementById('out_price').value) || 0,
@@ -1274,4 +1263,4 @@ document.addEventListener('click', function(event) {
     if (modal && !modal.classList.contains('hidden') && !modal.contains(event.target) && !event.target.classList.contains('filter-icon')) {
         closeExcelFilter();
     }
-});
+});]
