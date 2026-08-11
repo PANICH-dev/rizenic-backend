@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIZENIC ERP - รายงานข้อมูลรถซ่อม</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- ดึง SheetJS สำหรับโหลด Excel 100% ภาษาไทยไม่เพี้ยน -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap');
+        body { font-family: 'Kanit', sans-serif; background-color: #f8fafc; display: flex; flex-direction: column; min-height: 100vh; }
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+        .table-container { overflow: auto; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; height: calc(100vh - 210px); }
+        .excel-table { width: 100%; table-layout: auto; text-align: left; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+        .excel-table thead th { background-color: #0f172a; color: #ffffff; font-weight: 600; padding: 12px 14px; border-right: 1px solid #334155; position: sticky; top: 0; z-index: 10; white-space: nowrap; }
+        .excel-table tbody tr:hover td { background-color: #f1f5f9; }
+        .excel-table tbody td { padding: 12px 14px; color: #334155; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; background-color: #fff; white-space: nowrap; }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <!-- 🌟 Header -->
+    <header class="bg-white border-b border-slate-200 h-[70px] flex items-center justify-between px-6 shrink-0 shadow-sm z-50">
+        <div class="flex items-center gap-4">
+            <div class="bg-indigo-600 text-white w-10 h-10 rounded-lg flex items-center justify-center shadow-md text-xl"><i class="fa-solid fa-file-excel"></i></div>
+            <div>
+                <h1 class="text-lg font-black tracking-widest text-[#00320D] leading-tight">รายงานรถซ่อมสถานี</h1>
+                <p class="text-xs text-slate-500 font-bold">คัดกรองข้อมูลตามช่วงเวลา และออกรายงาน Excel</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="repair.html" class="px-4 py-2 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition"><i class="fa-solid fa-arrow-left"></i> กลับหน้าหลัก</a>
+        </div>
+    </header>
+
+    <!-- 🌟 Filter Bar -->
+    <div class="bg-slate-50 border-b border-slate-200 px-6 py-4 shrink-0 flex flex-wrap gap-4 items-end">
+        <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">อ้างอิงจากวันที่:</label>
+            <select id="date_type" class="p-2.5 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 shadow-sm cursor-pointer w-[200px]">
+                <option value="arrived_date">📅 วันที่รถเข้าจอด</option>
+                <option value="repair_finish_date">✅ วันซ่อมเสร็จจริง</option>
+                <option value="delivery_date">🚚 วันที่ส่งมอบลูกค้า</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">ตั้งแต่วันที่:</label>
+            <input type="date" id="start_date" class="p-2.5 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 shadow-sm w-[150px]">
+        </div>
+        <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">ถึงวันที่:</label>
+            <input type="date" id="end_date" class="p-2.5 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 shadow-sm w-[150px]">
+        </div>
+        <button onclick="runReport()" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-lg shadow-md transition flex items-center gap-2">
+            <i class="fa-solid fa-magnifying-glass"></i> ดึงข้อมูล
+        </button>
+        <button onclick="exportToExcel()" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-lg shadow-md transition flex items-center gap-2 ml-auto">
+            <i class="fa-solid fa-file-export"></i> ดาวน์โหลด Excel
+        </button>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-hidden p-6 bg-[#f4f6f9]">
+        <div class="bg-white rounded-xl shadow-sm h-full flex flex-col overflow-hidden border border-slate-200">
+            <div class="table-container flex-1">
+                <table class="excel-table" id="reportTable">
+                    <thead>
+                        <tr>
+                            <th>ลำดับ</th>
+                            <th>ทะเบียนรถ</th>
+                            <th>ยี่ห้อ/รุ่น</th>
+                            <th>SA ผู้ดูแล</th>
+                            <th>สีรถ</th>
+                            <th>สถานะ (ERP)</th>
+                            <th>วันที่รถเข้าจอด</th>
+                            <th>เป้าซ่อมเสร็จ</th>
+                            <th>วันซ่อมเสร็จจริง</th>
+                            <th>วันที่ส่งมอบลูกค้า</th>
+                        </tr>
+                    </thead>
+                    <tbody id="report_list_body">
+                        <tr><td colspan="10" class="text-center py-10 text-slate-400 font-bold text-base">กรุณาเลือกช่วงเวลา และกด "ดึงข้อมูล"</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="bg-slate-50 border-t border-slate-200 px-4 py-3 text-sm font-bold text-slate-500 text-right">
+                จำนวนข้อมูลที่พบ <span id="table_row_count" class="text-indigo-600 text-base font-black">0</span> รายการ
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE_URL = window.location.origin;
+        let allJobs = []; 
+        let filteredJobs = [];
+        let currentBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+
+        async function fetchJobs() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/reports?_t=${new Date().getTime()}`);
+                const data = await res.json();
+                allJobs = data.filter(j => j.branch_name === currentBranch && j.department_routing === 'ซ่อม');
+                
+                // ตั้งค่า default ให้ดึงข้อมูลเดือนปัจจุบัน
+                const today = new Date();
+                const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+                const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+                document.getElementById('start_date').value = firstDay;
+                document.getElementById('end_date').value = lastDay;
+                
+                runReport();
+            } catch (err) { console.error("Error fetching jobs:", err); }
+        }
+
+        function formatThaiDate(dateStr) {
+            if (!dateStr || dateStr === '') return '-';
+            const parts = dateStr.split('T')[0].split('-');
+            if(parts.length !== 3) return dateStr;
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+
+        function runReport() {
+            const dateType = document.getElementById('date_type').value;
+            const startDate = document.getElementById('start_date').value;
+            const endDate = document.getElementById('end_date').value;
+
+            filteredJobs = allJobs.filter(j => {
+                if (!j[dateType]) return false; // ถ้ารถคันนั้นไม่มีวันที่ในช่องที่เลือก ให้ซ่อนเลย
+                
+                const jDate = j[dateType].split('T')[0];
+                if (startDate && jDate < startDate) return false;
+                if (endDate && jDate > endDate) return false;
+                
+                return true;
+            });
+
+            renderTable(filteredJobs);
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('report_list_body');
+            if(data.length === 0) { 
+                tbody.innerHTML = `<tr><td colspan="10" class="p-12 text-center text-slate-400 font-bold text-base">📭 ไม่พบข้อมูลในช่วงเวลาที่เลือก</td></tr>`; 
+                document.getElementById('table_row_count').innerText = 0;
+                return; 
+            }
+
+            let html = '';
+            data.forEach((j, index) => {
+                html += `
+                    <tr>
+                        <td class="text-center font-bold text-slate-400">${index + 1}</td>
+                        <td class="font-mono font-black text-[#00320D]">${j.car_plate || '-'}</td>
+                        <td class="font-bold">${j.car_brand || ''} <span class="font-normal text-slate-500">${j.car_model || ''}</span></td>
+                        <td>${j.sa_owner || '-'}</td>
+                        <td>${j.car_color || '-'}</td>
+                        <td><span class="px-2 py-1 bg-slate-100 rounded text-xs font-bold">${j.job_status || '-'}</span></td>
+                        <td class="text-center font-mono">${formatThaiDate(j.arrived_date)}</td>
+                        <td class="text-center font-mono text-amber-600">${formatThaiDate(j.target_finish_date)}</td>
+                        <td class="text-center font-mono text-blue-600">${formatThaiDate(j.repair_finish_date)}</td>
+                        <td class="text-center font-mono text-emerald-600">${formatThaiDate(j.delivery_date)}</td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+            document.getElementById('table_row_count').innerText = data.length;
+        }
+
+        function exportToExcel() {
+            if (filteredJobs.length === 0) return alert('ไม่มีข้อมูลให้ดาวน์โหลดครับ!');
+
+            // แปลงข้อมูลเป็น Array สำหรับ SheetJS
+            const exportData = filteredJobs.map((j, index) => ({
+                "ลำดับ": index + 1,
+                "ทะเบียนรถ": j.car_plate || '-',
+                "ยี่ห้อ": j.car_brand || '-',
+                "รุ่น": j.car_model || '-',
+                "สีรถ": j.car_color || '-',
+                "SA ผู้ดูแล": j.sa_owner || '-',
+                "สถานะ (ERP)": j.job_status || '-',
+                "วันที่รถเข้าจอด": formatThaiDate(j.arrived_date),
+                "เป้าซ่อมเสร็จ": formatThaiDate(j.target_finish_date),
+                "วันซ่อมเสร็จจริง": formatThaiDate(j.repair_finish_date),
+                "วันที่ส่งมอบลูกค้า": formatThaiDate(j.delivery_date),
+                "ชิ้นส่วนหลัก": j.main_part_name || '-',
+                "ชิ้นส่วนรอง": j.sub_part_name || '-'
+            }));
+
+            // สร้าง Workbook และดาวน์โหลด
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "RepairReport");
+
+            // ตั้งชื่อไฟล์ตามเวลาที่โหลด
+            const dateTypeStr = document.getElementById('date_type').options[document.getElementById('date_type').selectedIndex].text;
+            const fileName = `รายงานรถซ่อม_${dateTypeStr}_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+            XLSX.writeFile(wb, fileName);
+        }
+
+        document.addEventListener('DOMContentLoaded', fetchJobs);
+    </script>
+</body>
+</html>

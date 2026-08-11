@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIZENIC ERP - อัปเดตวันที่งานซ่อม</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap');
+        body { font-family: 'Kanit', sans-serif; background-color: #f8fafc; display: flex; flex-direction: column; min-height: 100vh; }
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
+        .table-container { overflow: auto; border-radius: 6px; border: 2px solid #cbd5e1; background: #fff; height: calc(100vh - 180px); }
+        .excel-table { width: 100%; table-layout: auto; text-align: left; border-collapse: separate; border-spacing: 0; font-size: 14px; }
+        .excel-table thead th { background-color: #00320D; color: #ffffff; font-weight: 600; padding: 12px 14px; border-right: 1px solid #334155; border-bottom: 3px solid #f59e0b; position: sticky; top: 0; z-index: 10; white-space: nowrap; }
+        .excel-table tbody tr:hover td { background-color: #fef3c7; color: #00320D; }
+        .excel-table tbody td { padding: 0; vertical-align: middle; color: #334155; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; background-color: #fff; }
+        .inline-edit-input { width: 100%; border: 1px solid transparent; background: transparent; padding: 10px 12px; border-radius: 4px; font-family: monospace; font-size: 14px; font-weight: 600; color: #0f172a; cursor: pointer; transition: all 0.2s; text-align: center; }
+        .inline-edit-input:hover { border-color: #cbd5e1; background: #f8fafc; }
+        .inline-edit-input:focus { border-color: #f59e0b; background: #fff; outline: none; box-shadow: 0 0 0 2px rgba(245,158,11,0.1); }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div id="toastMsg" class="fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 translate-y-20 opacity-0 z-[200] flex items-center gap-2 border border-white/20">
+        <span id="toastContent"><i class="fa-solid fa-circle-check text-xl"></i> บันทึกข้อมูลเรียบร้อย!</span>
+    </div>
+
+    <!-- 🌟 Header -->
+    <header class="bg-white border-b border-slate-200 h-[70px] flex items-center justify-between px-6 shrink-0 shadow-sm z-50">
+        <div class="flex items-center gap-4">
+            <div class="bg-[#00320D] text-white w-10 h-10 rounded-lg flex items-center justify-center shadow-md text-xl"><i class="fa-solid fa-calendar-day"></i></div>
+            <div>
+                <h1 class="text-lg font-black tracking-widest text-[#00320D] leading-tight">จัดการวันเวลารถซ่อม</h1>
+                <p class="text-xs text-slate-500 font-bold">อัปเดต วันรถเข้าจอด / ซ่อมเสร็จ / ส่งมอบ</p>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-3">
+            <a href="repair.html" class="px-4 py-2 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition"><i class="fa-solid fa-arrow-left"></i> กลับหน้าหลัก</a>
+        </div>
+    </header>
+
+    <!-- 🌟 Filter Bar -->
+    <div class="bg-slate-50 border-b border-slate-200 px-6 py-4 shrink-0 flex gap-4 items-center">
+        <label class="text-sm font-bold text-[#00320D] whitespace-nowrap"><i class="fa-solid fa-filter text-amber-500"></i> เลือกกลุ่มรถที่ต้องการ:</label>
+        <select id="filter_dropdown" onchange="runFilter()" class="w-[300px] p-2.5 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-700 outline-none focus:border-amber-500 shadow-sm cursor-pointer">
+            <option value="all">🚙 แสดงรถทั้งหมดในระบบ</option>
+            <option value="missing_arrived">⚠️ รถที่ยังไม่ระบุ "วันเข้าจอด"</option>
+            <option value="missing_finish">⏳ รถที่ยังไม่ระบุ "วันซ่อมเสร็จ"</option>
+            <option value="missing_delivery">🚚 รถที่ยังไม่ระบุ "วันส่งมอบ"</option>
+        </select>
+        
+        <div class="relative w-[300px] ml-auto">
+            <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+            <input type="text" id="search_input" onkeyup="runFilter()" class="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-300 rounded-lg focus:border-amber-500 transition-all text-sm font-medium shadow-sm" placeholder="ค้นหา ทะเบียนรถ...">
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-hidden p-6 bg-[#f4f6f9]">
+        <div class="bg-white rounded-xl shadow-sm h-full flex flex-col overflow-hidden border border-slate-200">
+            <div class="table-container flex-1">
+                <table class="excel-table" id="dateTable">
+                    <thead>
+                        <tr>
+                            <th class="w-[150px]">ทะเบียนรถ</th>
+                            <th class="w-[200px]">ยี่ห้อ/รุ่น</th>
+                            <th class="w-[180px]">สถานะงาน (ERP)</th>
+                            <th class="w-[160px] text-center text-blue-200"><i class="fa-solid fa-car"></i> วันที่รถเข้าจอด</th>
+                            <th class="w-[160px] text-center text-amber-200"><i class="fa-solid fa-check"></i> วันซ่อมเสร็จจริง</th>
+                            <th class="w-[160px] text-center text-emerald-200"><i class="fa-solid fa-car-side"></i> วันที่ส่งมอบลูกค้า</th>
+                        </tr>
+                    </thead>
+                    <tbody id="date_list_body">
+                        <tr><td colspan="6" class="text-center py-10 text-slate-400 text-sm"><i class="fa-solid fa-circle-notch fa-spin text-amber-500 text-2xl mb-2 block"></i> กำลังโหลดข้อมูล...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="bg-slate-50 border-t border-slate-200 px-4 py-3 text-sm font-bold text-slate-500 text-right">
+                พบข้อมูล <span id="table_row_count" class="text-[#00320D] text-base font-black">0</span> คัน
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE_URL = window.location.origin;
+        let allJobs = []; 
+        let currentBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+
+        function showToast(msg, type='success') {
+            const toast = document.getElementById('toastMsg');
+            toast.className = `fixed bottom-5 right-5 font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 z-[200] flex items-center gap-2 border border-white/20 ${type === 'error' ? 'bg-red-600' : 'bg-[#00320D]'} text-white`;
+            document.getElementById('toastContent').innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-circle-xmark' : 'fa-circle-check text-amber-400'} text-xl"></i> ${msg}`;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 2500);
+        }
+
+        async function fetchJobs() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/reports?_t=${new Date().getTime()}`);
+                const data = await res.json();
+                allJobs = data.filter(j => j.branch_name === currentBranch && j.department_routing === 'ซ่อม');
+                runFilter();
+            } catch (err) { console.error("โหลดข้อมูลพัง:", err); }
+        }
+
+        function runFilter() {
+            const filterType = document.getElementById('filter_dropdown').value;
+            const searchTxt = document.getElementById('search_input').value.toLowerCase();
+            
+            const filteredData = allJobs.filter(j => {
+                if (searchTxt && !(j.car_plate || '').toLowerCase().includes(searchTxt)) return false;
+                
+                if (filterType === 'missing_arrived' && j.arrived_date) return false;
+                if (filterType === 'missing_finish' && j.repair_finish_date) return false;
+                if (filterType === 'missing_delivery' && j.delivery_date) return false;
+                
+                return true;
+            });
+            renderTable(filteredData);
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('date_list_body');
+            if(data.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="p-12 text-center text-slate-400 font-bold text-base">📭 ไม่พบข้อมูลรถ</td></tr>`; return; }
+
+            let html = '';
+            data.forEach(j => {
+                const arrDate = j.arrived_date ? j.arrived_date.split('T')[0] : '';
+                const repDate = j.repair_finish_date ? j.repair_finish_date.split('T')[0] : '';
+                const delDate = j.delivery_date ? j.delivery_date.split('T')[0] : '';
+
+                html += `
+                    <tr>
+                        <td><div class="px-4 py-3 font-mono font-black text-[#00320D] text-base">${j.car_plate || '-'}</div></td>
+                        <td><div class="px-4 py-3 font-bold text-slate-700">${j.car_brand || ''} <span class="font-medium text-slate-400">${j.car_model || ''}</span></div></td>
+                        <td><div class="px-4 py-3 font-bold text-amber-600 text-xs bg-amber-50 rounded inline-block border border-amber-200 ml-3">${j.job_status || '-'}</div></td>
+                        <td><div class="px-2 py-2 w-full"><input type="date" value="${arrDate}" onchange="updateDate('${j.id}', 'arrived_date', this.value)" class="inline-edit-input text-[#00320D] bg-blue-50/30 hover:bg-blue-50"></div></td>
+                        <td><div class="px-2 py-2 w-full"><input type="date" value="${repDate}" onchange="updateDate('${j.id}', 'repair_finish_date', this.value)" class="inline-edit-input text-[#00320D] bg-amber-50/30 hover:bg-amber-50"></div></td>
+                        <td><div class="px-2 py-2 w-full"><input type="date" value="${delDate}" onchange="updateDate('${j.id}', 'delivery_date', this.value)" class="inline-edit-input text-[#00320D] bg-emerald-50/30 hover:bg-emerald-50"></div></td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+            document.getElementById('table_row_count').innerText = data.length;
+        }
+
+        async function updateDate(id, field, value) {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/report/${id}/fast-date`, {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ field, value })
+                });
+                if(res.ok) {
+                    const idx = allJobs.findIndex(j => String(j.id) === String(id));
+                    if(idx > -1) allJobs[idx][field] = value ? value + 'T00:00:00.000Z' : null;
+                    showToast('บันทึกวันที่สำเร็จ!');
+                } else throw new Error();
+            } catch(e) { showToast('อัปเดตไม่สำเร็จ', 'error'); }
+        }
+
+        document.addEventListener('DOMContentLoaded', fetchJobs);
+    </script>
+</body>
+</html>
