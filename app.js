@@ -631,7 +631,7 @@ app.put('/api/report/:id/fast-date', async (req, res) => {
     'billing_date', 'ivn_no', 'cost_labor', 'cost_part', 'cost_external',
     'department_routing', 'is_parked', 'customer_type', 'payment_type', 
     'car_brand', 'car_model', 'vin_no', 'customer_name', 'phone_number', 
-    'customer_phone', 'epc_no', 'quotation_no', 'job_order_no', 'insurance_payment_date'
+    'customer_phone', 'epc_no', 'quotation_no', 'job_order_no', 'insurance_payment_date','car_color'
 ];
 
     if (!validFields.includes(field)) {
