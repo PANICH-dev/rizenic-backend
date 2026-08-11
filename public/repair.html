@@ -470,12 +470,21 @@
         ];
         const stationLevels = ["รอรับรถ", "01.เคาะ", "02.โป๊ว", "03.เตรียมพื้น", "04.พ่นสี", "05.ประกอบ", "06.ขัดสี", "07.QC", "08.แม็ก", "09.กระจก", "10.ฟิล์ม", "11.พักซ่อม", "12.รอส่งมอบ"];
 
+        const stationsTimeline = [
+            { id: 'chk_kho', code: '01', name: 'เคาะ' }, { id: 'chk_pou', code: '02', name: 'โป๊ว' }, 
+            { id: 'chk_puan', code: '03', name: 'เตรียมพื้น' }, { id: 'chk_pon', code: '04', name: 'พ่นสี' }, 
+            { id: 'chk_prak', code: '05', name: 'ประกอบ' }, { id: 'chk_kat', code: '06', name: 'ขัดสี' }, 
+            { id: 'chk_qc', code: '07', name: 'QC' }, { id: 'chk_mag', code: '08', name: 'แม็ก' }, 
+            { id: 'chk_kraj', code: '09', name: 'กระจก' }, { id: 'chk_film', code: '10', name: 'ฟิล์ม' }, 
+            { id: 'chk_pak', code: '11', name: 'พักซ่อม' }, { id: 'chk_ready', code: '12', name: 'รอส่งมอบ' }
+        ];
+
         // 🌟 2. เพิ่มคอลัมน์ สีรถ (car_color)
         let columnsDef = [
             { idx: 0, key: 'action', title: 'Action', w: 90, filter: false },
             { idx: 1, key: 'car_plate', title: 'ทะเบียน', w: 130, filter: true },
             { idx: 2, key: 'car_brand', title: 'ยี่ห้อ/รุ่น', w: 180, filter: true },
-            { idx: 37, key: 'car_color', title: 'สีรถ', w: 110, filter: true }, // 👈 เพิ่มสีรถตรงนี้
+            { idx: 37, key: 'car_color', title: 'สีรถ', w: 110, filter: true }, // 👈 คอลัมน์สีรถ
             { idx: 3, key: 'arrived_date', title: 'รถเข้า', w: 120, filter: true, showCount: true },
             { idx: 4, key: 'target_finish_date', title: 'เป้าเสร็จ', w: 120, filter: true, showCount: true },
             { idx: 5, key: 'repair_finish_date', title: 'เสร็จจริง', w: 150, filter: true, showCount: true },
@@ -522,7 +531,6 @@
             try { const res = await fetch(url); if (res.ok) return await res.json(); return []; } catch (e) { return []; }
         }
 
-        // 🌟 1. ดึงและบันทึกค่า Sort Order ใน Preferences
         async function loadUserColumnPreferences() {
             const empName = sessionStorage.getItem('emp_name'); if (!empName) return;
             try {
@@ -557,7 +565,7 @@
                         hidden_columns: { 
                             hidden: Array.from(hiddenCols), 
                             order: columnsDef.map(c => c.key),
-                            sort: { col: savedSortCol, dir: savedSortDir } // 👈 เซฟ Sort Order ลงฐานข้อมูลด้วย
+                            sort: { col: savedSortCol, dir: savedSortDir }
                         } 
                     }) 
                 });
@@ -780,7 +788,7 @@
                 columnsDef.forEach(col => {
                     let cellData = ''; 
                     switch(col.key) {
-                        case 'action': cellData = `<div class="text-center px-1 py-1.5"><button onclick="goToEditJob('${j.id}')" class="action-btn"><i class="fa-solid fa-pen"></i></button></div>`; break;
+                        case 'action': cellData = `<div class="text-center px-1 py-1.5"><button onclick="openModal('${j.id}')" class="action-btn"><i class="fa-solid fa-pen"></i></button></div>`; break;
                         case 'car_plate': cellData = `<div class="font-mono text-base font-black px-3 py-2 truncate ${isOverdue ? 'text-rose-600' : 'text-[#00320D]'}">${isOverdue ? '<i class="fa-solid fa-circle-exclamation mr-1 animate-pulse"></i>' : ''}${j.car_plate || '-'}</div>`; break;
                         case 'car_brand': cellData = `<div class="font-bold text-[#00320D] truncate text-[14px] px-3 py-2" title="${j.car_brand || ''} ${j.car_model || ''}">${j.car_brand || '-'} <span class="text-slate-400 font-medium">${j.car_model || ''}</span></div>`; break;
                         
@@ -790,9 +798,9 @@
                         case 'target_finish_date': cellData = `<div class="${isOverdue ? 'text-rose-600' : 'text-amber-600'} text-[14px] font-mono font-bold text-center px-2 py-2">${formatThaiDate(j.target_finish_date)}</div>`; break;
                         case 'repair_finish_date': cellData = `<div class="text-center px-2 py-1.5"><input type="date" min="${getTodayString()}" value="${finishDateStr}" onchange="fastUpdateField('${j.id}', 'repair_finish_date', this.value)" class="inline-edit-input w-full font-mono text-base text-[#00320D] font-bold"></div>`; break;
                         case 'delivery_date': cellData = `<div class="text-emerald-600 text-[14px] font-mono font-bold text-center px-2 py-2">${formatThaiDate(j.delivery_date)}</div>`; break;
-                        case 'main_part_name': cellData = `<div onclick="event.stopPropagation(); goToEditJob('${j.id}')" class="w-full h-full text-left cursor-pointer group">${formatPartsText(j.main_part_name, 'main')}</div>`; break;
+                        case 'main_part_name': cellData = `<div onclick="event.stopPropagation(); openModal('${j.id}')" class="w-full h-full text-left cursor-pointer group">${renderAllTags(j.main_part_name, 'bg-blue-50', 'text-blue-700', 'border-blue-200')}</div>`; break;
                         case 'main_part_qty': cellData = `<div class="text-center font-black text-base text-blue-600 py-2">${mQty}</div>`; break;
-                        case 'sub_part_name': cellData = `<div onclick="event.stopPropagation(); goToEditJob('${j.id}')" class="w-full h-full text-left cursor-pointer group">${formatPartsText(j.sub_part_name, 'sub')}</div>`; break;
+                        case 'sub_part_name': cellData = `<div onclick="event.stopPropagation(); openModal('${j.id}')" class="w-full h-full text-left cursor-pointer group">${renderAllTags(j.sub_part_name, 'bg-amber-50', 'text-amber-700', 'border-amber-200')}</div>`; break;
                         case 'sub_part_qty': cellData = `<div class="text-center font-black text-base text-amber-600 py-2">${sQty}</div>`; break;
                         case 'calculated_station': const stationOptionsHtml = stationLevels.map(st => `<option value="${st}" ${j.calculated_station === st ? 'selected' : ''}>${st}</option>`).join(''); cellData = `<div class="px-2 py-1.5"><select onchange="fastUpdateStationDropdown('${j.id}', this.value)" class="inline-edit-select text-amber-700 font-bold bg-amber-50 hover:bg-amber-100 border-amber-300 text-sm">${stationOptionsHtml}</select></div>`; break;
                         case 'job_status': const sOpts = statusOptions.map(st => `<option value="${st}" ${j.job_status === st ? 'selected' : ''}>${st}</option>`).join(''); cellData = `<div class="px-2 py-1.5"><select onchange="fastUpdateField('${j.id}', 'job_status', this.value)" class="inline-edit-select text-[#00320D] font-bold text-sm">${sOpts}</select></div>`; break;
@@ -800,7 +808,8 @@
                     }
                     rowHtml += `<td>${cellData}</td>`;
                 });
-                allRowsHtml += rowHtml + '</tr>';
+                rowHtml += '</tr>'; 
+                allRowsHtml += rowHtml;
             });
             tbody.innerHTML = allRowsHtml;
             
@@ -812,7 +821,6 @@
             if(document.getElementById('hdr_cnt_main_part_qty')) document.getElementById('hdr_cnt_main_part_qty').innerText = sumMain;
             if(document.getElementById('hdr_cnt_sub_part_qty')) document.getElementById('hdr_cnt_sub_part_qty').innerText = sumSub;
             
-            // 🌟 3. สั่งเรียงข้อมูลอัตโนมัติตามค่าที่เคยจำไว้ (ถ้ามี)
             if(savedSortCol !== null) { sortTableDirectly(savedSortCol, savedSortDir); }
         }
 
@@ -889,14 +897,12 @@
             dir = dir === 'asc' ? 'desc' : 'asc';
             table.setAttribute(`data-dir-${colIndex}`, dir);
 
-            // 🌟 4. เซฟการตั้งค่าเมื่อคลิกเปลี่ยน Sort
             savedSortCol = colIndex; savedSortDir = dir;
             saveUserPreferences();
             
             sortTableDirectly(colIndex, dir);
         }
 
-        // ฟังก์ชันช่วยเรียงข้อมูล (ใช้ซ้ำตอนโหลดหรือตอนสลับ)
         function sortTableDirectly(colIndex, dir) {
             const tbody = document.getElementById('repair_list_body'); const rows = Array.from(tbody.querySelectorAll('tr')); if (rows.length <= 1) return;
             const table = document.getElementById('repairTable'); 
@@ -1007,7 +1013,7 @@
 
         function generateMiniCardHTML(j, type) {
             const isOverdue = checkOverdue(j); const station = computeHighestStationIFS(j);
-            return `<div class="bg-white border ${isOverdue ? 'border-red-300 shadow-sm bg-red-50/20' : 'border-slate-200 hover:border-amber-400 shadow-sm'} rounded-xl p-4 mb-3 transition w-full"><div class="flex justify-between items-start mb-3"><div class="font-bold ${isOverdue ? 'text-red-600' : 'text-slate-800'} text-base"><span class="${isOverdue ? 'bg-red-500 text-white border-red-600' : 'text-[#00320D] bg-slate-100 border-slate-300'} px-2 py-1 rounded font-mono mr-1 border text-sm">${j.car_plate || '-'}</span> ${j.car_brand} <span class="text-slate-500 font-medium">${j.car_model || ''}</span></div></div><div class="flex justify-between items-center mt-1"><div class="text-xs text-slate-600 font-bold">สถานีล่าสุด: <span class="text-amber-600 ml-1 text-sm">${station}</span></div><button onclick="goToEditJob('${j.id}')" class="px-4 py-1.5 bg-[#00320D] hover:bg-black text-white text-xs font-bold rounded-lg shadow-sm transition"><i class="fa-solid fa-sliders"></i> เปิด</button></div></div>`;
+            return `<div class="bg-white border ${isOverdue ? 'border-red-300 shadow-sm bg-red-50/20' : 'border-slate-200 hover:border-amber-400 shadow-sm'} rounded-xl p-4 mb-3 transition w-full"><div class="flex justify-between items-start mb-3"><div class="font-bold ${isOverdue ? 'text-red-600' : 'text-slate-800'} text-base"><span class="${isOverdue ? 'bg-red-500 text-white border-red-600' : 'text-[#00320D] bg-slate-100 border-slate-300'} px-2 py-1 rounded font-mono mr-1 border text-sm">${j.car_plate || '-'}</span> ${j.car_brand} <span class="text-slate-500 font-medium">${j.car_model || ''}</span></div></div><div class="flex justify-between items-center mt-1"><div class="text-xs text-slate-600 font-bold">สถานีล่าสุด: <span class="text-amber-600 ml-1 text-sm">${station}</span></div><button onclick="openModal('${j.id}')" class="px-4 py-1.5 bg-[#00320D] hover:bg-black text-white text-xs font-bold rounded-lg shadow-sm transition"><i class="fa-solid fa-sliders"></i> เปิด</button></div></div>`;
         }
 
         function closeDayListModal() { document.getElementById('dayListModal').classList.add('hidden'); }
@@ -1040,15 +1046,13 @@
                     stationJobs[k].forEach(j => {
                         const target = j.target_finish_date ? formatThaiDate(j.target_finish_date) : 'ยังไม่ระบุ'; const actual = j.repair_finish_date ? j.repair_finish_date.split('T')[0] : '';
                         const isOverdue = checkOverdue(j);
-                        listHTML += `<div class="px-5 py-4 flex justify-between items-center hover:bg-amber-50/40 transition gap-4 ${isOverdue ? 'bg-red-50/50' : ''}"><div><span class="text-slate-800 font-mono font-bold px-2 py-1 rounded text-sm mr-2 border shadow-sm ${isOverdue ? 'bg-red-100 border-red-300 text-red-700' : 'bg-white border-slate-300'}">${j.car_plate || '-'}</span><span class="text-slate-600 text-sm font-semibold">${j.car_brand}</span></div><div class="flex items-center gap-3"><input type="date" min="${getTodayString()}" value="${actual}" onchange="fastUpdateField('${j.id}', 'repair_finish_date', this.value); setTimeout(renderPieChartAndList, 800);" class="bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-[#00320D] font-bold outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 cursor-pointer w-[130px] shadow-sm"><button onclick="goToEditJob('${j.id}')" class="px-4 py-2 bg-amber-400 text-[#00320D] text-sm font-bold rounded-lg shadow-sm hover:bg-amber-500 transition"><i class="fa-solid fa-pen"></i></button></div></div>`;
+                        listHTML += `<div class="px-5 py-4 flex justify-between items-center hover:bg-amber-50/40 transition gap-4 ${isOverdue ? 'bg-red-50/50' : ''}"><div><span class="text-slate-800 font-mono font-bold px-2 py-1 rounded text-sm mr-2 border shadow-sm ${isOverdue ? 'bg-red-100 border-red-300 text-red-700' : 'bg-white border-slate-300'}">${j.car_plate || '-'}</span><span class="text-slate-600 text-sm font-semibold">${j.car_brand}</span></div><div class="flex items-center gap-3"><input type="date" min="${getTodayString()}" value="${actual}" onchange="fastUpdateField('${j.id}', 'repair_finish_date', this.value); setTimeout(renderPieChartAndList, 800);" class="bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-[#00320D] font-bold outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 cursor-pointer w-[130px] shadow-sm"><button onclick="openModal('${j.id}')" class="px-4 py-2 bg-amber-400 text-[#00320D] text-sm font-bold rounded-lg shadow-sm hover:bg-amber-500 transition"><i class="fa-solid fa-pen"></i></button></div></div>`;
                     });
                     listHTML += `</div></div>`;
                 }
             });
             breakdownDiv.innerHTML = listHTML || '<div class="text-center py-10 text-slate-500 text-base font-bold">ไม่มีรถค้างในระบบ</div>';
         }
-
-        function goToEditJob(jobId) { sessionStorage.setItem('edit_job_id', jobId); window.location.href = 'index.html'; }
     </script>
 </body>
 </html>
