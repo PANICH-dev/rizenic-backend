@@ -65,6 +65,10 @@
 </head>
 <body class="text-slate-800 h-screen flex flex-col">
 
+    <!-- 🌟 Datalists สำหรับ เพิ่มด่วน (PDI) 🌟 -->
+    <datalist id="dl_car_brands"></datalist>
+    <datalist id="dl_car_models"></datalist>
+
     <!-- 🔔 Toast Notification -->
     <div id="toastMsg" class="fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-5 py-2.5 rounded shadow-2xl transform transition-all duration-300 translate-y-20 opacity-0 z-[200] flex items-center gap-2 border border-white/20 text-xs">
         <span id="toastContent"><i class="fa-solid fa-circle-check text-base"></i> บันทึกข้อมูลเรียบร้อย!</span>
@@ -114,7 +118,7 @@
         </div>
     </header>
 
-    <!-- 🌟 Tab Navigation (สลับเมนูตามที่ขอ) 🌟 -->
+    <!-- 🌟 Tab Navigation -->
     <div class="bg-white border-b border-slate-200 z-40 shrink-0 shadow-2xs flex px-2 pt-1.5 gap-1 overflow-x-auto">
         <a href="jobs_table.html" class="px-5 py-2 text-xs font-bold border-b-2 border-[#00320D] text-[#00320D] bg-green-50/50 flex items-center gap-2 rounded-t-lg"><i class="fa-solid fa-file-excel text-emerald-600"></i> 1. ตารางใบงานทั้งหมด (Excel Mode)</a>
         <a href="jobs.html" class="px-5 py-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50 flex items-center gap-2 transition-all rounded-t-lg"><i class="fa-solid fa-users text-blue-600"></i> 2. ภาพรวมทีมบริการ (SA)</a>
@@ -222,6 +226,7 @@
         let allCustomerTypes = [];
         let allInsurances = [];
         let allEmployees = [];
+        let allCarModels = []; 
         
         let globalStatusOptionsHtml = '';
         let globalStatuses = []; 
@@ -237,7 +242,7 @@
         let activeJobIdForParts = null;
         let activeFieldForParts = null; 
         let selectedPartsSet = new Set();
-        let isBulkModalMode = false; // ตัวแปรเช็คว่าเปิด Modal อะไหล่จากไหน
+        let isBulkModalMode = false; 
         let activeBulkRowId = null; 
 
         const excludedStatuses = [
@@ -246,7 +251,6 @@
             '19.ออกบิลแล้ว', '20.จอดซ่อม TC', '21.พักซ่อม'
         ];
 
-        // 🌟 แก้ไข: จัดเรียงคอลัมน์ใหม่เป๊ะๆ ตามที่นายกำหนดมาเลยครับ
         let columnsDef = [
             { idx: 1, key: 'action', title: 'Action', width: 90 },
             { idx: 2, key: 'contact_date', title: 'เข้ามาติดต่อวันที่', width: 115 },
@@ -285,7 +289,6 @@
             { idx: 35, key: 'sa_owner', title: 'SA ที่รับผิดชอบ', width: 115 }
         ];
 
-        // กำหนดคอลัมน์เริ่มต้นที่จะแสดง (ถ้าพนักงานยังไม่เคยเซฟซ่อน/สลับ)
         const defaultVisibleKeys = [
             'action', 'contact_date', 'car_plate', 'car_brand', 'car_model', 
             'customer_name', 'damage_level', 'job_status', 'sa_owner'
@@ -475,7 +478,8 @@
                     fetch(`${API_BASE_URL}/api/reports`).then(res => res.json()),
                     fetch(`${API_BASE_URL}/api/customer-types`).then(res => res.json()),
                     fetch(`${API_BASE_URL}/api/insurances`).then(res => res.json()),
-                    fetch(`${API_BASE_URL}/api/employees`).then(res => res.json())
+                    fetch(`${API_BASE_URL}/api/employees`).then(res => res.json()),
+                    fetch(`${API_BASE_URL}/api/car-models`).then(res => res.json())
                 ]);
 
                 if (results[0].status === 'fulfilled') {
@@ -487,12 +491,22 @@
                 if (results[4].status === 'fulfilled') allCustomerTypes = results[4].value;
                 if (results[5].status === 'fulfilled') allInsurances = results[5].value;
                 if (results[6].status === 'fulfilled') allEmployees = results[6].value;
+                if (results[7].status === 'fulfilled') allCarModels = results[7].value;
 
                 if (results[3].status === 'fulfilled') {
                     const data = results[3].value;
                     allJobsData = (['BA','Manager','Admin','แอดมิน'].includes(userRole)) ? data : data.filter(d => d.branch_name === userBranch);
                 }
                 
+                // 🌟 อัปเดต Datalists สำหรับ Bulk PDI 🌟
+                const dlBrands = document.getElementById('dl_car_brands');
+                const uniqueBrands = [...new Set(allCarModels.map(c => c.car_brand).filter(Boolean))].sort();
+                dlBrands.innerHTML = uniqueBrands.map(b => `<option value="${b}">`).join('');
+
+                const dlModels = document.getElementById('dl_car_models');
+                const uniqueModels = [...new Set(allCarModels.map(c => c.car_model).filter(Boolean))].sort();
+                dlModels.innerHTML = uniqueModels.map(m => `<option value="${m}">`).join('');
+
                 initColumns(); 
                 buildSADropdown(); buildBranchDropdown(); applyFilters(); 
             } catch (error) {
@@ -644,6 +658,7 @@
             const partsCount = partsArray.length;
             
             if (isBulkModalMode) {
+                // อัปเดตช่องในตาราง Bulk แทนการยิงฐานข้อมูล
                 const qtyFieldKey = activeFieldForParts === 'main_part_name' ? 'main_part_qty' : 'sub_part_qty';
                 const inputName = document.querySelector(`.bulk-row[data-row-id="${activeBulkRowId}"] .bulk-input-${activeFieldForParts}`);
                 const inputQty = document.querySelector(`.bulk-row[data-row-id="${activeBulkRowId}"] .bulk-input-${qtyFieldKey}`);
@@ -651,6 +666,7 @@
                 if(inputName) inputName.value = joinedPartsStr;
                 if(inputQty) inputQty.value = partsCount;
             } else {
+                // อัปเดตเข้าตารางจริงเหมือนเดิม
                 const qtyField = activeFieldForParts === 'main_part_name' ? 'main_part_qty' : 'sub_part_qty';
                 await fastUpdateJob(activeJobIdForParts, activeFieldForParts, joinedPartsStr, true);
                 await fastUpdateJob(activeJobIdForParts, qtyField, partsCount, false);
@@ -912,6 +928,13 @@
                 else if (c.key === 'damage_level') {
                     tdHtml += `<td class="p-0 border-r border-slate-200"><select class="bulk-input bulk-input-${c.key} cursor-pointer font-bold"><option value="เบา" ${val==='เบา'?'selected':''}>เบา</option><option value="กลาง" ${val==='กลาง'?'selected':''}>กลาง</option><option value="หนัก" ${val==='หนัก'?'selected':''}>หนัก</option></select></td>`;
                 }
+                // 🌟 อัปเกรด: ฟิลด์ยี่ห้อและรุ่นรถเป็น Datalist พิมพ์ง่าย
+                else if (c.key === 'car_brand') {
+                    tdHtml += `<td class="p-0 border-r border-slate-200"><input type="text" list="dl_car_brands" class="bulk-input bulk-input-${c.key} font-bold text-slate-800" placeholder="${c.title}" value="${val}"></td>`;
+                }
+                else if (c.key === 'car_model') {
+                    tdHtml += `<td class="p-0 border-r border-slate-200"><input type="text" list="dl_car_models" class="bulk-input bulk-input-${c.key} text-slate-700 font-medium" placeholder="${c.title}" value="${val}"></td>`;
+                }
                 // 🌟 อัปเกรด: ฟิลด์อะไหล่หลัก/รอง
                 else if (c.key === 'main_part_name' || c.key === 'sub_part_name') {
                     tdHtml += `<td class="p-0 border-r border-slate-200"><input type="text" readonly onclick="openMultiPartsModal(null, '${c.key}', this.value, true, '${rowId}')" class="bulk-input bulk-input-${c.key} cursor-pointer bg-slate-50 text-blue-700 font-bold hover:bg-slate-100" placeholder="คลิกเพื่อเลือกชิ้นส่วน..." value="${val}"></td>`;
@@ -982,3 +1005,4 @@
     </script>
 </body>
 </html>
+]
