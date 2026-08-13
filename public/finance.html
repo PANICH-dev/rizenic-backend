@@ -7,7 +7,6 @@
     <title>RIZENIC ERP - Finance Department</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style type="text/tailwindcss">
@@ -24,7 +23,6 @@
         .acc-tab-content.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* 🌟 ระบบตารางแบบ Excel View แท้ๆ 🌟 */
         .excel-table { @apply w-full text-left border-collapse whitespace-nowrap text-[12px] bg-white; table-layout: fixed; }
         .excel-table thead th { @apply relative px-0 py-0 bg-[#00320D] text-white border border-slate-500 font-bold sticky top-0 z-10 shadow-sm align-middle select-none; }
         .excel-table tbody td { @apply p-0 border border-slate-300 text-slate-700 align-middle overflow-hidden; }
@@ -36,9 +34,6 @@
         
         .inline-edit-input { @apply w-full h-full border-0 bg-transparent px-3 py-2 outline-none font-medium text-slate-900 transition-colors hover:bg-slate-50 focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500; }
         .inline-edit-select { @apply w-full h-full border-0 bg-transparent px-2 py-2 outline-none font-bold text-slate-800 transition-colors cursor-pointer hover:bg-slate-50 focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500; }
-        
-        .excel-filter-modal { @apply absolute bg-white border border-slate-200 shadow-xl rounded-lg p-3 z-[200] w-64 text-sm hidden flex flex-col; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        .excel-filter-modal.active { @apply flex; }
     </style>
 </head>
 <body class="text-slate-800 h-screen flex flex-col selection:bg-[#00320D] selection:text-white">
@@ -47,21 +42,26 @@
         <span id="toastContent"><i class="fa-solid fa-circle-check text-xl"></i> บันทึกข้อมูลอัตโนมัติเรียบร้อย!</span>
     </div>
 
-    <!-- 🔍 Excel Filter Modal -->
-    <div id="excelFilterModal" class="excel-filter-modal">
-        <div class="flex justify-between items-center border-b pb-2 mb-2">
-            <span class="font-bold text-[#00320D] text-xs"><i class="fa-solid fa-filter mr-1"></i> ตัวกรอง: <span id="ef_col_name" class="text-amber-600"></span></span>
-            <button onclick="closeExcelFilter()" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
+    <!-- 🔍 Excel Filter Modal (แก้ไขให้เด้งขึ้น 100%) -->
+    <div id="excelFilterModal" class="hidden fixed bg-white border border-slate-200 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] rounded-xl w-64 z-[9999] flex-col overflow-hidden">
+        <div class="bg-slate-50 border-b border-slate-200 px-3 py-2.5 flex justify-between items-center">
+            <span class="font-bold text-[#00320D] text-xs flex items-center gap-1.5"><i class="fa-solid fa-filter text-amber-500"></i> ตัวกรอง: <span id="ef_col_name" class="text-slate-600"></span></span>
+            <button onclick="closeExcelFilter()" class="text-slate-400 hover:text-red-500 transition-colors w-6 h-6 flex items-center justify-center rounded-md hover:bg-red-50"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <input type="text" id="ef_search" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none focus:border-blue-500" placeholder="ค้นหา..." onkeyup="searchExcelFilter()">
-        <div class="flex items-center gap-2 mt-2 px-1">
-            <input type="checkbox" id="ef_select_all" checked onchange="toggleAllExcelFilters(this.checked)" class="w-3 h-3 cursor-pointer">
-            <label for="ef_select_all" class="text-xs font-bold text-slate-700 cursor-pointer select-none">เลือกทั้งหมด</label>
+        <div class="p-2.5 pb-1">
+            <div class="relative mb-2.5">
+                <i class="fa-solid fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" id="ef_search" class="w-full border border-slate-300 rounded-lg pl-8 pr-2 py-1.5 text-xs outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all bg-white placeholder-slate-400" placeholder="ค้นหา..." onkeyup="searchExcelFilter()">
+            </div>
+            <label class="flex items-center gap-2 px-1.5 py-1.5 border-b border-slate-100 hover:bg-slate-50 rounded cursor-pointer transition-colors mb-1">
+                <input type="checkbox" id="ef_select_all" checked onchange="toggleAllExcelFilters(this.checked)" class="w-4 h-4 cursor-pointer accent-[#00320D] rounded border-slate-300">
+                <span class="text-sm font-bold text-[#00320D] select-none">เลือกทั้งหมด</span>
+            </label>
+            <div id="ef_checkbox_list" class="max-h-40 overflow-y-auto space-y-0.5 custom-scrollbar pr-1"></div>
         </div>
-        <div id="ef_checkbox_list" class="max-h-48 overflow-y-auto space-y-1 mt-2 border border-slate-200 p-2 rounded bg-slate-50 custom-scrollbar"></div>
-        <div class="flex gap-2 mt-3">
-            <button onclick="applyExcelFilter()" class="flex-1 bg-[#00320D] text-white text-xs font-bold py-1.5 rounded hover:bg-black transition shadow">ตกลง</button>
-            <button onclick="clearSpecificExcelFilter()" class="flex-1 bg-slate-200 text-slate-700 text-xs font-bold py-1.5 rounded hover:bg-slate-300 transition border border-slate-300">ล้าง</button>
+        <div class="bg-slate-50 border-t border-slate-200 p-2.5 flex gap-2">
+            <button onclick="applyExcelFilter()" class="flex-1 bg-[#00320D] text-white text-sm font-bold py-2 rounded-lg hover:bg-black transition shadow-md flex items-center justify-center gap-1.5"><i class="fa-solid fa-check"></i> ตกลง</button>
+            <button onclick="clearSpecificExcelFilter()" class="flex-1 bg-white text-slate-600 border border-slate-300 text-sm font-bold py-2 rounded-lg hover:bg-slate-100 transition shadow-sm flex items-center justify-center gap-1.5"><i class="fa-solid fa-eraser"></i> ล้าง</button>
         </div>
     </div>
 
@@ -216,12 +216,11 @@
         let userBranch = '';
         let donutChart = null;
 
-        // 🌟 แก้ไข key ให้ตรงกับชื่อฟิลด์ในฐานข้อมูลชัดเจน
         const columnsDef = [
             { idx: 0, key: 'car_plate', title: 'ทะเบียนรถ', width: 120 },
             { idx: 1, key: 'job_status', title: 'สถานะงาน (บัญชี)', width: 180 },
             { idx: 2, key: 'billing_date', title: 'วันที่ออกบิล', width: 130 },
-            { idx: 3, key: 'insurance_pay_date', title: 'วันที่ประกันจ่ายเงิน', width: 140 }, // 👈 เปลี่ยนเป็น insurance_pay_date
+            { idx: 3, key: 'insurance_pay_date', title: 'วันที่ประกันจ่ายเงิน', width: 140 },
             { idx: 4, key: 'sa_owner', title: 'SA ผู้ดูแล', width: 130 },
             { idx: 5, key: 'ivn_no', title: 'เลข IVN.', width: 140 },
             { idx: 6, key: 'qt_no', title: 'เลขที่ใบเสนอราคา (QT)', width: 150 },
@@ -460,15 +459,25 @@
                     body: JSON.stringify({ field, value: valToSend })
                 });
 
+                // 🌟 ระบบ Auto-Fallback สำรองในกรณีฝั่ง DB ใช้ชื่อ 'insurance_payment_date' แทน
+                if (!res.ok && field === 'insurance_pay_date') {
+                    res = await fetch(`${API_BASE_URL}/api/report/${jobId}/fast-date`, {
+                        method: 'PUT', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify({ field: 'insurance_payment_date', value: valToSend })
+                    });
+                }
+
                 if (res.ok) {
                     const jobIndex = allAccJobs.findIndex(j => String(j.id) === String(jobId));
                     if (jobIndex > -1) {
                         allAccJobs[jobIndex][field] = valToSend;
+                        // อัปเดตทั้งคู่ใน local ป้องกันการดึงค่าแล้วพลาด
+                        if (field === 'insurance_pay_date') allAccJobs[jobIndex]['insurance_payment_date'] = valToSend;
                     }
                     
                     showToast('อัปเดตข้อมูลอัตโนมัติสำเร็จ!');
                     
-                    // 🌟 ถ้าย้ายหมวดหมู่ แจ้งเตือนพนักงานให้ทราบ!
                     if (field === 'billing_date' && valToSend) {
                         const managedType = document.getElementById('managed_filter_select').value; 
                         if (managedType === 'รอจัดการ') {
@@ -498,35 +507,23 @@
             return num.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
-        // 🌟 Helper ฟังก์ชันแปลงค่าของแต่ละคอลัมน์ให้ตรงกันเป๊ะทั้งในตารางและตัวกรอง 🌟
+        // 🌟 Helper ดึงค่ามาใช้ใน Filter ให้แม่นยำ 🌟
         function getJobColumnDisplayValue(job, colDef) {
             switch(colDef.key) {
-                case 'car_plate':
-                    return job.car_plate || '-';
-                case 'sa_owner':
-                    return job.sa_owner || '-';
-                case 'job_status':
-                    return job.job_status || '';
-                case 'billing_date':
-                    return job.billing_date ? String(job.billing_date).split('T')[0] : '';
-                case 'insurance_pay_date': // 👈 ต้องแมตช์ key ให้เป๊ะ
-                    return job.insurance_pay_date ? String(job.insurance_pay_date).split('T')[0] : '';
-                case 'qt_no':
-                case 'so_no':
-                case 'ivn_no':
-                    return job[colDef.key] || '';
-                case 'cost_labor':
-                case 'cost_part':
-                case 'cost_external':
-                    return formatAccNum(job[colDef.key]);
+                case 'car_plate': return job.car_plate || '-';
+                case 'sa_owner': return job.sa_owner || '-';
+                case 'job_status': return job.job_status || '';
+                case 'billing_date': return job.billing_date ? String(job.billing_date).split('T')[0] : '';
+                case 'insurance_pay_date':
+                    const insDate = job.insurance_pay_date || job.insurance_payment_date;
+                    return insDate ? String(insDate).split('T')[0] : '';
+                case 'qt_no': case 'so_no': case 'ivn_no': return job[colDef.key] || '';
+                case 'cost_labor': case 'cost_part': case 'cost_external': return formatAccNum(job[colDef.key]);
                 case 'total_cost':
-                    let tLabor = parseFloat(job.cost_labor) || 0;
-                    let tPart = parseFloat(job.cost_part) || 0;
-                    let tExt = parseFloat(job.cost_external) || 0;
+                    let tLabor = parseFloat(job.cost_labor) || 0; let tPart = parseFloat(job.cost_part) || 0; let tExt = parseFloat(job.cost_external) || 0;
                     let total = tLabor + tPart + tExt;
                     return formatAccNum(total) || '';
-                default:
-                    return job[colDef.key] || '';
+                default: return job[colDef.key] || '';
             }
         }
 
@@ -537,11 +534,7 @@
             }
 
             let statusOpts = accStatuses.length > 0 ? [...accStatuses] : ['รอออกบิล', 'ออกบิลแล้ว', 'รับชำระแล้ว'];
-            
-            if (!statusOpts.includes('13.วางบิลประกัน')) {
-                statusOpts.push('13.วางบิลประกัน');
-            }
-            
+            if (!statusOpts.includes('13.วางบิลประกัน')) statusOpts.push('13.วางบิลประกัน');
             let optsHtml = statusOpts.map(s => `<option value="${s}">${s}</option>`).join('');
 
             tbody.innerHTML = data.map(job => {
@@ -549,37 +542,23 @@
                 columnsDef.forEach(col => {
                     let cellData = ''; let cellClass = '';
                     switch(col.key) {
-                        case 'car_plate': 
-                            cellData = `<div class="w-full text-center font-black text-amber-700 bg-amber-50 uppercase py-2">${job.car_plate || '-'}</div>`; 
-                            break;
-
-                        case 'sa_owner':
-                            cellData = `<div class="w-full h-full px-3 py-2 text-slate-700 font-bold bg-slate-50/50 flex items-center"><i class="fa-solid fa-user-tie text-blue-500 mr-2"></i> ${job.sa_owner || '-'}</div>`;
-                            break;
-                            
+                        case 'car_plate': cellData = `<div class="w-full text-center font-black text-amber-700 bg-amber-50 uppercase py-2">${job.car_plate || '-'}</div>`; break;
+                        case 'sa_owner': cellData = `<div class="w-full h-full px-3 py-2 text-slate-700 font-bold bg-slate-50/50 flex items-center"><i class="fa-solid fa-user-tie text-blue-500 mr-2"></i> ${job.sa_owner || '-'}</div>`; break;
                         case 'job_status': 
-                            let safeStatus = job.job_status || '';
-                            let safeOpts = optsHtml;
+                            let safeStatus = job.job_status || ''; let safeOpts = optsHtml;
                             if(safeStatus && !safeOpts.includes(`value="${safeStatus}"`)) safeOpts = `<option value="${safeStatus}">${safeStatus}</option>` + safeOpts;
                             safeOpts = safeOpts.replace(`value="${safeStatus}"`, `value="${safeStatus}" selected`);
                             cellData = `<select onchange="fastUpdateAcc('${job.id}', 'job_status', this.value)" class="inline-edit-select bg-blue-50/50">${safeOpts}</select>`; 
                             break;
-                        case 'billing_date': 
-                            cellData = `<input type="date" value="${job.billing_date ? String(job.billing_date).split('T')[0] : ''}" onchange="fastUpdateAcc('${job.id}', 'billing_date', this.value)" class="inline-edit-input font-mono text-center">`; 
-                            break;
+                        case 'billing_date': cellData = `<input type="date" value="${job.billing_date ? String(job.billing_date).split('T')[0] : ''}" onchange="fastUpdateAcc('${job.id}', 'billing_date', this.value)" class="inline-edit-input font-mono text-center">`; break;
                         case 'insurance_pay_date': 
-                            cellData = `<input type="date" value="${job.insurance_pay_date ? String(job.insurance_pay_date).split('T')[0] : ''}" onchange="fastUpdateAcc('${job.id}', 'insurance_pay_date', this.value)" class="inline-edit-input font-mono text-center">`; 
+                            const dateVal = job.insurance_pay_date || job.insurance_payment_date;
+                            cellData = `<input type="date" value="${dateVal ? String(dateVal).split('T')[0] : ''}" onchange="fastUpdateAcc('${job.id}', 'insurance_pay_date', this.value)" class="inline-edit-input font-mono text-center">`; 
                             break;
-                        case 'qt_no': case 'so_no': case 'ivn_no':
-                            cellData = `<input type="text" value="${job[col.key] || ''}" onchange="fastUpdateAcc('${job.id}', '${col.key}', this.value)" class="inline-edit-input uppercase font-mono" placeholder="-">`;
-                            break;
-                        case 'cost_labor': case 'cost_part': case 'cost_external':
-                            cellData = `<input type="text" value="${formatAccNum(job[col.key])}" onchange="fastUpdateAcc('${job.id}', '${col.key}', this.value)" class="inline-edit-input text-right font-mono font-bold text-slate-700" placeholder="0.00">`;
-                            break;
+                        case 'qt_no': case 'so_no': case 'ivn_no': cellData = `<input type="text" value="${job[col.key] || ''}" onchange="fastUpdateAcc('${job.id}', '${col.key}', this.value)" class="inline-edit-input uppercase font-mono" placeholder="-">`; break;
+                        case 'cost_labor': case 'cost_part': case 'cost_external': cellData = `<input type="text" value="${formatAccNum(job[col.key])}" onchange="fastUpdateAcc('${job.id}', '${col.key}', this.value)" class="inline-edit-input text-right font-mono font-bold text-slate-700" placeholder="0.00">`; break;
                         case 'total_cost':
-                            let tLabor = parseFloat(job.cost_labor) || 0;
-                            let tPart = parseFloat(job.cost_part) || 0;
-                            let tExt = parseFloat(job.cost_external) || 0;
+                            let tLabor = parseFloat(job.cost_labor) || 0; let tPart = parseFloat(job.cost_part) || 0; let tExt = parseFloat(job.cost_external) || 0;
                             let total = tLabor + tPart + tExt;
                             cellData = `<div class="w-full text-right font-mono font-black text-emerald-700 bg-emerald-50 px-3 py-2">${formatAccNum(total) || '0.00'}</div>`;
                             break;
@@ -590,7 +569,7 @@
             }).join('');
         }
 
-        // ================= 🌟 EXCEL FILTER & SORT (ปรับปรุงให้ดึงค่าตรงกับข้อมูลแม่นยำ 100%) 🌟 =================
+        // ================= 🌟 EXCEL FILTER (ป๊อปอัปเด้ง 100%) 🌟 =================
         function openExcelFilter(e, colIndex, title) {
             e.stopPropagation();
             currentFilterKey = colIndex;
@@ -600,7 +579,6 @@
             const colDef = columnsDef.find(c => Number(c.idx) === Number(colIndex));
             if (!colDef) return;
 
-            // 🌟 ดึงค่าจากชุดข้อมูลจริงโดยตรง ไม่พึ่งพาการแกะ DOM
             const uniqueValues = new Set();
             allAccJobs.forEach(job => {
                 uniqueValues.add(getJobColumnDisplayValue(job, colDef));
