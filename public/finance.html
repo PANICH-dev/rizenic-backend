@@ -217,7 +217,7 @@
         let userBranch = '';
         let donutChart = null;
 
-        // 🌟 แก้ไขลำดับ idx ให้เรียง 0-11 ถูกต้อง ไม่เกิดการซ้อนทับกัน
+        // 🌟 เรียง idx (0 - 11) ให้ถูกต้อง ชัดเจน
         const columnsDef = [
             { idx: 0, key: 'car_plate', title: 'ทะเบียนรถ', width: 120 },
             { idx: 1, key: 'job_status', title: 'สถานะงาน (บัญชี)', width: 180 },
@@ -438,6 +438,7 @@
             applyFilters();
         }
 
+        // 🌟 ระบบบันทึกด่วน พร้อมระบบรองรับทั้งชื่อ insurance_payment_date และ insurance_pay_date 🌟
         async function fastUpdateAcc(jobId, field, value) {
             try {
                 let valToSend = value;
@@ -449,20 +450,32 @@
                         catch (e) { showToast('รูปแบบตัวเลขไม่ถูกต้อง', 'error'); return; }
                     }
                     valToSend = parseFloat(cleanValue) || 0;
-                } else if (field === 'billing_date' || field === 'insurance_payment_date') {
+                } else if (field === 'billing_date' || field === 'insurance_payment_date' || field === 'insurance_pay_date') {
                     valToSend = value && String(value).trim() !== '' ? value : null;
                 }
 
-                const res = await fetch(`${API_BASE_URL}/api/report/${jobId}/fast-date`, {
+                // ยิงคำสั่งเซฟหลัก
+                let res = await fetch(`${API_BASE_URL}/api/report/${jobId}/fast-date`, {
                     method: 'PUT', 
                     headers: { 'Content-Type': 'application/json' }, 
                     body: JSON.stringify({ field, value: valToSend })
                 });
 
+                // 🌟 ระบบ Auto-Fallback สำรองในกรณีฝั่ง DB ใช้ชื่อ 'insurance_pay_date'
+                if (!res.ok && (field === 'insurance_payment_date' || field === 'insurance_pay_date')) {
+                    const altField = field === 'insurance_payment_date' ? 'insurance_pay_date' : 'insurance_payment_date';
+                    res = await fetch(`${API_BASE_URL}/api/report/${jobId}/fast-date`, {
+                        method: 'PUT', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify({ field: altField, value: valToSend })
+                    });
+                }
+
                 if (res.ok) {
                     const jobIndex = allAccJobs.findIndex(j => String(j.id) === String(jobId));
                     if (jobIndex > -1) {
                         allAccJobs[jobIndex][field] = valToSend;
+                        if (field === 'insurance_payment_date') allAccJobs[jobIndex]['insurance_pay_date'] = valToSend;
                     }
                     
                     showToast('อัปเดตข้อมูลอัตโนมัติสำเร็จ!');
@@ -476,7 +489,7 @@
                     
                     if (['cost_labor', 'cost_part', 'cost_external'].includes(field)) {
                         applyFilters(); 
-                    } else if (field === 'billing_date' || field === 'insurance_payment_date' || field === 'job_status') {
+                    } else if (field === 'billing_date' || field === 'insurance_payment_date' || field === 'insurance_pay_date' || field === 'job_status') {
                         buildYearDropdown(); 
                         applyFilters(); 
                     }
@@ -494,6 +507,39 @@
             let num = parseFloat(val);
             if(isNaN(num) || num === 0) return '';
             return num.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        // 🌟 Helper ฟังก์ชันแปลงค่าของแต่ละคอลัมน์ให้ตรงกันเป๊ะทั้งในตารางและตัวกรอง 🌟
+        function getJobColumnDisplayValue(job, colDef) {
+            switch(colDef.key) {
+                case 'car_plate':
+                    return job.car_plate || '-';
+                case 'sa_owner':
+                    return job.sa_owner || '-';
+                case 'job_status':
+                    return job.job_status || '';
+                case 'billing_date':
+                    return job.billing_date ? String(job.billing_date).split('T')[0] : '';
+                case 'insurance_payment_date':
+                    const insDate = job.insurance_payment_date || job.insurance_pay_date;
+                    return insDate ? String(insDate).split('T')[0] : '';
+                case 'qt_no':
+                case 'so_no':
+                case 'ivn_no':
+                    return job[colDef.key] || '';
+                case 'cost_labor':
+                case 'cost_part':
+                case 'cost_external':
+                    return formatAccNum(job[colDef.key]);
+                case 'total_cost':
+                    let tLabor = parseFloat(job.cost_labor) || 0;
+                    let tPart = parseFloat(job.cost_part) || 0;
+                    let tExt = parseFloat(job.cost_external) || 0;
+                    let total = tLabor + tPart + tExt;
+                    return formatAccNum(total) || '';
+                default:
+                    return job[colDef.key] || '';
+            }
         }
 
         function renderTable(data) {
@@ -531,8 +577,11 @@
                             cellData = `<select onchange="fastUpdateAcc('${job.id}', 'job_status', this.value)" class="inline-edit-select bg-blue-50/50">${safeOpts}</select>`; 
                             break;
                         case 'billing_date': 
+                            cellData = `<input type="date" value="${job.billing_date ? String(job.billing_date).split('T')[0] : ''}" onchange="fastUpdateAcc('${job.id}', 'billing_date', this.value)" class="inline-edit-input font-mono text-center">`; 
+                            break;
                         case 'insurance_payment_date': 
-                            cellData = `<input type="date" value="${job[col.key] ? String(job[col.key]).split('T')[0] : ''}" onchange="fastUpdateAcc('${job.id}', '${col.key}', this.value)" class="inline-edit-input font-mono text-center">`; 
+                            const dateVal = job.insurance_payment_date || job.insurance_pay_date;
+                            cellData = `<input type="date" value="${dateVal ? String(dateVal).split('T')[0] : ''}" onchange="fastUpdateAcc('${job.id}', 'insurance_payment_date', this.value)" class="inline-edit-input font-mono text-center">`; 
                             break;
                         case 'qt_no': case 'so_no': case 'ivn_no':
                             cellData = `<input type="text" value="${job[col.key] || ''}" onchange="fastUpdateAcc('${job.id}', '${col.key}', this.value)" class="inline-edit-input uppercase font-mono" placeholder="-">`;
@@ -554,20 +603,20 @@
             }).join('');
         }
 
-        // ================= 🌟 EXCEL FILTER & SORT 🌟 =================
+        // ================= 🌟 EXCEL FILTER & SORT (ปรับปรุงให้ดึงค่าตรงกับข้อมูลแม่นยำ 100%) 🌟 =================
         function openExcelFilter(e, colIndex, title) {
             e.stopPropagation();
             currentFilterKey = colIndex;
             document.getElementById('ef_col_name').innerText = title;
             document.getElementById('ef_search').value = '';
 
-            const tbody = document.getElementById('acc_table_body');
-            const rows = Array.from(tbody.querySelectorAll('tr'));
-            
+            const colDef = columnsDef.find(c => Number(c.idx) === Number(colIndex));
+            if (!colDef) return;
+
+            // 🌟 ดึงค่าจากชุดข้อมูลจริงโดยตรง ไม่พึ่งพาการแกะ DOM
             const uniqueValues = new Set();
-            rows.forEach(row => {
-                if(row.cells.length === 1) return;
-                uniqueValues.add(getCellValue(row.cells[colIndex]));
+            allAccJobs.forEach(job => {
+                uniqueValues.add(getJobColumnDisplayValue(job, colDef));
             });
 
             const sortedValues = [...uniqueValues].sort();
@@ -619,7 +668,7 @@
             const checks = document.querySelectorAll('.ef-check');
             const checkedVals = Array.from(checks).filter(cb => cb.checked).map(cb => cb.value);
             
-            const thIcon = document.querySelectorAll('#accTable th')[currentFilterKey].querySelector('.filter-icon');
+            const thIcon = document.querySelectorAll('#accTable th')[currentFilterKey]?.querySelector('.filter-icon');
 
             if (checkedVals.length === checks.length || checkedVals.length === 0) {
                 delete activeFilters[currentFilterKey];
@@ -634,7 +683,7 @@
 
         function clearSpecificExcelFilter() {
             delete activeFilters[currentFilterKey];
-            const thIcon = document.querySelectorAll('#accTable th')[currentFilterKey].querySelector('.filter-icon');
+            const thIcon = document.querySelectorAll('#accTable th')[currentFilterKey]?.querySelector('.filter-icon');
             if(thIcon) { thIcon.classList.remove('text-amber-400'); thIcon.classList.add('text-slate-400'); }
             closeExcelFilter(); applyFilters();
         }
@@ -668,7 +717,6 @@
                 
                 const hasBillingDate = job.billing_date && String(job.billing_date).trim() !== '';
                 
-                // 🌟 ดึงงานสถานะ 13.วางบิลประกัน มาโชว์ 🌟
                 if (managedType === 'รอจัดการ' && hasBillingDate) return false;
                 if (managedType === 'จัดการแล้ว' && !hasBillingDate) return false;
                 if (managedType === '13.วางบิลประกัน' && job.job_status !== '13.วางบิลประกัน') return false;
@@ -680,22 +728,10 @@
                 }
                 
                 for (let key in activeFilters) {
-                    // 🌟 ใช้ .find ค้นหาคอลัมน์ให้ตรงเป๊ะ ป้องกัน Error ข้อมูลสลับ 🌟
-                    const colDef = columnsDef.find(c => String(c.idx) === String(key)); 
+                    const colDef = columnsDef.find(c => Number(c.idx) === Number(key)); 
                     if (!colDef) continue; 
                     
-                    let rawVal = '';
-                    if (colDef.key === 'total_cost') {
-                        let total = (parseFloat(job.cost_labor)||0) + (parseFloat(job.cost_part)||0) + (parseFloat(job.cost_external)||0);
-                        rawVal = formatAccNum(total);
-                    } else if (['cost_labor', 'cost_part', 'cost_external'].includes(colDef.key)) {
-                        rawVal = formatAccNum(job[colDef.key]);
-                    } else if (colDef.key === 'billing_date' || colDef.key === 'insurance_payment_date') {
-                        rawVal = job[colDef.key] ? String(job[colDef.key]).split('T')[0] : '';
-                    } else {
-                        rawVal = job[colDef.key] || '';
-                    }
-
+                    const rawVal = getJobColumnDisplayValue(job, colDef);
                     if (!activeFilters[key].has(String(rawVal).trim())) return false;
                 }
                 return true;
@@ -733,7 +769,7 @@
             let dir = table.getAttribute(`data-dir-${colIndex}`) || 'asc';
             table.setAttribute(`data-dir-${colIndex}`, dir === 'asc' ? 'desc' : 'asc');
             
-            const clickedIcon = table.querySelectorAll('th')[colIndex].querySelector('.sort-icon');
+            const clickedIcon = table.querySelectorAll('th')[colIndex]?.querySelector('.sort-icon');
             if (clickedIcon) {
                 clickedIcon.className = dir === 'asc' ? "fa-solid fa-sort-down ml-1 text-amber-400 opacity-100" : "fa-solid fa-sort-up ml-1 text-amber-400 opacity-100";
             }
