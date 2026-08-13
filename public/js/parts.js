@@ -1,5 +1,3 @@
-Chart.register(ChartDataLabels);
-
 const API_BASE_URL = window.location.origin;
 let allPartOrders = [];
 let allInbounds = [];
@@ -79,7 +77,7 @@ async function handleLogin(e) {
             sessionStorage.setItem('accessible_pages', data.employee.accessible_pages || '');
             window.location.reload();
         } else alert('❌ ' + data.error);
-    } catch (err) { alert('❌ ระบบขัดข้อง'); }
+    } catch (err) { alert('❌ ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง'); }
 }
 
 function enterApp() {
@@ -114,7 +112,7 @@ function enterApp() {
     loadAllData();
 }
 
-function logout() { sessionStorage.clear(); window.location.reload(); }
+function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
 
 function switchTab(tabId) {
     document.querySelectorAll('.parts-tab-content').forEach(el => el.classList.remove('active'));
@@ -288,7 +286,7 @@ function renderSAAlerts() {
                 <td class="font-black text-amber-700 text-sm px-2 py-2"><span class="bg-amber-50 px-2 py-1 rounded shadow-sm border border-amber-200">${plate}</span></td>
                 <td class="text-slate-500 font-mono font-bold text-center px-2 py-2">${arrDate}</td>
                 <td class="font-bold text-slate-600 text-xs px-2 py-2">${first.car_model || '-'}</td>
-                <td class="font-bold text-slate-700 text-xs px-2 py-2 truncate max-w-[150px]">-</td>
+                <td class="font-bold text-slate-700 text-xs px-2 py-2 truncate max-w-[150px]" title="ดูจากฐานข้อมูล">-</td>
                 <td class="font-mono text-xs font-bold text-blue-600 px-2 py-2">${first.epc_no || '-'}</td>
                 <td class="px-2 py-2 max-h-[80px] overflow-y-auto block custom-scrollbar bg-slate-50/50 rounded my-1 border border-slate-100">${itemsHtml}</td>
                 <td class="text-center px-2 py-2">
@@ -366,7 +364,8 @@ function autoFillDynName(inputEl) {
     const pNo = inputEl.value.trim().toUpperCase();
     if (!pNo) return;
     const tr = inputEl.closest('tr');
-    const matched = allMasterPartsCache.find(x => x.part_no && x.part_no.toUpperCase() === pNo);
+    // ดึงค่าจาก cache แบบรวดเร็ว
+    const matched = allMasterPartsCache.find(x => x.part_no.toUpperCase() === pNo);
     if(matched) {
         tr.querySelector('.dyn-name').value = matched.part_name || '';
         tr.querySelector('.dyn-main').value = matched.part_main_no || '';
