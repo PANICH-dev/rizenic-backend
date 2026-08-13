@@ -165,6 +165,7 @@
                                 <option value="">ทั้งหมด</option>
                                 <option value="รอจัดการ">🔴 รอจัดการ (ยังไม่ออกบิล)</option>
                                 <option value="จัดการแล้ว">🟢 จัดการแล้ว (ออกบิลแล้ว)</option>
+                                <option value="13.วางบิลประกัน">🛡️ 13.วางบิลประกัน</option>
                             </select>
                         </div>
                     </div>
@@ -200,7 +201,7 @@
                 <table class="excel-table" id="accTable">
                     <thead id="acc_table_head"></thead>
                     <tbody id="acc_table_body">
-                        <tr><td colspan="11" class="text-center py-10 text-slate-400 font-mono text-sm"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังโหลดข้อมูลบัญชี...</td></tr>
+                        <tr><td colspan="12" class="text-center py-10 text-slate-400 font-mono text-sm"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังโหลดข้อมูลบัญชี...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -216,19 +217,20 @@
         let userBranch = '';
         let donutChart = null;
 
+        // 🌟 แก้ไขลำดับ idx ให้เรียง 0-11 ถูกต้อง ไม่เกิดการซ้อนทับกัน
         const columnsDef = [
             { idx: 0, key: 'car_plate', title: 'ทะเบียนรถ', width: 120 },
             { idx: 1, key: 'job_status', title: 'สถานะงาน (บัญชี)', width: 180 },
             { idx: 2, key: 'billing_date', title: 'วันที่ออกบิล', width: 130 },
             { idx: 3, key: 'insurance_payment_date', title: 'วันที่ประกันจ่ายเงิน', width: 140 },
-            { idx: 1, key: 'sa_owner', title: 'SA ผู้ดูแล', width: 130 },
-            { idx: 4, key: 'ivn_no', title: 'เลข IVN.', width: 140 },
-            { idx: 5, key: 'qt_no', title: 'เลขที่ใบเสนอราคา (QT)', width: 150 },
-            { idx: 6, key: 'so_no', title: 'เลขที่ใบสั่งซ่อม (SO)', width: 150 },
-            { idx: 7, key: 'cost_labor', title: 'ค่าแรง', width: 120 },
-            { idx: 8, key: 'cost_part', title: 'ค่าอะไหล่', width: 120 },
-            { idx: 9, key: 'cost_external', title: 'งานนอก', width: 120 },
-            { idx: 10, key: 'total_cost', title: 'ยอดรวม (Auto)', width: 140 }
+            { idx: 4, key: 'sa_owner', title: 'SA ผู้ดูแล', width: 130 },
+            { idx: 5, key: 'ivn_no', title: 'เลข IVN.', width: 140 },
+            { idx: 6, key: 'qt_no', title: 'เลขที่ใบเสนอราคา (QT)', width: 150 },
+            { idx: 7, key: 'so_no', title: 'เลขที่ใบสั่งซ่อม (SO)', width: 150 },
+            { idx: 8, key: 'cost_labor', title: 'ค่าแรง', width: 120 },
+            { idx: 9, key: 'cost_part', title: 'ค่าอะไหล่', width: 120 },
+            { idx: 10, key: 'cost_external', title: 'งานนอก', width: 120 },
+            { idx: 11, key: 'total_cost', title: 'ยอดรวม (Auto)', width: 140 }
         ];
 
         let activeFilters = {}; 
@@ -436,7 +438,6 @@
             applyFilters();
         }
 
-        // 🌟 ฟังก์ชันส่งค่าวางบิล & รองรับบวกเลขอัตโนมัติ 🌟
         async function fastUpdateAcc(jobId, field, value) {
             try {
                 let valToSend = value;
@@ -466,7 +467,6 @@
                     
                     showToast('อัปเดตข้อมูลอัตโนมัติสำเร็จ!');
                     
-                    // 🌟 ถ้าย้ายหมวดหมู่ แจ้งเตือนพนักงานให้ทราบ!
                     if (field === 'billing_date' && valToSend) {
                         const managedType = document.getElementById('managed_filter_select').value; 
                         if (managedType === 'รอจัดการ') {
@@ -504,7 +504,6 @@
 
             let statusOpts = accStatuses.length > 0 ? [...accStatuses] : ['รอออกบิล', 'ออกบิลแล้ว', 'รับชำระแล้ว'];
             
-            // 🌟 1. บังคับยัด 13.วางบิลประกัน เข้าไปเป็นตัวเลือกเสมอ! 🌟
             if (!statusOpts.includes('13.วางบิลประกัน')) {
                 statusOpts.push('13.วางบิลประกัน');
             }
@@ -527,7 +526,6 @@
                         case 'job_status': 
                             let safeStatus = job.job_status || '';
                             let safeOpts = optsHtml;
-                            // ถ้าสถานะเดิมไม่เคยมีใน list ก็ใส่เพิ่มเข้าไปเฉพาะแถวนี้
                             if(safeStatus && !safeOpts.includes(`value="${safeStatus}"`)) safeOpts = `<option value="${safeStatus}">${safeStatus}</option>` + safeOpts;
                             safeOpts = safeOpts.replace(`value="${safeStatus}"`, `value="${safeStatus}" selected`);
                             cellData = `<select onchange="fastUpdateAcc('${job.id}', 'job_status', this.value)" class="inline-edit-select bg-blue-50/50">${safeOpts}</select>`; 
@@ -670,8 +668,10 @@
                 
                 const hasBillingDate = job.billing_date && String(job.billing_date).trim() !== '';
                 
+                // 🌟 ดึงงานสถานะ 13.วางบิลประกัน มาโชว์ 🌟
                 if (managedType === 'รอจัดการ' && hasBillingDate) return false;
                 if (managedType === 'จัดการแล้ว' && !hasBillingDate) return false;
+                if (managedType === '13.วางบิลประกัน' && job.job_status !== '13.วางบิลประกัน') return false;
 
                 if (hasBillingDate && (filterMonth || filterYear)) {
                     const d = new Date(job.billing_date);
@@ -680,9 +680,11 @@
                 }
                 
                 for (let key in activeFilters) {
-                    const colDef = columnsDef[key];
-                    let rawVal = '';
+                    // 🌟 ใช้ .find ค้นหาคอลัมน์ให้ตรงเป๊ะ ป้องกัน Error ข้อมูลสลับ 🌟
+                    const colDef = columnsDef.find(c => String(c.idx) === String(key)); 
+                    if (!colDef) continue; 
                     
+                    let rawVal = '';
                     if (colDef.key === 'total_cost') {
                         let total = (parseFloat(job.cost_labor)||0) + (parseFloat(job.cost_part)||0) + (parseFloat(job.cost_external)||0);
                         rawVal = formatAccNum(total);
