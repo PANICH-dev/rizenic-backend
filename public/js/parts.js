@@ -20,6 +20,8 @@ let activeFilters = {};
 function showToast(msg, type='success') {
     const toast = document.getElementById('toastMsg');
     const content = document.getElementById('toastContent');
+    if (!toast || !content) return;
+    
     if (type === 'error') {
         toast.className = 'fixed bottom-5 right-5 bg-red-600 text-white font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 z-[200] flex items-center gap-2 border border-red-500';
         content.innerHTML = `<i class="fa-solid fa-circle-xmark text-xl"></i> ${msg}`;
@@ -99,9 +101,9 @@ function enterApp() {
     document.getElementById('display_branch').innerText = userBranch;
     
     const todayStr = new Date().toISOString().split('T')[0];
-    document.getElementById('po_date').value = todayStr;
-    document.getElementById('edit_in_date').value = todayStr;
-    document.getElementById('out_date').value = todayStr;
+    if(document.getElementById('po_date')) document.getElementById('po_date').value = todayStr;
+    if(document.getElementById('edit_in_date')) document.getElementById('edit_in_date').value = todayStr;
+    if(document.getElementById('out_date')) document.getElementById('out_date').value = todayStr;
 
     initResizableColumns('poTable');
     initResizableColumns('inTable');
@@ -124,47 +126,85 @@ function switchTab(tabId) {
     });
     
     const activeBtn = document.getElementById('btn-' + tabId);
-    activeBtn.classList.remove('border-transparent', 'text-slate-500');
-    activeBtn.classList.add('border-[#00320D]', 'text-[#00320D]');
-    
-    if(tabId === 'tab-alert') activeBtn.classList.add('bg-green-50/80');
-    if(tabId === 'tab-po') activeBtn.classList.add('bg-blue-50/80');
-    if(tabId === 'tab-inbound') activeBtn.classList.add('bg-emerald-50/80');
-    if(tabId === 'tab-outbound') activeBtn.classList.add('bg-purple-50/80');
-    if(tabId === 'tab-stock') activeBtn.classList.add('bg-amber-50/80');
-    if(tabId === 'tab-master') activeBtn.classList.add('bg-slate-200');
+    if (activeBtn) {
+        activeBtn.classList.remove('border-transparent', 'text-slate-500');
+        activeBtn.classList.add('border-[#00320D]', 'text-[#00320D]');
+        
+        if(tabId === 'tab-alert') activeBtn.classList.add('bg-green-50/80');
+        if(tabId === 'tab-po') activeBtn.classList.add('bg-blue-50/80');
+        if(tabId === 'tab-inbound') activeBtn.classList.add('bg-emerald-50/80');
+        if(tabId === 'tab-outbound') activeBtn.classList.add('bg-purple-50/80');
+        if(tabId === 'tab-stock') activeBtn.classList.add('bg-amber-50/80');
+        if(tabId === 'tab-master') activeBtn.classList.add('bg-slate-200');
+    }
 
     clearAllFilters();
 }
 
+// 🌟 ปรับปรุงการโหลดข้อมูล ป้องกันระบบขัดข้องค้าง
 async function loadAllData() {
+    const nocache = `?_t=${new Date().getTime()}`;
+    const isManager = ['BA','Manager','Admin','แอดมิน'].includes(userRole);
+
     try {
-        const nocache = `?_t=${new Date().getTime()}`;
-        
-        // 🌟 ดึงข้อมูลจาก API ทั้งหมดพร้อมกัน
-        const [resPO, resIn, resOut, resStock, resStat, resMaster] = await Promise.all([
-            fetch(`${API_BASE_URL}/api/part-orders${nocache}`).then(r=>r.json()),
-            fetch(`${API_BASE_URL}/api/part-inbound${nocache}`).then(r=>r.json()),
-            fetch(`${API_BASE_URL}/api/part-outbound${nocache}`).then(r=>r.json()),
-            fetch(`${API_BASE_URL}/api/parts-inventory?branch=${encodeURIComponent(userBranch)}${nocache}`).then(r=>r.json()),
-            fetch(`${API_BASE_URL}/api/part-statuses${nocache}`).then(r=>r.json()),
-            fetch(`${API_BASE_URL}/api/parts?branch=${encodeURIComponent(userBranch)}${nocache}`).then(r=>r.json())
-        ]);
-        
-        allPartOrders = Array.isArray(resPO) ? resPO : [];
-        allInbounds = Array.isArray(resIn) ? resIn : [];
-        allOutbounds = Array.isArray(resOut) ? resOut : [];
-        allStock = Array.isArray(resStock) ? resStock : [];
-        allStatuses = Array.isArray(resStat) ? resStat : [];
-        allMasterPartsCache = Array.isArray(resMaster) ? resMaster : []; // 👈 อัปเดตแคช
+        // 1. PO Orders
+        try {
+            const resPO = await fetch(`${API_BASE_URL}/api/part-orders${nocache}`);
+            if(resPO.ok) {
+                const dataPO = await resPO.json();
+                allPartOrders = Array.isArray(dataPO) ? dataPO : [];
+                if (!isManager) allPartOrders = allPartOrders.filter(d => d.branch_name === userBranch);
+            }
+        } catch(e) { console.warn("Load PO failed", e); }
 
-        const isManager = ['BA','Manager','Admin','แอดมิน'].includes(userRole);
-        if (!isManager) {
-            allPartOrders = allPartOrders.filter(d => d.branch_name === userBranch);
-            allInbounds = allInbounds.filter(d => d.branch_name === userBranch);
-            allOutbounds = allOutbounds.filter(d => d.branch_name === userBranch);
-        }
+        // 2. Inbound
+        try {
+            const resIn = await fetch(`${API_BASE_URL}/api/part-inbound${nocache}`);
+            if(resIn.ok) {
+                const dataIn = await resIn.json();
+                allInbounds = Array.isArray(dataIn) ? dataIn : [];
+                if (!isManager) allInbounds = allInbounds.filter(d => d.branch_name === userBranch);
+            }
+        } catch(e) { console.warn("Load Inbound failed", e); }
 
+        // 3. Outbound
+        try {
+            const resOut = await fetch(`${API_BASE_URL}/api/part-outbound${nocache}`);
+            if(resOut.ok) {
+                const dataOut = await resOut.json();
+                allOutbounds = Array.isArray(dataOut) ? dataOut : [];
+                if (!isManager) allOutbounds = allOutbounds.filter(d => d.branch_name === userBranch);
+            }
+        } catch(e) { console.warn("Load Outbound failed", e); }
+
+        // 4. Inventory Stock
+        try {
+            const resStock = await fetch(`${API_BASE_URL}/api/parts-inventory?branch=${encodeURIComponent(userBranch)}${nocache}`);
+            if(resStock.ok) {
+                const dataStock = await resStock.json();
+                allStock = Array.isArray(dataStock) ? dataStock : [];
+            }
+        } catch(e) { console.warn("Load Stock failed", e); }
+
+        // 5. Part Statuses
+        try {
+            const resStat = await fetch(`${API_BASE_URL}/api/part-statuses${nocache}`);
+            if(resStat.ok) {
+                const dataStat = await resStat.json();
+                allStatuses = Array.isArray(dataStat) ? dataStat : [];
+            }
+        } catch(e) { console.warn("Load Statuses failed", e); }
+
+        // 6. Master Parts
+        try {
+            const resMaster = await fetch(`${API_BASE_URL}/api/parts?branch=${encodeURIComponent(userBranch)}${nocache}`);
+            if(resMaster.ok) {
+                const dataMaster = await resMaster.json();
+                allMasterPartsCache = Array.isArray(dataMaster) ? dataMaster : [];
+            }
+        } catch(e) { console.warn("Load Master Parts failed", e); }
+
+        // เรนเดอร์ UI หลังโหลดเสร็จ
         renderSAAlerts();
         renderPOTracking();
         renderInbound();
@@ -173,35 +213,32 @@ async function loadAllData() {
         renderMasterTable();
 
         const poSelect = document.getElementById('po_bo');
-        if(poSelect) {
+        if(poSelect && allStatuses.length > 0) {
             poSelect.innerHTML = allStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
         }
 
     } catch (e) {
         console.error("Data load error:", e);
-        showToast('เกิดข้อผิดพลาดในการโหลดข้อมูล', 'error');
     }
 }
 
-// 🌟 ระบบ Fast Datalist ช่วยลดการกระตุกตอนเปิดตารางคีย์อะไหล่ 🌟
+// 🌟 ระบบ Fast Datalist ค้นหาเรียลไทม์ ลื่นๆ
 document.addEventListener('input', function(e) {
     if (e.target.tagName === 'INPUT' && e.target.getAttribute('list') === 'master_parts_datalist') {
         const keyword = e.target.value.trim().toLowerCase();
         const datalist = document.getElementById('master_parts_datalist');
+        if(!datalist) return;
 
-        // ต้องพิมพ์อย่างน้อย 2 ตัว ถึงจะค้นหา เพื่อไม่ให้ดึงข้อมูลเยอะเกินไป
         if (keyword.length < 2) {
             datalist.innerHTML = '';
             return;
         }
 
-        // คัดมาเฉพาะที่ตรงและดึงมาไม่เกิน 50 รายการเท่านั้น
         const filteredParts = allMasterPartsCache.filter(p => 
             (p.part_no && p.part_no.toLowerCase().includes(keyword)) || 
             (p.part_name && p.part_name.toLowerCase().includes(keyword))
         ).slice(0, 50);
 
-        // ยัดลง datalist ด่วนๆ
         datalist.innerHTML = filteredParts.map(p => 
             `<option value="${p.part_no}">${p.part_name} (MAIN: ${p.part_main_no || '-'})</option>`
         ).join('');
@@ -214,11 +251,12 @@ document.addEventListener('input', function(e) {
 function renderSAAlerts() {
     const tbody = document.getElementById('sa_alerts_body');
     const badge = document.getElementById('alert_count');
+    if(!tbody) return;
     
     const uncompletedPOs = allPartOrders.filter(p => !p.order_status || !p.order_status.includes('ครบ'));
     if (uncompletedPOs.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-400 font-bold bg-white"><i class="fa-solid fa-check-circle text-3xl mb-3 text-emerald-300 block"></i> ไม่มีรายการอะไหล่ค้างสั่งครับ! 🎉</td></tr>`;
-        badge.classList.add('hidden');
+        if(badge) badge.classList.add('hidden');
         return;
     }
 
@@ -230,8 +268,10 @@ function renderSAAlerts() {
     });
 
     const plates = Object.keys(grouped);
-    badge.innerText = plates.length;
-    badge.classList.remove('hidden');
+    if(badge) {
+        badge.innerText = plates.length;
+        badge.classList.remove('hidden');
+    }
 
     tbody.innerHTML = plates.map(plate => {
         const items = grouped[plate];
@@ -248,7 +288,7 @@ function renderSAAlerts() {
                 <td class="font-black text-amber-700 text-sm px-2 py-2"><span class="bg-amber-50 px-2 py-1 rounded shadow-sm border border-amber-200">${plate}</span></td>
                 <td class="text-slate-500 font-mono font-bold text-center px-2 py-2">${arrDate}</td>
                 <td class="font-bold text-slate-600 text-xs px-2 py-2">${first.car_model || '-'}</td>
-                <td class="font-bold text-slate-700 text-xs px-2 py-2 truncate max-w-[150px]" title="ดูจากฐานข้อมูล">-</td>
+                <td class="font-bold text-slate-700 text-xs px-2 py-2 truncate max-w-[150px]">-</td>
                 <td class="font-mono text-xs font-bold text-blue-600 px-2 py-2">${first.epc_no || '-'}</td>
                 <td class="px-2 py-2 max-h-[80px] overflow-y-auto block custom-scrollbar bg-slate-50/50 rounded my-1 border border-slate-100">${itemsHtml}</td>
                 <td class="text-center px-2 py-2">
@@ -326,8 +366,7 @@ function autoFillDynName(inputEl) {
     const pNo = inputEl.value.trim().toUpperCase();
     if (!pNo) return;
     const tr = inputEl.closest('tr');
-    // ดึงค่าจาก cache แบบรวดเร็ว
-    const matched = allMasterPartsCache.find(x => x.part_no.toUpperCase() === pNo);
+    const matched = allMasterPartsCache.find(x => x.part_no && x.part_no.toUpperCase() === pNo);
     if(matched) {
         tr.querySelector('.dyn-name').value = matched.part_name || '';
         tr.querySelector('.dyn-main').value = matched.part_main_no || '';
@@ -389,7 +428,10 @@ async function saveSAAlertUpdate(e) {
 // ==========================================
 function renderPOTracking() {
     const tbody = document.getElementById('po_table_body');
-    const hideCompleted = document.getElementById('btn_toggle_completed_po').classList.contains('active-hide');
+    if(!tbody) return;
+    
+    const btnHide = document.getElementById('btn_toggle_completed_po');
+    const hideCompleted = btnHide ? btnHide.classList.contains('active-hide') : false;
     
     let filteredData = allPartOrders;
     if (hideCompleted) {
@@ -442,6 +484,7 @@ function renderPOTracking() {
 
 function toggleCompletedPO() {
     const btn = document.getElementById('btn_toggle_completed_po');
+    if(!btn) return;
     if (btn.classList.contains('active-hide')) {
         btn.classList.remove('active-hide');
         btn.innerHTML = '<i class="fa-solid fa-eye-slash"></i> ซ่อนที่เข้าครบแล้ว';
@@ -515,6 +558,7 @@ async function deletePO(id) {
 // ==========================================
 function renderInbound() {
     const tbody = document.getElementById('inbound_table_body');
+    if(!tbody) return;
     if (allInbounds.length === 0) {
         tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีประวัติการรับเข้า</td></tr>`;
         return;
@@ -566,7 +610,7 @@ function openInboundModal() {
         }).join('');
     }
     
-    document.getElementById('chk_all_inbound').checked = false;
+    if(document.getElementById('chk_all_inbound')) document.getElementById('chk_all_inbound').checked = false;
     updateInboundCount();
     document.getElementById('inboundModal').classList.remove('hidden');
     document.getElementById('inboundModal').classList.add('flex');
@@ -581,7 +625,7 @@ function toggleAllInbound(checked) {
 }
 function updateInboundCount() {
     const count = document.querySelectorAll('.inbound-chk:checked').length;
-    document.getElementById('multi_inbound_count').innerText = count;
+    if(document.getElementById('multi_inbound_count')) document.getElementById('multi_inbound_count').innerText = count;
 }
 
 async function submitMultiInbound(e) {
@@ -636,6 +680,7 @@ async function deleteInbound(id) {
 // ==========================================
 function renderOutbound() {
     const tbody = document.getElementById('outbound_table_body');
+    if(!tbody) return;
     if (allOutbounds.length === 0) {
         tbody.innerHTML = `<tr><td colspan="12" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีประวัติการเบิกหรือจองอะไหล่</td></tr>`;
         return;
@@ -736,6 +781,7 @@ async function loadStockInHouse() {
 
 function renderStock() {
     const tbody = document.getElementById('stock_table_body');
+    if(!tbody) return;
     if (allStock.length === 0) {
         tbody.innerHTML = `<tr><td colspan="10" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีข้อมูลสต๊อกคงเหลือ</td></tr>`;
         return;
@@ -784,6 +830,7 @@ function renderStock() {
 // ==========================================
 function renderMasterTable() {
     const tbody = document.getElementById('master_table_body');
+    if(!tbody) return;
     if (allMasterPartsCache.length === 0) {
         tbody.innerHTML = `<tr><td colspan="8" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีข้อมูลมาสเตอร์อะไหล่</td></tr>`;
         return;
@@ -901,6 +948,7 @@ async function deleteMaster(id) {
 
 function renderCarModelsCheckbox(selectedStr) {
     const container = document.getElementById('master_car_models_container');
+    if(!container) return;
     const selectedArr = selectedStr.split(',').map(s => s.trim());
     
     fetch(`${API_BASE_URL}/api/car-models`).then(async r => {
@@ -959,8 +1007,7 @@ async function fetchJobDataByPlate(prefix) {
 function fetchMasterPart(prefix) {
     const pNo = document.getElementById(`${prefix}_part_no`).value.trim().toUpperCase();
     if(!pNo) return;
-    // ใช้แคชแทน API เร็วกว่า
-    const m = allMasterPartsCache.find(x => x.part_no.toUpperCase() === pNo);
+    const m = allMasterPartsCache.find(x => x.part_no && x.part_no.toUpperCase() === pNo);
     if(m) {
         if(document.getElementById(`${prefix}_part_name`)) document.getElementById(`${prefix}_part_name`).value = m.part_name || '';
         if(document.getElementById(`${prefix}_part_main`)) document.getElementById(`${prefix}_part_main`).value = m.part_main_no || '';
@@ -981,7 +1028,7 @@ function filterTableByText(tbodyId, txt) {
 }
 
 // ==========================================
-// Excel Grid Paste Multi-Items (แอดด่วน)
+// Excel Grid Paste Multi-Items
 // ==========================================
 function openExcelPasteModal(type) {
     document.getElementById('paste_target_type').value = type;
@@ -1048,8 +1095,6 @@ function handleGridPaste(e, cellInput) {
 
     const rows = pastedText.split(/\r\n|\n|\r/).filter(row => row.trim() !== '');
     const tbody = document.getElementById('paste_grid_tbody');
-    const type = document.getElementById('paste_target_type').value;
-    
     let currentRow = cellInput.closest('tr');
     
     rows.forEach((rowStr, i) => {
@@ -1087,7 +1132,7 @@ async function processExcelPasteData() {
             if (plate && partNo && qty > 0) {
                 let partName = partNo;
                 let partMain = null;
-                const m = allMasterPartsCache.find(x => x.part_no.toUpperCase() === partNo);
+                const m = allMasterPartsCache.find(x => x.part_no && x.part_no.toUpperCase() === partNo);
                 if (m) { partName = m.part_name; partMain = m.part_main_no; }
                 
                 payloadArr.push({
@@ -1105,7 +1150,7 @@ async function processExcelPasteData() {
             if (partNo && qty > 0) {
                 let partName = partNo;
                 let partMain = null;
-                const m = allMasterPartsCache.find(x => x.part_no.toUpperCase() === partNo);
+                const m = allMasterPartsCache.find(x => x.part_no && x.part_no.toUpperCase() === partNo);
                 if (m) { partName = m.part_name; partMain = m.part_main_no; }
                 
                 payloadArr.push({
@@ -1144,7 +1189,6 @@ function openExcelFilter(e, colIndex, title, tableId) {
     document.getElementById('ef_col_name').innerText = title;
     document.getElementById('ef_search').value = '';
     
-    // ตั้ง Data Attribute ให้ Modal รู้ว่ากำลังคุมตารางไหนอยู่
     document.getElementById('excelFilterModal').setAttribute('data-target-table', tableId);
 
     const tbody = document.getElementById(tableId).querySelector('tbody');
@@ -1178,7 +1222,6 @@ function openExcelFilter(e, colIndex, title, tableId) {
     const modal = document.getElementById('excelFilterModal');
     const rect = e.target.closest('th').getBoundingClientRect();
     
-    // คำนวณตำแหน่งให้โผล่ใต้หัวตารางพอดี
     modal.style.top = (rect.bottom + 8) + 'px';
     let leftPos = rect.left;
     if (leftPos + 260 > window.innerWidth) leftPos = window.innerWidth - 270;
@@ -1249,7 +1292,6 @@ function clearSpecificExcelFilter() {
 function clearAllFilters() {
     activeFilters = {}; 
     document.querySelectorAll('.filter-icon').forEach(icon => { icon.classList.remove('text-amber-400'); });
-    // Execute filter reset for all tables
     ['poTable', 'inTable', 'outTable', 'stockTable', 'masterTable'].forEach(tid => {
         if(document.getElementById(tid)) executeTableFilter(tid);
     });
@@ -1262,10 +1304,9 @@ function executeTableFilter(tableId) {
     const rows = tbody.querySelectorAll('tr');
     
     rows.forEach(tr => {
-        if(tr.cells.length <= 1) return; // Skip empty message rows
+        if(tr.cells.length <= 1) return;
         
         let show = true;
-        // Check all active filters for THIS table
         for (let key in activeFilters) {
             if (!key.startsWith(`${tableId}_`)) continue;
             
