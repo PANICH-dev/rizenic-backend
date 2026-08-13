@@ -236,11 +236,11 @@
 
         function showToast(msg, type='success') {
             const toast = document.getElementById('toastMsg');
-            const icon = type === 'error' ? 'fa-circle-xmark' : 'fa-circle-check';
-            toast.className = `fixed bottom-5 right-5 font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 z-[200] flex items-center gap-2 border border-white/20 ${type === 'error' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'}`;
+            const icon = type === 'error' ? 'fa-circle-xmark' : (type === 'info' ? 'fa-circle-info' : 'fa-circle-check');
+            toast.className = `fixed bottom-5 right-5 font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 z-[200] flex items-center gap-2 border border-white/20 ${type === 'error' ? 'bg-red-600 text-white' : (type === 'info' ? 'bg-blue-600 text-white' : 'bg-emerald-600 text-white')}`;
             toast.innerHTML = `<i class="fa-solid ${icon} text-xl"></i> ${msg}`;
             toast.classList.remove('translate-y-20', 'opacity-0');
-            setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 2500);
+            setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 3000);
         }
 
         function getCellValue(cell) {
@@ -436,26 +436,16 @@
             applyFilters();
         }
 
-        // 🌟 ฟังก์ชันส่งค่าวางบิล 🌟
         // 🌟 ฟังก์ชันส่งค่าวางบิล & รองรับบวกเลขอัตโนมัติ 🌟
         async function fastUpdateAcc(jobId, field, value) {
             try {
                 let valToSend = value;
                 
                 if (['cost_labor', 'cost_part', 'cost_external'].includes(field)) {
-                    // 1. ตัดคอมม่าออกก่อน
                     let cleanValue = String(value || '0').replace(/,/g, '');
-                    
-                    // 2. ถ้ามีเครื่องหมายคณิตศาสตร์ (+, -, *, /) ให้คำนวณอัตโนมัติ
                     if (/[+\-*/]/.test(cleanValue)) {
-                        try {
-                            // ใช้ Function แทน eval เพื่อความปลอดภัยและหลีกเลี่ยง error
-                            cleanValue = new Function('return ' + cleanValue)(); 
-                        } catch (e) {
-                            console.warn("พิมพ์สูตรเลขผิด", e);
-                            showToast('รูปแบบตัวเลขไม่ถูกต้อง', 'error');
-                            return; // ถ้าบวกผิด ให้หยุดทำต่อ
-                        }
+                        try { cleanValue = new Function('return ' + cleanValue)(); } 
+                        catch (e) { showToast('รูปแบบตัวเลขไม่ถูกต้อง', 'error'); return; }
                     }
                     valToSend = parseFloat(cleanValue) || 0;
                 } else if (field === 'billing_date' || field === 'insurance_payment_date') {
@@ -470,12 +460,22 @@
 
                 if (res.ok) {
                     const jobIndex = allAccJobs.findIndex(j => String(j.id) === String(jobId));
-                    if (jobIndex > -1) allAccJobs[jobIndex][field] = valToSend;
+                    if (jobIndex > -1) {
+                        allAccJobs[jobIndex][field] = valToSend;
+                    }
                     
                     showToast('อัปเดตข้อมูลอัตโนมัติสำเร็จ!');
                     
+                    // 🌟 ถ้าย้ายหมวดหมู่ แจ้งเตือนพนักงานให้ทราบ!
+                    if (field === 'billing_date' && valToSend) {
+                        const managedType = document.getElementById('managed_filter_select').value; 
+                        if (managedType === 'รอจัดการ') {
+                            showToast('ย้ายงานไปหมวด "จัดการแล้ว" อัตโนมัติ!', 'info');
+                        }
+                    }
+                    
                     if (['cost_labor', 'cost_part', 'cost_external'].includes(field)) {
-                        applyFilters(); // โหลดใหม่เพื่อโชว์เลขสวยๆ พร้อมลูกน้ำ
+                        applyFilters(); 
                     } else if (field === 'billing_date' || field === 'insurance_payment_date' || field === 'job_status') {
                         buildYearDropdown(); 
                         applyFilters(); 
@@ -502,7 +502,13 @@
                 tbody.innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-10 text-slate-400 font-mono bg-white">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td></tr>`; return;
             }
 
-            let statusOpts = accStatuses.length > 0 ? accStatuses : ['รอออกบิล', 'ออกบิลแล้ว', 'รับชำระแล้ว'];
+            let statusOpts = accStatuses.length > 0 ? [...accStatuses] : ['รอออกบิล', 'ออกบิลแล้ว', 'รับชำระแล้ว'];
+            
+            // 🌟 1. บังคับยัด 13.วางบิลประกัน เข้าไปเป็นตัวเลือกเสมอ! 🌟
+            if (!statusOpts.includes('13.วางบิลประกัน')) {
+                statusOpts.push('13.วางบิลประกัน');
+            }
+            
             let optsHtml = statusOpts.map(s => `<option value="${s}">${s}</option>`).join('');
 
             tbody.innerHTML = data.map(job => {
@@ -514,13 +520,14 @@
                             cellData = `<div class="w-full text-center font-black text-amber-700 bg-amber-50 uppercase py-2">${job.car_plate || '-'}</div>`; 
                             break;
 
-                            case 'sa_owner':
+                        case 'sa_owner':
                             cellData = `<div class="w-full h-full px-3 py-2 text-slate-700 font-bold bg-slate-50/50 flex items-center"><i class="fa-solid fa-user-tie text-blue-500 mr-2"></i> ${job.sa_owner || '-'}</div>`;
                             break;
                             
                         case 'job_status': 
                             let safeStatus = job.job_status || '';
                             let safeOpts = optsHtml;
+                            // ถ้าสถานะเดิมไม่เคยมีใน list ก็ใส่เพิ่มเข้าไปเฉพาะแถวนี้
                             if(safeStatus && !safeOpts.includes(`value="${safeStatus}"`)) safeOpts = `<option value="${safeStatus}">${safeStatus}</option>` + safeOpts;
                             safeOpts = safeOpts.replace(`value="${safeStatus}"`, `value="${safeStatus}" selected`);
                             cellData = `<select onchange="fastUpdateAcc('${job.id}', 'job_status', this.value)" class="inline-edit-select bg-blue-50/50">${safeOpts}</select>`; 
