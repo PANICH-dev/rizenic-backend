@@ -176,8 +176,9 @@ async function loadAllData() {
         } catch(e) { console.warn("Load Outbound failed", e); }
 
         // 4. Inventory Stock
+        // 4. Inventory Stock
         try {
-            const resStock = await fetch(`${API_BASE_URL}/api/parts-inventory?branch=${encodeURIComponent(userBranch)}${nocache}`);
+            const resStock = await fetch(`${API_BASE_URL}/api/parts-inventory?branch=${encodeURIComponent(userBranch)}&_t=${new Date().getTime()}`);
             if(resStock.ok) {
                 const dataStock = await resStock.json();
                 allStock = Array.isArray(dataStock) ? dataStock : [];
@@ -193,9 +194,9 @@ async function loadAllData() {
             }
         } catch(e) { console.warn("Load Statuses failed", e); }
 
-        // 6. Master Parts
+        /// 6. Master Parts
         try {
-            const resMaster = await fetch(`${API_BASE_URL}/api/parts?branch=${encodeURIComponent(userBranch)}${nocache}`);
+            const resMaster = await fetch(`${API_BASE_URL}/api/parts?branch=${encodeURIComponent(userBranch)}&_t=${new Date().getTime()}`);
             if(resMaster.ok) {
                 const dataMaster = await resMaster.json();
                 allMasterPartsCache = Array.isArray(dataMaster) ? dataMaster : [];
