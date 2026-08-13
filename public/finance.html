@@ -8,7 +8,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
-    <!-- Chart.js สำหรับกราฟโดนัท -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style type="text/tailwindcss">
@@ -217,12 +216,12 @@
         let userBranch = '';
         let donutChart = null;
 
-        // 🌟 เรียง idx (0 - 11) ให้ถูกต้อง ชัดเจน
+        // 🌟 แก้ไข key ให้ตรงกับชื่อฟิลด์ในฐานข้อมูลชัดเจน
         const columnsDef = [
             { idx: 0, key: 'car_plate', title: 'ทะเบียนรถ', width: 120 },
             { idx: 1, key: 'job_status', title: 'สถานะงาน (บัญชี)', width: 180 },
             { idx: 2, key: 'billing_date', title: 'วันที่ออกบิล', width: 130 },
-            { idx: 3, key: 'insurance_payment_date', title: 'วันที่ประกันจ่ายเงิน', width: 140 },
+            { idx: 3, key: 'insurance_pay_date', title: 'วันที่ประกันจ่ายเงิน', width: 140 }, // 👈 เปลี่ยนเป็น insurance_pay_date
             { idx: 4, key: 'sa_owner', title: 'SA ผู้ดูแล', width: 130 },
             { idx: 5, key: 'ivn_no', title: 'เลข IVN.', width: 140 },
             { idx: 6, key: 'qt_no', title: 'เลขที่ใบเสนอราคา (QT)', width: 150 },
@@ -438,7 +437,7 @@
             applyFilters();
         }
 
-        // 🌟 ระบบบันทึกด่วน พร้อมระบบรองรับทั้งชื่อ insurance_payment_date และ insurance_pay_date 🌟
+        // 🌟 ฟังก์ชันส่งค่าวางบิล & รองรับบวกเลขอัตโนมัติ 🌟
         async function fastUpdateAcc(jobId, field, value) {
             try {
                 let valToSend = value;
@@ -450,7 +449,7 @@
                         catch (e) { showToast('รูปแบบตัวเลขไม่ถูกต้อง', 'error'); return; }
                     }
                     valToSend = parseFloat(cleanValue) || 0;
-                } else if (field === 'billing_date' || field === 'insurance_payment_date' || field === 'insurance_pay_date') {
+                } else if (field === 'billing_date' || field === 'insurance_pay_date') {
                     valToSend = value && String(value).trim() !== '' ? value : null;
                 }
 
@@ -461,25 +460,15 @@
                     body: JSON.stringify({ field, value: valToSend })
                 });
 
-                // 🌟 ระบบ Auto-Fallback สำรองในกรณีฝั่ง DB ใช้ชื่อ 'insurance_pay_date'
-                if (!res.ok && (field === 'insurance_payment_date' || field === 'insurance_pay_date')) {
-                    const altField = field === 'insurance_payment_date' ? 'insurance_pay_date' : 'insurance_payment_date';
-                    res = await fetch(`${API_BASE_URL}/api/report/${jobId}/fast-date`, {
-                        method: 'PUT', 
-                        headers: { 'Content-Type': 'application/json' }, 
-                        body: JSON.stringify({ field: altField, value: valToSend })
-                    });
-                }
-
                 if (res.ok) {
                     const jobIndex = allAccJobs.findIndex(j => String(j.id) === String(jobId));
                     if (jobIndex > -1) {
                         allAccJobs[jobIndex][field] = valToSend;
-                        if (field === 'insurance_payment_date') allAccJobs[jobIndex]['insurance_pay_date'] = valToSend;
                     }
                     
                     showToast('อัปเดตข้อมูลอัตโนมัติสำเร็จ!');
                     
+                    // 🌟 ถ้าย้ายหมวดหมู่ แจ้งเตือนพนักงานให้ทราบ!
                     if (field === 'billing_date' && valToSend) {
                         const managedType = document.getElementById('managed_filter_select').value; 
                         if (managedType === 'รอจัดการ') {
@@ -489,7 +478,7 @@
                     
                     if (['cost_labor', 'cost_part', 'cost_external'].includes(field)) {
                         applyFilters(); 
-                    } else if (field === 'billing_date' || field === 'insurance_payment_date' || field === 'insurance_pay_date' || field === 'job_status') {
+                    } else if (field === 'billing_date' || field === 'insurance_pay_date' || field === 'job_status') {
                         buildYearDropdown(); 
                         applyFilters(); 
                     }
@@ -520,9 +509,8 @@
                     return job.job_status || '';
                 case 'billing_date':
                     return job.billing_date ? String(job.billing_date).split('T')[0] : '';
-                case 'insurance_payment_date':
-                    const insDate = job.insurance_payment_date || job.insurance_pay_date;
-                    return insDate ? String(insDate).split('T')[0] : '';
+                case 'insurance_pay_date': // 👈 ต้องแมตช์ key ให้เป๊ะ
+                    return job.insurance_pay_date ? String(job.insurance_pay_date).split('T')[0] : '';
                 case 'qt_no':
                 case 'so_no':
                 case 'ivn_no':
@@ -579,9 +567,8 @@
                         case 'billing_date': 
                             cellData = `<input type="date" value="${job.billing_date ? String(job.billing_date).split('T')[0] : ''}" onchange="fastUpdateAcc('${job.id}', 'billing_date', this.value)" class="inline-edit-input font-mono text-center">`; 
                             break;
-                        case 'insurance_payment_date': 
-                            const dateVal = job.insurance_payment_date || job.insurance_pay_date;
-                            cellData = `<input type="date" value="${dateVal ? String(dateVal).split('T')[0] : ''}" onchange="fastUpdateAcc('${job.id}', 'insurance_payment_date', this.value)" class="inline-edit-input font-mono text-center">`; 
+                        case 'insurance_pay_date': 
+                            cellData = `<input type="date" value="${job.insurance_pay_date ? String(job.insurance_pay_date).split('T')[0] : ''}" onchange="fastUpdateAcc('${job.id}', 'insurance_pay_date', this.value)" class="inline-edit-input font-mono text-center">`; 
                             break;
                         case 'qt_no': case 'so_no': case 'ivn_no':
                             cellData = `<input type="text" value="${job[col.key] || ''}" onchange="fastUpdateAcc('${job.id}', '${col.key}', this.value)" class="inline-edit-input uppercase font-mono" placeholder="-">`;
