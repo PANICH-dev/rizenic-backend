@@ -500,14 +500,27 @@
         }
 
         async function loadInitialData() {
-            // ดึงรายชื่อพนักงานทั้งหมดมาใส่ใน Datalist SA
+            // ดึงรายชื่อพนักงานทั้งหมดมาใส่ใน Datalist SA (กรองเฉพาะตำแหน่ง SA และสาขาตัวเอง)
             fetch(`${API_BASE_URL}/api/employees`).then(async r => {
                 if(r.ok) {
                     const data = await r.json();
                     const saList = document.getElementById('sa_list');
                     saList.innerHTML = '';
-                    data.forEach(emp => {
-                        saList.innerHTML += `<option value="${emp.employee_name}">`;
+                    
+                    const userBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+                    
+                    // 🌟 กรองเฉพาะพนักงานที่เป็น SA และอยู่สาขาเดียวกับเรา
+                    const branchSAs = data.filter(e => {
+                        const isSameBranch = e.branch_name === userBranch;
+                        const role = (e.employee_role || '').toUpperCase();
+                        const isSA = role === 'SA' || role.includes('SERVICE ADVISOR') || role.includes('SERVICE');
+                        return isSameBranch && isSA;
+                    });
+
+                    // 🌟 ตัดชื่อซ้ำ และเรียงตามตัวอักษร
+                    const uniqueSAs = [...new Set(branchSAs.map(e => e.employee_name).filter(Boolean))].sort();
+                    uniqueSAs.forEach(name => {
+                        saList.innerHTML += `<option value="${name}">`;
                     });
                 }
             }).catch(() => {});
