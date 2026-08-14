@@ -296,6 +296,17 @@
         
         let hiddenCols = new Set(columnsDef.filter(c => !defaultVisibleKeys.includes(c.key)).map(c => c.idx));
 
+        // 🌟 Helper: ดึงเฉพาะรายชื่อพนักงานที่เป็น SA ของสาขานี้ 🌟
+        function getSAsForCurrentBranch() {
+            if (!allEmployees || allEmployees.length === 0) return [];
+            return [...new Set(allEmployees.filter(e => {
+                const isSameBranch = e.branch_name === userBranch;
+                const role = (e.employee_role || '').toUpperCase();
+                const isSA = role === 'SA' || role.includes('SERVICE ADVISOR') || role.includes('SERVICE');
+                return isSameBranch && isSA;
+            }).map(e => e.employee_name).filter(Boolean))].sort();
+        }
+
         function showToast(msg, type='success') {
             const toast = document.getElementById('toastMsg');
             toast.className = `fixed bottom-5 right-5 font-bold px-5 py-2.5 rounded shadow-2xl transform transition-all duration-300 z-[200] flex items-center gap-2 border border-white/20 ${type === 'error' ? 'bg-red-600' : 'bg-emerald-600'} text-white text-xs`;
@@ -508,7 +519,9 @@
                 dlModels.innerHTML = uniqueModels.map(m => `<option value="${m}">`).join('');
 
                 initColumns(); 
-                buildSADropdown(); buildBranchDropdown(); applyFilters(); 
+                buildBranchDropdown(); 
+                buildSADropdown(); 
+                applyFilters(); 
             } catch (error) {
                 document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="40" class="text-center py-20 text-red-600 font-bold bg-white"><i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i><br>เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>`;
             }
@@ -524,12 +537,14 @@
             } else { branchSelect.innerHTML = `<option value="${userBranch}">${userBranch}</option>`; branchSelect.disabled = true; }
         }
 
+        // 🌟 แก้ไข: ตัวกรอง SA ด้านบน ให้เห็นเฉพาะ SA สาขาตัวเอง 🌟
         function buildSADropdown() {
-            const saSelect = document.getElementById('sa_filter_select'); const savedValue = saSelect.value; 
-            const activeData = getActiveJobsData();
-            const uniqueSA = [...new Set(activeData.map(j => j.sa_owner).filter(Boolean))].sort();
-            saSelect.innerHTML = '<option value="">-- แสดง SA ทั้งหมด --</option>' + uniqueSA.map(sa => `<option value="${sa}">${sa}</option>`).join('');
-            if(savedValue) saSelect.value = savedValue;
+            const saSelect = document.getElementById('sa_filter_select'); 
+            const savedValue = saSelect.value; 
+            
+            const branchSAs = getSAsForCurrentBranch();
+            saSelect.innerHTML = '<option value="">-- แสดง SA ทั้งหมด --</option>' + branchSAs.map(sa => `<option value="${sa}">${sa}</option>`).join('');
+            if(savedValue && branchSAs.includes(savedValue)) saSelect.value = savedValue;
         }
 
         function goToEditJob(jobId) { sessionStorage.setItem('edit_job_id', jobId); window.location.href = 'index.html'; }
@@ -597,7 +612,6 @@
             }
         }
 
-        // 🌟 แก้ไข: เพิ่มการรองรับการกดเลือกจาก Bulk Modal
         function openMultiPartsModal(jobId, fieldName, currentVal, isBulk = false, rowId = null) {
             isBulkModalMode = isBulk;
             activeBulkRowId = rowId;
@@ -742,6 +756,9 @@
             const today = new Date();
             today.setHours(0,0,0,0);
 
+            // 🌟 ดึง SA เฉพาะสาขาตัวเอง เพื่อนำไปใส่ใน Dropdown ตาราง 🌟
+            const branchSAs = getSAsForCurrentBranch();
+
             data.forEach(job => {
                 const carParts = (allPartOrders || []).filter(p => {
                     if (p.order_status === 'ยกเลิก') return false;
@@ -833,11 +850,15 @@
                             else { carParts.forEach(p => { let isC = (p.order_status||'').includes('ครบ') || (p.order_status||'').includes('มีของ'); partsHTML += `<span class="text-[10px] font-bold ${isC ? 'text-emerald-600' : ((p.order_status||'').includes('รอ') ? 'text-red-500' : 'text-amber-500')} leading-tight" title="${p.part_name}">• ${p.part_name} [${p.order_status||'รอสั่ง'}]</span>`; }); }
                             cellData = partsHTML + '</div>'; break;
                         
+                        // 🌟 แก้ไข: Dropdown SA ในตารางหลัก 🌟
                         case 'sa_owner': 
                             let saOptsHtml = '<option value="">- ระบุ SA -</option>';
-                            if (allEmployees && allEmployees.length > 0) {
-                                const uniqueSA = [...new Set(allEmployees.map(e => e.employee_name).filter(Boolean))].sort();
-                                saOptsHtml += uniqueSA.map(sa => `<option value="${sa}" ${job.sa_owner === sa ? 'selected' : ''}>${sa}</option>`).join('');
+                            if (branchSAs.length > 0) {
+                                saOptsHtml += branchSAs.map(sa => `<option value="${sa}" ${job.sa_owner === sa ? 'selected' : ''}>${sa}</option>`).join('');
+                                // ถ้ารถคันนี้มี SA เป็นคนอื่น (ที่อาจจะลาออกไปแล้ว หรือมาจากสาขาอื่น) ให้เติมชื่อเข้าไปด้วย ป้องกันการหาย
+                                if(job.sa_owner && !branchSAs.includes(job.sa_owner)) {
+                                    saOptsHtml += `<option value="${job.sa_owner}" selected>${job.sa_owner}</option>`;
+                                }
                             } else {
                                 saOptsHtml += `<option value="${job.sa_owner||''}" selected>${job.sa_owner||''}</option>`;
                             }
@@ -878,11 +899,11 @@
             
             let tdHtml = `<td class="text-center text-xs text-slate-400 font-mono bg-slate-50 border-r border-slate-200 p-0 sticky left-0 z-10">${tbody.children.length + 1}</td>`;
             
-            // เตรียม Dropdown Options
+            // 🌟 แก้ไข: เตรียม Dropdown Options SA เฉพาะสาขาตัวเอง 🌟
             let saOptions = '<option value="">-- ระบุ SA --</option>';
-            if (allEmployees && allEmployees.length > 0) {
-                const uniqueSA = [...new Set(allEmployees.map(e => e.employee_name).filter(Boolean))].sort();
-                saOptions += uniqueSA.map(sa => `<option value="${sa}">${sa}</option>`).join('');
+            const branchSAs = getSAsForCurrentBranch();
+            if (branchSAs.length > 0) {
+                saOptions += branchSAs.map(sa => `<option value="${sa}">${sa}</option>`).join('');
             }
 
             let custTypeOptions = '<option value="">-- เลือก --</option>';
@@ -909,7 +930,14 @@
                     tdHtml += `<td class="p-0 border-r border-slate-200"><input type="date" class="bulk-input bulk-input-${c.key} text-center font-mono" value="${val ? new Date(val).toISOString().split('T')[0] : ''}"></td>`;
                 } 
                 else if (c.key === 'sa_owner') {
-                    tdHtml += `<td class="p-0 border-r border-slate-200"><select class="bulk-input bulk-input-${c.key} font-bold text-blue-700 cursor-pointer">${saOptions}</select></td>`;
+                    // ถ้าในไฟล์ Excel มีชื่อ SA มา แล้วไม่มีในลิสต์สาขา ให้เพิ่ม option ไปชั่วคราว
+                    let currentSaOpts = saOptions;
+                    if(val && !branchSAs.includes(val)) {
+                        currentSaOpts += `<option value="${val}" selected>${val}</option>`;
+                    } else if (val) {
+                        currentSaOpts = currentSaOpts.replace(`value="${val}"`, `value="${val}" selected`);
+                    }
+                    tdHtml += `<td class="p-0 border-r border-slate-200"><select class="bulk-input bulk-input-${c.key} font-bold text-blue-700 cursor-pointer">${currentSaOpts}</select></td>`;
                 }
                 else if (c.key === 'customer_type') {
                     tdHtml += `<td class="p-0 border-r border-slate-200"><select class="bulk-input bulk-input-${c.key} cursor-pointer">${custTypeOptions}</select></td>`;
@@ -949,10 +977,13 @@
             });
             tr.innerHTML = tdHtml; tbody.appendChild(tr);
 
-            // ตั้งค่า SA ให้เป็นของตัวเองถ้าเพิ่งสร้างแถวใหม่
+            // ตั้งค่า SA ให้เป็นของตัวเองถ้าเพิ่งสร้างแถวใหม่ และตำแหน่งเป็น SA
             if(!rowData) {
                 const saInp = tr.querySelector('.bulk-input-sa_owner');
-                if(saInp && sessionStorage.getItem('emp_name')) saInp.value = sessionStorage.getItem('emp_name');
+                const empName = sessionStorage.getItem('emp_name');
+                if(saInp && empName && branchSAs.includes(empName)) {
+                    saInp.value = empName;
+                }
                 const branchInp = tr.querySelector('.bulk-input-branch_name');
                 if(branchInp && userRole !== 'Manager' && userRole !== 'Admin') branchInp.value = userBranch;
             }
@@ -1005,4 +1036,3 @@
     </script>
 </body>
 </html>
-]
