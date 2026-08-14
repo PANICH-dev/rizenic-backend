@@ -746,6 +746,7 @@
             </div>`;
         }
 
+        // 🌟 1. ปรับปรุงฟังก์ชัน renderTable ให้ทำงานเร็วขึ้น 🌟
         function renderTable(data) {
             const tbody = document.getElementById('jobs_table_body'); 
             if (!data || data.length === 0) { tbody.innerHTML = `<tr><td colspan="40" class="text-center py-16 text-slate-400 font-bold bg-white">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td></tr>`; return; }
@@ -756,19 +757,40 @@
             const today = new Date();
             today.setHours(0,0,0,0);
 
-            // 🌟 ดึง SA เฉพาะสาขาตัวเอง เพื่อนำไปใส่ใน Dropdown ตาราง 🌟
             const branchSAs = getSAsForCurrentBranch();
 
+            // 🚀 OPTIMIZATION: จัดกลุ่มข้อมูลอะไหล่ไว้ก่อน (หลีกเลี่ยงการวนลูปซ้อนลูป)
+            const activePartOrders = (allPartOrders || []).filter(p => p.order_status !== 'ยกเลิก');
+            const partsByJobId = {};
+            const partsByPlate = {};
+            
+            activePartOrders.forEach(p => {
+                if (p.job_id) {
+                    if(!partsByJobId[p.job_id]) partsByJobId[p.job_id] = [];
+                    partsByJobId[p.job_id].push(p);
+                }
+                if (p.car_plate) {
+                    const plate = p.car_plate.trim().toUpperCase();
+                    if(!partsByPlate[plate]) partsByPlate[plate] = [];
+                    partsByPlate[plate].push(p);
+                }
+            });
+
             data.forEach(job => {
-                const carParts = (allPartOrders || []).filter(p => {
-                    if (p.order_status === 'ยกเลิก') return false;
-                    if (p.job_id) return String(p.job_id) === String(job.id);
-                    if (!p.car_plate || !job.car_plate) return false;
-                    if (p.car_plate.trim().toUpperCase() !== job.car_plate.trim().toUpperCase()) return false;
-                    if (job.qt_no && p.qt_no && job.qt_no.includes(p.qt_no)) return true;
-                    if (job.so_no && p.so_no && job.so_no.includes(p.so_no)) return true;
-                    return (!p.qt_no && !p.so_no);
-                });
+                // 🚀 ดึงข้อมูลอะไหล่แบบรวดเร็ว
+                let carParts = [];
+                if (job.id && partsByJobId[job.id]) {
+                    carParts = partsByJobId[job.id];
+                } else if (job.car_plate) {
+                    const plate = job.car_plate.trim().toUpperCase();
+                    const plateParts = partsByPlate[plate] || [];
+                    
+                    carParts = plateParts.filter(p => {
+                        if (job.qt_no && p.qt_no && job.qt_no.includes(p.qt_no)) return true;
+                        if (job.so_no && p.so_no && job.so_no.includes(p.so_no)) return true;
+                        return (!p.qt_no && !p.so_no);
+                    });
+                }
                 
                 let rowHtml = `<tr id="row_${job.id}" ondblclick="goToEditJob('${job.id}')" title="ดับเบิ้ลคลิกเพื่อเปิดใบงานนี้">`;
                 
@@ -850,12 +872,10 @@
                             else { carParts.forEach(p => { let isC = (p.order_status||'').includes('ครบ') || (p.order_status||'').includes('มีของ'); partsHTML += `<span class="text-[10px] font-bold ${isC ? 'text-emerald-600' : ((p.order_status||'').includes('รอ') ? 'text-red-500' : 'text-amber-500')} leading-tight" title="${p.part_name}">• ${p.part_name} [${p.order_status||'รอสั่ง'}]</span>`; }); }
                             cellData = partsHTML + '</div>'; break;
                         
-                        // 🌟 แก้ไข: Dropdown SA ในตารางหลัก 🌟
                         case 'sa_owner': 
                             let saOptsHtml = '<option value="">- ระบุ SA -</option>';
                             if (branchSAs.length > 0) {
                                 saOptsHtml += branchSAs.map(sa => `<option value="${sa}" ${job.sa_owner === sa ? 'selected' : ''}>${sa}</option>`).join('');
-                                // ถ้ารถคันนี้มี SA เป็นคนอื่น (ที่อาจจะลาออกไปแล้ว หรือมาจากสาขาอื่น) ให้เติมชื่อเข้าไปด้วย ป้องกันการหาย
                                 if(job.sa_owner && !branchSAs.includes(job.sa_owner)) {
                                     saOptsHtml += `<option value="${job.sa_owner}" selected>${job.sa_owner}</option>`;
                                 }
@@ -874,7 +894,6 @@
             tbody.innerHTML = allRowsHtml; 
         }
 
-        // 🌟 อัปเกรด: เปิด Modal ตารางเพิ่มด่วน (Bulk PDI) ดึงตัวเลือกให้ครบ
         function openBulkModal() {
             const pdiCols = columnsDef.filter(c => c.key !== 'action'); 
             let thHtml = '<th class="w-10 min-w-[40px] text-center bg-[#00320D] text-white border-b border-[#1e3a1e] sticky left-0 z-20">#</th>';
@@ -899,7 +918,6 @@
             
             let tdHtml = `<td class="text-center text-xs text-slate-400 font-mono bg-slate-50 border-r border-slate-200 p-0 sticky left-0 z-10">${tbody.children.length + 1}</td>`;
             
-            // 🌟 แก้ไข: เตรียม Dropdown Options SA เฉพาะสาขาตัวเอง 🌟
             let saOptions = '<option value="">-- ระบุ SA --</option>';
             const branchSAs = getSAsForCurrentBranch();
             if (branchSAs.length > 0) {
@@ -930,7 +948,6 @@
                     tdHtml += `<td class="p-0 border-r border-slate-200"><input type="date" class="bulk-input bulk-input-${c.key} text-center font-mono" value="${val ? new Date(val).toISOString().split('T')[0] : ''}"></td>`;
                 } 
                 else if (c.key === 'sa_owner') {
-                    // ถ้าในไฟล์ Excel มีชื่อ SA มา แล้วไม่มีในลิสต์สาขา ให้เพิ่ม option ไปชั่วคราว
                     let currentSaOpts = saOptions;
                     if(val && !branchSAs.includes(val)) {
                         currentSaOpts += `<option value="${val}" selected>${val}</option>`;
@@ -956,28 +973,24 @@
                 else if (c.key === 'damage_level') {
                     tdHtml += `<td class="p-0 border-r border-slate-200"><select class="bulk-input bulk-input-${c.key} cursor-pointer font-bold"><option value="เบา" ${val==='เบา'?'selected':''}>เบา</option><option value="กลาง" ${val==='กลาง'?'selected':''}>กลาง</option><option value="หนัก" ${val==='หนัก'?'selected':''}>หนัก</option></select></td>`;
                 }
-                // 🌟 อัปเกรด: ฟิลด์ยี่ห้อและรุ่นรถเป็น Datalist พิมพ์ง่าย
                 else if (c.key === 'car_brand') {
                     tdHtml += `<td class="p-0 border-r border-slate-200"><input type="text" list="dl_car_brands" class="bulk-input bulk-input-${c.key} font-bold text-slate-800" placeholder="${c.title}" value="${val}"></td>`;
                 }
                 else if (c.key === 'car_model') {
                     tdHtml += `<td class="p-0 border-r border-slate-200"><input type="text" list="dl_car_models" class="bulk-input bulk-input-${c.key} text-slate-700 font-medium" placeholder="${c.title}" value="${val}"></td>`;
                 }
-                // 🌟 อัปเกรด: ฟิลด์อะไหล่หลัก/รอง
                 else if (c.key === 'main_part_name' || c.key === 'sub_part_name') {
                     tdHtml += `<td class="p-0 border-r border-slate-200"><input type="text" readonly onclick="openMultiPartsModal(null, '${c.key}', this.value, true, '${rowId}')" class="bulk-input bulk-input-${c.key} cursor-pointer bg-slate-50 text-blue-700 font-bold hover:bg-slate-100" placeholder="คลิกเพื่อเลือกชิ้นส่วน..." value="${val}"></td>`;
                 }
                 else if (c.key === 'main_part_qty' || c.key === 'sub_part_qty') {
                     tdHtml += `<td class="p-0 border-r border-slate-200 bg-slate-100"><input type="text" readonly class="bulk-input bulk-input-${c.key} text-center font-black text-slate-500 pointer-events-none" placeholder="0" value="${val}"></td>`;
                 }
-                // ฟิลด์ปกติ
                 else {
                     tdHtml += `<td class="p-0 border-r border-slate-200"><input type="text" class="bulk-input bulk-input-${c.key} ${c.key==='car_plate'?'font-black text-blue-700 uppercase bg-amber-50/30':''}" placeholder="${c.title}" value="${val}"></td>`;
                 }
             });
             tr.innerHTML = tdHtml; tbody.appendChild(tr);
 
-            // ตั้งค่า SA ให้เป็นของตัวเองถ้าเพิ่งสร้างแถวใหม่ และตำแหน่งเป็น SA
             if(!rowData) {
                 const saInp = tr.querySelector('.bulk-input-sa_owner');
                 const empName = sessionStorage.getItem('emp_name');
@@ -1021,7 +1034,6 @@
                 if (!payload.job_status) payload.job_status = '09.จอดรอเข้าซ่อม'; 
                 if (!payload.damage_level) payload.damage_level = 'เบา'; 
                 
-                // ตรวจสอบค่า QTY ถ้าเป็นค่าว่างให้เป็น 0
                 payload.main_part_qty = parseInt(payload.main_part_qty) || 0;
                 payload.sub_part_qty = parseInt(payload.sub_part_qty) || 0;
 
