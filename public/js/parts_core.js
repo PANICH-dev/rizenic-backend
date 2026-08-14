@@ -2,9 +2,8 @@
 // ⚙️ RIZENIC - Parts Core System (parts_core.js)
 // ==========================================
 
-
-
 const API_BASE_URL = window.location.origin;
+let allReports = []; // 🌟 เพิ่มตัวแปรดึงใบงานทั้งหมด
 let allPartOrders = [];
 let allInbounds = [];
 let allOutbounds = [];
@@ -149,6 +148,16 @@ async function loadAllData() {
     const isManager = ['BA','Manager','Admin','แอดมิน'].includes(userRole);
 
     try {
+        // 🌟 ดึงข้อมูลจากใบงานหลัก (Reports) เพิ่มเข้ามา
+        try {
+            const resRep = await fetch(`${API_BASE_URL}/api/reports${nocache}`);
+            if(resRep.ok) {
+                const dataRep = await resRep.json();
+                allReports = Array.isArray(dataRep) ? dataRep : [];
+                if (!isManager) allReports = allReports.filter(d => d.branch_name === userBranch);
+            }
+        } catch(e) {}
+
         try {
             const resPO = await fetch(`${API_BASE_URL}/api/part-orders${nocache}`);
             if(resPO.ok) {
