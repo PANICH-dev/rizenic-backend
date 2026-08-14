@@ -2,7 +2,7 @@
 // ⚙️ RIZENIC - Parts Core System (parts_core.js)
 // ==========================================
 
-Chart.register(ChartDataLabels);
+
 
 const API_BASE_URL = window.location.origin;
 let allPartOrders = [];
