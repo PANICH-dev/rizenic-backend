@@ -81,6 +81,12 @@
             <div class="flex items-center gap-3">
                 <i class="fa-solid fa-table-list text-amber-400 text-xl"></i>
                 <h1 class="text-lg font-black tracking-wider text-white">RIZENIC <span class="text-green-400">TRACKING</span></h1>
+                
+                <!-- 🌟 เพิ่มช่องค้นหาทะเบียนด่วน (Fast Search Plate) 🌟 -->
+                <div class="hidden sm:flex relative ml-4">
+                    <input type="text" id="global_search_plate" onkeypress="if(event.key==='Enter') globalSearchCar()" class="px-4 py-1.5 rounded-full text-xs font-bold text-slate-800 w-52 outline-none border-2 border-transparent focus:border-amber-400 transition-all shadow-inner" placeholder="🔍 ค้นหาทะเบียนด่วน...">
+                    <button onclick="globalSearchCar()" class="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-slate-400 hover:text-amber-500 bg-white rounded-full"><i class="fa-solid fa-arrow-right"></i></button>
+                </div>
             </div>
             <nav class="flex flex-col sm:flex-row items-center gap-3">
                 <div class="text-right border-r border-green-700 pr-4 hidden sm:block">
@@ -99,7 +105,7 @@
         </div>
     </header>
 
-    <!-- 🌟 ระบบ Tab Navigation (สลับตารางใบงานทั้งหมดมาไว้หน้าแรก) 🌟 -->
+    <!-- 🌟 ระบบ Tab Navigation -->
     <div class="bg-white border-b border-slate-200 z-40 shrink-0 shadow-sm flex overflow-x-auto px-2 pt-2">
         <a href="jobs_table.html" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 rounded-t-xl transition-all"><i class="fa-solid fa-file-excel text-emerald-600"></i> 1. ตารางใบงานทั้งหมด (Excel Mode)</a>
         <a href="jobs.html" class="px-6 py-3.5 text-sm font-bold border-b-2 border-[#00320D] text-[#00320D] bg-blue-50/80 flex items-center gap-2 rounded-t-xl transition-all"><i class="fa-solid fa-users text-blue-600"></i> 2. ภาพรวมทีมบริการ (SA)</a>
@@ -109,9 +115,17 @@
     <!-- ==================== TAB 2: SA OVERVIEW ==================== -->
     <main class="flex-1 overflow-y-auto custom-scrollbar bg-slate-100 p-4 relative flex flex-col">
         <div id="sa_list_view" class="max-w-[1400px] mx-auto w-full">
-            <div class="flex justify-between items-center mb-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
                 <h2 class="text-2xl font-black text-[#00320D] border-l-4 border-amber-500 pl-3">รายชื่อ Service Advisor (SA)</h2>
-                <button onclick="loadJobsData()" class="px-4 py-2 bg-white text-slate-700 font-bold border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 transition"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
+                
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <!-- ค้นหาทะเบียนเพิ่มเติมในหน้ารวม SA -->
+                    <div class="relative flex-1 sm:w-64">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                        <input type="text" id="sa_search_plate_input" onkeypress="if(event.key==='Enter') searchCarByPlateFromSAView()" class="w-full pl-8 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:border-amber-500 shadow-sm" placeholder="🔍 ค้นหาทะเบียนรถในหน้านี้...">
+                    </div>
+                    <button onclick="loadJobsData()" class="px-4 py-2 bg-white text-slate-700 font-bold border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 transition text-xs flex items-center gap-1.5 whitespace-nowrap"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
+                </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6" id="sa_cards_container">
                 <div class="col-span-full text-center py-10 text-slate-400 font-bold"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังโหลดข้อมูล SA...</div>
@@ -119,7 +133,7 @@
         </div>
 
         <div id="sa_detail_view" class="hidden max-w-[1500px] mx-auto w-full space-y-6 pb-10">
-            <!-- 🌟 ส่วนหัว SA + ป้ายเตือน OVERVIEW OVERDUE ด่วน 🌟 -->
+            <!-- 🌟 ส่วนหัว SA + ป้ายเตือน OVERVIEW OVERDUE 🌟 -->
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 pb-4 mt-2">
                 <div class="flex items-center gap-4">
                     <button onclick="backToSAList()" class="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-xl font-bold hover:bg-slate-100 transition shadow-sm"><i class="fa-solid fa-arrow-left"></i> กลับหน้ารวม SA</button>
@@ -129,16 +143,16 @@
                     </div>
                 </div>
 
-                <!-- 🚨 ป้ายสรุปเตือน OVERDUE ส่วนหัวด่วน 🚨 -->
+                <!-- 🚨 ป้ายสรุปเตือน OVERDUE 🚨 -->
                 <div class="flex flex-wrap gap-2 items-center bg-red-50 border border-red-200 p-2.5 rounded-xl shadow-xs">
-                    <span class="text-xs font-black text-red-700 uppercase flex items-center gap-1.5 animate-pulse"><i class="fa-solid fa-triangle-exclamation text-red-600 text-sm"></i> OVERDUE เตือนด่วน:</span>
-                    <button onclick="openSAOverdueModal('appointment')" class="px-2.5 py-1 bg-white border border-red-300 hover:bg-red-100 rounded-lg text-xs font-bold text-red-700 transition flex items-center gap-1 shadow-2xs">
+                    <span class="text-xs font-black text-red-700 uppercase flex items-center gap-1.5"><i class="fa-solid fa-triangle-exclamation text-red-600 text-sm animate-pulse"></i> OVERDUE เตือนด่วน:</span>
+                    <button id="btn_ov_app" onclick="openSAOverdueModal('appointment')" class="px-2.5 py-1 bg-white border border-red-300 rounded-lg text-xs font-bold text-red-700 transition flex items-center gap-1 shadow-2xs">
                         <span>เลยวันนัดเข้า:</span> <span id="ov_app_count" class="bg-red-600 text-white px-1.5 py-0.2 rounded-full font-black text-[11px]">0</span>
                     </button>
-                    <button onclick="openSAOverdueModal('target')" class="px-2.5 py-1 bg-white border border-amber-300 hover:bg-amber-100 rounded-lg text-xs font-bold text-amber-800 transition flex items-center gap-1 shadow-2xs">
+                    <button id="btn_ov_tgt" onclick="openSAOverdueModal('target')" class="px-2.5 py-1 bg-white border border-amber-300 rounded-lg text-xs font-bold text-amber-800 transition flex items-center gap-1 shadow-2xs">
                         <span>ช้ากว่าเป้าเสร็จ:</span> <span id="ov_tgt_count" class="bg-amber-600 text-white px-1.5 py-0.2 rounded-full font-black text-[11px]">0</span>
                     </button>
-                    <button onclick="openSAOverdueModal('delivery')" class="px-2.5 py-1 bg-white border border-purple-300 hover:bg-purple-100 rounded-lg text-xs font-bold text-purple-800 transition flex items-center gap-1 shadow-2xs">
+                    <button id="btn_ov_del" onclick="openSAOverdueModal('delivery')" class="px-2.5 py-1 bg-white border border-purple-300 rounded-lg text-xs font-bold text-purple-800 transition flex items-center gap-1 shadow-2xs">
                         <span>เลยวันส่งมอบ:</span> <span id="ov_del_count" class="bg-purple-600 text-white px-1.5 py-0.2 rounded-full font-black text-[11px]">0</span>
                     </button>
                 </div>
@@ -186,7 +200,7 @@
                 </div>
             </div>
 
-            <!-- 🌟 รถจอดซ่อม (ตารางมินิมอล หัวเขียว ขยายกว้าง-ยาวได้อย่างอิสระ) 🌟 -->
+            <!-- 🌟 รถจอดซ่อม -->
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[380px]">
                 <div class="bg-slate-50 px-5 py-3.5 border-b border-slate-200 flex justify-between items-center">
                     <h3 class="font-black text-[#00320D]"><i class="fa-solid fa-car text-amber-500"></i> รายการรถกำลังจอดซ่อมในศูนย์</h3>
@@ -212,7 +226,7 @@
                 </div>
             </div>
 
-            <!-- 🌟 ติดตามสถานะใบสั่งอะไหล่ PO Tracking (ปรับหัวตารางสีเขียวสไตล์ Rizenic คีย์ข้อมูลเต็ม) 🌟 -->
+            <!-- 🌟 PO Tracking -->
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[380px]">
                 <div class="bg-slate-50 px-5 py-3.5 border-b border-slate-200 flex justify-between items-center">
                     <h3 class="font-black text-[#00320D] flex items-center gap-2"><i class="fa-solid fa-boxes-stacked text-green-700"></i> ติดตามสถานะใบสั่งอะไหล่ (PO Tracking โต๊ะคีย์อะไหล่ SA)</h3>
@@ -287,8 +301,8 @@
 
         function showToast(msg, type='success') {
             const toast = document.getElementById('toastMsg');
-            const icon = type === 'error' ? 'fa-circle-xmark' : 'fa-circle-check';
-            toast.className = `fixed bottom-5 right-5 font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 z-[200] flex items-center gap-2 border border-white/20 ${type === 'error' ? 'bg-red-600' : 'bg-emerald-600'} text-white`;
+            const icon = type === 'error' ? 'fa-circle-xmark' : (type === 'info' ? 'fa-circle-info' : 'fa-circle-check');
+            toast.className = `fixed bottom-5 right-5 font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 z-[200] flex items-center gap-2 border border-white/20 ${type === 'error' ? 'bg-red-600' : (type === 'info' ? 'bg-blue-600' : 'bg-emerald-600')} text-white`;
             document.getElementById('toastContent').innerHTML = `<i class="fa-solid ${icon} text-xl"></i> ${msg}`;
             toast.classList.remove('translate-y-20', 'opacity-0');
             setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 2500);
@@ -362,6 +376,35 @@
             }
         }
 
+        // ================= 🌟 GLOBAL SEARCH (ค้นหาทะเบียนด่วน) 🌟 =================
+        function globalSearchCar() {
+            const plate = document.getElementById('global_search_plate').value.trim().toLowerCase();
+            if(!plate) return;
+            
+            // ค้นหารถที่ป้ายทะเบียนตรงหรือคล้ายกัน
+            const matchedJobs = allJobsData.filter(j => j.car_plate && j.car_plate.toLowerCase().includes(plate));
+            
+            if(matchedJobs.length === 0) {
+                showToast('ไม่พบรถทะเบียน: ' + plate, 'error');
+            } else if (matchedJobs.length === 1) {
+                showToast('🚀 กำลังพุ่งไปที่ใบงาน...', 'info');
+                setTimeout(() => goToEditJob(matchedJobs[0].id), 400); // ดีดไปหน้าบิลซ่อมทันที
+            } else {
+                // ถ้าเจอหลายคัน ให้เด้งตารางขึ้นมาให้เลือกจิ้ม
+                document.getElementById('modal_status_name').innerText = `ผลการค้นหาทะเบียน: ${plate} (พบ ${matchedJobs.length} คัน)`;
+                renderJobTableInModal(matchedJobs);
+                document.getElementById('jobListModal').classList.remove('hidden');
+            }
+        }
+
+        function searchCarByPlateFromSAView() {
+            const input = document.getElementById('sa_search_plate_input');
+            if(input) {
+                document.getElementById('global_search_plate').value = input.value;
+                globalSearchCar();
+            }
+        }
+
         // ================= 🌟 SA DASHBOARD LOGIC 🌟 =================
         function renderSAList() {
             const container = document.getElementById('sa_cards_container');
@@ -417,7 +460,7 @@
             renderSAStatuses(saJobs); 
         }
 
-        // 🌟 คำนวณสรุปยอด Overdue ขึ้นป้ายส่วนหัว 🌟
+        // 🌟 คำนวณสรุปยอด Overdue ขึ้นป้ายส่วนหัว + ระบบกะพริบสีแดงด่วน 🌟
         function calculateSAOverdues(jobs) {
             const todayStr = new Date().toISOString().split('T')[0];
             let ovApp = 0, ovTgt = 0, ovDel = 0;
@@ -441,9 +484,21 @@
                 }
             });
 
+            // 🎯 สั่งกะพริบแดงเตือนทันทีถ้ายอดมากกว่า 0
+            const btnApp = document.getElementById('btn_ov_app');
             document.getElementById('ov_app_count').innerText = ovApp;
+            if (ovApp > 0) { btnApp.className = 'px-2.5 py-1 bg-red-100 border-2 border-red-500 rounded-lg text-xs font-bold text-red-700 transition flex items-center gap-1 shadow-md animate-pulse'; } 
+            else { btnApp.className = 'px-2.5 py-1 bg-white border border-red-300 hover:bg-red-100 rounded-lg text-xs font-bold text-red-700 transition flex items-center gap-1 shadow-2xs'; }
+
+            const btnTgt = document.getElementById('btn_ov_tgt');
             document.getElementById('ov_tgt_count').innerText = ovTgt;
+            if (ovTgt > 0) { btnTgt.className = 'px-2.5 py-1 bg-amber-100 border-2 border-amber-500 rounded-lg text-xs font-bold text-amber-800 transition flex items-center gap-1 shadow-md animate-pulse'; }
+            else { btnTgt.className = 'px-2.5 py-1 bg-white border border-amber-300 hover:bg-amber-100 rounded-lg text-xs font-bold text-amber-800 transition flex items-center gap-1 shadow-2xs'; }
+
+            const btnDel = document.getElementById('btn_ov_del');
             document.getElementById('ov_del_count').innerText = ovDel;
+            if (ovDel > 0) { btnDel.className = 'px-2.5 py-1 bg-purple-100 border-2 border-purple-500 rounded-lg text-xs font-bold text-purple-800 transition flex items-center gap-1 shadow-md animate-pulse'; }
+            else { btnDel.className = 'px-2.5 py-1 bg-white border border-purple-300 hover:bg-purple-100 rounded-lg text-xs font-bold text-purple-800 transition flex items-center gap-1 shadow-2xs'; }
         }
 
         function openSAOverdueModal(type) {
@@ -620,7 +675,6 @@
             document.getElementById('jobListModal').classList.remove('hidden');
         }
 
-        // 🌟 แสดงตารางรถจอดซ่อมแบบ Minimal Green Grid ลากกว้าง-ยาวได้ 🌟
         function renderSAParkedCars(jobs) {
             const tbody = document.getElementById('sa_parked_body'); 
             const parkedCars = jobs.filter(j => j.is_parked === 'จอดซ่อม'); 
@@ -668,7 +722,6 @@
             setTimeout(initResizableGreenGridColumns, 300);
         }
 
-        // 🌟 ปรับปรุงโต๊ะคีย์ติดตาม PO Tracking ให้หัวตารางสีเขียวสไตล์ Rizenic แสดงผลครบๆ 🌟
         function renderSAPOTracking(pos) {
             const tbody = document.getElementById('sa_po_body');
             if (pos.length === 0) { 
@@ -695,7 +748,6 @@
             setTimeout(initResizableGreenGridColumns, 300);
         }
 
-        // 🌟 สคริปต์ปรับขนาดคอลัมน์ตารางกริดเขียวสไตล์ Excel 🌟
         function initResizableGreenGridColumns() {
             const cols = document.querySelectorAll('.excel-table-green th');
             cols.forEach(col => {
@@ -729,7 +781,6 @@
             window.location.href = 'jobs_table.html';
         }
 
-        // ================= 🌟 MODAL LIST LOGIC 🌟 =================
         function renderJobTableInModal(jobs) {
             const tbody = document.getElementById('modal_job_table');
             if (jobs.length === 0) { 
@@ -755,7 +806,6 @@
             document.getElementById(modalId).classList.add('hidden'); 
         }
 
-        // ================= 🌟 SIMPLE FAST EDIT LOGIC 🌟 =================
         function goToEditJob(jobId) { 
             sessionStorage.setItem('edit_job_id', jobId); 
             window.location.href = 'index.html'; 
