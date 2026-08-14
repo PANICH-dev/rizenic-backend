@@ -995,15 +995,9 @@ app.post('/api/send-line-notify', async (req, res) => {
   }
 });
 
-// ==========================================
+/// ==========================================
 // 🚀 Start Server
 // ==========================================
-if (require.main === module) {
-    app.listen(port, () => console.log(`🚀 พร้อมที่: http://localhost:${port}`));
-}
-
-module.exports = app;
-
 if (require.main === module) {
     app.listen(port, () => console.log(`🚀 พร้อมที่: http://localhost:${port}`));
 }
