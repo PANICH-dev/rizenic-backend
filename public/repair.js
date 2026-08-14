@@ -326,8 +326,8 @@ async function fetchJobList() {
         allBodyPartsMaster = resBodyParts; 
 
         originalRepairJobs = resReports.filter(j => 
-            j.branch_name === currentBranch && j.department_routing === 'ซ่อม'
-        ).map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
+    j.branch_name === currentBranch
+).map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
 
         updateKPIs();
         renderCalendar(); 
