@@ -331,6 +331,29 @@ function openAlertModal(plate) {
                 <tbody class="divide-y divide-slate-200">
     `;
 
+    window.addNewAlertRow = function(plate) {
+    const tbody = document.querySelector('#modal_dynamic_table_container tbody');
+    const statusOptionsHtml = allStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
+    let safeOpts = statusOptionsHtml.replace(`value="รอสั่งซื้อ"`, `value="รอสั่งซื้อ" selected`);
+    
+    const tr = document.createElement('tr');
+    tr.className = "hover:bg-amber-50/50 transition-colors";
+    tr.setAttribute('data-id', 'new'); // 🌟 มาร์คว่าเป็นแถวใหม่
+    tr.setAttribute('data-plate', plate);
+    tr.innerHTML = `
+        <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-epc font-mono uppercase text-center"></td>
+        <td class="p-0 border border-slate-200"><input type="text" list="master_parts_datalist" class="inline-edit-input dyn-partno font-mono uppercase text-center font-bold text-blue-700 bg-blue-50/30" onchange="autoFillDynName(this)"></td>
+        <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-main font-mono text-slate-500"></td>
+        <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-name font-bold"></td>
+        <td class="p-0 border border-slate-200"><input type="number" class="inline-edit-input dyn-qty text-center font-black text-amber-600 bg-amber-50" value="1" min="1"></td>
+        <td class="p-0 border border-slate-200"><select class="inline-edit-select dyn-status font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 cursor-pointer">${safeOpts}</select></td>
+        <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-eta font-mono text-center text-xs"></td>
+        <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-rcv font-mono text-center text-xs"></td>
+        <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-notes text-xs"></td>
+    `;
+    tbody.appendChild(tr);
+};
+
     const statusOptionsHtml = allStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
 
     uncompleted.forEach(p => {
@@ -356,6 +379,23 @@ function openAlertModal(plate) {
     });
 
     html += `</tbody></table></div>`;
+
+    // ... โค้ดเดิมด้านบน ...
+    html += `</tbody></table></div>`;
+    
+    // 🌟 เพิ่มปุ่มสำหรับ Add Row ใหม่ตรงนี้
+    html += `
+        <div class="mt-3">
+            <button type="button" onclick="addNewAlertRow('${plate}')" class="px-4 py-2 bg-white border border-amber-300 text-amber-700 font-bold rounded-lg hover:bg-amber-50 text-xs shadow-sm transition">
+                <i class="fa-solid fa-plus"></i> เพิ่มอะไหล่ใหม่
+            </button>
+        </div>
+    `;
+
+    container.innerHTML = html;
+    document.getElementById('alertModal').classList.remove('hidden');
+    document.getElementById('alertModal').classList.add('flex');
+}
     container.innerHTML = html;
     document.getElementById('alertModal').classList.remove('hidden');
     document.getElementById('alertModal').classList.add('flex');
