@@ -293,7 +293,9 @@ function checkOverdue(job) {
     targetDate.setHours(0,0,0,0); today.setHours(0,0,0,0); return targetDate < today; 
 }
 
-// 🌟 แก้ไข KPI ให้ตรงลอจิกช่าง 🌟
+// 🌟 ประกาศตัวแปรเก็บข้อมูลรายคัน เพื่อให้กดดูจากป้ายได้
+let kpiData = { arrived: [], repairing: [], done: [], delayed: [] };
+
 function updateKPIs() {
     kpiData = { arrived: [], repairing: [], done: [], delayed: [] };
     
