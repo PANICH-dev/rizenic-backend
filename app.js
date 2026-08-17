@@ -994,16 +994,15 @@ app.post('/api/send-line-notify', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
 // ==========================================
 // 🕵️‍♂️ API ดักจับ Webhook เพื่อหา Group ID
 // ==========================================
 app.post('/api/webhook', (req, res) => {
     try {
-        const events = req.body.events;
-        if (events && events.length > 0) {
+        const events = req.body && req.body.events ? req.body.events : [];
+        
+        if (Array.isArray(events) && events.length > 0) {
             events.forEach(event => {
-                // เช็กว่าข้อความมาจาก "กลุ่ม" หรือไม่
                 if (event.source && event.source.type === 'group') {
                     console.log('====================================');
                     console.log('✅ เจอ Group ID แล้ว:', event.source.groupId);
@@ -1011,10 +1010,12 @@ app.post('/api/webhook', (req, res) => {
                 }
             });
         }
-        res.status(200).send('OK');
+
+        // 🌟 ตอบกลับด้วย JSON Status 200 เสมอเพื่อให้ LINE Verify ผ่าน
+        return res.status(200).json({ success: true, message: 'Webhook received' });
     } catch (err) {
         console.error('Webhook Error:', err);
-        res.status(500).send('Error');
+        return res.status(200).json({ success: true });
     }
 });
 /// ==========================================
