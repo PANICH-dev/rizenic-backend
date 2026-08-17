@@ -443,16 +443,37 @@
             document.getElementById('sa_detail_view').classList.remove('hidden'); 
             document.getElementById('current_sa_name').innerText = saName;
 
-            // 1. ดึงรถทั้งหมดของ SA คนนี้
             const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === saName);
-            
-            // 2. ลบช่องว่างและทำเป็นตัวพิมพ์ใหญ่ เพื่อเทียบทะเบียนรถให้ตรงกันเป๊ะ
             const clean = str => String(str || '').replace(/\s+/g, '').toUpperCase();
             const saPlateList = saJobs.map(j => clean(j.car_plate)); 
             
-            // 3. ดึงรายการ "สั่งอะไหล่" เฉพาะของรถที่ SA คนนี้ดูแล
-            const saPOs = allPartOrders.filter(po => {
+            let saPOs = allPartOrders.filter(po => {
                 return saPlateList.includes(clean(po.car_plate));
+            });
+
+            // 🌟 เพิ่มเงื่อนไข: ดึงรถที่สถานะ "สั่งอะไหล่" มาแสดงด้วย ถึงแม้จะยังไม่ได้คีย์ PO ก็ตาม
+            saJobs.forEach(job => {
+                const st = job.job_status || '';
+                if (st.includes('สั่งอะไหล่') || job.department_routing === 'อะไหล่') {
+                    // เช็คว่ามี PO ของรถคันนี้อยู่ในตารางที่กำลังดำเนินการหรือไม่
+                    const hasActivePO = saPOs.some(po => clean(po.car_plate) === clean(job.car_plate) && !po.order_status?.includes('ครบ') && po.order_status !== 'ยกเลิก');
+                    
+                    // ถ้ายังไม่มีรายการอะไหล่ค้างเลย ให้โชว์ป้ายเตือนในตาราง
+                    if (!hasActivePO) {
+                        saPOs.push({
+                            order_id: 9999999, // ดันให้อยู่บนสุด
+                            is_empty_po: true, // มาร์คว่าเป็นรายการแจ้งเตือน
+                            car_plate: job.car_plate,
+                            order_date: job.arrived_date || job.contact_date,
+                            part_no: '-',
+                            part_name: '⚠️ สถานะรถคือ "สั่งอะไหล่" (แต่ยังไม่มีรายการค้างในระบบ หรืออาจจะของครบแล้ว)',
+                            order_status: 'รอสั่งซื้อ',
+                            qty_ordered: 0,
+                            qty_received: 0,
+                            est_arrival_date: null
+                        });
+                    }
+                }
             });
 
             refreshSADashboardFilter(); 
@@ -745,7 +766,7 @@
         function renderSAPOTracking(pos) {
             const tbody = document.getElementById('sa_po_body');
             
-            // 🌟 แสดงเฉพาะรายการที่ "กำลังสั่ง" หรือ "ค้างรับ" (ซ่อนที่รับครบแล้ว/ยกเลิก)
+            // 🌟 แสดงเฉพาะรายการที่ "กำลังสั่ง" หรือ "ค้างรับ" (รวมถึงรายการแจ้งเตือนที่สร้างจำลองขึ้นมา)
             const activePOs = pos.filter(o => !o.order_status?.includes('ครบ') && o.order_status !== 'ยกเลิก');
 
             if (activePOs.length === 0) { 
@@ -753,17 +774,20 @@
                 return; 
             }
 
-            const sortedParts = [...activePOs].sort((a,b) => b.order_id - a.order_id);
+            const sortedParts = [...activePOs].sort((a,b) => (b.order_id || 0) - (a.order_id || 0));
             
             tbody.innerHTML = sortedParts.map(o => {
                 const isComplete = o.order_status === 'อะไหล่มาครบแล้ว' || o.order_status === 'อะไหล่ครบ';
-                const statusBadge = isComplete ? 'bg-emerald-100 text-emerald-800 border-emerald-400' : (o.order_status === 'รอสั่งซื้อ' || o.order_status === 'รออะไหล่' || o.order_status === 'ติด Back Order' ? 'bg-red-100 text-red-800 border-red-400 animate-pulse' : 'bg-amber-100 text-amber-800 border-amber-400');
+                const statusBadge = isComplete ? 'bg-emerald-100 text-emerald-800 border-emerald-400' : (o.order_status === 'รอสั่งซื้อ' || o.order_status === 'รออะไหล่' || String(o.order_status).includes('Back Order') ? 'bg-red-100 text-red-800 border-red-400 animate-pulse' : 'bg-amber-100 text-amber-800 border-amber-400');
                 
+                // 🌟 ถ้ารถยังไม่คีย์อะไหล่ ให้ไฮไลต์ชื่อรายการสีแดง 🌟
+                const nameStyle = o.is_empty_po ? 'text-rose-600 animate-pulse' : 'text-slate-800';
+
                 return `<tr class="hover:bg-amber-50/50 transition-colors" ondblclick="goToExcelTabFilterPlate('${o.car_plate}')">
                     <td class="text-center"><span class="px-2 py-0.5 rounded border text-[10px] font-bold shadow-2xs ${statusBadge}">${o.order_status || 'รออัปเดต'}</span></td>
                     <td class="font-black text-rose-600 text-center">${o.car_plate || '-'}</td>
                     <td class="font-mono font-bold text-blue-700 text-center">${o.part_no || '-'}</td>
-                    <td class="font-bold text-slate-800 whitespace-normal break-words">${o.part_name || '-'}</td>
+                    <td class="font-bold ${nameStyle} whitespace-normal break-words">${o.part_name || '-'}</td>
                     <td class="text-center font-bold"><span class="text-amber-600">${o.qty_ordered || 0}</span> / <span class="text-emerald-600">${o.qty_received || 0}</span></td>
                     <td class="font-bold text-slate-700 text-center">${currentViewSA || '-'}</td>
                     <td class="font-mono text-slate-600 font-bold text-center">${o.est_arrival_date ? o.est_arrival_date.split('T')[0] : '-'}</td>
