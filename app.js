@@ -953,7 +953,7 @@ app.post('/api/send-line-notify', async (req, res) => {
     if (branch === 'Rangsit' || branch === 'สาขารังสิต') {
         // ของสาขารังสิต
         targetToken = "uWGDH1BPHvILvBn7Hyeimv20W8ITfbUpGV2jfy1ujMUjvFxceSEtpM50S9vAcJmy05ybn6g/wHspfuTbfUuAI5UCB2RkifntfIeOT9EOo09FfQel63guAJgMs8zhAbbP0dq8fMENKirsWXoFzYMaXgdB04t89/1O/w1cDnyilFU=";
-        targetGroup = "C18d1af3a6e1276578261b6bcd8721c68";
+        targetGroup = "C762221d8214dd72b5469f74879c19bec";
     } else if (branch === 'Navamin' || branch === 'สาขานวมินทร์') {
         // ของสาขานวมินทร์
         targetToken = "5+CtgK2jCINRJW0Ddz/18TrLbE1hq68iVdOyZTvgwYeQWA2okMHoFfPYUK4MlKMf1Y+JqSn4Bodqk7i0DThvO+DTOmwzsyiNxwGqTctqo/QJBlbdYsb97BF981TiVnNO6ufvV6767mS0qkzJWGKgegdB04t89/1O/w1cDnyilFU=";
