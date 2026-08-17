@@ -746,11 +746,7 @@ app.put('/api/part-orders/:id/fast', async (req, res) => {
     const { field, value } = req.body;
     const validFields = ['epc_no', 'part_no', 'part_main_no', 'part_name', 'qty_ordered', 'order_status', 'est_arrival_date', 'part_received_all_date', 'notes', 'car_plate'];
     if (!validFields.includes(field)) return res.status(400).json({ error: 'ไม่อนุญาตให้แก้ฟิลด์นี้' });
-    
-    // 🌟 ดักจับถ้าหน้าเว็บส่ง part_received_all_date มา ให้แปลงเป็น received_date ก่อนเซฟลงฐานข้อมูล
-    const targetColumn = (field === 'part_received_all_date') ? 'received_date' : field;
-    
-    await pool.query(`UPDATE rizenic_part_orders SET ${targetColumn} = $1 WHERE order_id = $2`, [value || null, req.params.id]);
+    await pool.query(`UPDATE rizenic_part_orders SET ${field} = $1 WHERE order_id = $2`, [value || null, req.params.id]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -956,11 +952,11 @@ app.post('/api/send-line-notify', async (req, res) => {
     // 🎯 เช็คว่าส่งมาจากสาขาไหน แล้วใส่ค่าให้ตรง
     if (branch === 'Rangsit' || branch === 'สาขารังสิต') {
         // ของสาขารังสิต
-        targetToken = "8HD+RiU29gzrrA9rsNPSKFcYxD6gPToVSfQBsUvNOe33b/YPvR4W8iMSIiVJhTZLRP8hbaBPq9l/vEgf1sr/9wmf5lLRzBZGnTNhnujtHKbl5o2ElywUmxsS8Vl8x6l9R7vZdG8ZbAEdsr+8gI1+dQdB04t89/1O/w1cDnyilFU=";
+        targetToken = "uWGDH1BPHvILvBn7Hyeimv20W8ITfbUpGV2jfy1ujMUjvFxceSEtpM50S9vAcJmy05ybn6g/wHspfuTbfUuAI5UCB2RkifntfIeOT9EOo09FfQel63guAJgMs8zhAbbP0dq8fMENKirsWXoFzYMaXgdB04t89/1O/w1cDnyilFU=";
         targetGroup = "C18d1af3a6e1276578261b6bcd8721c68";
     } else if (branch === 'Navamin' || branch === 'สาขานวมินทร์') {
         // ของสาขานวมินทร์
-        targetToken = "b8+30ArMTub2ZaBzcG6ZJIOGORThU/C7kLWHzEO2uUNllohDlsWH/n6HR9003VhBALf+7oJX1wIjarabMGclzgqGQ34Xy4nhxE7Tsvs/VUjuQ8gh6xpeEFtuS+GIbCWLDdrcTdxxHy+iVt2XGsoaQQdB04t89/1O/w1cDnyilFU=";
+        targetToken = "5+CtgK2jCINRJW0Ddz/18TrLbE1hq68iVdOyZTvgwYeQWA2okMHoFfPYUK4MlKMf1Y+JqSn4Bodqk7i0DThvO+DTOmwzsyiNxwGqTctqo/QJBlbdYsb97BF981TiVnNO6ufvV6767mS0qkzJWGKgegdB04t89/1O/w1cDnyilFU=";
         targetGroup = "C108e09bf596a6b6ced05b97bd0e7d171";
     } else {
         // กรณีกันเหนียว (Fallback) ถ้าระบุสาขาไม่ตรง ให้ยิงเข้านวมินทร์เป็นค่าเริ่มต้น
