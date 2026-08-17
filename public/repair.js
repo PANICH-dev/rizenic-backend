@@ -14,11 +14,9 @@ let currentBranch = 'สำนักงานใหญ่';
 let activeFilters = {}; 
 let draggedColIdx = null; 
 
-// 🌟 เพิ่มตัวแปรสำหรับจำค่า Sort
 let savedSortCol = null;
 let savedSortDir = 'asc';
 
-// 🌟 ประกาศตัวแปรเก็บข้อมูลรายคัน เพื่อให้กดดูจากป้ายได้
 let kpiData = { arrived: [], repairing: [], done: [], delayed: [] };
 
 const statusOptions = [
@@ -40,7 +38,6 @@ const stationsTimeline = [
     { id: 'chk_pak', code: '11', name: 'พักซ่อม' }, { id: 'chk_ready', code: '12', name: 'รอส่งมอบ' }
 ];
 
-// 🌟 เพิ่มคอลัมน์ สีรถ ตรง idx: 37
 let columnsDef = [
     { idx: 0, key: 'action', title: 'Action', w: 90, filter: false },
     { idx: 1, key: 'car_plate', title: 'ทะเบียน', w: 130, filter: true },
@@ -293,35 +290,24 @@ function checkOverdue(job) {
     targetDate.setHours(0,0,0,0); today.setHours(0,0,0,0); return targetDate < today; 
 }
 
-// 🌟 ประกาศตัวแปรเก็บข้อมูลรายคัน เพื่อให้กดดูจากป้ายได้
-let kpiData = { arrived: [], repairing: [], done: [], delayed: [] };
-
 function updateKPIs() {
     kpiData = { arrived: [], repairing: [], done: [], delayed: [] };
-    
-    // สถานะที่แปลว่า "รอซ่อม" (ตั้งแต่ติดต่อ จนถึง รถจอดรอนัดหมาย)
     const arrivedStatuses = ["01.", "02.", "03.", "04.", "05.", "06.", "07.", "08."];
     
     originalRepairJobs.forEach(j => {
         const st = j.job_status || '';
-        
-        // ข้ามรถที่ยกเลิกไปเลย ไม่นำมาคำนวณ
         if (st.includes('ยกเลิก')) return; 
         
-        // ถ้ารถล่าช้าให้เก็บลง Overdue
         if (checkOverdue(j)) kpiData.delayed.push(j);
         
         const station = computeHighestStationIFS(j);
         
-        // 1. ซ่อมเสร็จ (รอส่งมอบ) -> ยึดตามการติ๊กสถานีช่าง (station === '12.รอส่งมอบ')
         if (station.includes('รอส่งมอบ') || st.includes('ส่งมอบ')) {
             kpiData.done.push(j);
         } 
-        // 2. กำลังดำเนินการซ่อม -> ยึดตามช่อง Routing (ส่งให้แผนก "ซ่อม" จัดการ) หรือสถานะ 09-21
         else if (j.department_routing === 'ซ่อม' || st.includes('กำลังซ่อม') || st.includes('พักซ่อม') || st.includes('ซ่อม TC') || st.match(/09|10|20|21/)) {
             kpiData.repairing.push(j);
         }
-        // 3. รถเข้าจอด (รอซ่อม) -> ต้องมีวันที่เข้าแล้ว + สถานะเป็น 01 ถึง 08
         else if (j.arrived_date && arrivedStatuses.some(s => st.includes(s))) {
             kpiData.arrived.push(j);
         }
@@ -333,7 +319,6 @@ function updateKPIs() {
     document.getElementById('kpi_delay').innerText = kpiData.delayed.length;
 }
 
-// 🌟 ฟังก์ชันใหม่สำหรับเปิด Modal ดูรถในแต่ละ KPI 🌟
 function openKpiModal(type) {
     let list = []; let title = ''; let icon = ''; let headerColorClass = ''; let bgColorClass = ''; let borderColorClass = '';
     
@@ -424,7 +409,7 @@ async function fastUpdateStationDropdown(id, selectedLevel) {
             showToast('อัปเดตความคืบหน้าสถานีเรียบร้อย!');
             Object.assign(job, payload);
             job.calculated_station = computeHighestStationIFS(job);
-            updateKPIs(); // อัปเดตยอด KPI เพราะเปลี่ยนสถานี
+            updateKPIs(); 
             runTableFilters();
         } else throw new Error();
     } catch(e) { showToast('อัปเดตไม่สำเร็จ', 'error'); }
@@ -465,7 +450,6 @@ function renderRepairListTable(data) {
         columnsDef.forEach(col => {
             let cellData = ''; 
             switch(col.key) {
-                // 🌟 ระบบดั้งเดิมของปุ่ม Action 🌟
                 case 'action': 
                     cellData = `<div class="text-center px-1 py-1.5"><button onclick="openModal('${j.id}')" class="action-btn group"><i class="fa-solid fa-pen"></i><span class="action-btn-text hidden">อัปเดต</span></button></div>`; 
                     break;
@@ -507,8 +491,14 @@ function renderRepairListTable(data) {
                     cellData = `<div class="px-2 py-1.5"><select onchange="fastUpdateStationDropdown('${j.id}', this.value)" class="inline-edit-select text-amber-700 font-bold bg-amber-50 hover:bg-amber-100 border-amber-300 text-sm">${stationOptionsHtml}</select></div>`; 
                     break;
                 case 'job_status': 
-                    const statusOptionsHtml = statusOptions.map(st => `<option value="${st}" ${j.job_status === st ? 'selected' : ''}>${st}</option>`).join('');
-                    cellData = `<div class="px-2 py-1.5"><select onchange="fastUpdateField('${j.id}', 'job_status', this.value)" class="inline-edit-select text-[#00320D] font-bold text-sm">${statusOptionsHtml}</select></div>`; 
+                    // 🌟 แก้ไข: ดึงสถานะที่แท้จริงมาแสดง ถ้าไม่มีใน List ให้สร้างเพิ่มเข้าไป 🌟
+                    let safeOpts = statusOptions.map(st => `<option value="${st}" ${j.job_status === st ? 'selected' : ''}>${st}</option>`).join('');
+                    if(j.job_status && !statusOptions.includes(j.job_status)) {
+                        safeOpts = `<option value="${j.job_status}" selected>${j.job_status}</option>` + safeOpts;
+                    } else if (!j.job_status) {
+                        safeOpts = `<option value="" selected>- เลือกรหัสสถานะ -</option>` + safeOpts;
+                    }
+                    cellData = `<div class="px-2 py-1.5"><select onchange="fastUpdateField('${j.id}', 'job_status', this.value)" class="inline-edit-select text-[#00320D] font-bold text-sm">${safeOpts}</select></div>`; 
                     break;
                 case 'repair_notes': 
                     cellData = `<div class="px-2 py-1.5 w-full"><input type="text" value="${j.repair_notes || ''}" placeholder="-" onchange="fastUpdateField('${j.id}', 'repair_notes', this.value)" class="inline-edit-input text-left w-full text-base"></div>`;
@@ -707,9 +697,10 @@ function renderCalendar() {
         let barBlock = '';
         if(arrivedQty > 0 || targetQty > 0 || deliveryQty > 0) {
             barBlock = `<div class="flex items-end justify-center gap-1.5 w-full h-[65px] mt-auto pb-0.5">`;
-            if(arrivedQty > 0) { const h = Math.max(25, (arrivedQty / monthMaxQty) * 100); barBlock += `<div class="flex flex-col items-center justify-end h-full w-[20px]" title="รถเข้าจอด: ${arrivedQty} คัน"><span class="text-[10px] font-black text-white bg-blue-500 rounded-sm w-5 h-5 flex items-center justify-center mb-1 shadow-sm">${arrivedQty}</span><div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-sm shadow-sm" style="height: ${h}%;"></div></div>`; }
-            if(targetQty > 0) { const h = Math.max(25, (targetQty / monthMaxQty) * 100); barBlock += `<div class="flex flex-col items-center justify-end h-full w-[20px]" title="เป้าซ่อมเสร็จ: ${targetQty} คัน"><span class="text-[10px] font-black text-white bg-amber-500 rounded-sm w-5 h-5 flex items-center justify-center mb-1 shadow-sm">${targetQty}</span><div class="w-full bg-gradient-to-t from-amber-500 to-amber-300 rounded-sm shadow-sm" style="height: ${h}%;"></div></div>`; }
-            if(deliveryQty > 0) { const h = Math.max(25, (deliveryQty / monthMaxQty) * 100); barBlock += `<div class="flex flex-col items-center justify-end h-full w-[20px]" title="นัดส่งมอบ: ${deliveryQty} คัน"><span class="text-[10px] font-black text-white bg-emerald-500 rounded-sm w-5 h-5 flex items-center justify-center mb-1 shadow-sm">${deliveryQty}</span><div class="w-full bg-gradient-to-t from-emerald-500 to-emerald-400 rounded-sm shadow-sm" style="height: ${h}%;"></div></div>`; }
+            // 🌟 เพิ่ม onclick ให้กดจากแถบปฏิทิน วิ่งไปหน้ากระดานพร้อมฟิลเตอร์ 🌟
+            if(arrivedQty > 0) { const h = Math.max(25, (arrivedQty / monthMaxQty) * 100); barBlock += `<div class="flex flex-col items-center justify-end h-full w-[20px] cursor-pointer" onclick="event.stopPropagation(); filterBoardByDate('${dateStr}', 'arrived')" title="รถเข้าจอด: ${arrivedQty} คัน"><span class="text-[10px] font-black text-white bg-blue-500 rounded-sm w-5 h-5 flex items-center justify-center mb-1 shadow-sm hover:scale-110 transition">${arrivedQty}</span><div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-sm shadow-sm" style="height: ${h}%;"></div></div>`; }
+            if(targetQty > 0) { const h = Math.max(25, (targetQty / monthMaxQty) * 100); barBlock += `<div class="flex flex-col items-center justify-end h-full w-[20px] cursor-pointer" onclick="event.stopPropagation(); filterBoardByDate('${dateStr}', 'target')" title="เป้าซ่อมเสร็จ: ${targetQty} คัน"><span class="text-[10px] font-black text-white bg-amber-500 rounded-sm w-5 h-5 flex items-center justify-center mb-1 shadow-sm hover:scale-110 transition">${targetQty}</span><div class="w-full bg-gradient-to-t from-amber-500 to-amber-300 rounded-sm shadow-sm" style="height: ${h}%;"></div></div>`; }
+            if(deliveryQty > 0) { const h = Math.max(25, (deliveryQty / monthMaxQty) * 100); barBlock += `<div class="flex flex-col items-center justify-end h-full w-[20px] cursor-pointer" onclick="event.stopPropagation(); filterBoardByDate('${dateStr}', 'delivery')" title="นัดส่งมอบ: ${deliveryQty} คัน"><span class="text-[10px] font-black text-white bg-emerald-500 rounded-sm w-5 h-5 flex items-center justify-center mb-1 shadow-sm hover:scale-110 transition">${deliveryQty}</span><div class="w-full bg-gradient-to-t from-emerald-500 to-emerald-400 rounded-sm shadow-sm" style="height: ${h}%;"></div></div>`; }
             barBlock += `</div>`;
         } else { barBlock = `<div class="flex items-center justify-center h-[65px] w-full mt-auto"><span class="text-xs text-slate-300">ว่าง</span></div>`; }
 
@@ -728,34 +719,33 @@ function renderCalendar() {
     }
 }
 
+// 🌟 ฟังก์ชันใหม่ กดจากปฏิทินให้กระโดดไปกระดานคิวรถ 🌟
+function filterBoardByDate(dateStr, type) {
+    switchTab('tab-board');
+    clearAllFilters();
+    
+    let colIdx;
+    if (type === 'arrived') colIdx = columnsDef.find(c => c.key === 'arrived_date').idx;
+    if (type === 'target') colIdx = columnsDef.find(c => c.key === 'target_finish_date').idx;
+    if (type === 'delivery') colIdx = columnsDef.find(c => c.key === 'delivery_date').idx;
+    
+    activeFilters[colIdx] = new Set([dateStr]);
+    
+    document.querySelectorAll('.filter-icon').forEach(icon => icon.classList.remove('active'));
+    const thIcon = document.getElementById(`th_${colIdx}`)?.querySelector('.filter-icon');
+    if (thIcon) thIcon.classList.add('active');
+    
+    runTableFilters();
+}
+
 function clickCalendarDate(dateString) {
-    const arrJobs = originalRepairJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateString);
-    const tarJobs = originalRepairJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateString);
-    const delJobs = originalRepairJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateString);
-
-    if(arrJobs.length === 0 && tarJobs.length === 0 && delJobs.length === 0) return alert(`🔍 วันที่ ${formatThaiDate(dateString)} ไม่มีรายการคิวรถใดๆ ครับ`);
+    // ฟังก์ชันนี้ถ้าจะให้กระโดดไปกระดานเฉยๆ ไม่ต้องเปิด Popup เล็กแล้วครับ
+    switchTab('tab-board');
+    clearAllFilters();
     
-    document.getElementById('dayListDateTitle').innerText = formatThaiDate(dateString);
-    
-    let html = '';
-    if(arrJobs.length > 0) {
-        html += `<div class="bg-blue-50 border border-blue-200 rounded-xl overflow-hidden mb-4 shadow-sm transition-all duration-300"><div onclick="document.getElementById('c_arr').classList.toggle('hidden'); this.querySelector('.fa-chevron-down').classList.toggle('rotate-180');" class="bg-blue-100/50 hover:bg-blue-100 px-4 py-3 flex justify-between items-center cursor-pointer select-none transition-colors border-b border-blue-200"><h3 class="font-black text-blue-800 flex items-center gap-2 text-sm"><i class="fa-solid fa-car"></i> รถเข้าจอด (Arrived) - ${arrJobs.length} คัน</h3><i class="fa-solid fa-chevron-down text-blue-400 transition-transform duration-300"></i></div><div id="c_arr" class="p-4 space-y-3 hidden">`;
-        arrJobs.forEach(j => html += generateMiniCardHTML(j, 'arrived'));
-        html += `</div></div>`;
-    }
-    if(tarJobs.length > 0) {
-        html += `<div class="bg-amber-50 border border-amber-200 rounded-xl overflow-hidden mb-4 shadow-sm transition-all duration-300"><div onclick="document.getElementById('c_tar').classList.toggle('hidden'); this.querySelector('.fa-chevron-down').classList.toggle('rotate-180');" class="bg-amber-100/50 hover:bg-amber-100 px-4 py-3 flex justify-between items-center cursor-pointer select-none transition-colors border-b border-amber-200"><h3 class="font-black text-amber-800 flex items-center gap-2 text-sm"><i class="fa-solid fa-bullseye"></i> เป้าซ่อมเสร็จ (Target) - ${tarJobs.length} คัน</h3><i class="fa-solid fa-chevron-down text-amber-400 transition-transform duration-300"></i></div><div id="c_tar" class="p-4 space-y-3 hidden">`;
-        tarJobs.forEach(j => html += generateMiniCardHTML(j, 'target'));
-        html += `</div></div>`;
-    }
-    if(delJobs.length > 0) {
-        html += `<div class="bg-emerald-50 border border-emerald-200 rounded-xl overflow-hidden mb-4 shadow-sm transition-all duration-300"><div onclick="document.getElementById('c_del').classList.toggle('hidden'); this.querySelector('.fa-chevron-down').classList.toggle('rotate-180');" class="bg-emerald-100/50 hover:bg-emerald-100 px-4 py-3 flex justify-between items-center cursor-pointer select-none transition-colors border-b border-emerald-200"><h3 class="font-black text-emerald-800 flex items-center gap-2 text-sm"><i class="fa-solid fa-car-side"></i> นัดส่งมอบลูกค้า (Delivery) - ${delJobs.length} คัน</h3><i class="fa-solid fa-chevron-down text-emerald-400 transition-transform duration-300"></i></div><div id="c_del" class="p-4 space-y-3 hidden">`;
-        delJobs.forEach(j => html += generateMiniCardHTML(j, 'delivery'));
-        html += `</div></div>`;
-    }
-
-    document.getElementById('dayListContent').innerHTML = html;
-    document.getElementById('dayListModal').classList.remove('hidden');
+    // ตั้งค้นหาวันที่ในหน้าตาราง
+    document.getElementById('global_search_input').value = formatThaiDate(dateString);
+    runTableFilters();
 }
 
 function generateMiniCardHTML(j, type) {
@@ -781,7 +771,6 @@ function generateMiniCardHTML(j, type) {
         }).join('');
     } else { partsHTML = '<span class="text-slate-400 text-[11px] italic">- ไม่มีสั่งเบิก -</span>'; }
 
-    // 🌟 อัปเดตป้ายสถานะของการ์ดให้ครอบคลุม KPI ด้วย 🌟
     let dateLabel = '';
     if(type === 'arrived') dateLabel = `<span class="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded border border-blue-200 font-bold"><i class="fa-solid fa-car"></i> รถเข้าจอด (รอซ่อม)</span>`;
     else if(type === 'target') dateLabel = `<span class="bg-amber-100 text-amber-700 text-xs px-2 py-1 rounded border border-amber-200 font-bold"><i class="fa-solid fa-bullseye"></i> เป้าซ่อม</span>`;
@@ -806,7 +795,7 @@ function generateMiniCardHTML(j, type) {
             </div>
             <div class="flex justify-between items-center mt-1">
                 <div class="text-xs text-slate-600 font-bold">สถานีล่าสุด: <span class="text-amber-600 ml-1 text-sm">${station}</span></div>
-                <button onclick="openModal('${j.id}')" class="px-4 py-1.5 bg-[#00320D] hover:bg-black text-white text-xs font-bold rounded-lg shadow-sm transition"><i class="fa-solid fa-sliders"></i> อัปเดต</button>
+                <button onclick="closeDayListModal(); switchTab('tab-board'); document.getElementById('global_search_input').value='${j.car_plate}'; runTableFilters(); openModal('${j.id}');" class="px-4 py-1.5 bg-[#00320D] hover:bg-black text-white text-xs font-bold rounded-lg shadow-sm transition"><i class="fa-solid fa-sliders"></i> อัปเดต</button>
             </div>
         </div>
     `;
@@ -814,7 +803,7 @@ function generateMiniCardHTML(j, type) {
 
 function closeDayListModal() { document.getElementById('dayListModal').classList.add('hidden'); }
 
-// 🌟 กราฟพาย เอา "รอรับรถ" ออกตามคำสั่ง 🌟
+// 🌟 กราฟพาย เอา "รอรับรถ" ออกตามคำสั่ง และปรับเงื่อนไขรอส่งมอบ 🌟
 function renderPieChartAndList() {
     // เอา "รอรับรถ" ออกจาก Object
     const counters = { "เคาะ":0, "โป๊ว":0, "เตรียมพื้น":0, "พ่นสี":0, "ประกอบ":0, "ขัดสี":0, "QC":0, "แม็ก":0, "กระจก":0, "ฟิล์ม":0, "พักซ่อม":0, "รอส่งมอบ":0 };
@@ -822,11 +811,17 @@ function renderPieChartAndList() {
     Object.keys(counters).forEach(k => stationJobs[k] = []); 
 
     originalRepairJobs.forEach(j => {
-        if((j.job_status || '').includes('ยกเลิก')) return; // ข้ามรถยกเลิก
+        const st = j.job_status || '';
+        if(st.includes('ยกเลิก')) return; // ข้ามรถยกเลิก
 
         const fullStation = computeHighestStationIFS(j);
         let key = "รอรับรถ"; // ให้ค่าตั้งต้นหลุดออกไป
-        if(fullStation.includes("เคาะ")) key = "เคาะ"; 
+
+        // 🌟 แก้ไข: รอส่งมอบคือ รถที่อยู่สถานีรอส่งมอบ + สถานะ 09, 10, 11
+        if(fullStation.includes("รอส่งมอบ") && (st.includes('09.') || st.includes('10.') || st.includes('11.'))) {
+            key = "รอส่งมอบ";
+        }
+        else if(fullStation.includes("เคาะ")) key = "เคาะ"; 
         else if(fullStation.includes("โป๊ว")) key = "โป๊ว"; 
         else if(fullStation.includes("เตรียมพื้น")) key = "เตรียมพื้น"; 
         else if(fullStation.includes("พ่นสี")) key = "พ่นสี"; 
@@ -837,7 +832,6 @@ function renderPieChartAndList() {
         else if(fullStation.includes("กระจก")) key = "กระจก"; 
         else if(fullStation.includes("ฟิล์ม")) key = "ฟิล์ม"; 
         else if(fullStation.includes("พักซ่อม")) key = "พักซ่อม"; 
-        else if(fullStation.includes("รอส่งมอบ")) key = "รอส่งมอบ";
         
         // ถ้ารถยังไม่เข้าระบบสถานีช่าง (เป็นรอรับรถ) จะไม่ถูกนับในนี้เลย!
         if(key !== "รอรับรถ" && counters[key] !== undefined) { 
@@ -884,6 +878,7 @@ function renderPieChartAndList() {
                     else if(labelName === 'เตรียมพื้น') filterVal = '03.เตรียมพื้น';
                     else if(labelName === 'โป๊ว') filterVal = '02.โป๊ว';
                     else if(labelName === 'เคาะ') filterVal = '01.เคาะ';
+                    else if(labelName === 'ยังไม่ระบุ' || labelName === 'รอรับรถ') filterVal = 'รอรับรถ';
 
                     document.getElementById('global_search_input').value = filterVal;
                     runTableFilters();
