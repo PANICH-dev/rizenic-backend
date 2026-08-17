@@ -220,9 +220,12 @@ async function saveSAAlertUpdate(e) {
 
     if (updates.length === 0) return closeAlertModal();
 
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalBtnHtml = btn.innerHTML; // 🌟 เก็บหน้าตาปุ่มเดิมไว้ก่อน
+
     try {
-        const btn = e.target.querySelector('button[type="submit"]');
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> บันทึก...'; btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...'; 
+        btn.disabled = true;
 
         await Promise.all(updates.map(u => {
             if (u.id === 'new') {
@@ -249,7 +252,13 @@ async function saveSAAlertUpdate(e) {
         showToast('อัปเดตข้อมูลอะไหล่เรียบร้อย!', 'success');
         closeAlertModal();
         loadAllData();
-    } catch(err) { showToast('เกิดข้อผิดพลาดในการบันทึก', 'error'); }
+    } catch(err) { 
+        showToast('เกิดข้อผิดพลาดในการบันทึก', 'error'); 
+    } finally {
+        // 🌟 ปลดล็อกและคืนค่าปุ่มกลับมาเหมือนเดิมเสมอ (ไม่ว่าจะเซฟผ่านหรือพัง)
+        btn.innerHTML = originalBtnHtml || '<i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลอะไหล่ทั้งหมด';
+        btn.disabled = false;
+    }
 }
 
 // ------------------------------------------
