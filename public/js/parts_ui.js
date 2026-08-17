@@ -5,6 +5,9 @@
 // ------------------------------------------
 // 1. แจ้งเตือน SA (SA Alerts)
 // ------------------------------------------
+// ------------------------------------------
+// 1. แจ้งเตือน SA (SA Alerts)
+// ------------------------------------------
 function renderSAAlerts() {
     const tbody = document.getElementById('sa_alerts_body');
     const badge = document.getElementById('alert_count');
@@ -20,13 +23,11 @@ function renderSAAlerts() {
         grouped[plate].push(p);
     });
 
-    // 🌟 ดึงรถจาก "ใบงานหลัก" เพิ่มเข้ามา ถ้ารถถูกเปลี่ยนเป็น "สั่งอะไหล่" แต่ยังไม่เคยมี PO ใดๆ
     if (typeof allReports !== 'undefined') {
         allReports.forEach(job => {
             if ((job.job_status && job.job_status.includes('06.สั่งอะไหล่')) || job.department_routing === 'อะไหล่') {
                 const plate = job.car_plate || 'ไม่ระบุทะเบียน';
                 if (!grouped[plate]) {
-                    // สร้างรายการจำลองสีแดงเพื่อแจ้งเตือนให้แอดมินอะไหล่คีย์ข้อมูล
                     grouped[plate] = [{
                         is_empty_po: true,
                         car_plate: plate,
@@ -47,7 +48,8 @@ function renderSAAlerts() {
     const plates = Object.keys(grouped);
     
     if (plates.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-400 font-bold bg-white"><i class="fa-solid fa-check-circle text-3xl mb-3 text-emerald-300 block"></i> ไม่มีรายการอะไหล่ค้างสั่งครับ! 🎉</td></tr>`;
+        // 🌟 เปลี่ยนเลข colspan ให้ตรงกับจำนวนคอลัมน์ใหม่ (9 คอลัมน์)
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-slate-400 font-bold bg-white"><i class="fa-solid fa-check-circle text-3xl mb-3 text-emerald-300 block"></i> ไม่มีรายการอะไหล่ค้างสั่งครับ! 🎉</td></tr>`;
         if(badge) badge.classList.add('hidden');
         return;
     }
@@ -60,12 +62,17 @@ function renderSAAlerts() {
     tbody.innerHTML = plates.map(plate => {
         const items = grouped[plate];
         const first = items[0];
+        
+        // 🌟 ดึงข้อมูลวันที่ทั้ง 3 แบบมาแสดงผล 🌟
         const arrDate = first.order_date ? String(first.order_date).split('T')[0] : '-';
+        const etaDate = first.est_arrival_date ? String(first.est_arrival_date).split('T')[0] : '-';
+        const rcvDate = (first.received_date || first.part_received_all_date) ? String(first.received_date || first.part_received_all_date).split('T')[0] : '-';
+        
         const customerName = first.customer_name || '-';
         
         let itemsHtml = items.map(p => {
             let color = p.order_status === 'รอสั่งซื้อ' ? 'text-red-600' : 'text-amber-600';
-            if (p.is_empty_po) color = 'text-rose-500 animate-pulse'; // แถบสีแดงกะพริบสำหรับรถยังไม่ลงอะไหล่
+            if (p.is_empty_po) color = 'text-rose-500 animate-pulse'; 
             return `<span class="text-[11px] font-bold ${color} block truncate" title="${p.part_name}"><i class="fa-solid fa-caret-right"></i> [${p.order_status || '-'}] ${p.part_name}</span>`;
         }).join('');
 
@@ -73,6 +80,8 @@ function renderSAAlerts() {
             <tr class="hover:bg-amber-50/50 transition border-b border-slate-100">
                 <td class="font-black text-amber-700 text-sm px-2 py-2"><span class="bg-amber-50 px-2 py-1 rounded shadow-sm border border-amber-200">${plate}</span></td>
                 <td class="text-slate-500 font-mono font-bold text-center px-2 py-2">${arrDate}</td>
+                <td class="text-amber-600 font-mono font-bold text-center px-2 py-2">${etaDate}</td>
+                <td class="text-emerald-600 font-mono font-bold text-center px-2 py-2">${rcvDate}</td>
                 <td class="font-bold text-slate-600 text-xs px-2 py-2">${first.car_model || '-'}</td>
                 <td class="font-bold text-slate-700 text-xs px-2 py-2 truncate max-w-[150px]" title="${customerName}">${customerName}</td>
                 <td class="font-mono text-xs font-bold text-blue-600 px-2 py-2">${first.epc_no || '-'}</td>
@@ -84,7 +93,6 @@ function renderSAAlerts() {
         `;
     }).join('');
 }
-
 function openAlertModal(plate) {
     const uncompleted = allPartOrders.filter(p => p.car_plate === plate && (!p.order_status || !p.order_status.includes('ครบ')));
     const container = document.getElementById('modal_dynamic_table_container');
