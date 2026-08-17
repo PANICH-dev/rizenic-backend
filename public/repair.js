@@ -296,20 +296,21 @@ function updateKPIs() {
     
     originalRepairJobs.forEach(j => {
         const st = j.job_status || '';
-        if (st.includes('ยกเลิก')) return; 
         
+        // ถ้ารถล่าช้าให้เก็บลง Overdue
         if (checkOverdue(j)) kpiData.delayed.push(j);
         
-        const station = computeHighestStationIFS(j);
-        
-        if (station.includes('รอส่งมอบ') || st.includes('ส่งมอบ')) {
+        // 1. ซ่อมเสร็จ (รอส่งมอบ) -> เปลี่ยนมานับเฉพาะสถานะ "11.รถซ่อมเสร็จรอส่งมอบ"
+        if (st.includes('11.รถซ่อมเสร็จรอส่งมอบ')) {
             kpiData.done.push(j);
         } 
-        else if (j.department_routing === 'ซ่อม' || st.includes('กำลังซ่อม') || st.includes('พักซ่อม') || st.includes('ซ่อม TC') || st.match(/09|10|20|21/)) {
-            kpiData.repairing.push(j);
-        }
+        // 2. รถเข้าจอด (รอซ่อม) -> ถ้ามีวันที่เข้าแล้ว + สเตตัส 01 ถึง 08
         else if (j.arrived_date && arrivedStatuses.some(s => st.includes(s))) {
             kpiData.arrived.push(j);
+        }
+        // 3. กำลังดำเนินการซ่อม -> ส่วนที่เหลือทั้งหมดที่อยู่ในกระดานแผนกซ่อม
+        else {
+            kpiData.repairing.push(j);
         }
     });
 
@@ -318,7 +319,6 @@ function updateKPIs() {
     document.getElementById('kpi_done').innerText = kpiData.done.length;
     document.getElementById('kpi_delay').innerText = kpiData.delayed.length;
 }
-
 function openKpiModal(type) {
     let list = []; let title = ''; let icon = ''; let headerColorClass = ''; let bgColorClass = ''; let borderColorClass = '';
     
@@ -351,20 +351,34 @@ async function fetchJobList() {
             safeFetch(`${API_BASE_URL}/api/body-parts${nocache}`)
         ]);
         
-        allQuotas = resQuotas; 
-        allPartOrders = resParts; 
-        allBodyPartsMaster = resBodyParts; 
+        allQuotas = Array.isArray(resQuotas) ? resQuotas : (resQuotas.data || []); 
+        allPartOrders = Array.isArray(resParts) ? resParts : (resParts.data || []); 
+        allBodyPartsMaster = Array.isArray(resBodyParts) ? resBodyParts : (resBodyParts.data || []); 
+        const rawReports = Array.isArray(resReports) ? resReports : (resReports.data || []);
+        
+        const userRole = sessionStorage.getItem('emp_role') || '';
+        const isManager = ['BA', 'Manager', 'Admin', 'แอดมิน'].includes(userRole);
 
-        originalRepairJobs = resReports.filter(j => 
-            j.branch_name === currentBranch
-        ).map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
+        // 🌟 กรองข้อมูลตรงนี้ 🌟
+        originalRepairJobs = rawReports.filter(j => {
+            const isBranchMatch = isManager ? true : j.branch_name === currentBranch;
+            const isRepairDept = j.department_routing === 'ซ่อม'; // เอาเฉพาะแผนกซ่อม
+            
+            // ตัดรถที่ลูกค้ายกเลิก และ รถที่ส่งมอบคืนลูกค้าไปแล้ว ออกจากกระดาน
+            const st = j.job_status || '';
+            const isNotCancelled = !st.includes('ยกเลิก');
+            const isNotDelivered = !st.includes('ส่งมอบแล้ว') && st !== '12.ส่งมอบ';
+
+            return isBranchMatch && isRepairDept && isNotCancelled && isNotDelivered;
+        }).map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
 
         updateKPIs();
         renderCalendar(); 
         runTableFilters();
-    } catch (err) { console.error("โหลดข้อมูลพัง:", err); }
+    } catch (err) { 
+        console.error("โหลดข้อมูลพัง:", err); 
+    }
 }
-
 async function fastUpdateField(id, field, value) {
     const isDate = field.includes('date');
     if (isDate) {
