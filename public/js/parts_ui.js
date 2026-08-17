@@ -97,7 +97,7 @@ function openAlertModal(plate) {
             </div>
             <div class="flex items-center gap-2">
                 <span class="text-xs font-bold text-slate-600">ตั้งค่า EPC No:</span>
-                <input type="text" class="px-3 py-1.5 border border-slate-300 rounded font-mono text-sm w-32 outline-none focus:border-amber-500 uppercase" placeholder="EPC-XXX" onkeyup="document.querySelectorAll('.dyn-epc').forEach(el=>el.value=this.value)">
+                <input type="text" id="mass_epc_update" class="px-3 py-1.5 border border-slate-300 rounded font-mono text-sm w-32 outline-none focus:border-amber-500 uppercase" placeholder="EPC-XXX" onkeyup="document.querySelectorAll('.dyn-epc').forEach(el=>el.value=this.value)">
             </div>
         </div>
         <div class="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-200">
@@ -125,6 +125,9 @@ function openAlertModal(plate) {
         if (p.order_status && !safeOpts.includes(`value="${p.order_status}"`)) { safeOpts = `<option value="${p.order_status}">${p.order_status}</option>` + safeOpts; }
         safeOpts = safeOpts.replace(`value="${p.order_status || 'รอสั่งซื้อ'}"`, `value="${p.order_status || 'รอสั่งซื้อ'}" selected`);
 
+        // 🌟 แก้ไขจุดดึงข้อมูล dyn-rcv ให้ใช้ p.received_date
+        const receivedDateVal = p.received_date || p.part_received_all_date;
+
         html += `
             <tr class="hover:bg-amber-50/50 transition-colors" data-id="${p.order_id}">
                 <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-epc font-mono uppercase text-center" value="${p.epc_no || ''}"></td>
@@ -134,7 +137,7 @@ function openAlertModal(plate) {
                 <td class="p-0 border border-slate-200"><input type="number" class="inline-edit-input dyn-qty text-center font-black text-amber-600 bg-amber-50" value="${p.qty_ordered || 1}"></td>
                 <td class="p-0 border border-slate-200"><select class="inline-edit-select dyn-status font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 cursor-pointer">${safeOpts}</select></td>
                 <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-eta font-mono text-center text-xs" value="${p.est_arrival_date ? String(p.est_arrival_date).split('T')[0] : ''}"></td>
-                <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-rcv font-mono text-center text-xs" value="${p.part_received_all_date ? String(p.part_received_all_date).split('T')[0] : ''}"></td>
+                <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-rcv font-mono text-center text-xs" value="${receivedDateVal ? String(receivedDateVal).split('T')[0] : ''}"></td>
                 <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-notes text-xs" value="${p.notes || ''}"></td>
             </tr>
         `;
@@ -142,7 +145,6 @@ function openAlertModal(plate) {
 
     html += `</tbody></table></div>`;
     
-    // 🌟 ปุ่มสำหรับ Add Row ใหม่
     html += `
         <div class="mt-3 flex justify-between items-center">
             <button type="button" onclick="addNewAlertRow('${plate}')" class="px-4 py-2 bg-white border border-amber-300 text-amber-700 font-bold rounded-lg hover:bg-amber-50 text-xs shadow-sm transition">
@@ -286,6 +288,9 @@ function renderPOTracking() {
 
         const actionBtns = hasETA ? `<span class="text-slate-400 font-bold text-[10px]"><i class="fa-solid fa-lock"></i> ล็อก</span>` : `<button onclick="deletePO('${p.order_id}')" class="bg-white text-slate-400 hover:text-red-500 hover:bg-red-50 px-2 py-1 rounded border border-slate-200 transition shadow-sm"><i class="fa-solid fa-trash"></i></button>`;
 
+        // 🌟 แก้ไขจุดดึงข้อมูลให้ใช้ p.received_date
+        const receivedDateVal = p.received_date || p.part_received_all_date;
+
         return `
             <tr class="${isComplete ? 'bg-emerald-50/20' : 'hover:bg-blue-50/50'} transition-colors border-b border-slate-100">
                 <td class="text-center font-mono text-[10px] text-slate-400 border border-slate-200">${p.order_id}</td>
@@ -298,7 +303,7 @@ function renderPOTracking() {
                 <td class="p-0 border border-slate-200"><input type="text" value="${p.part_name||''}" onchange="fastUpdateField('part-orders', '${p.order_id}', 'part_name', this.value)" class="inline-edit-input font-bold" placeholder="-"></td>
                 <td class="text-center font-mono text-xs text-slate-500 border border-slate-200">${p.order_date ? String(p.order_date).split('T')[0] : '-'}</td>
                 <td class="p-0 border border-slate-200"><input type="date" value="${p.est_arrival_date ? String(p.est_arrival_date).split('T')[0] : ''}" onchange="fastUpdateField('part-orders', '${p.order_id}', 'est_arrival_date', this.value)" class="inline-edit-input font-mono text-center text-xs ${hasETA ? 'text-amber-600 font-bold' : ''}"></td>
-                <td class="p-0 border border-slate-200"><input type="date" value="${p.part_received_all_date ? String(p.part_received_all_date).split('T')[0] : ''}" onchange="fastUpdateField('part-orders', '${p.order_id}', 'part_received_all_date', this.value)" class="inline-edit-input font-mono text-center text-xs text-emerald-600 font-bold"></td>
+                <td class="p-0 border border-slate-200"><input type="date" value="${receivedDateVal ? String(receivedDateVal).split('T')[0] : ''}" onchange="fastUpdateField('part-orders', '${p.order_id}', 'part_received_all_date', this.value)" class="inline-edit-input font-mono text-center text-xs text-emerald-600 font-bold"></td>
                 <td class="p-0 border border-slate-200"><input type="text" value="${p.notes||''}" onchange="fastUpdateField('part-orders', '${p.order_id}', 'notes', this.value)" class="inline-edit-input text-xs" placeholder="-"></td>
                 <td class="p-0 border border-slate-200"><input type="text" value="${p.part_main_no||''}" onchange="fastUpdateField('part-orders', '${p.order_id}', 'part_main_no', this.value)" class="inline-edit-input font-mono text-slate-500" placeholder="-"></td>
                 <td class="text-center border border-slate-200">${actionBtns}</td>
