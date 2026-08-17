@@ -746,7 +746,11 @@ app.put('/api/part-orders/:id/fast', async (req, res) => {
     const { field, value } = req.body;
     const validFields = ['epc_no', 'part_no', 'part_main_no', 'part_name', 'qty_ordered', 'order_status', 'est_arrival_date', 'part_received_all_date', 'notes', 'car_plate'];
     if (!validFields.includes(field)) return res.status(400).json({ error: 'ไม่อนุญาตให้แก้ฟิลด์นี้' });
-    await pool.query(`UPDATE rizenic_part_orders SET ${field} = $1 WHERE order_id = $2`, [value || null, req.params.id]);
+    
+    // 🌟 ดักจับถ้าหน้าเว็บส่ง part_received_all_date มา ให้แปลงเป็น received_date ก่อนเซฟลงฐานข้อมูล
+    const targetColumn = (field === 'part_received_all_date') ? 'received_date' : field;
+    
+    await pool.query(`UPDATE rizenic_part_orders SET ${targetColumn} = $1 WHERE order_id = $2`, [value || null, req.params.id]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
