@@ -294,13 +294,32 @@ function updateKPIs() {
     const todayStr = getTodayString();
     let arrived = 0, repairing = 0, done = 0, delayed = 0;
     
+    // 🌟 รายการสถานะของรถที่รอเข้าซ่อม 🌟
+    const arrivedStatuses = [
+        "01.ติดต่อสอบถาม", "02.รอเสนอประกัน", "03.รอประกันอนุมัติ", 
+        "04.รอลูกค้าอนุมัติ", "05.อนุมัติแล้ว", "06.สั่งอะไหล่", 
+        "07.รอนัดหมายเข้าซ่อม", "08.นัดหมายแล้วรอเข้าซ่อม"
+    ];
+    
     originalRepairJobs.forEach(j => {
         const isOverdue = checkOverdue(j);
         if (isOverdue) delayed++;
         
-        if (j.job_status && j.job_status.includes('รอส่งมอบ')) done++;
-        else if (j.job_status && j.job_status.includes('กำลังซ่อม')) repairing++;
-        else arrived++;
+        const st = j.job_status || '';
+        const isArrivedStatus = arrivedStatuses.some(s => st.includes(s));
+        
+        // 1. ถ้ารอส่งมอบแล้ว (เสร็จสิ้นกระบวนการช่าง)
+        if (st.includes('รอส่งมอบ') || st.includes('ส่งมอบ')) {
+            done++;
+        } 
+        // 2. ถ้ารถเข้าจอดแล้ว และสถานะยังอยู่ระหว่าง 01-08 (รอซ่อม)
+        else if (j.arrived_date && isArrivedStatus) {
+            arrived++;
+        }
+        // 3. ส่วนอื่นๆ ทั้งหมด ถือเป็นความรับผิดชอบของแผนกซ่อม (กำลังซ่อม / 09 ขึ้นไป)
+        else {
+            repairing++;
+        }
     });
 
     document.getElementById('kpi_arrived').innerText = arrived;
