@@ -751,65 +751,68 @@
         }
 
         async function loadPartsTrackingTable(carPlate) {
-            const tbody = document.getElementById('track_parts_body');
-            if (!carPlate || !carPlate.trim()) {
-                tbody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400 text-xs font-bold bg-white">กรุณาระบุทะเบียนรถเพื่อติดตามสถานะอะไหล่</td></tr>`;
-                return;
-            }
-            try {
-                const clean = str => String(str || '').replace(/\s+/g, '').toUpperCase();
-                const searchPlate = clean(carPlate);
+    const tbody = document.getElementById('track_parts_body');
+    if (!carPlate || !carPlate.trim()) {
+        tbody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400 text-xs font-bold bg-white">กรุณาระบุทะเบียนรถเพื่อติดตามสถานะอะไหล่</td></tr>`;
+        return;
+    }
+    try {
+        const clean = str => String(str || '').replace(/\s+/g, '').toUpperCase();
+        const searchPlate = clean(carPlate);
 
-                const res = await fetch(`${API_BASE_URL}/api/part-orders?_t=` + new Date().getTime(), { cache: 'no-store' });
-                if (!res.ok) return;
-                const resData = await res.json();
-                const data = Array.isArray(resData) ? resData : (resData.data || []);
-                
-                const filtered = data.filter(p => {
-                    if(!p || !p.car_plate) return false;
-                    const pPlate = clean(p.car_plate);
-                    return pPlate === searchPlate || pPlate.includes(searchPlate) || searchPlate.includes(pPlate);
-                });
+        const res = await fetch(`${API_BASE_URL}/api/part-orders?_t=` + new Date().getTime(), { cache: 'no-store' });
+        if (!res.ok) return;
+        const resData = await res.json();
+        const data = Array.isArray(resData) ? resData : (resData.data || []);
+        
+        const filtered = data.filter(p => {
+            if(!p || !p.car_plate) return false;
+            const pPlate = clean(p.car_plate);
+            return pPlate === searchPlate || pPlate.includes(searchPlate) || searchPlate.includes(pPlate);
+        });
 
-                if (filtered.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400 text-xs font-bold bg-white">ไม่พบรายการสั่งซื้ออะไหล่สำหรับทะเบียน "${carPlate}"</td></tr>`;
-                    return;
-                }
-
-                tbody.innerHTML = filtered.map(item => {
-                    const orderId = item.id || item.order_id;
-                    const hasETA = item.est_arrival_date && String(item.est_arrival_date).trim() !== '';
-                    const encodedNotes = encodeURIComponent(item.notes || '');
-
-                    const actionButtons = hasETA 
-                        ? `<span class="text-slate-400 text-[11px] font-bold flex items-center justify-center gap-1" title="สั่งของแล้ว ไม่สามารถแก้ไขได้"><i class="fa-solid fa-lock"></i> ล็อก</span>`
-                        : `<div class="flex items-center justify-center gap-1">
-                               <button type="button" onclick="openEditPOModal('${orderId}', '${item.qty_ordered || 1}', '${encodedNotes}', '${carPlate}')" class="text-blue-600 hover:text-blue-800 bg-white border border-slate-300 p-1 rounded shadow-2xs transition" title="แก้ไขรายการนี้"><i class="fa-solid fa-pen text-[11px]"></i></button>
-                               <button type="button" onclick="deletePO('${orderId}', '${carPlate}')" class="text-red-500 hover:text-red-700 bg-white border border-slate-300 p-1 rounded shadow-2xs transition" title="ลบรายการนี้"><i class="fa-solid fa-trash text-[11px]"></i></button>
-                           </div>`;
-
-                    return `
-                    <tr class="hover:bg-amber-50/50 transition-colors">
-                        <td class="font-mono text-xs font-bold text-slate-600 text-center">${item.epc_no || '-'}</td>
-                        <td class="font-mono text-xs font-bold text-blue-700 text-center">${item.part_no || '-'}</td>
-                        <td class="font-mono text-xs font-bold text-slate-600 text-center">${item.part_main_no || '-'}</td>
-                        <td class="font-bold text-slate-800 whitespace-normal break-words">${item.part_name || '-'}</td>
-                        <td class="text-center font-bold text-slate-600">${item.part_type || 'หลัก'}</td>
-                        <td class="text-center font-bold"><span class="text-amber-600">${item.qty_ordered || 0}</span> / <span class="text-emerald-600">${item.qty_received || 0}</span></td>
-                        <td class="text-center"><span class="px-2 py-0.5 rounded border text-[10px] font-bold shadow-2xs bg-slate-100 text-slate-700">${item.order_status || 'รอสั่งซื้อ'}</span></td>
-                        <td class="font-mono text-xs text-slate-500 text-center">${item.order_date ? String(item.order_date).split('T')[0] : '-'}</td>
-                        <td class="font-mono text-xs font-bold text-center ${hasETA ? 'text-amber-600' : 'text-slate-400'}">${hasETA ? String(item.est_arrival_date).split('T')[0] : '-'}</td>
-                        <td class="font-mono text-xs text-emerald-600 font-bold text-center">${item.part_received_all_date ? String(item.part_received_all_date).split('T')[0] : '-'}</td>
-                        <td class="whitespace-normal break-words text-slate-600">${item.notes || '-'}</td>
-                        <td class="text-center py-1.5">${actionButtons}</td>
-                    </tr>
-                `}).join('');
-
-                setTimeout(initResizablePOColumns, 300);
-            } catch (e) {
-                console.error("Error loading tracking table:", e);
-            }
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400 text-xs font-bold bg-white">ไม่พบรายการสั่งซื้ออะไหล่สำหรับทะเบียน "${carPlate}"</td></tr>`;
+            return;
         }
+
+        tbody.innerHTML = filtered.map(item => {
+            const orderId = item.id || item.order_id;
+            const hasETA = item.est_arrival_date && String(item.est_arrival_date).trim() !== '';
+            const encodedNotes = encodeURIComponent(item.notes || '');
+
+            const actionButtons = hasETA 
+                ? `<span class="text-slate-400 text-[11px] font-bold flex items-center justify-center gap-1" title="สั่งของแล้ว ไม่สามารถแก้ไขได้"><i class="fa-solid fa-lock"></i> ล็อก</span>`
+                : `<div class="flex items-center justify-center gap-1">
+                       <button type="button" onclick="openEditPOModal('${orderId}', '${item.qty_ordered || 1}', '${encodedNotes}', '${carPlate}')" class="text-blue-600 hover:text-blue-800 bg-white border border-slate-300 p-1 rounded shadow-2xs transition" title="แก้ไขรายการนี้"><i class="fa-solid fa-pen text-[11px]"></i></button>
+                       <button type="button" onclick="deletePO('${orderId}', '${carPlate}')" class="text-red-500 hover:text-red-700 bg-white border border-slate-300 p-1 rounded shadow-2xs transition" title="ลบรายการนี้"><i class="fa-solid fa-trash text-[11px]"></i></button>
+                   </div>`;
+
+            // 🌟 จุดสำคัญ: ดึงข้อมูลจาก received_date
+            const receivedDateVal = item.received_date || item.part_received_all_date;
+
+            return `
+            <tr class="hover:bg-amber-50/50 transition-colors border-b border-slate-100">
+                <td class="font-mono text-xs font-bold text-slate-600 text-center">${item.epc_no || '-'}</td>
+                <td class="font-mono text-xs font-bold text-blue-700 text-center">${item.part_no || '-'}</td>
+                <td class="font-mono text-xs font-bold text-slate-600 text-center">${item.part_main_no || '-'}</td>
+                <td class="font-bold text-slate-800 whitespace-normal break-words">${item.part_name || '-'}</td>
+                <td class="text-center font-bold text-slate-600">${item.part_type || 'หลัก'}</td>
+                <td class="text-center font-bold"><span class="text-amber-600">${item.qty_ordered || 0}</span> / <span class="text-emerald-600">${item.qty_received || 0}</span></td>
+                <td class="text-center"><span class="px-2 py-0.5 rounded border text-[10px] font-bold shadow-2xs bg-slate-100 text-slate-700">${item.order_status || 'รอสั่งซื้อ'}</span></td>
+                <td class="font-mono text-xs text-slate-500 text-center">${item.order_date ? String(item.order_date).split('T')[0] : '-'}</td>
+                <td class="font-mono text-xs font-bold text-center ${hasETA ? 'text-amber-600' : 'text-slate-400'}">${hasETA ? String(item.est_arrival_date).split('T')[0] : '-'}</td>
+                <td class="font-mono text-xs text-emerald-600 font-bold text-center">${receivedDateVal ? String(receivedDateVal).split('T')[0] : '-'}</td>
+                <td class="whitespace-normal break-words text-slate-600">${item.notes || '-'}</td>
+                <td class="text-center py-1.5">${actionButtons}</td>
+            </tr>
+        `}).join('');
+
+        setTimeout(initResizablePOColumns, 300);
+    } catch (e) {
+        console.error("Error loading tracking table:", e);
+    }
+}
 
         function initResizablePOColumns() {
             const cols = document.querySelectorAll('#poTrackingTable th');
