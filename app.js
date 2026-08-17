@@ -934,7 +934,7 @@ app.post('/api/user-preferences', async (req, res) => {
   }
 });
 
-/// ==========================================
+// ==========================================
 // 📲 API ส่งข้อความเข้ากลุ่ม LINE ผ่าน Messaging API (PUSH MESSAGE)
 // ==========================================
 app.post('/api/send-line-notify', async (req, res) => {
@@ -949,19 +949,16 @@ app.post('/api/send-line-notify', async (req, res) => {
     let targetToken = "";
     let targetGroup = ""; 
 
-    // 🎯 เช็คว่าส่งมาจากสาขาไหน แล้วใส่ค่าให้ตรง
+    // 🎯 เช็คว่าส่งมาจากสาขาไหน
     if (branch === 'Rangsit' || branch === 'สาขารังสิต') {
-        // ของสาขารังสิต
         targetToken = "uWGDH1BPHvILvBn7Hyeimv20W8ITfbUpGV2jfy1ujMUjvFxceSEtpM50S9vAcJmy05ybn6g/wHspfuTbfUuAI5UCB2RkifntfIeOT9EOo09FfQel63guAJgMs8zhAbbP0dq8fMENKirsWXoFzYMaXgdB04t89/1O/w1cDnyilFU=";
         targetGroup = "C762221d8214dd72b5469f74879c19bec";
     } else if (branch === 'Navamin' || branch === 'สาขานวมินทร์') {
-        // ของสาขานวมินทร์
         targetToken = "5+CtgK2jCINRJW0Ddz/18TrLbE1hq68iVdOyZTvgwYeQWA2okMHoFfPYUK4MlKMf1Y+JqSn4Bodqk7i0DThvO+DTOmwzsyiNxwGqTctqo/QJBlbdYsb97BF981TiVnNO6ufvV6767mS0qkzJWGKgegdB04t89/1O/w1cDnyilFU=";
-        targetGroup = "C108e09bf596a6b6ced05b97bd0e7d171";
+        targetGroup = "C61a43306f4630b569fe423165db923f8";
     } else {
-        // กรณีกันเหนียว (Fallback) ถ้าระบุสาขาไม่ตรง ให้ยิงเข้านวมินทร์เป็นค่าเริ่มต้น
-        targetToken = "b8+30ArMTub2ZaBzcG6ZJIOGORThU/C7kLWHzEO2uUNllohDlsWH/n6HR9003VhBALf+7oJX1wIjarabMGclzgqGQ34Xy4nhxE7Tsvs/VUjuQ8gh6xpeEFtuS+GIbCWLDdrcTdxxHy+iVt2XGsoaQQdB04t89/1O/w1cDnyilFU=";
-        targetGroup = "C108e09bf596a6b6ced05b97bd0e7d171";
+        // ❌ ไม่พบสาขาที่ระบุ ให้แจ้ง Error กลับทันที ไม่ส่งข้อความมั่ว
+        return res.status(400).json({ error: `ไม่พบสาขาที่ระบุ: ${branch}` });
     }
 
     // 🚀 ยิงไปยังปลายทาง Push Message ของ LINE Messaging API
