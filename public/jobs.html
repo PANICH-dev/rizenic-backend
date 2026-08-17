@@ -443,9 +443,17 @@
             document.getElementById('sa_detail_view').classList.remove('hidden'); 
             document.getElementById('current_sa_name').innerText = saName;
 
+            // 1. ดึงรถทั้งหมดของ SA คนนี้
             const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === saName);
-            const saPlateList = saJobs.map(j => j.car_plate); 
-            const saPOs = allPartOrders.filter(po => saPlateList.includes(po.car_plate));
+            
+            // 2. ลบช่องว่างและทำเป็นตัวพิมพ์ใหญ่ เพื่อเทียบทะเบียนรถให้ตรงกันเป๊ะ
+            const clean = str => String(str || '').replace(/\s+/g, '').toUpperCase();
+            const saPlateList = saJobs.map(j => clean(j.car_plate)); 
+            
+            // 3. ดึงรายการ "สั่งอะไหล่" เฉพาะของรถที่ SA คนนี้ดูแล
+            const saPOs = allPartOrders.filter(po => {
+                return saPlateList.includes(clean(po.car_plate));
+            });
 
             refreshSADashboardFilter(); 
             renderSAParkedCars(saJobs); 
@@ -677,7 +685,19 @@
 
         function renderSAParkedCars(jobs) {
             const tbody = document.getElementById('sa_parked_body'); 
-            const parkedCars = jobs.filter(j => j.is_parked === 'จอดซ่อม'); 
+            
+            // 🌟 กรองเฉพาะ "รถที่จอดในศูนย์" (ดูจากช่อง is_parked หรือ สถานะงาน)
+            const parkedStatuses = [
+                "08.นัดหมายแล้วรอเข้าซ่อม", "09.จอดรอเข้าซ่อม", "10.กำลังซ่อม", "11.รถซ่อมเสร็จรอส่งมอบ", 
+                "20.จอดซ่อม TC", "21.พักซ่อม"
+            ];
+            
+            const parkedCars = jobs.filter(j => {
+                const st = j.job_status || '';
+                const isStatusParked = parkedStatuses.some(p => st.includes(p) || p.includes(st));
+                return j.is_parked === 'จอดซ่อม' || isStatusParked;
+            }); 
+
             document.getElementById('count_parked').innerText = parkedCars.length;
             if(parkedCars.length === 0) { 
                 tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีรถจอดซ่อมในศูนย์</td></tr>`; 
@@ -701,7 +721,7 @@
                 if(!safeOpts.includes(`value="${safeStatus}"`)) safeOpts = `<option value="${safeStatus}">${safeStatus}</option>` + safeOpts;
                 safeOpts = safeOpts.replace(`value="${safeStatus}"`, `value="${safeStatus}" selected`);
 
-                let parkedOpts = `<option value="จอดซ่อม" selected>จอดซ่อม</option><option value="ไม่จอดซ่อม">ไม่จอดซ่อม</option>`;
+                let parkedOpts = `<option value="จอดซ่อม" ${j.is_parked === 'จอดซ่อม' ? 'selected' : ''}>จอดซ่อม</option><option value="ไม่จอดซ่อม" ${j.is_parked !== 'จอดซ่อม' ? 'selected' : ''}>ไม่จอดซ่อม</option>`;
 
                 let partsHtml = `<div class="text-[11px] text-blue-700 font-bold whitespace-normal break-words leading-tight py-0.5" title="${j.main_part_name||'-'}"><span class="text-blue-900 font-black">M:</span> ${j.main_part_name||'-'}</div>
                                  <div class="text-[11px] text-amber-700 font-bold whitespace-normal break-words leading-tight py-0.5" title="${j.sub_part_name||'-'}"><span class="text-amber-900 font-black">S:</span> ${j.sub_part_name||'-'}</div>`;
@@ -724,11 +744,17 @@
 
         function renderSAPOTracking(pos) {
             const tbody = document.getElementById('sa_po_body');
-            if (pos.length === 0) { 
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีประวัติการสั่งซื้ออะไหล่</td></tr>`; 
+            
+            // 🌟 แสดงเฉพาะรายการที่ "กำลังสั่ง" หรือ "ค้างรับ" (ซ่อนที่รับครบแล้ว/ยกเลิก)
+            const activePOs = pos.filter(o => !o.order_status?.includes('ครบ') && o.order_status !== 'ยกเลิก');
+
+            if (activePOs.length === 0) { 
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีรายการสั่งซื้ออะไหล่ที่ค้างรับ</td></tr>`; 
                 return; 
             }
-            const sortedParts = [...pos].sort((a,b) => b.order_id - a.order_id);
+
+            const sortedParts = [...activePOs].sort((a,b) => b.order_id - a.order_id);
+            
             tbody.innerHTML = sortedParts.map(o => {
                 const isComplete = o.order_status === 'อะไหล่มาครบแล้ว' || o.order_status === 'อะไหล่ครบ';
                 const statusBadge = isComplete ? 'bg-emerald-100 text-emerald-800 border-emerald-400' : (o.order_status === 'รอสั่งซื้อ' || o.order_status === 'รออะไหล่' || o.order_status === 'ติด Back Order' ? 'bg-red-100 text-red-800 border-red-400 animate-pulse' : 'bg-amber-100 text-amber-800 border-amber-400');
