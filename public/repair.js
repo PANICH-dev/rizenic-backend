@@ -286,28 +286,31 @@ function checkOverdue(job) {
     targetDate.setHours(0,0,0,0); today.setHours(0,0,0,0); return targetDate < today; 
 }
 
-// 🌟 อัปเดต KPI ให้ตรงเป๊ะตามที่ขอ 🌟
+
+// 🌟 อัปเดต KPI ตามเงื่อนไขใหม่ 🌟
 function updateKPIs() {
     kpiData = { arrived: [], repairing: [], done: [], delayed: [] };
-    const arrivedStatuses = ["01.", "02.", "03.", "04.", "05.", "06.", "07.", "08."];
     
     originalRepairJobs.forEach(j => {
         const st = j.job_status || '';
         if (st.includes('ยกเลิก')) return; 
         
-        if (checkOverdue(j)) kpiData.delayed.push(j);
-        
-        // 1. ซ่อมเสร็จ (รอส่งมอบ) -> สถานะใบงานเป็น 11
-        if (st.includes('11.รถซ่อมเสร็จรอส่งมอบ')) {
-            kpiData.done.push(j);
-        } 
-        // 2. รถเข้าจอด (รอซ่อม) -> ต้องมีนัดหมาย/เข้าจอด + สถานะอยู่ระหว่าง 01-08
-        else if ((j.arrived_date || j.appointment_date) && arrivedStatuses.some(s => st.includes(s))) {
+        // 4. รถเข้าจอด (รอซ่อม) เป็นสถานะ รถจอดรอเข้าซ่อม, พักซ่อม
+        if (st.includes('จอดรอเข้าซ่อม') || st.includes('พักซ่อม')) {
             kpiData.arrived.push(j);
         }
-        // 3. กำลังดำเนินการซ่อม -> เฉพาะรถที่ตกมาเป็นหน้าที่ของ "ซ่อม" จริงๆ
+        // 2. ซ่อมเสร็จ รอส่งมอบ คือรถที่อยู่แผนกซ่อม และสถานีคือ 12.รอส่งมอบ
+        else if (j.department_routing === 'ซ่อม' && j.calculated_station === '12.รอส่งมอบ') {
+            kpiData.done.push(j);
+        } 
+        // นอกนั้นถ้าอยู่แผนกซ่อม ถือว่ากำลังดำเนินการซ่อม
         else if (j.department_routing === 'ซ่อม') {
             kpiData.repairing.push(j);
+        }
+
+        // 1. ล่าช้า (Overdue) ดึงเฉพาะรถในแผนกซ่อม
+        if (j.department_routing === 'ซ่อม' && checkOverdue(j)) {
+            kpiData.delayed.push(j);
         }
     });
 
@@ -317,6 +320,48 @@ function updateKPIs() {
     document.getElementById('kpi_delay').innerText = kpiData.delayed.length;
 }
 
+// 🌟 ตัวกรองทำงานร่วมกันทั้งหมด (Search + Excel + ป้าย KPI สีๆ)
+function runTableFilters() {
+    const searchTxt = (document.getElementById('global_search_input')?.value || '').toLowerCase();
+    
+    const filteredData = originalRepairJobs.filter(job => {
+        // 3. กระดานคิวรถซ่อม ควรเป็นรถที่อยู่แผนกซ่อมเท่านั้น
+        if (job.department_routing !== 'ซ่อม') return false;
+
+        // 1. กรองตามการกดป้าย KPI สีๆ
+        if (activeKpiFilter) {
+            if (activeKpiFilter === 'repairing') {
+                if (job.calculated_station === '12.รอส่งมอบ') return false;
+            }
+            if (activeKpiFilter === 'done') {
+                if (job.calculated_station !== '12.รอส่งมอบ') return false;
+            }
+            if (activeKpiFilter === 'delayed') {
+                if (!checkOverdue(job)) return false;
+            }
+        }
+
+        // 2. กรอง Search Box
+        if (searchTxt) { const rowContent = Object.values(job).join(' ').toLowerCase(); if (!rowContent.includes(searchTxt)) return false; }
+        
+        // 3. กรองตาม Excel Filter หัวตาราง
+        for (let colIdx in activeFilters) {
+            const colDef = columnsDef.find(c => c.idx == colIdx);
+            if(!colDef) continue;
+            const key = colDef.key; let val = '';
+            if(['arrived_date', 'target_finish_date', 'repair_finish_date', 'delivery_date'].includes(key)) { val = job[key] ? String(job[key]).split('T')[0] : ''; } 
+            else if (key === 'car_brand') { val = `${job.car_brand || ''} ${job.car_model || ''}`.trim(); } 
+            else if (key === 'main_part_qty') { val = String(Number(job.main_part_qty) || (job.main_part_name ? job.main_part_name.split(',').filter(Boolean).length : 0)); }
+            else if (key === 'sub_part_qty') { val = String(Number(job.sub_part_qty) || (job.sub_part_name ? job.sub_part_name.split(',').filter(Boolean).length : 0)); }
+            else { val = String(job[key] || '').trim(); }
+            if (!activeFilters[colIdx].has(val)) return false;
+        }
+        return true;
+
+    });
+    
+    renderRepairListTable(filteredData);
+}
 // 🌟 ฟังก์ชันใหม่ กดจากป้าย KPI แล้ววิ่งไปกระดานตาราง 🌟
 function filterBoardByKpi(type) {
     switchTab('tab-board');
