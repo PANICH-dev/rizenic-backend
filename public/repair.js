@@ -37,6 +37,7 @@ const stationsTimeline = [
 let columnsDef = [
     { idx: 0, key: 'action', title: 'Action', w: 90, filter: false },
     { idx: 1, key: 'car_plate', title: 'ทะเบียน', w: 130, filter: true },
+    { idx: 14, key: 'sa_owner', title: 'SA', w: 120, filter: true }, // 🌟 คอลัมน์ที่เพิ่ม: SA
     { idx: 2, key: 'car_brand', title: 'ยี่ห้อ/รุ่น', w: 180, filter: true },
     { idx: 37, key: 'car_color', title: 'สีรถ', w: 110, filter: true },
     { idx: 3, key: 'arrived_date', title: 'รถเข้า', w: 120, filter: true, showCount: true },
@@ -49,6 +50,7 @@ let columnsDef = [
     { idx: 10, key: 'sub_part_qty', title: 'จำนวน(รอง)', w: 110, filter: true, showCount: true },
     { idx: 11, key: 'calculated_station', title: 'ความคืบหน้าสถานี', w: 170, filter: true },
     { idx: 12, key: 'job_status', title: 'สเตตัส', w: 180, filter: true },
+    { idx: 15, key: 'department_routing', title: 'ส่งต่อแผนก', w: 130, filter: true }, // 🌟 คอลัมน์ที่เพิ่ม: ส่งต่อแผนก
     { idx: 13, key: 'repair_notes', title: 'หมายเหตุ', w: 220, filter: true }
 ];
 
@@ -521,6 +523,9 @@ function renderRepairListTable(data) {
                 case 'car_plate': 
                     cellData = `<div class="font-mono text-base font-black px-3 py-2 truncate ${isOverdue ? 'text-rose-600' : 'text-[#00320D]'}">${isOverdue ? '<i class="fa-solid fa-circle-exclamation mr-1 animate-pulse"></i>' : ''}${j.car_plate || '-'}</div>`; 
                     break;
+                case 'sa_owner': // 🌟 แสดงชื่อ SA
+                    cellData = `<div class="px-3 py-2 font-bold text-slate-700 text-sm truncate" title="${j.sa_owner || ''}"><i class="fa-solid fa-user-tie text-amber-500 mr-1"></i> ${j.sa_owner || '-'}</div>`; 
+                    break;
                 case 'car_brand': 
                     cellData = `<div class="font-bold text-[#00320D] truncate text-[14px] px-3 py-2" title="${j.car_brand || ''} ${j.car_model || ''}">${j.car_brand || '-'} <span class="text-slate-400 font-medium">${j.car_model || ''}</span></div>`; 
                     break;
@@ -564,13 +569,16 @@ function renderRepairListTable(data) {
                     }
                     cellData = `<div class="px-2 py-1.5"><select onchange="fastUpdateField('${j.id}', 'job_status', this.value)" class="inline-edit-select text-[#00320D] font-bold text-sm">${safeOpts}</select></div>`; 
                     break;
+                case 'department_routing': // 🌟 โค้ด Dropdown สำหรับส่งต่อแผนก
+                    const routingOptions = ['ซ่อม', 'บริการ', 'อะไหล่', 'บัญชี', 'รอดำเนินการ'];
+                    let routingHtml = routingOptions.map(r => `<option value="${r}" ${j.department_routing === r ? 'selected' : ''}>${r}</option>`).join('');
+                    cellData = `<div class="px-2 py-1.5"><select onchange="fastUpdateField('${j.id}', 'department_routing', this.value)" class="inline-edit-select text-indigo-700 font-bold bg-indigo-50 border-indigo-200 hover:bg-indigo-100 text-sm">${routingHtml}</select></div>`; 
+                    break;
                 case 'repair_notes': 
                     cellData = `<div class="px-2 py-1.5 w-full"><input type="text" value="${j.repair_notes || ''}" placeholder="-" onchange="fastUpdateField('${j.id}', 'repair_notes', this.value)" class="inline-edit-input text-left w-full text-base"></div>`;
                     break;
             }
             rowHtml += `<td>${cellData}</td>`;
-        });
-        rowHtml += '</tr>'; 
         allRowsHtml += rowHtml;
     });
     tbody.innerHTML = allRowsHtml;
