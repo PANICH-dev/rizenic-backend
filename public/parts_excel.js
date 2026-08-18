@@ -4,49 +4,71 @@
 
 let smartExcelValidPayload = []; // ตัวแปรเก็บข้อมูลที่พร้อมบันทึก
 
-// เปิด/ปิด Modal
+// 1. ฟังก์ชันเปิด Modal (บังคับให้เริ่มที่หน้าโยนไฟล์เสมอ)
 function openSmartExcelUpload() {
-    document.getElementById('excel_upload_zone').classList.remove('hidden');
+    // ซ่อนหน้าตารางพรีวิว และปุ่มบันทึก
     document.getElementById('excel_preview_zone').classList.add('hidden');
+    document.getElementById('excel_preview_zone').classList.remove('flex');
     document.getElementById('btn_submit_smart_excel').classList.add('hidden');
-    document.getElementById('excel_file_input').value = ""; // Reset input
+    document.getElementById('btn_submit_smart_excel').classList.remove('flex');
     
-    document.getElementById('smartExcelModal').classList.remove('hidden');
-    document.getElementById('smartExcelModal').classList.add('flex');
+    // โชว์กล่องโยนไฟล์
+    document.getElementById('excel_upload_zone').classList.remove('hidden');
+    document.getElementById('excel_upload_zone').classList.add('flex');
+    
+    // เคลียร์ไฟล์เก่าและตาราง
+    document.getElementById('excel_file_input').value = ""; 
+    document.getElementById('excel_preview_tbody').innerHTML = "";
+    smartExcelValidPayload = [];
+
+    // แสดง Modal
+    const modal = document.getElementById('smartExcelModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
 }
 
+// 2. ฟังก์ชันปิด Modal
 function closeSmartExcelUpload() {
-    document.getElementById('smartExcelModal').classList.add('hidden');
-    document.getElementById('smartExcelModal').classList.remove('flex');
+    const modal = document.getElementById('smartExcelModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
     smartExcelValidPayload = [];
 }
 
-// ผูกอีเวนต์ให้คลิกกล่องสี่เหลี่ยมแล้วเปิดเลือกไฟล์ได้
-document.getElementById('excel_upload_zone').addEventListener('click', () => {
-    document.getElementById('excel_file_input').click();
+// 3. ผูก Event ลิสเนอร์ให้กล่องโยนไฟล์ (ให้คลิกได้)
+document.addEventListener('DOMContentLoaded', () => {
+    const uploadZone = document.getElementById('excel_upload_zone');
+    if (uploadZone) {
+        uploadZone.addEventListener('click', () => {
+            document.getElementById('excel_file_input').click();
+        });
+    }
 });
 
-// ฟังก์ชันอ่านไฟล์ Excel
+// 4. ฟังก์ชันอ่านไฟล์ Excel
 function processSmartExcel(e) {
     const file = e.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = function(evt) {
-        const data = evt.target.result;
-        // แปลงไฟล์ด้วยไลบรารี SheetJS (XLSX)
-        const workbook = XLSX.read(data, { type: 'binary' });
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        
-        // แปลงหน้า Sheet ให้กลายเป็น Array 2 มิติ (แถว x คอลัมน์) โดยอ่านตั้งแต่บรรทัดแรก
-        const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        validateExcelData(rawData);
+        try {
+            const data = evt.target.result;
+            const workbook = XLSX.read(data, { type: 'binary' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            
+            // แปลงข้อมูลเป็น Array
+            const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            validateExcelData(rawData);
+        } catch(err) {
+            alert('❌ อ่านไฟล์ Excel ล้มเหลว กรุณาตรวจสอบรูปแบบไฟล์ครับ');
+        }
     };
     reader.readAsBinaryString(file);
 }
 
-// ตรวจสอบข้อมูลเทียบกับ Master
+// 5. ตรวจสอบข้อมูลเทียบกับ Master
 function validateExcelData(dataRows) {
     const tbody = document.getElementById('excel_preview_tbody');
     tbody.innerHTML = '';
@@ -56,11 +78,10 @@ function validateExcelData(dataRows) {
     let errorCount = 0;
     const todayStr = new Date().toISOString().split('T')[0];
 
-    // ข้ามแถวแรกถ้ามันเป็นหัวตาราง (มีตัวหนังสือปนมา)
+    // เช็กข้ามหัวตาราง
     let startIndex = 0;
     if(dataRows.length > 0) {
         const firstCell = String(Object.values(dataRows[0])[0] || '').trim();
-        // ถ้าคอลัมน์แรกเป็นภาษาไทย หรือคำว่า Part แสดงว่าเป็นหัวตาราง ให้ข้าม 1 แถว
         if(/^[ก-๙a-zA-Z]+$/.test(firstCell) || firstCell.toLowerCase().includes('part')) {
             startIndex = 1;
         }
@@ -68,29 +89,28 @@ function validateExcelData(dataRows) {
 
     for (let i = startIndex; i < dataRows.length; i++) {
         const rowObj = dataRows[i];
+        if(!rowObj) continue;
         const cols = Object.values(rowObj);
         
         const partNo = String(cols[0] || '').trim().toUpperCase();
         if(!partNo) continue; // ข้ามแถวว่าง
 
-        const qty = parseInt(cols[1]) || 1; // ถ้าไม่ใส่จำนวน ให้เป็น 1
+        const qty = parseInt(cols[1]) || 1;
         const price = parseFloat(cols[2]) || 0;
 
-        // 🔍 ค้นหาใน Master Parts
-        const masterMatch = allMasterPartsCache.find(m => m.part_no && m.part_no.toUpperCase() === partNo);
+        // ค้นหาใน Master
+        const masterMatch = (typeof allMasterPartsCache !== 'undefined' ? allMasterPartsCache : []).find(m => m.part_no && m.part_no.toUpperCase() === partNo);
         
         let statusHtml = '';
         let trClass = '';
         let displayPartName = '';
 
         if (masterMatch) {
-            // ✅ เจอใน Master
             statusHtml = `<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-black"><i class="fa-solid fa-check"></i> ผ่าน</span>`;
             trClass = "bg-emerald-50/20";
             displayPartName = masterMatch.part_name;
             readyCount++;
 
-            // ดันเข้า Payload เพื่อเตรียมบันทึกจริง
             smartExcelValidPayload.push({
                 received_date: todayStr,
                 part_no: masterMatch.part_no,
@@ -98,13 +118,12 @@ function validateExcelData(dataRows) {
                 part_name: masterMatch.part_name,
                 qty: qty,
                 unit_price: price,
-                branch_name: userBranch
+                branch_name: typeof userBranch !== 'undefined' ? userBranch : 'สำนักงานใหญ่'
             });
         } else {
-            // ❌ ไม่เจอใน Master
             statusHtml = `<span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-black"><i class="fa-solid fa-xmark"></i> ไม่มี Master</span>`;
             trClass = "bg-rose-50";
-            displayPartName = `<span class="text-rose-500 italic text-[10px]">ระบบไม่รู้จัก Part No นี้ (ต้องไปเพิ่มใน Master ก่อน)</span>`;
+            displayPartName = `<span class="text-rose-500 italic text-[10px]">ไม่พบ Part No นี้ใน Master</span>`;
             errorCount++;
         }
 
@@ -119,11 +138,10 @@ function validateExcelData(dataRows) {
         `;
     }
 
-    // อัปเดตตัวเลขหน้า UI
     document.getElementById('excel_ready_count').innerText = readyCount;
     document.getElementById('excel_error_count').innerText = errorCount;
 
-    // สลับหน้าจอให้เห็นตาราง
+    // สลับหน้าแสดงผลตาราง
     document.getElementById('excel_upload_zone').classList.add('hidden');
     document.getElementById('excel_preview_zone').classList.remove('hidden');
     document.getElementById('excel_preview_zone').classList.add('flex');
@@ -134,11 +152,11 @@ function validateExcelData(dataRows) {
     }
 }
 
-// ยิง API บันทึกเข้า Inbound
+// 6. ส่งข้อมูลขึ้นระบบ
 async function submitSmartExcel() {
     if (smartExcelValidPayload.length === 0) return;
 
-    if (!confirm(`ยืนยันการรับเข้าคลัง จำนวน ${smartExcelValidPayload.length} รายการ? \n(รายการที่ไม่มี Master จะถูกข้ามอัตโนมัติ)`)) return;
+    if (!confirm(`ยืนยันการรับเข้าคลัง จำนวน ${smartExcelValidPayload.length} รายการ?`)) return;
 
     const btn = document.getElementById('btn_submit_smart_excel');
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
@@ -153,11 +171,11 @@ async function submitSmartExcel() {
             })
         ));
 
-        showToast(`บันทึกรับเข้าคลังสำเร็จ ${smartExcelValidPayload.length} รายการ!`);
+        if(typeof showToast === 'function') showToast(`บันทึกรับเข้าคลังสำเร็จ ${smartExcelValidPayload.length} รายการ!`);
         closeSmartExcelUpload();
-        loadAllData(); // โหลดหน้าเว็บใหม่ให้สต๊อกอัปเดต
+        if(typeof loadAllData === 'function') loadAllData(); 
     } catch(err) { 
-        showToast('บันทึกล้มเหลว กรุณาลองใหม่', 'error'); 
+        if(typeof showToast === 'function') showToast('บันทึกล้มเหลว กรุณาลองใหม่', 'error'); 
         btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> บันทึกเฉพาะรายการที่ผ่าน (สีเขียว)';
         btn.disabled = false;
     }
