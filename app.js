@@ -489,11 +489,27 @@ app.post('/api/report', async (req, res) => {
       department_routing, is_parked
     } = req.body;
 
+    // 🌟 1. เพิ่มโค้ดดักจับข้อมูลซ้ำตรงนี้ครับ! 🌟
+    if (car_plate && contact_date) {
+        const dupCheck = await pool.query(
+            `SELECT id FROM rizenicreport 
+             WHERE car_plate = $1 AND DATE(contact_date) = DATE($2) 
+             LIMIT 1`,
+            [car_plate, contact_date]
+        );
+        if (dupCheck.rows.length > 0) {
+            return res.status(400).json({ error: 'ข้อมูลซ้ำ! ใบงานของรถคันนี้ในวันนี้ ถูกสร้างไปแล้วครับ' });
+        }
+    }
+    // 🌟 จบโค้ดดักจับข้อมูลซ้ำ 🌟
+
+    // เช็กโควต้า (โค้ดเดิม)
     const quotaErrorMsg = await checkColorPartsQuota(branch_name, arrived_date, main_part_qty, sub_part_qty, null);
     if (quotaErrorMsg) {
         return res.status(400).json({ error: quotaErrorMsg });
     }
 
+    // คำสั่ง INSERT INTO (โค้ดเดิม) ...
     const queryText = `
       INSERT INTO rizenicreport (
         sa_owner, branch_name, customer_name, phone_number, customer_type, car_brand, car_model,
@@ -507,6 +523,7 @@ app.post('/api/report', async (req, res) => {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35)
       RETURNING id;
     `;
+    // ... โค้ดส่วนที่เหลือเก็บไว้เหมือนเดิม ...
 
     const values = [
       sa_owner || null, branch_name || 'สำนักงานใหญ่', customer_name || null, phone_number || null, customer_type || null, car_brand || null, car_model || null,
