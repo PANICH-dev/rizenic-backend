@@ -41,18 +41,7 @@ function closeSmartExcelUpload() {
     smartExcelValidPayload = [];
 }
 
-// 3. ผูก Event ลิสเนอร์ให้กล่องโยนไฟล์ (ให้คลิกได้)
-document.addEventListener('DOMContentLoaded', () => {
-    const uploadZone = document.getElementById('excel_upload_zone');
-    if (uploadZone) {
-        uploadZone.onclick = function() {
-            const input = document.getElementById('excel_file_input');
-            if(input) input.click();
-        };
-    }
-});
-
-// 4. ฟังก์ชันอ่านไฟล์ Excel (ใช้ ArrayBuffer มาตรฐานใหม่)
+// 3. ฟังก์ชันอ่านไฟล์ Excel (ใช้ ArrayBuffer มาตรฐานใหม่)
 function processSmartExcel(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -76,7 +65,7 @@ function processSmartExcel(e) {
     reader.readAsArrayBuffer(file);
 }
 
-// 5. ตรวจสอบข้อมูลเทียบกับ Master
+// 4. ตรวจสอบข้อมูลเทียบกับ Master
 function validateExcelData(dataRows) {
     const tbody = document.getElementById('excel_preview_tbody');
     if(!tbody) return;
@@ -171,7 +160,7 @@ function validateExcelData(dataRows) {
     }
 }
 
-// 6. ส่งข้อมูลขึ้นระบบ
+// 5. ส่งข้อมูลขึ้นระบบ
 async function submitSmartExcel() {
     if (smartExcelValidPayload.length === 0) return;
 
@@ -202,4 +191,26 @@ async function submitSmartExcel() {
             btn.disabled = false;
         }
     }
+}
+
+// 6. ทำให้โซนอัปโหลดคลิกเพื่อเรียกไฟล์ได้
+function initUploadZone() {
+    const uploadZone = document.getElementById('excel_upload_zone');
+    if (uploadZone) {
+        // ใช้ onclick แทน addEventListener เพื่อกันการผูก Event ซ้ำ
+        uploadZone.onclick = function(e) {
+            // เช็คว่าไม่ได้คลิกที่ตัว input เอง
+            if (e.target.id !== 'excel_file_input') {
+                const input = document.getElementById('excel_file_input');
+                if(input) input.click();
+            }
+        };
+    }
+}
+
+// ผูก Event รอให้ HTML โหลดเสร็จ
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initUploadZone);
+} else {
+    initUploadZone();
 }
