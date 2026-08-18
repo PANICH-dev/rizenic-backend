@@ -844,14 +844,18 @@ function renderPieChartAndList() {
 
     originalRepairJobs.forEach(j => {
         const st = j.job_status || '';
+        
+        // ❌ ข้ามรถที่ถูกยกเลิก
         if(st.includes('ยกเลิก')) return; 
+        
+        // 🌟 เพิ่มเงื่อนไข: กรองเอาเฉพาะรถที่ Routing อยู่แผนก "ซ่อม" เท่านั้น! 🌟
+        if(j.department_routing !== 'ซ่อม') return;
 
         const fullStation = computeHighestStationIFS(j);
         let key = "รอรับรถ"; 
 
-        if(fullStation.includes("รอส่งมอบ") && (st.includes('09.') || st.includes('10.') || st.includes('11.'))) {
-            key = "รอส่งมอบ";
-        }
+        // 🎯 เช็กสถานีให้ตรงไปตรงมา ไม่ต้องพึ่งพาสถานะ ERP อีกต่อไป
+        if(fullStation.includes("รอส่งมอบ")) key = "รอส่งมอบ";
         else if(fullStation.includes("เคาะ")) key = "เคาะ"; 
         else if(fullStation.includes("โป๊ว")) key = "โป๊ว"; 
         else if(fullStation.includes("เตรียมพื้น")) key = "เตรียมพื้น"; 
