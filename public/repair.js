@@ -12,7 +12,7 @@ let chartInstance = null;
 let currentBranch = 'สำนักงานใหญ่';
 
 let activeFilters = {}; 
-let activeKpiFilter = null; // 🌟 ตัวแปรใหม่สำหรับจำว่ากดดู KPI ป้ายไหนอยู่
+let activeKpiFilter = null; 
 let draggedColIdx = null; 
 
 let savedSortCol = null;
@@ -286,7 +286,6 @@ function checkOverdue(job) {
     targetDate.setHours(0,0,0,0); today.setHours(0,0,0,0); return targetDate < today; 
 }
 
-
 // 🌟 อัปเดต KPI ตามเงื่อนไขใหม่ 🌟
 function updateKPIs() {
     kpiData = { arrived: [], repairing: [], done: [], delayed: [] };
@@ -319,7 +318,6 @@ function updateKPIs() {
     document.getElementById('kpi_done').innerText = kpiData.done.length;
     document.getElementById('kpi_delay').innerText = kpiData.delayed.length;
 }
-
 
 // 🌟 ตัวกรองทำงานร่วมกันทั้งหมด (Search + Excel + ป้าย KPI สีๆ)
 function runTableFilters() {
@@ -358,23 +356,20 @@ function runTableFilters() {
             if (!activeFilters[colIdx].has(val)) return false;
         }
         return true;
-
     });
     
     renderRepairListTable(filteredData);
 }
-// 🌟 ฟังก์ชันใหม่ กดจากป้าย KPI แล้ววิ่งไปกระดานตาราง 🌟
+
 function filterBoardByKpi(type) {
     switchTab('tab-board');
-    activeFilters = {}; // ล้าง Column filter ออกก่อน
-    activeKpiFilter = type; // บอกให้ระบบรู้ว่าตอนนี้กำลังกรองด้วยป้าย KPI ไหนอยู่
+    activeFilters = {}; 
+    activeKpiFilter = type; 
     document.getElementById('global_search_input').value = '';
     document.querySelectorAll('.filter-icon').forEach(icon => icon.classList.remove('active'));
-    
-    runTableFilters(); // สั่งเรนเดอร์ตารางใหม่
+    runTableFilters(); 
 }
 
-// ล้างการกรองทั้งหมด
 function clearAllFilters() {
     activeFilters = {}; 
     activeKpiFilter = null; 
@@ -384,7 +379,6 @@ function clearAllFilters() {
 }
 
 function openKpiModal(type) {
-    // ใช้สำหรับป้าย "รถเข้าจอด (รอซ่อม)" อย่างเดียว เพื่อให้เปิด Popup แบบเดิม
     let list = []; let title = ''; let icon = ''; let headerColorClass = ''; let bgColorClass = ''; let borderColorClass = '';
     
     if(type === 'arrived') { list = kpiData.arrived; title = 'รถเข้าจอด (รอซ่อม)'; icon = 'fa-car-side'; headerColorClass = 'text-blue-600'; bgColorClass = 'bg-blue-50'; borderColorClass = 'border-blue-200'; }
@@ -422,7 +416,6 @@ async function fetchJobList() {
         const userRole = sessionStorage.getItem('emp_role') || '';
         const isManager = ['BA', 'Manager', 'Admin', 'แอดมิน'].includes(userRole);
 
-        // 🌟 ปลดล็อก ดึงข้อมูลรถดิบๆ ทั้งหมดที่ยังไม่ยกเลิกและส่งมอบกลับคืนมา เพื่อให้ปฏิทินเห็นภาพรวมทั้งหมด
         originalRepairJobs = rawReports.filter(j => {
             const isBranchMatch = isManager ? true : j.branch_name === currentBranch;
             const st = j.job_status || '';
@@ -594,7 +587,6 @@ function renderRepairListTable(data) {
     if(savedSortCol !== null) { sortTableDirectly(savedSortCol, savedSortDir); }
 }
 
-// ================= EXCEL FILTER LOGIC =================
 function openExcelFilter(e, colIndex, title) {
     e.stopPropagation(); currentFilterCol = colIndex; document.getElementById('ef_col_name').innerText = title; document.getElementById('ef_search').value = '';
     const uniqueValues = new Set();
@@ -637,27 +629,6 @@ function clearSpecificExcelFilter() {
     const thIcon = document.getElementById(`th_${currentFilterCol}`)?.querySelector('.filter-icon');
     if(thIcon) { thIcon.classList.remove('active'); }
     closeExcelFilter(); runTableFilters();
-}
-
-
-        // 2. กรอง Search Box
-        if (searchTxt) { const rowContent = Object.values(job).join(' ').toLowerCase(); if (!rowContent.includes(searchTxt)) return false; }
-        
-        // 3. กรองตาม Excel Filter หัวตาราง
-        for (let colIdx in activeFilters) {
-            const colDef = columnsDef.find(c => c.idx == colIdx);
-            if(!colDef) continue;
-            const key = colDef.key; let val = '';
-            if(['arrived_date', 'target_finish_date', 'repair_finish_date', 'delivery_date'].includes(key)) { val = job[key] ? String(job[key]).split('T')[0] : ''; } 
-            else if (key === 'car_brand') { val = `${job.car_brand || ''} ${job.car_model || ''}`.trim(); } 
-            else if (key === 'main_part_qty') { val = String(Number(job.main_part_qty) || (job.main_part_name ? job.main_part_name.split(',').filter(Boolean).length : 0)); }
-            else if (key === 'sub_part_qty') { val = String(Number(job.sub_part_qty) || (job.sub_part_name ? job.sub_part_name.split(',').filter(Boolean).length : 0)); }
-            else { val = String(job[key] || '').trim(); }
-            if (!activeFilters[colIdx].has(val)) return false;
-        }
-        return true;
-    });
-    renderRepairListTable(filteredData);
 }
 
 function sortTable(colIndex) {
@@ -763,7 +734,6 @@ function renderCalendar() {
         let barBlock = '';
         if(arrivedQty > 0 || targetQty > 0 || deliveryQty > 0) {
             barBlock = `<div class="flex items-end justify-center gap-1.5 w-full h-[65px] mt-auto pb-0.5">`;
-            // 🌟 ให้แถบสีในปฏิทินคลิกแล้วเด้งไปกระดานได้เลย 🌟
             if(arrivedQty > 0) { const h = Math.max(25, (arrivedQty / monthMaxQty) * 100); barBlock += `<div class="flex flex-col items-center justify-end h-full w-[20px] cursor-pointer" onclick="event.stopPropagation(); filterBoardByDate('${dateStr}', 'arrived')" title="รถเข้าจอด: ${arrivedQty} คัน"><span class="text-[10px] font-black text-white bg-blue-500 rounded-sm w-5 h-5 flex items-center justify-center mb-1 shadow-sm hover:scale-110 transition">${arrivedQty}</span><div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-sm shadow-sm" style="height: ${h}%;"></div></div>`; }
             if(targetQty > 0) { const h = Math.max(25, (targetQty / monthMaxQty) * 100); barBlock += `<div class="flex flex-col items-center justify-end h-full w-[20px] cursor-pointer" onclick="event.stopPropagation(); filterBoardByDate('${dateStr}', 'target')" title="เป้าซ่อมเสร็จ: ${targetQty} คัน"><span class="text-[10px] font-black text-white bg-amber-500 rounded-sm w-5 h-5 flex items-center justify-center mb-1 shadow-sm hover:scale-110 transition">${targetQty}</span><div class="w-full bg-gradient-to-t from-amber-500 to-amber-300 rounded-sm shadow-sm" style="height: ${h}%;"></div></div>`; }
             if(deliveryQty > 0) { const h = Math.max(25, (deliveryQty / monthMaxQty) * 100); barBlock += `<div class="flex flex-col items-center justify-end h-full w-[20px] cursor-pointer" onclick="event.stopPropagation(); filterBoardByDate('${dateStr}', 'delivery')" title="นัดส่งมอบ: ${deliveryQty} คัน"><span class="text-[10px] font-black text-white bg-emerald-500 rounded-sm w-5 h-5 flex items-center justify-center mb-1 shadow-sm hover:scale-110 transition">${deliveryQty}</span><div class="w-full bg-gradient-to-t from-emerald-500 to-emerald-400 rounded-sm shadow-sm" style="height: ${h}%;"></div></div>`; }
@@ -867,7 +837,6 @@ function generateMiniCardHTML(j, type) {
 
 function closeDayListModal() { document.getElementById('dayListModal').classList.add('hidden'); }
 
-// 🌟 กราฟพาย 🌟
 function renderPieChartAndList() {
     const counters = { "เคาะ":0, "โป๊ว":0, "เตรียมพื้น":0, "พ่นสี":0, "ประกอบ":0, "ขัดสี":0, "QC":0, "แม็ก":0, "กระจก":0, "ฟิล์ม":0, "พักซ่อม":0, "รอส่งมอบ":0 };
     const stationJobs = {}; 
@@ -880,7 +849,6 @@ function renderPieChartAndList() {
         const fullStation = computeHighestStationIFS(j);
         let key = "รอรับรถ"; 
 
-        // 🌟 แก้ไข: รอส่งมอบคือ รถที่อยู่สถานีรอส่งมอบ + สถานะ 09, 10, 11
         if(fullStation.includes("รอส่งมอบ") && (st.includes('09.') || st.includes('10.') || st.includes('11.'))) {
             key = "รอส่งมอบ";
         }
@@ -896,7 +864,6 @@ function renderPieChartAndList() {
         else if(fullStation.includes("ฟิล์ม")) key = "ฟิล์ม"; 
         else if(fullStation.includes("พักซ่อม")) key = "พักซ่อม"; 
         
-        // ถ้ารถยังไม่เข้าระบบสถานีช่าง (เป็นรอรับรถ) จะไม่ถูกนับในนี้เลย!
         if(key !== "รอรับรถ" && counters[key] !== undefined) { 
             counters[key]++; 
             stationJobs[key].push(j); 
@@ -1113,9 +1080,7 @@ async function openModal(jobId) {
 
         const carParts = allPartOrders.filter(po => {
             if (po.order_status === 'ยกเลิก') return false;
-            
             if (po.job_id) return String(po.job_id) === String(job.id); 
-            
             if (po.car_plate !== job.car_plate) return false;
             if (job.qt_no && po.qt_no && job.qt_no.includes(po.qt_no)) return true;
             if (job.so_no && po.so_no && job.so_no.includes(po.so_no)) return true;
