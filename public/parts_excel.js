@@ -7,31 +7,37 @@ let smartExcelValidPayload = []; // ตัวแปรเก็บข้อม�
 // 1. ฟังก์ชันเปิด Modal (บังคับให้เริ่มที่หน้าโยนไฟล์เสมอ)
 function openSmartExcelUpload() {
     // ซ่อนหน้าตารางพรีวิว และปุ่มบันทึก
-    document.getElementById('excel_preview_zone').classList.add('hidden');
-    document.getElementById('excel_preview_zone').classList.remove('flex');
-    document.getElementById('btn_submit_smart_excel').classList.add('hidden');
-    document.getElementById('btn_submit_smart_excel').classList.remove('flex');
+    const previewZone = document.getElementById('excel_preview_zone');
+    const btnSubmit = document.getElementById('btn_submit_smart_excel');
+    const uploadZone = document.getElementById('excel_upload_zone');
     
-    // โชว์กล่องโยนไฟล์
-    document.getElementById('excel_upload_zone').classList.remove('hidden');
-    document.getElementById('excel_upload_zone').classList.add('flex');
+    if(previewZone) { previewZone.classList.add('hidden'); previewZone.classList.remove('flex'); }
+    if(btnSubmit) { btnSubmit.classList.add('hidden'); btnSubmit.classList.remove('flex'); }
+    if(uploadZone) { uploadZone.classList.remove('hidden'); uploadZone.classList.add('flex'); }
     
     // เคลียร์ไฟล์เก่าและตาราง
-    document.getElementById('excel_file_input').value = ""; 
-    document.getElementById('excel_preview_tbody').innerHTML = "";
+    const fileInput = document.getElementById('excel_file_input');
+    if(fileInput) fileInput.value = ""; 
+    
+    const tbody = document.getElementById('excel_preview_tbody');
+    if(tbody) tbody.innerHTML = "";
     smartExcelValidPayload = [];
 
     // แสดง Modal
     const modal = document.getElementById('smartExcelModal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    if(modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
 }
 
 // 2. ฟังก์ชันปิด Modal
 function closeSmartExcelUpload() {
     const modal = document.getElementById('smartExcelModal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
+    if(modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
     smartExcelValidPayload = [];
 }
 
@@ -39,13 +45,14 @@ function closeSmartExcelUpload() {
 document.addEventListener('DOMContentLoaded', () => {
     const uploadZone = document.getElementById('excel_upload_zone');
     if (uploadZone) {
-        uploadZone.addEventListener('click', () => {
-            document.getElementById('excel_file_input').click();
-        });
+        uploadZone.onclick = function() {
+            const input = document.getElementById('excel_file_input');
+            if(input) input.click();
+        };
     }
 });
 
-// 4. ฟังก์ชันอ่านไฟล์ Excel
+// 4. ฟังก์ชันอ่านไฟล์ Excel (ใช้ ArrayBuffer มาตรฐานใหม่)
 function processSmartExcel(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -53,24 +60,27 @@ function processSmartExcel(e) {
     const reader = new FileReader();
     reader.onload = function(evt) {
         try {
-            const data = evt.target.result;
-            const workbook = XLSX.read(data, { type: 'binary' });
+            const data = new Uint8Array(evt.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
             
-            // แปลงข้อมูลเป็น Array
-            const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            // แปลงข้อมูลเป็น Array แบบข้ามแถวว่างอัตโนมัติ
+            const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
             validateExcelData(rawData);
         } catch(err) {
+            console.error("Excel Read Error:", err);
             alert('❌ อ่านไฟล์ Excel ล้มเหลว กรุณาตรวจสอบรูปแบบไฟล์ครับ');
         }
     };
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
 }
 
 // 5. ตรวจสอบข้อมูลเทียบกับ Master
 function validateExcelData(dataRows) {
     const tbody = document.getElementById('excel_preview_tbody');
+    if(!tbody) return;
+    
     tbody.innerHTML = '';
     smartExcelValidPayload = [];
     
@@ -78,28 +88,29 @@ function validateExcelData(dataRows) {
     let errorCount = 0;
     const todayStr = new Date().toISOString().split('T')[0];
 
-    // เช็กข้ามหัวตาราง
-    let startIndex = 0;
-    if(dataRows.length > 0) {
-        const firstCell = String(Object.values(dataRows[0])[0] || '').trim();
-        if(/^[ก-๙a-zA-Z]+$/.test(firstCell) || firstCell.toLowerCase().includes('part')) {
-            startIndex = 1;
-        }
+    if (!dataRows || dataRows.length === 0) {
+        alert("⚠️ ไม่พบข้อมูลในไฟล์ Excel ครับ");
+        return;
     }
 
-    for (let i = startIndex; i < dataRows.length; i++) {
-        const rowObj = dataRows[i];
-        if(!rowObj) continue;
-        const cols = Object.values(rowObj);
+    for (let i = 0; i < dataRows.length; i++) {
+        const row = dataRows[i];
+        if(!row || row.length === 0) continue;
         
-        const partNo = String(cols[0] || '').trim().toUpperCase();
+        const partNo = String(row[0] || '').trim().toUpperCase();
         if(!partNo) continue; // ข้ามแถวว่าง
 
-        const qty = parseInt(cols[1]) || 1;
-        const price = parseFloat(cols[2]) || 0;
+        // ตรวจจับข้ามหัวตาราง (ถ้าพิมพ์คำว่า Part / บาร์โค้ด / หมายเลข / รหัส)
+        if(i === 0 && (partNo.includes('PART') || partNo.includes('บาร์โค้ด') || partNo.includes('หมายเลข') || partNo.includes('รหัส') || partNo === 'NO')) {
+            continue;
+        }
 
-        // ค้นหาใน Master
-        const masterMatch = (typeof allMasterPartsCache !== 'undefined' ? allMasterPartsCache : []).find(m => m.part_no && m.part_no.toUpperCase() === partNo);
+        const qty = parseInt(row[1]) || 1;
+        const price = parseFloat(row[2]) || 0;
+
+        // ค้นหาใน Master Parts Cache
+        const masterCache = (typeof allMasterPartsCache !== 'undefined' && Array.isArray(allMasterPartsCache)) ? allMasterPartsCache : [];
+        const masterMatch = masterCache.find(m => m.part_no && m.part_no.toUpperCase() === partNo);
         
         let statusHtml = '';
         let trClass = '';
@@ -138,17 +149,25 @@ function validateExcelData(dataRows) {
         `;
     }
 
-    document.getElementById('excel_ready_count').innerText = readyCount;
-    document.getElementById('excel_error_count').innerText = errorCount;
+    const readyEl = document.getElementById('excel_ready_count');
+    const errorEl = document.getElementById('excel_error_count');
+    if(readyEl) readyEl.innerText = readyCount;
+    if(errorEl) errorEl.innerText = errorCount;
 
     // สลับหน้าแสดงผลตาราง
-    document.getElementById('excel_upload_zone').classList.add('hidden');
-    document.getElementById('excel_preview_zone').classList.remove('hidden');
-    document.getElementById('excel_preview_zone').classList.add('flex');
+    const uploadZone = document.getElementById('excel_upload_zone');
+    const previewZone = document.getElementById('excel_preview_zone');
+    const btnSubmit = document.getElementById('btn_submit_smart_excel');
 
-    if(readyCount > 0) {
-        document.getElementById('btn_submit_smart_excel').classList.remove('hidden');
-        document.getElementById('btn_submit_smart_excel').classList.add('flex');
+    if(uploadZone) uploadZone.classList.add('hidden');
+    if(previewZone) {
+        previewZone.classList.remove('hidden');
+        previewZone.classList.add('flex');
+    }
+
+    if(readyCount > 0 && btnSubmit) {
+        btnSubmit.classList.remove('hidden');
+        btnSubmit.classList.add('flex');
     }
 }
 
@@ -159,8 +178,10 @@ async function submitSmartExcel() {
     if (!confirm(`ยืนยันการรับเข้าคลัง จำนวน ${smartExcelValidPayload.length} รายการ?`)) return;
 
     const btn = document.getElementById('btn_submit_smart_excel');
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
-    btn.disabled = true;
+    if(btn) {
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
+        btn.disabled = true;
+    }
 
     try {
         await Promise.all(smartExcelValidPayload.map(item => 
@@ -176,7 +197,9 @@ async function submitSmartExcel() {
         if(typeof loadAllData === 'function') loadAllData(); 
     } catch(err) { 
         if(typeof showToast === 'function') showToast('บันทึกล้มเหลว กรุณาลองใหม่', 'error'); 
-        btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> บันทึกเฉพาะรายการที่ผ่าน (สีเขียว)';
-        btn.disabled = false;
+        if(btn) {
+            btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> บันทึกเฉพาะรายการที่ผ่าน (สีเขียว)';
+            btn.disabled = false;
+        }
     }
 }
