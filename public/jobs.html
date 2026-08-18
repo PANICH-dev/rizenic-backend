@@ -409,11 +409,23 @@
         function renderSAList() {
             const container = document.getElementById('sa_cards_container');
             const saCounts = {};
-            allJobsData.forEach(job => { const sa = job.sa_owner || "ไม่ระบุ SA"; saCounts[sa] = (saCounts[sa] || 0) + 1; });
+            
+            allJobsData.forEach(job => { 
+                const sa = job.sa_owner || "ไม่ระบุ SA"; 
+                const st = job.job_status || "";
+
+                // 🌟 นับเฉพาะรถที่ "ค้าง" (ไม่รวมส่งมอบแล้ว และ ยกเลิก)
+                const isPendingJob = !st.includes('12.ส่งมอบ') && !st.includes('ยกเลิก') && st !== '';
+
+                if (isPendingJob) {
+                    saCounts[sa] = (saCounts[sa] || 0) + 1; 
+                }
+            });
+
             const sortedSAs = Object.keys(saCounts).sort((a, b) => saCounts[b] - saCounts[a]);
             
             if(sortedSAs.length === 0) { 
-                container.innerHTML = `<div class="col-span-full text-center py-10 text-slate-400 font-bold bg-white rounded-xl border border-slate-200">ยังไม่มีข้อมูล SA ในระบบ</div>`; 
+                container.innerHTML = `<div class="col-span-full text-center py-10 text-slate-400 font-bold bg-white rounded-xl border border-slate-200">ยังไม่มีงานค้างในระบบสำหรับ SA ท่านใดเลย 🎉</div>`; 
                 return; 
             }
 
@@ -425,7 +437,7 @@
                         <div><p class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-0.5">Service Advisor</p><h3 class="text-lg font-black text-[#00320D] leading-tight truncate max-w-[150px]" title="${sa}">${sa}</h3></div>
                     </div>
                     <div class="bg-slate-50 rounded-xl p-3 border border-slate-100 flex justify-between items-center relative z-10">
-                        <span class="text-xs font-bold text-slate-600">รวมงานรับผิดชอบ</span><div class="text-right"><span class="text-2xl font-black text-blue-600 leading-none">${saCounts[sa]}</span> <span class="text-xs text-slate-500 font-bold">คัน</span></div>
+                        <span class="text-xs font-bold text-slate-600">รวมงานค้างรับผิดชอบ</span><div class="text-right"><span class="text-2xl font-black text-blue-600 leading-none">${saCounts[sa]}</span> <span class="text-xs text-slate-500 font-bold">คัน</span></div>
                     </div>
                 </div>
             `).join('');
