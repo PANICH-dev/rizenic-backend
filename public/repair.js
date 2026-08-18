@@ -837,6 +837,7 @@ function generateMiniCardHTML(j, type) {
 
 function closeDayListModal() { document.getElementById('dayListModal').classList.add('hidden'); }
 
+// 🌟 กราฟพาย 🌟
 function renderPieChartAndList() {
     const counters = { "เคาะ":0, "โป๊ว":0, "เตรียมพื้น":0, "พ่นสี":0, "ประกอบ":0, "ขัดสี":0, "QC":0, "แม็ก":0, "กระจก":0, "ฟิล์ม":0, "พักซ่อม":0, "รอส่งมอบ":0 };
     const stationJobs = {}; 
@@ -848,13 +849,12 @@ function renderPieChartAndList() {
         // ❌ ข้ามรถที่ถูกยกเลิก
         if(st.includes('ยกเลิก')) return; 
         
-        // 🌟 เพิ่มเงื่อนไข: กรองเอาเฉพาะรถที่ Routing อยู่แผนก "ซ่อม" เท่านั้น! 🌟
+        // 🌟 กรองเอาเฉพาะรถที่ Routing อยู่แผนก "ซ่อม" เท่านั้น!
         if(j.department_routing !== 'ซ่อม') return;
 
         const fullStation = computeHighestStationIFS(j);
         let key = "รอรับรถ"; 
 
-        // 🎯 เช็กสถานีให้ตรงไปตรงมา ไม่ต้องพึ่งพาสถานะ ERP อีกต่อไป
         if(fullStation.includes("รอส่งมอบ")) key = "รอส่งมอบ";
         else if(fullStation.includes("เคาะ")) key = "เคาะ"; 
         else if(fullStation.includes("โป๊ว")) key = "โป๊ว"; 
@@ -923,6 +923,14 @@ function renderPieChartAndList() {
     const breakdownDiv = document.getElementById('station_breakdown_list'); let listHTML = '';
     Object.keys(stationJobs).forEach(stationKey => {
         if(stationJobs[stationKey].length > 0) {
+
+            // 🌟 เรียงลำดับรถตาม "เป้าซ่อมเสร็จ" (น้อยไปมาก) 🌟
+            stationJobs[stationKey].sort((a, b) => {
+                let dateA = a.target_finish_date ? new Date(a.target_finish_date).getTime() : Infinity; // Infinity จะทำให้ค่าว่างไปอยู่ล่างสุด
+                let dateB = b.target_finish_date ? new Date(b.target_finish_date).getTime() : Infinity;
+                return dateA - dateB;
+            });
+
             const safeKeyId = stationKey.replace(/[\s\.\/]/g, '_');
             listHTML += `
                 <div class="mb-4 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm transition-all duration-300">
@@ -936,7 +944,8 @@ function renderPieChartAndList() {
                     <div id="collapse_${safeKeyId}" class="divide-y divide-slate-100 hidden">
             `;
             stationJobs[stationKey].forEach(j => {
-                const target = j.target_finish_date ? formatThaiDate(j.target_finish_date) : 'ยังไม่ระบุ'; const actual = j.repair_finish_date ? j.repair_finish_date.split('T')[0] : '';
+                const target = j.target_finish_date ? formatThaiDate(j.target_finish_date) : 'ยังไม่ระบุ'; 
+                const actual = j.repair_finish_date ? j.repair_finish_date.split('T')[0] : '';
                 const isOverdue = checkOverdue(j);
                 listHTML += `
                     <div class="px-5 py-4 flex flex-col lg:flex-row justify-between items-start lg:items-center hover:bg-amber-50/40 transition gap-4 ${isOverdue ? 'bg-red-50/50' : ''}">
@@ -961,7 +970,6 @@ function renderPieChartAndList() {
     });
     breakdownDiv.innerHTML = listHTML || '<div class="text-center py-10 text-slate-500 text-base font-bold">🎉 ไม่มีรถค้างในสถานีเลยครับ!</div>';
 }
-
 let mainPartsList = [];
 let subPartsList = [];
 
