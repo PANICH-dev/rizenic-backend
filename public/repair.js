@@ -320,6 +320,7 @@ function updateKPIs() {
     document.getElementById('kpi_delay').innerText = kpiData.delayed.length;
 }
 
+
 // 🌟 ตัวกรองทำงานร่วมกันทั้งหมด (Search + Excel + ป้าย KPI สีๆ)
 function runTableFilters() {
     const searchTxt = (document.getElementById('global_search_input')?.value || '').toLowerCase();
@@ -638,25 +639,6 @@ function clearSpecificExcelFilter() {
     closeExcelFilter(); runTableFilters();
 }
 
-// 🌟 ตัวกรองทำงานร่วมกันทั้งหมด (Search + Excel + ป้าย KPI สีๆ)
-function runTableFilters() {
-    const searchTxt = (document.getElementById('global_search_input')?.value || '').toLowerCase();
-    
-    const filteredData = originalRepairJobs.filter(job => {
-        const st = job.job_status || '';
-
-        // 1. กรองตามการกดป้าย KPI สีๆ
-        if (activeKpiFilter) {
-            if (activeKpiFilter === 'repairing') {
-                if (job.department_routing !== 'ซ่อม' || st.includes('11.รถซ่อมเสร็จรอส่งมอบ')) return false;
-            }
-            if (activeKpiFilter === 'done') {
-                if (!st.includes('11.รถซ่อมเสร็จรอส่งมอบ')) return false;
-            }
-            if (activeKpiFilter === 'delayed') {
-                if (!checkOverdue(job)) return false;
-            }
-        }
 
         // 2. กรอง Search Box
         if (searchTxt) { const rowContent = Object.values(job).join(' ').toLowerCase(); if (!rowContent.includes(searchTxt)) return false; }
