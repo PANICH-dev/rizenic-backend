@@ -523,7 +523,7 @@ function renderRepairListTable(data) {
                 case 'car_plate': 
                     cellData = `<div class="font-mono text-base font-black px-3 py-2 truncate ${isOverdue ? 'text-rose-600' : 'text-[#00320D]'}">${isOverdue ? '<i class="fa-solid fa-circle-exclamation mr-1 animate-pulse"></i>' : ''}${j.car_plate || '-'}</div>`; 
                     break;
-                case 'sa_owner': // 🌟 แสดงชื่อ SA
+                case 'sa_owner':
                     cellData = `<div class="px-3 py-2 font-bold text-slate-700 text-sm truncate" title="${j.sa_owner || ''}"><i class="fa-solid fa-user-tie text-amber-500 mr-1"></i> ${j.sa_owner || '-'}</div>`; 
                     break;
                 case 'car_brand': 
@@ -569,7 +569,7 @@ function renderRepairListTable(data) {
                     }
                     cellData = `<div class="px-2 py-1.5"><select onchange="fastUpdateField('${j.id}', 'job_status', this.value)" class="inline-edit-select text-[#00320D] font-bold text-sm">${safeOpts}</select></div>`; 
                     break;
-                case 'department_routing': // 🌟 โค้ด Dropdown สำหรับส่งต่อแผนก
+                case 'department_routing': 
                     const routingOptions = ['ซ่อม', 'บริการ', 'อะไหล่', 'บัญชี', 'รอดำเนินการ'];
                     let routingHtml = routingOptions.map(r => `<option value="${r}" ${j.department_routing === r ? 'selected' : ''}>${r}</option>`).join('');
                     cellData = `<div class="px-2 py-1.5"><select onchange="fastUpdateField('${j.id}', 'department_routing', this.value)" class="inline-edit-select text-indigo-700 font-bold bg-indigo-50 border-indigo-200 hover:bg-indigo-100 text-sm">${routingHtml}</select></div>`; 
@@ -577,6 +577,7 @@ function renderRepairListTable(data) {
                 case 'repair_notes': 
                     cellData = `<div class="px-2 py-1.5 w-full"><input type="text" value="${j.repair_notes || ''}" placeholder="-" onchange="fastUpdateField('${j.id}', 'repair_notes', this.value)" class="inline-edit-input text-left w-full text-base"></div>`;
                     break;
+            
             }
             rowHtml += `<td>${cellData}</td>`;
         allRowsHtml += rowHtml;
