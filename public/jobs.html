@@ -741,26 +741,28 @@
         function renderSAParkedCars(jobs) {
             const tbody = document.getElementById('sa_parked_body'); 
             
-            // 🌟 กรองเฉพาะ "รถที่จอดในศูนย์" (ดูจากช่อง is_parked หรือ สถานะงาน)
-            const parkedStatuses = [
-                "08.นัดหมายแล้วรอเข้าซ่อม", "09.จอดรอเข้าซ่อม", "10.กำลังซ่อม", "11.รถซ่อมเสร็จรอส่งมอบ", 
-                "20.จอดซ่อม TC", "21.พักซ่อม"
+            // 🌟 กำหนดสถานะที่ถือว่า "กำลังดำเนินการ" (01-12)
+            const activeProcessStatuses = [
+                '01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ', 
+                '04.รอลูกค้าอนุมัติ (เงินสด)', '05.อนุมัติแล้ว', '06.สั่งอะไหล่', 
+                '07.รอนัดหมายเข้าซ่อม', '08.นัดหมายแล้วรอเข้าซ่อม', '09.จอดรอเข้าซ่อม', 
+                '10.กำลังซ่อม', '11.รถซ่อมเสร็จรอส่งมอบ', '12.ส่งมอบ'
             ];
             
+            // 🌟 กรองเฉพาะรถที่อยู่ในสถานะ 01-12 
             const parkedCars = jobs.filter(j => {
                 const st = j.job_status || '';
-                const isStatusParked = parkedStatuses.some(p => st.includes(p) || p.includes(st));
-                return j.is_parked === 'จอดซ่อม' || isStatusParked;
+                return activeProcessStatuses.some(p => st.includes(p));
             }); 
 
             document.getElementById('count_parked').innerText = parkedCars.length;
             if(parkedCars.length === 0) { 
-                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีรถจอดซ่อมในศูนย์</td></tr>`; 
+                tbody.innerHTML = `<tr><td colspan="11" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีรถกำลังดำเนินการในศูนย์</td></tr>`; 
                 return; 
             }
 
             const today = new Date(); today.setHours(0,0,0,0); 
-            parkedCars.sort((a,b) => new Date(a.arrived_date) - new Date(b.arrived_date)); 
+            parkedCars.sort((a,b) => new Date(a.arrived_date || 0) - new Date(b.arrived_date || 0)); 
 
             tbody.innerHTML = parkedCars.map(j => {
                 const arrDateStr = j.arrived_date ? String(j.arrived_date).split('T')[0] : '-';
@@ -776,6 +778,14 @@
                 if(!safeOpts.includes(`value="${safeStatus}"`)) safeOpts = `<option value="${safeStatus}">${safeStatus}</option>` + safeOpts;
                 safeOpts = safeOpts.replace(`value="${safeStatus}"`, `value="${safeStatus}" selected`);
 
+                let routingOpts = `
+                    <option value="บริการ" ${j.department_routing === 'บริการ' ? 'selected' : ''}>บริการ (SA)</option>
+                    <option value="ซ่อม" ${j.department_routing === 'ซ่อม' ? 'selected' : ''}>ซ่อม (Repair)</option>
+                    <option value="อะไหล่" ${j.department_routing === 'อะไหล่' ? 'selected' : ''}>อะไหล่ (Parts)</option>
+                    <option value="บัญชี" ${j.department_routing === 'บัญชี' ? 'selected' : ''}>บัญชี</option>
+                    <option value="รอดำเนินการ" ${j.department_routing === 'รอดำเนินการ' ? 'selected' : ''}>รอดำเนินการ</option>
+                `;
+
                 let parkedOpts = `<option value="จอดซ่อม" ${j.is_parked === 'จอดซ่อม' ? 'selected' : ''}>จอดซ่อม</option><option value="ไม่จอดซ่อม" ${j.is_parked !== 'จอดซ่อม' ? 'selected' : ''}>ไม่จอดซ่อม</option>`;
 
                 let partsHtml = `<div class="text-[11px] text-blue-700 font-bold whitespace-normal break-words leading-tight py-0.5" title="${j.main_part_name||'-'}"><span class="text-blue-900 font-black">M:</span> ${j.main_part_name||'-'}</div>
@@ -784,9 +794,11 @@
                 return `<tr class="hover:bg-amber-50/50 transition-colors">
                     <td class="text-center"><span class="${dayBadge}">${diffDays}</span></td>
                     <td class="font-black text-rose-600 text-center">${j.car_plate || '-'}</td>
+                    <td class="font-bold text-slate-800 text-[11px]"><i class="fa-solid fa-user-tie text-amber-500 mr-1"></i>${j.sa_owner || '-'}</td>
                     <td class="font-bold text-slate-800">${j.car_brand} <span class="text-slate-500 font-medium text-[10px]">${j.car_model || ''}</span></td>
                     <td class="truncate max-w-[120px] font-medium" title="${j.customer_name}">${j.customer_name || '-'}</td>
                     <td class="px-1"><select onchange="fastUpdateJob('${j.id}', 'job_status', this.value);" class="w-full bg-slate-50 border border-slate-300 rounded px-1 py-1 text-[11px] font-bold text-blue-700 outline-none focus:border-amber-500 cursor-pointer">${safeOpts}</select></td>
+                    <td class="px-1"><select onchange="fastUpdateJob('${j.id}', 'department_routing', this.value);" class="w-full bg-indigo-50 border border-indigo-200 rounded px-1 py-1 text-[11px] font-bold text-indigo-700 outline-none focus:border-indigo-500 cursor-pointer">${routingOpts}</select></td>
                     <td class="px-1"><select onchange="fastUpdateJob('${j.id}', 'is_parked', this.value);" class="w-full bg-amber-50 border border-amber-200 rounded px-1 py-1 text-[11px] font-bold text-amber-700 outline-none focus:border-amber-500 cursor-pointer">${parkedOpts}</select></td>
                     <td class="text-[10px] font-mono leading-tight px-2"><span class="text-slate-500">เข้า:</span> ${arrDateStr}<br><span class="text-amber-600">เป้า:</span> ${tgtDateStr}</td>
                     <td class="px-2">${partsHtml}</td>
