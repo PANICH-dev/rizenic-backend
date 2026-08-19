@@ -46,8 +46,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     userRole = sessionStorage.getItem('emp_role') || '';
-    
-    // 🌟 ดึงข้อมูลจาก branch_name ก่อนเป็นอันดับแรก (ตามโครงสร้างใหม่) 🌟
     userBranch = sessionStorage.getItem('branch_name') || sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
 
     const rStr = String(userRole).toLowerCase();
@@ -164,23 +162,54 @@ function applyFilters() {
 }
 
 function isDateInRange(dateStr, start, end) {
-    if(!dateStr) return false;
+    if(!dateStr || String(dateStr).trim() === '') return false;
     const dStr = dateStr.split('T')[0];
     if(start && dStr < start) return false;
     if(end && dStr > end) return false;
     return true;
 }
 
+// 🌟 อัปเดต KPI Cards ตามที่ขอ
 function renderKPIs(start, end) {
     const contacted = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end)).length;
-    const arrived = filteredJobs.filter(j => isDateInRange(j.arrived_date, start, end)).length;
-    const repaired = filteredJobs.filter(j => isDateInRange(j.repair_finish_date, start, end)).length;
+    const parked = filteredJobs.filter(j => isDateInRange(j.appointment_date, start, end)).length;
     const delivered = filteredJobs.filter(j => isDateInRange(j.delivery_date, start, end)).length;
+    const billedJobs = filteredJobs.filter(j => isDateInRange(j.billing_date, start, end));
+    const billed = billedJobs.length;
 
     if (document.getElementById('stat_contacted')) document.getElementById('stat_contacted').innerText = contacted;
-    if (document.getElementById('stat_arrived')) document.getElementById('stat_arrived').innerText = arrived;
-    if (document.getElementById('stat_repaired')) document.getElementById('stat_repaired').innerText = repaired;
+    if (document.getElementById('stat_parked')) document.getElementById('stat_parked').innerText = parked;
     if (document.getElementById('stat_delivered')) document.getElementById('stat_delivered').innerText = delivered;
+    if (document.getElementById('stat_billed')) document.getElementById('stat_billed').innerText = billed;
+
+    let sumLabor = 0, sumParts = 0, sumOutsource = 0;
+    billedJobs.forEach(j => {
+        sumLabor += Number(j.cost_labor || j.labor_total || 0);
+        sumParts += Number(j.cost_part || j.part_total || 0);
+        sumOutsource += Number(j.cost_external || j.outsource_total || 0);
+    });
+
+    const formatMoney = (val) => val.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    
+    if (document.getElementById('sum_labor')) document.getElementById('sum_labor').innerText = formatMoney(sumLabor);
+    if (document.getElementById('sum_parts')) document.getElementById('sum_parts').innerText = formatMoney(sumParts);
+    if (document.getElementById('sum_outsource')) document.getElementById('sum_outsource').innerText = formatMoney(sumOutsource);
+}
+
+function openFilteredModal(type) {
+    const start = document.getElementById('dash_start_date').value;
+    const end = document.getElementById('dash_end_date').value;
+    
+    let jobsToShow = []; 
+    let title = "";
+    if(type === 'contacted') { jobsToShow = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end)); title = "1. รถเข้ามาที่ศูนย์"; }
+    if(type === 'parked') { jobsToShow = filteredJobs.filter(j => isDateInRange(j.appointment_date, start, end)); title = "2. รถที่เข้ามาจอด"; }
+    if(type === 'delivered') { jobsToShow = filteredJobs.filter(j => isDateInRange(j.delivery_date, start, end)); title = "3. ยอดส่งมอบ"; }
+    if(type === 'billed') { jobsToShow = filteredJobs.filter(j => isDateInRange(j.billing_date, start, end)); title = "4. ยอดปิดบิล"; }
+
+    document.getElementById('modal_status_name').innerText = title;
+    renderJobTableInModalGroupedBySA(jobsToShow);
+    document.getElementById('jobListModal').classList.remove('hidden');
 }
 
 function renderDailyReport() {
@@ -261,32 +290,33 @@ function openReportModal(cat, itemIdx) {
     document.getElementById('jobListModal').classList.remove('hidden');
 }
 
-function openFilteredModal(type) {
-    const start = document.getElementById('dash_start_date').value;
-    const end = document.getElementById('dash_end_date').value;
-    
-    let jobsToShow = []; 
-    let title = "";
-    if(type === 'contacted') { jobsToShow = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end)); title = "1. ติดต่อสอบถาม"; }
-    if(type === 'arrived') { jobsToShow = filteredJobs.filter(j => isDateInRange(j.arrived_date, start, end)); title = "2. รถเข้าจอดอู่"; }
-    if(type === 'finished') { jobsToShow = filteredJobs.filter(j => isDateInRange(j.repair_finish_date, start, end)); title = "4. ซ่อมเสร็จจริง"; }
-    if(type === 'delivered') { jobsToShow = filteredJobs.filter(j => isDateInRange(j.delivery_date, start, end)); title = "5. ส่งมอบรถลูกค้า"; }
-
-    document.getElementById('modal_status_name').innerText = title;
-    renderJobTableInModalGroupedBySA(jobsToShow);
-    document.getElementById('jobListModal').classList.remove('hidden');
-}
-
+// 🌟 ปรับปรุงการนับยอดกราฟแท่งสถานะ 01-21 ตรงตามที่ระบุ
 function renderStatusChart() {
+    const targetStatuses = [
+        '01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ', 
+        '04.รอลูกค้าอนุมัติ (เงินสด)', '05.อนุมัติแล้ว', '06.สั่งอะไหล่', 
+        '07.รอนัดหมายเข้าซ่อม', '08.นัดหมายแล้วรอเข้าซ่อม', '09.จอดรอเข้าซ่อม', 
+        '10.กำลังซ่อม', '11.รถซ่อมเสร็จรอส่งมอบ', '12.ส่งมอบ', 
+        '13.วางบิลประกัน', '14.ชำระเงินสด', '15.วางบิล Tesla', 
+        '16.วางบิล EV ME', '17.รอออกบิล', '18.ลูกค้ายกเลิก', 
+        '19.ออกบิลแล้ว', '20.จอดซ่อม TC', '21.พักซ่อม'
+    ];
+    
     const statusCounts = {};
-    allStatuses.forEach(s => statusCounts[s.status_name] = 0);
+    targetStatuses.forEach(s => statusCounts[s] = 0);
+
     filteredJobs.forEach(job => {
-        const st = job.job_status || "ไม่ระบุสถานะ";
-        if(statusCounts[st] !== undefined) statusCounts[st]++;
-        else statusCounts[st] = 1;
+        const st = (job.job_status || "").trim();
+        // ไม่เอา "ปิดงานแล้ว"
+        if (!st.includes('ปิดงานแล้ว')) {
+            const matchedStatus = targetStatuses.find(t => st === t || st.includes(t));
+            if (matchedStatus) {
+                statusCounts[matchedStatus]++;
+            }
+        }
     });
 
-    const labels = Object.keys(statusCounts).sort();
+    const labels = targetStatuses;
     const data = labels.map(l => statusCounts[l]);
 
     if (statusChartInstance) statusChartInstance.destroy();
@@ -294,21 +324,26 @@ function renderStatusChart() {
     statusChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: labels.map(l => l.substring(3)), 
+            labels: labels.map(l => l.replace(/^[0-9]+\./, '')), 
             datasets: [{ label: 'จำนวน (คัน)', data: data, backgroundColor: '#00320D', borderRadius: 4, barPercentage: 0.6, hoverBackgroundColor: '#f59e0b' }]
         },
         options: { 
             responsive: true, maintainAspectRatio: false, 
             plugins: { 
                 legend: { display: false },
-                datalabels: { color: '#ffffff', font: { family: 'Kanit', weight: 'bold', size: 10 }, anchor: 'end', align: 'bottom' }
+                datalabels: { 
+                    color: '#ffffff', 
+                    font: { family: 'Kanit', weight: 'bold', size: 10 }, 
+                    anchor: 'end', 
+                    align: 'bottom',
+                    formatter: (val) => val > 0 ? val : '' 
+                }
             }, 
-            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { grid: { display: false } } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { grid: { display: false }, ticks: { font: { size: 9 } } } },
             onClick: (evt, elements) => {
                 if(elements.length > 0) {
                     const index = elements[0].index;
-                    const fullStatusName = labels[index];
-                    openStatusModal(fullStatusName);
+                    openStatusModal(labels[index]);
                 }
             }
         }
@@ -316,8 +351,12 @@ function renderStatusChart() {
 }
 
 function openStatusModal(statusName) {
-    document.getElementById('modal_status_name').innerText = statusName;
-    const jobsToShow = filteredJobs.filter(j => (j.job_status || "ไม่ระบุสถานะ") === statusName);
+    document.getElementById('modal_status_name').innerText = `รายการ: ${statusName.replace(/^[0-9]+\./, '')}`;
+    const jobsToShow = filteredJobs.filter(job => {
+        const st = (job.job_status || "").trim();
+        return (st === statusName || st.includes(statusName)) && !st.includes('ปิดงานแล้ว');
+    });
+
     renderJobTableInModalGroupedBySA(jobsToShow);
     document.getElementById('jobListModal').classList.remove('hidden');
 }
@@ -657,7 +696,6 @@ function renderCalendarByRange(startDate, endDate) {
     while(currentDay <= end) {
         const dateStr = `${currentDay.getFullYear()}-${String(currentDay.getMonth()+1).padStart(2,'0')}-${String(currentDay.getDate()).padStart(2,'0')}`;
         
-        // กรองรถเข้าตามสาขา (filteredJobs ถูกกรองสาขามาแล้วจาก applyFilters)
         const arrived = filteredJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr);
         const target = filteredJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr);
         const delivery = filteredJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr);
