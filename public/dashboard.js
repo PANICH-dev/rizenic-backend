@@ -12,6 +12,7 @@ let globalStatusOptionsHtml = '';
 let statusChartInstance = null;
 let insuranceChartInstance = null;
 let financeChartInstance = null;
+let paymentChartInstance = null; // 🌟 เพิ่มตัวแปรสำหรับกราฟ Payment Type
 
 let userRole = '';
 let userBranch = '';
@@ -150,6 +151,7 @@ function applyFilters() {
     renderDailyReport(); 
     renderStatusChart();
     renderInsuranceChart();
+    renderPaymentChart(); // 🌟 เพิ่มเรนเดอร์กราฟ Payment Type
     renderFinanceChart(startDate, endDate);
     renderSASection();
     renderStationSection();
@@ -169,13 +171,24 @@ function isDateInRange(dateStr, start, end) {
     return true;
 }
 
-// 🌟 อัปเดต KPI Cards ตามที่ขอ
+// 🌟 อัปเดต KPI ยอดส่งมอบให้เช็คสถานะเฉพาะตามที่ระบุ
 function renderKPIs(start, end) {
     const contacted = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end)).length;
     const parked = filteredJobs.filter(j => isDateInRange(j.appointment_date, start, end)).length;
-    const delivered = filteredJobs.filter(j => isDateInRange(j.delivery_date, start, end)).length;
     const billedJobs = filteredJobs.filter(j => isDateInRange(j.billing_date, start, end));
     const billed = billedJobs.length;
+
+    // 🌟 ยอดส่งมอบ: เช็ค delivery_date และ สถานะต้องตรงกับที่กำหนด
+    const deliveredStatuses = [
+        '12.ส่งมอบ', '13.วางบิลประกัน', '14.ชำระเงินสด', 
+        '15.วางบิล Tesla', '16.วางบิล EV ME', '17.รอออกบิล', '19.ออกบิลแล้ว'
+    ];
+    
+    const delivered = filteredJobs.filter(j => {
+        const st = j.job_status || '';
+        const hasStatus = deliveredStatuses.some(ds => st.includes(ds));
+        return isDateInRange(j.delivery_date, start, end) && hasStatus;
+    }).length;
 
     if (document.getElementById('stat_contacted')) document.getElementById('stat_contacted').innerText = contacted;
     if (document.getElementById('stat_parked')) document.getElementById('stat_parked').innerText = parked;
@@ -204,7 +217,15 @@ function openFilteredModal(type) {
     let title = "";
     if(type === 'contacted') { jobsToShow = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end)); title = "1. รถเข้ามาที่ศูนย์"; }
     if(type === 'parked') { jobsToShow = filteredJobs.filter(j => isDateInRange(j.appointment_date, start, end)); title = "2. รถที่เข้ามาจอด"; }
-    if(type === 'delivered') { jobsToShow = filteredJobs.filter(j => isDateInRange(j.delivery_date, start, end)); title = "3. ยอดส่งมอบ"; }
+    if(type === 'delivered') { 
+        const deliveredStatuses = ['12.ส่งมอบ', '13.วางบิลประกัน', '14.ชำระเงินสด', '15.วางบิล Tesla', '16.วางบิล EV ME', '17.รอออกบิล', '19.ออกบิลแล้ว'];
+        jobsToShow = filteredJobs.filter(j => {
+            const st = j.job_status || '';
+            const hasStatus = deliveredStatuses.some(ds => st.includes(ds));
+            return isDateInRange(j.delivery_date, start, end) && hasStatus;
+        });
+        title = "3. ยอดส่งมอบ (ตามสถานะและวันที่)"; 
+    }
     if(type === 'billed') { jobsToShow = filteredJobs.filter(j => isDateInRange(j.billing_date, start, end)); title = "4. ยอดปิดบิล"; }
 
     document.getElementById('modal_status_name').innerText = title;
@@ -290,16 +311,16 @@ function openReportModal(cat, itemIdx) {
     document.getElementById('jobListModal').classList.remove('hidden');
 }
 
-// 🌟 ปรับปรุงการนับยอดกราฟแท่งสถานะ 01-21 ตรงตามที่ระบุ
+// 🌟 ปรับปรุงการนับยอดและจัดเรียงลำดับสถานะ (เอา 17.รอออกบิล มาต่อ 12.ส่งมอบ)
 function renderStatusChart() {
     const targetStatuses = [
         '01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ', 
         '04.รอลูกค้าอนุมัติ (เงินสด)', '05.อนุมัติแล้ว', '06.สั่งอะไหล่', 
         '07.รอนัดหมายเข้าซ่อม', '08.นัดหมายแล้วรอเข้าซ่อม', '09.จอดรอเข้าซ่อม', 
-        '10.กำลังซ่อม', '11.รถซ่อมเสร็จรอส่งมอบ', '12.ส่งมอบ', 
+        '10.กำลังซ่อม', '11.รถซ่อมเสร็จรอส่งมอบ', 
+        '12.ส่งมอบ', '17.รอออกบิล', '19.ออกบิลแล้ว', 
         '13.วางบิลประกัน', '14.ชำระเงินสด', '15.วางบิล Tesla', 
-        '16.วางบิล EV ME', '17.รอออกบิล', '18.ลูกค้ายกเลิก', 
-        '19.ออกบิลแล้ว', '20.จอดซ่อม TC', '21.พักซ่อม'
+        '16.วางบิล EV ME', '18.ลูกค้ายกเลิก', '20.จอดซ่อม TC', '21.พักซ่อม'
     ];
     
     const statusCounts = {};
@@ -307,7 +328,6 @@ function renderStatusChart() {
 
     filteredJobs.forEach(job => {
         const st = (job.job_status || "").trim();
-        // ไม่เอา "ปิดงานแล้ว"
         if (!st.includes('ปิดงานแล้ว')) {
             const matchedStatus = targetStatuses.find(t => st === t || st.includes(t));
             if (matchedStatus) {
@@ -378,6 +398,45 @@ function renderInsuranceChart() {
     if (insuranceChartInstance) insuranceChartInstance.destroy();
     const ctx = document.getElementById('insuranceChart').getContext('2d');
     insuranceChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{ data: data, backgroundColor: colors, borderWidth: 0, hoverOffset: 8 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '60%',
+            plugins: { 
+                legend: { position: 'right', labels: { font: { family: 'Kanit', size: 10 } } },
+                datalabels: { 
+                    color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 12 },
+                    formatter: (val) => val > 0 ? val : ''
+                }
+            }
+        }
+    });
+}
+
+// 🌟 เพิ่มฟังก์ชันกราฟโดนัท Payment Type
+function renderPaymentChart() {
+    const paymentTypes = {};
+    filteredJobs.forEach(j => {
+        const type = (j.payment_type || 'ไม่ระบุ').trim();
+        if(paymentTypes[type] !== undefined) paymentTypes[type]++;
+        else paymentTypes[type] = 1;
+    });
+
+    const sortedTypes = Object.entries(paymentTypes).sort((a,b) => b[1] - a[1]);
+    const labels = sortedTypes.map(i => i[0]);
+    const data = sortedTypes.map(i => i[1]);
+
+    const colors = ['#f43f5e', '#8b5cf6', '#10b981', '#f59e0b', '#3b82f6', '#ec4899', '#06b6d4', '#64748b'];
+
+    const canvas = document.getElementById('paymentChart');
+    if (!canvas) return;
+
+    if (paymentChartInstance) paymentChartInstance.destroy();
+    const ctx = canvas.getContext('2d');
+    paymentChartInstance = new Chart(ctx, {
         type: 'doughnut',
         data: {
             labels: labels,
@@ -474,7 +533,7 @@ function computeHighestStationIFS(j) {
 function renderStationSection() {
     const stCounts = { "01.เคาะ":0, "02.โป๊ว":0, "03.เตรียมพื้น":0, "04.พ่นสี":0, "05.ประกอบ":0, "06.ขัดสี":0, "08.เก็บงาน":0, "09.ซ่อมแม็ก":0, "10.กระจก":0, "11.ฟิล์ม":0, "12.พักซ่อม":0, "13.รอส่งมอบ":0, "รอรับรถ":0 };
     
-    filteredJobs.filter(j => j.job_status !== '12.ส่งมอบแล้ว').forEach(j => {
+    filteredJobs.filter(j => !j.job_status?.includes('ส่งมอบแล้ว')).forEach(j => {
         const s = computeHighestStationIFS(j);
         if(stCounts[s] !== undefined) stCounts[s]++;
     });
@@ -490,7 +549,7 @@ function renderStationSection() {
 
 function openStationModal(stationName) {
     document.getElementById('modal_status_name').innerText = `สถานีช่าง: ${stationName}`;
-    const jobsToShow = filteredJobs.filter(j => j.job_status !== '12.ส่งมอบแล้ว' && computeHighestStationIFS(j) === stationName);
+    const jobsToShow = filteredJobs.filter(j => !j.job_status?.includes('ส่งมอบแล้ว') && computeHighestStationIFS(j) === stationName);
     renderJobTableInModalGroupedBySA(jobsToShow);
     document.getElementById('jobListModal').classList.remove('hidden');
 }
