@@ -6,7 +6,6 @@ let smartExcelValidPayload = []; // ตัวแปรเก็บข้อม�
 
 // 1. ฟังก์ชันเปิด Modal (บังคับให้เริ่มที่หน้าโยนไฟล์เสมอ)
 function openSmartExcelUpload() {
-    // ซ่อนหน้าตารางพรีวิว และปุ่มบันทึก
     const previewZone = document.getElementById('excel_preview_zone');
     const btnSubmit = document.getElementById('btn_submit_smart_excel');
     const uploadZone = document.getElementById('excel_upload_zone');
@@ -15,7 +14,6 @@ function openSmartExcelUpload() {
     if(btnSubmit) { btnSubmit.classList.add('hidden'); btnSubmit.classList.remove('flex'); }
     if(uploadZone) { uploadZone.classList.remove('hidden'); uploadZone.classList.add('flex'); }
     
-    // เคลียร์ไฟล์เก่าและตาราง
     const fileInput = document.getElementById('excel_file_input');
     if(fileInput) fileInput.value = ""; 
     
@@ -23,7 +21,6 @@ function openSmartExcelUpload() {
     if(tbody) tbody.innerHTML = "";
     smartExcelValidPayload = [];
 
-    // แสดง Modal
     const modal = document.getElementById('smartExcelModal');
     if(modal) {
         modal.classList.remove('hidden');
@@ -41,20 +38,23 @@ function closeSmartExcelUpload() {
     smartExcelValidPayload = [];
 }
 
-// 3. ฟังก์ชันอ่านไฟล์ Excel (ใช้ ArrayBuffer มาตรฐานใหม่)
+// 3. ฟังก์ชันอ่านไฟล์ Excel
 function processSmartExcel(e) {
-    const file = e.target.files[0];
+    const file = e.target.files ? e.target.files[0] : (e.dataTransfer ? e.target.files[0] : null);
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = function(evt) {
         try {
             const data = new Uint8Array(evt.target.result);
+            if (typeof XLSX === 'undefined') {
+                alert('❌ ไม่พบไลบรารี XLSX กรุณารีเฟรชหน้าเว็บแล้วลองใหม่อีกครั้ง');
+                return;
+            }
             const workbook = XLSX.read(data, { type: 'array' });
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
             
-            // แปลงข้อมูลเป็น Array แบบข้ามแถวว่างอัตโนมัติ
             const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
             validateExcelData(rawData);
         } catch(err) {
@@ -87,9 +87,9 @@ function validateExcelData(dataRows) {
         if(!row || row.length === 0) continue;
         
         const partNo = String(row[0] || '').trim().toUpperCase();
-        if(!partNo) continue; // ข้ามแถวว่าง
+        if(!partNo) continue;
 
-        // ตรวจจับข้ามหัวตาราง (ถ้าพิมพ์คำว่า Part / บาร์โค้ด / หมายเลข / รหัส)
+        // ข้ามหัวตารางอัตโนมัติ
         if(i === 0 && (partNo.includes('PART') || partNo.includes('บาร์โค้ด') || partNo.includes('หมายเลข') || partNo.includes('รหัส') || partNo === 'NO')) {
             continue;
         }
@@ -97,7 +97,6 @@ function validateExcelData(dataRows) {
         const qty = parseInt(row[1]) || 1;
         const price = parseFloat(row[2]) || 0;
 
-        // ค้นหาใน Master Parts Cache
         const masterCache = (typeof allMasterPartsCache !== 'undefined' && Array.isArray(allMasterPartsCache)) ? allMasterPartsCache : [];
         const masterMatch = masterCache.find(m => m.part_no && m.part_no.toUpperCase() === partNo);
         
@@ -143,7 +142,6 @@ function validateExcelData(dataRows) {
     if(readyEl) readyEl.innerText = readyCount;
     if(errorEl) errorEl.innerText = errorCount;
 
-    // สลับหน้าแสดงผลตาราง
     const uploadZone = document.getElementById('excel_upload_zone');
     const previewZone = document.getElementById('excel_preview_zone');
     const btnSubmit = document.getElementById('btn_submit_smart_excel');
@@ -193,22 +191,38 @@ async function submitSmartExcel() {
     }
 }
 
-// 6. ทำให้โซนอัปโหลดคลิกเพื่อเรียกไฟล์ได้
+// 6. ตั้งค่าการคลิกและการลากวางไฟล์ (Drag & Drop)
 function initUploadZone() {
     const uploadZone = document.getElementById('excel_upload_zone');
-    if (uploadZone) {
-        // ใช้ onclick แทน addEventListener เพื่อกันการผูก Event ซ้ำ
-        uploadZone.onclick = function(e) {
-            // เช็คว่าไม่ได้คลิกที่ตัว input เอง
-            if (e.target.id !== 'excel_file_input') {
-                const input = document.getElementById('excel_file_input');
-                if(input) input.click();
-            }
-        };
-    }
+    const fileInput = document.getElementById('excel_file_input');
+    if (!uploadZone || !fileInput) return;
+
+    uploadZone.onclick = function(e) {
+        if (e.target !== fileInput) {
+            fileInput.click();
+        }
+    };
+
+    uploadZone.ondragover = function(e) {
+        e.preventDefault();
+        uploadZone.classList.add('bg-indigo-50');
+    };
+
+    uploadZone.ondragleave = function(e) {
+        e.preventDefault();
+        uploadZone.classList.remove('bg-indigo-50');
+    };
+
+    uploadZone.ondrop = function(e) {
+        e.preventDefault();
+        uploadZone.classList.remove('bg-indigo-50');
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            fileInput.files = e.dataTransfer.files;
+            processSmartExcel({ target: { files: e.dataTransfer.files } });
+        }
+    };
 }
 
-// ผูก Event รอให้ HTML โหลดเสร็จ
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initUploadZone);
 } else {
