@@ -186,46 +186,84 @@
             </div>
 
             <!-- สถานะค้าง & ปิดบิล -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- 🌟 กล่อง Active Jobs ย่อส่วนลงมาให้พื้นที่กับกล่องการเงิน -->
+                <div class="lg:col-span-7 bg-white rounded-xl shadow-sm border border-slate-200 p-5">
                     <h3 class="font-black text-slate-800 mb-4 border-b pb-2"><i class="fa-solid fa-chart-pie text-purple-500"></i> สรุปงานค้างแยกตามสถานะ (Active Jobs)</h3>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3" id="sa_status_grid"></div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="sa_status_grid"></div>
                 </div>
                 
-                <!-- 🌟 แยกกล่อง รอปิดบิล และ ปิดบิลแล้ว 🌟 -->
-                <div class="grid grid-cols-2 gap-3">
-                    <div class="bg-amber-50 rounded-xl shadow-sm border border-amber-200 p-4 flex flex-col justify-center items-center cursor-pointer hover:bg-amber-100 transition" onclick="openSAFilteredModal('WaitBill')">
-                        <i class="fa-solid fa-file-invoice text-4xl text-amber-300 mb-2"></i>
-                        <h3 class="text-amber-800 font-bold text-sm text-center">รอปิดบิล<br><span class="text-[10px] text-amber-600" id="waitbill_month_label">(ประจำเดือน -)</span></h3>
-                        <span class="text-4xl font-black text-amber-600 mt-1" id="sa_waitbill_count">0</span>
+                <!-- 🌟 แยกกล่อง รอปิดบิล และ ปิดบิลแล้ว + สรุปยอดเงิน 🌟 -->
+                <div class="lg:col-span-5 grid grid-cols-1 gap-4">
+                    <!-- กล่องรอปิดบิล -->
+                    <div class="bg-amber-50 rounded-xl shadow-sm border border-amber-200 p-4 flex justify-between items-center cursor-pointer hover:bg-amber-100 transition" onclick="openSAFilteredModal('WaitBill')">
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-file-invoice text-3xl text-amber-400"></i>
+                            <div>
+                                <h3 class="text-amber-800 font-bold text-sm">รถรอปิดบิล</h3>
+                                <span class="text-[10px] text-amber-600" id="waitbill_month_label">(ประจำเดือน -)</span>
+                            </div>
+                        </div>
+                        <span class="text-3xl font-black text-amber-600" id="sa_waitbill_count">0</span>
                     </div>
-                    <div class="bg-emerald-50 rounded-xl shadow-sm border border-emerald-200 p-4 flex flex-col justify-center items-center cursor-pointer hover:bg-emerald-100 transition" onclick="openSAFilteredModal('Billed')">
-                        <i class="fa-solid fa-file-invoice-dollar text-4xl text-emerald-300 mb-2"></i>
-                        <h3 class="text-emerald-800 font-bold text-sm text-center">ปิดบิลแล้ว<br><span class="text-[10px] text-emerald-600" id="billed_month_label">(ประจำเดือน -)</span></h3>
-                        <span class="text-4xl font-black text-emerald-600 mt-1" id="sa_billed_count">0</span>
+                    
+                    <!-- กล่องปิดบิลแล้ว + สรุปรายการ -->
+                    <div class="bg-emerald-50 rounded-xl shadow-sm border border-emerald-200 p-4 cursor-pointer hover:bg-emerald-100 transition flex flex-col justify-center" onclick="openSAFilteredModal('Billed')">
+                        <div class="flex justify-between items-center mb-3">
+                            <div class="flex items-center gap-3">
+                                <i class="fa-solid fa-file-invoice-dollar text-3xl text-emerald-400"></i>
+                                <div>
+                                    <h3 class="text-emerald-800 font-bold text-sm">ปิดบิลแล้ว</h3>
+                                    <span class="text-[10px] text-emerald-600" id="billed_month_label">(ประจำเดือน -)</span>
+                                </div>
+                            </div>
+                            <span class="text-3xl font-black text-emerald-600" id="sa_billed_count">0</span>
+                        </div>
+                        
+                        <!-- 🌟 สรุปสถิติ 🌟 -->
+                        <div class="grid grid-cols-4 gap-2 text-center border-t border-emerald-200/60 pt-3">
+                            <div>
+                                <p class="text-[10px] text-emerald-700 font-bold mb-0.5">ชิ้น(หลัก/รอง)</p>
+                                <p class="text-sm font-black text-slate-700"><span id="sum_main_parts" class="text-blue-600">0</span> / <span id="sum_sub_parts" class="text-amber-600">0</span></p>
+                            </div>
+                            <div class="border-l border-emerald-200/60">
+                                <p class="text-[10px] text-emerald-700 font-bold mb-0.5">ค่าแรง</p>
+                                <p class="text-sm font-black text-emerald-700" id="sum_labor">0</p>
+                            </div>
+                            <div class="border-l border-emerald-200/60">
+                                <p class="text-[10px] text-emerald-700 font-bold mb-0.5">ค่าอะไหล่</p>
+                                <p class="text-sm font-black text-purple-600" id="sum_parts">0</p>
+                            </div>
+                            <div class="border-l border-emerald-200/60">
+                                <p class="text-[10px] text-emerald-700 font-bold mb-0.5">งานนอก</p>
+                                <p class="text-sm font-black text-orange-600" id="sum_outsource">0</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-
             </div>
 
             <!-- 🌟 รถจอดซ่อม -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[380px]">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[400px]">
                 <div class="bg-slate-50 px-5 py-3.5 border-b border-slate-200 flex justify-between items-center">
                     <h3 class="font-black text-[#00320D]"><i class="fa-solid fa-car text-amber-500"></i> รายการรถกำลังจอดซ่อมในศูนย์</h3>
                     <span class="bg-slate-200 text-slate-600 text-xs px-2 py-1 rounded font-bold">ยอดรวม: <span id="count_parked">0</span> คัน</span>
                 </div>
                 <div class="flex-1 overflow-auto custom-scrollbar p-1.5 bg-slate-100">
                     <table class="excel-table-green" id="parkedTable">
+                        <!-- 🌟 แก้ไข: จัดคอลัมน์ให้ตรงเป๊ะกับข้อมูล Javascript 11 คอลัมน์ 🌟 -->
                         <thead>
                             <tr>
-                                <th style="width: 75px;">จอด(วัน)<div class="resizer-green"></div></th>
-                                <th style="width: 100px;">ทะเบียน<div class="resizer-green"></div></th>
-                                <th style="width: 130px;">ยี่ห้อ/รุ่น<div class="resizer-green"></div></th>
-                                <th style="width: 130px;">ลูกค้า<div class="resizer-green"></div></th>
-                                <th style="width: 160px;">อัปเดตสถานะงาน<div class="resizer-green"></div></th>
-                                <th style="width: 100px;">สถานะจอด<div class="resizer-green"></div></th>
-                                <th style="width: 120px;">วันที่(เข้า/เป้า)<div class="resizer-green"></div></th>
-                                <th style="width: 220px;">ชิ้นส่วน(หลัก/รอง)<div class="resizer-green"></div></th>
+                                <th style="width: 60px;">จอด(วัน)<div class="resizer-green"></div></th>
+                                <th style="width: 90px;">ทะเบียน<div class="resizer-green"></div></th>
+                                <th style="width: 90px;">SA<div class="resizer-green"></div></th>
+                                <th style="width: 140px;">ยี่ห้อ/รุ่น<div class="resizer-green"></div></th>
+                                <th style="width: 140px;">ลูกค้า<div class="resizer-green"></div></th>
+                                <th style="width: 130px;">สถานะ ERP<div class="resizer-green"></div></th>
+                                <th style="width: 110px;">ส่งต่อ<div class="resizer-green"></div></th>
+                                <th style="width: 90px;">สถานะจอด<div class="resizer-green"></div></th>
+                                <th style="width: 110px;">วันที่(เข้า/เป้า)<div class="resizer-green"></div></th>
+                                <th style="width: 200px;">ชิ้นส่วน(หลัก/รอง)<div class="resizer-green"></div></th>
                                 <th style="width: 50px;">ตาราง</th>
                             </tr>
                         </thead>
@@ -627,11 +665,19 @@
             document.getElementById('jobListModal').classList.remove('hidden');
         }
 
+        // 🌟 ฟังก์ชันคำนวณและอัปเดตยอดรวมการเงิน (แสดงบนแผงบอร์ดหน้า SA) 🌟
         function updateBilledCount(jobs) {
             const fMonth = document.getElementById('sa_cal_month').value;
             const fYear = document.getElementById('sa_cal_year').value;
+            
             let billedCount = 0;
             let waitBillCount = 0;
+            
+            let sumMain = 0;
+            let sumSub = 0;
+            let sumLabor = 0;
+            let sumParts = 0;
+            let sumOutsource = 0;
             
             jobs.forEach(job => {
                 const st = job.job_status || "";
@@ -648,7 +694,19 @@
                 // 2. ปิดบิลแล้ว (ชำระเงินสด, ออกบิลแล้ว, วางบิลประกัน) + ต้องมีวันที่ออกบิล
                 if ((st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิลประกัน')) && job.billing_date) {
                     const d = new Date(job.billing_date);
-                    if (String(d.getMonth() + 1).padStart(2, '0') === fMonth && String(d.getFullYear()) === fYear) billedCount++;
+                    if (String(d.getMonth() + 1).padStart(2, '0') === fMonth && String(d.getFullYear()) === fYear) {
+                        billedCount++;
+                        
+                        // คำนวณชิ้นส่วนและค่าใช้จ่ายของรถที่ปิดบิลแล้ว
+                        const mQty = Number(job.main_part_qty) || (job.main_part_name ? job.main_part_name.split(',').filter(Boolean).length : 0);
+                        const sQty = Number(job.sub_part_qty) || (job.sub_part_name ? job.sub_part_name.split(',').filter(Boolean).length : 0);
+                        
+                        sumMain += mQty;
+                        sumSub += sQty;
+                        sumLabor += Number(job.cost_labor || job.labor_total || 0);
+                        sumParts += Number(job.cost_part || job.part_total || 0);
+                        sumOutsource += Number(job.cost_external || job.outsource_total || 0);
+                    }
                 }
             });
             
@@ -656,6 +714,15 @@
             document.getElementById('sa_billed_count').innerText = billedCount;
             document.getElementById('waitbill_month_label').innerText = `(เดือน ${fMonth}/${fYear})`;
             document.getElementById('billed_month_label').innerText = `(เดือน ${fMonth}/${fYear})`;
+
+            // อัปเดตสถิติลงหน้าจอ
+            const formatMoney = (val) => val.toLocaleString('th-TH', {minimumFractionDigits: 0, maximumFractionDigits: 2});
+            
+            document.getElementById('sum_main_parts').innerText = sumMain;
+            document.getElementById('sum_sub_parts').innerText = sumSub;
+            document.getElementById('sum_labor').innerText = formatMoney(sumLabor);
+            document.getElementById('sum_parts').innerText = formatMoney(sumParts);
+            document.getElementById('sum_outsource').innerText = formatMoney(sumOutsource);
         }
 
         function renderSAStatuses(jobs) {
@@ -722,7 +789,7 @@
         function renderSAParkedCars(jobs) {
             const tbody = document.getElementById('sa_parked_body'); 
             
-            // 🌟 กรองเฉพาะรถที่ "จอดซ่อม" และยังไม่หลุดลูป 01-12 จริงๆ 🌟
+            // กรองเฉพาะรถที่ "จอดซ่อม" และยังไม่หลุดลูป 01-12 จริงๆ
             const parkedCars = jobs.filter(j => {
                 const st = j.job_status || '';
                 return j.is_parked === 'จอดซ่อม' && activeProcessStatuses.some(p => st.includes(p));
@@ -846,7 +913,6 @@
             window.location.href = 'jobs_table.html';
         }
 
-        // 🌟 แยกส่วนการแสดงตารางให้รองรับหลายรูปแบบ (การเงิน, Overdue, ทั่วไป) 🌟
         function renderJobTableInModal(jobs, viewType = 'general') {
             const thead = document.querySelector('#jobListModal thead tr');
             const tbody = document.getElementById('modal_job_table');
@@ -877,9 +943,9 @@
                         <td class="px-4 py-3 font-bold text-[#00320D]"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded font-mono text-xs shadow-inner whitespace-nowrap">${j.car_plate || '-'}</span></td>
                         <td class="px-4 py-3 font-bold text-slate-800 text-[11px] leading-tight">${j.customer_name || '-'}<br><span class="text-slate-500 font-medium">${j.car_brand} ${j.car_model || ''}</span></td>
                         <td class="px-4 py-3 text-center text-xs font-bold text-slate-700"><span class="text-blue-600">${mainQty}</span> / <span class="text-amber-600">${subQty}</span></td>
-                        <td class="px-4 py-3 text-right text-xs font-mono font-bold text-emerald-600">${formatMoney(j.labor_total || j.labor_cost || 0)}</td>
-                        <td class="px-4 py-3 text-right text-xs font-mono font-bold text-purple-600">${formatMoney(j.part_total || j.part_cost || 0)}</td>
-                        <td class="px-4 py-3 text-right text-xs font-mono font-bold text-orange-600">${formatMoney(j.outsource_total || j.outsource_cost || 0)}</td>
+                        <td class="px-4 py-3 text-right text-xs font-mono font-bold text-emerald-600">${formatMoney(j.cost_labor || j.labor_total || 0)}</td>
+                        <td class="px-4 py-3 text-right text-xs font-mono font-bold text-purple-600">${formatMoney(j.cost_part || j.part_total || 0)}</td>
+                        <td class="px-4 py-3 text-right text-xs font-mono font-bold text-orange-600">${formatMoney(j.cost_external || j.outsource_total || 0)}</td>
                         <td class="px-4 py-3 text-center"><button onclick="event.stopPropagation(); goToEditJob('${j.id}')" class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full whitespace-nowrap"><i class="fa-solid fa-pen"></i> เปิด</button></td>
                     </tr>`;
                 } else if (viewType === 'overdue') {
