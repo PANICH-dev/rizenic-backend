@@ -4,7 +4,7 @@
 
 let smartExcelValidPayload = []; // ตัวแปรเก็บข้อมูลที่พร้อมบันทึก
 
-// 1. ฟังก์ชันเปิด Modal (บังคับให้เริ่มที่หน้าโยนไฟล์เสมอ)
+// 1. ฟังก์ชันเปิด Modal
 function openSmartExcelUpload() {
     const previewZone = document.getElementById('excel_preview_zone');
     const btnSubmit = document.getElementById('btn_submit_smart_excel');
@@ -65,7 +65,7 @@ function processSmartExcel(e) {
     reader.readAsArrayBuffer(file);
 }
 
-// 4. ตรวจสอบข้อมูลเทียบกับ Master
+// 4. ตรวจสอบข้อมูลเทียบกับ Master & PO
 function validateExcelData(dataRows) {
     const tbody = document.getElementById('excel_preview_tbody');
     if(!tbody) return;
@@ -82,36 +82,78 @@ function validateExcelData(dataRows) {
         return;
     }
 
+    const masterCache = (typeof allMasterPartsCache !== 'undefined' && Array.isArray(allMasterPartsCache)) ? allMasterPartsCache : [];
+    const poCache = (typeof allPartOrders !== 'undefined' && Array.isArray(allPartOrders)) ? allPartOrders : [];
+
     for (let i = 0; i < dataRows.length; i++) {
         const row = dataRows[i];
         if(!row || row.length === 0) continue;
         
-        const partNo = String(row[0] || '').trim().toUpperCase();
-        if(!partNo) continue;
+        const col0 = String(row[0] || '').trim().toUpperCase();
+        const col1 = String(row[1] || '').trim().toUpperCase();
 
-        // ข้ามหัวตารางอัตโนมัติ
-        if(i === 0 && (partNo.includes('PART') || partNo.includes('บาร์โค้ด') || partNo.includes('หมายเลข') || partNo.includes('รหัส') || partNo === 'NO')) {
+        // ข้ามแถวหัวตารางอัตโนมัติ
+        if(i === 0 && (col0.includes('EPC') || col0.includes('PART') || col0.includes('บาร์โค้ด') || col0.includes('หมายเลข') || col0.includes('รหัส') || col0 === 'NO')) {
             continue;
         }
 
-        const qty = parseInt(row[1]) || 1;
-        const price = parseFloat(row[2]) || 0;
+        if(!col0 && !col1) continue;
 
-        const masterCache = (typeof allMasterPartsCache !== 'undefined' && Array.isArray(allMasterPartsCache)) ? allMasterPartsCache : [];
+        let epcNo = '';
+        let partNo = '';
+        let qty = 1;
+        let price = 0;
+        let rcvDate = todayStr;
+
+        // เช็กโครงสร้างคอลัมน์ Excel แบบ Smart
+        const isCol0PartInMaster = masterCache.some(m => m.part_no && m.part_no.toUpperCase() === col0);
+
+        if (isCol0PartInMaster) {
+            // โครงสร้างแบบเดิม: [PartNo, Qty, Price, EPC, Date]
+            partNo = col0;
+            qty = parseInt(row[1]) || 1;
+            price = parseFloat(row[2]) || 0;
+            epcNo = String(row[3] || '').trim().toUpperCase();
+            if (row[4] && String(row[4]).trim() !== '') rcvDate = String(row[4]).trim();
+        } else {
+            // โครงสร้างใหม่แบบสเปคศูนย์: [EPC No, Part No, Qty, Price, Date]
+            epcNo = col0;
+            partNo = col1;
+            qty = parseInt(row[2]) || 1;
+            price = parseFloat(row[3]) || 0;
+            if (row[4] && String(row[4]).trim() !== '') rcvDate = String(row[4]).trim();
+        }
+
+        if (!partNo) continue;
+
+        // ค้นหาใน Master Parts
         const masterMatch = masterCache.find(m => m.part_no && m.part_no.toUpperCase() === partNo);
         
+        // ค้นหาการเชื่อมโยงกับตารางสั่งอะไหล่ (PO)
+        const poMatch = poCache.find(p => p.part_no && p.part_no.toUpperCase() === partNo && (epcNo ? p.epc_no === epcNo : true));
+
         let statusHtml = '';
         let trClass = '';
         let displayPartName = '';
+        let poBadge = '';
 
         if (masterMatch) {
-            statusHtml = `<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-black"><i class="fa-solid fa-check"></i> ผ่าน</span>`;
+            statusHtml = `<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-black text-[11px]"><i class="fa-solid fa-check"></i> ผ่าน</span>`;
             trClass = "bg-emerald-50/20";
             displayPartName = masterMatch.part_name;
             readyCount++;
 
+            if (poMatch) {
+                poBadge = `<span class="bg-blue-100 text-blue-800 border border-blue-300 px-2 py-0.5 rounded text-[10px] font-bold"><i class="fa-solid fa-link"></i> เชื่อม PO (${poMatch.car_plate || 'พบรายการ'})</span>`;
+            } else if (epcNo) {
+                poBadge = `<span class="bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded text-[10px] font-bold"><i class="fa-solid fa-circle-info"></i> รับเข้าคลัง (ไม่มี PO)</span>`;
+            } else {
+                poBadge = `<span class="text-slate-400 text-[10px]">-</span>`;
+            }
+
             smartExcelValidPayload.push({
-                received_date: todayStr,
+                received_date: rcvDate,
+                epc_no: epcNo || null,
                 part_no: masterMatch.part_no,
                 part_main_no: masterMatch.part_main_no || null,
                 part_name: masterMatch.part_name,
@@ -120,19 +162,23 @@ function validateExcelData(dataRows) {
                 branch_name: typeof userBranch !== 'undefined' ? userBranch : 'สำนักงานใหญ่'
             });
         } else {
-            statusHtml = `<span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-black"><i class="fa-solid fa-xmark"></i> ไม่มี Master</span>`;
+            statusHtml = `<span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-black text-[11px]"><i class="fa-solid fa-xmark"></i> ไม่มี Master</span>`;
             trClass = "bg-rose-50";
             displayPartName = `<span class="text-rose-500 italic text-[10px]">ไม่พบ Part No นี้ใน Master</span>`;
+            poBadge = `<span class="text-slate-300 text-[10px]">-</span>`;
             errorCount++;
         }
 
         tbody.innerHTML += `
             <tr class="${trClass} border-b border-slate-200">
                 <td class="p-2 border border-slate-200 text-center">${statusHtml}</td>
-                <td class="p-2 border border-slate-200 font-mono font-bold text-slate-800">${partNo}</td>
+                <td class="p-2 border border-slate-200 font-mono font-bold text-amber-700 text-center">${epcNo || '-'}</td>
+                <td class="p-2 border border-slate-200 font-mono font-bold text-blue-700">${partNo}</td>
                 <td class="p-2 border border-slate-200 text-center font-black">${qty}</td>
                 <td class="p-2 border border-slate-200 text-right font-mono text-slate-600">${price.toFixed(2)}</td>
+                <td class="p-2 border border-slate-200 font-mono text-center text-xs text-emerald-700 font-bold">${rcvDate}</td>
                 <td class="p-2 border border-slate-200 font-bold">${displayPartName}</td>
+                <td class="p-2 border border-slate-200 text-center">${poBadge}</td>
             </tr>
         `;
     }
@@ -162,11 +208,11 @@ function validateExcelData(dataRows) {
 async function submitSmartExcel() {
     if (smartExcelValidPayload.length === 0) return;
 
-    if (!confirm(`ยืนยันการรับเข้าคลัง จำนวน ${smartExcelValidPayload.length} รายการ?`)) return;
+    if (!confirm(`ยืนยันการรับเข้าคลัง และอัปเดตตารางสั่งอะไหล่ จำนวน ${smartExcelValidPayload.length} รายการ?`)) return;
 
     const btn = document.getElementById('btn_submit_smart_excel');
     if(btn) {
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึกและอัปเดตสเตตัส...';
         btn.disabled = true;
     }
 
@@ -179,7 +225,7 @@ async function submitSmartExcel() {
             })
         ));
 
-        if(typeof showToast === 'function') showToast(`บันทึกรับเข้าคลังสำเร็จ ${smartExcelValidPayload.length} รายการ!`);
+        if(typeof showToast === 'function') showToast(`บันทึกรับเข้าคลังและอัปเดต PO สำเร็จ ${smartExcelValidPayload.length} รายการ!`);
         closeSmartExcelUpload();
         if(typeof loadAllData === 'function') loadAllData(); 
     } catch(err) { 
@@ -191,7 +237,7 @@ async function submitSmartExcel() {
     }
 }
 
-// 6. ตั้งค่าการคลิกและการลากวางไฟล์ (Drag & Drop)
+// 6. ตั้งค่าการลากวางไฟล์ (Drag & Drop)
 function initUploadZone() {
     const uploadZone = document.getElementById('excel_upload_zone');
     const fileInput = document.getElementById('excel_file_input');
@@ -221,6 +267,36 @@ function initUploadZone() {
             processSmartExcel({ target: { files: e.dataTransfer.files } });
         }
     };
+}
+
+// 7. ฟังก์ชันสร้างและดาวน์โหลดแบบฟอร์ม Excel ตัวอย่าง (Template)
+function downloadExcelTemplate() {
+    if (typeof XLSX === 'undefined') {
+        alert('❌ ไม่พบไลบรารี XLSX กรุณารีเฟรชหน้าเว็บแล้วลองใหม่อีกครั้ง');
+        return;
+    }
+
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    const templateData = [
+        ["EPC No", "หมายเลขอะไหล่ (Part No)", "จำนวน (Qty)", "ราคาต่อหน่วย (Unit Price)", "วันที่ของเข้า (YYYY-MM-DD)"],
+        ["EPC-2026-001", "PART-TEST-001", 1, 1500.00, todayStr],
+        ["EPC-2026-002", "PART-TEST-002", 5, 850.50, todayStr]
+    ];
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(templateData);
+
+    ws['!cols'] = [
+        { wpx: 130 }, // EPC No
+        { wpx: 180 }, // Part No
+        { wpx: 90 },  // Qty
+        { wpx: 130 }, // Unit Price
+        { wpx: 150 }  // Received Date
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Inbound_Template");
+    XLSX.writeFile(wb, "Rizenic_Parts_Inbound_Template.xlsx");
 }
 
 if (document.readyState === 'loading') {
