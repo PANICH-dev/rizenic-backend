@@ -569,36 +569,40 @@
             else { btnDel.className = 'px-2.5 py-1 bg-white border border-purple-300 hover:bg-purple-100 rounded-lg text-xs font-bold text-purple-800 transition flex items-center gap-1 shadow-2xs'; }
         }
 
-        function openSAOverdueModal(type) {
-            const todayStr = new Date().toISOString().split('T')[0];
-            const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
-            let jobsToShow = [];
-            let title = '';
+  function openSAOverdueModal(type) {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
+    let jobsToShow = [];
+    let title = '';
 
-            if (type === 'appointment') {
-                title = `🚨 OVERDUE: เลยกำหนดนัดหมายรถเข้า (SA: ${currentViewSA})`;
-                jobsToShow = saJobs.filter(j => {
-                    const appVal = j.appointment_date ? String(j.appointment_date).split('T')[0] : '';
-                    return appVal && appVal <= todayStr && j.is_parked !== 'จอดซ่อม' && !j.arrived_date;
-                });
-            } else if (type === 'target') {
-                title = `🚨 OVERDUE: เลยกำหนดเป้าซ่อมเสร็จ (SA: ${currentViewSA})`;
-                jobsToShow = saJobs.filter(j => {
-                    const tgtVal = j.target_finish_date ? String(j.target_finish_date).split('T')[0] : '';
-                    return tgtVal && tgtVal < todayStr && !j.repair_finish_date;
-                });
-            } else if (type === 'delivery') {
-                title = `🚨 OVERDUE: เลยกำหนดส่งมอบรถ (SA: ${currentViewSA})`;
-                jobsToShow = saJobs.filter(j => {
-                    const delVal = j.delivery_date ? String(j.delivery_date).split('T')[0] : '';
-                    return delVal && delVal < todayStr && !(j.job_status||'').includes('ส่งมอบ');
-                });
-            }
+    jobsToShow = saJobs.filter(j => {
+        const st = j.job_status || '';
+        // 🌟 1. ดักให้ดึงเฉพาะรถที่อยู่ในกระบวนการซ่อม 01-11 เท่านั้น (เหมือนตัวคำนวณ)
+        const isProcessJob = activeProcessStatuses.some(status => st.includes(status) || st.startsWith(status.substring(0, 2)));
+        if (!isProcessJob) return false;
 
-            document.getElementById('modal_status_name').innerText = title;
-            renderJobTableInModal(jobsToShow, 'overdue');
-            document.getElementById('jobListModal').classList.remove('hidden');
+        // 🌟 2. กรองเงื่อนไข Overdue ตามประเภทที่กด
+        if (type === 'appointment') {
+            const appVal = j.appointment_date ? String(j.appointment_date).split('T')[0] : '';
+            return appVal && appVal <= todayStr && j.is_parked !== 'จอดซ่อม' && !j.arrived_date;
+        } else if (type === 'target') {
+            const tgtVal = j.target_finish_date ? String(j.target_finish_date).split('T')[0] : '';
+            return tgtVal && tgtVal < todayStr && !j.repair_finish_date;
+        } else if (type === 'delivery') {
+            const delVal = j.delivery_date ? String(j.delivery_date).split('T')[0] : '';
+            return delVal && delVal < todayStr && !st.includes('ส่งมอบ');
         }
+        return false;
+    });
+
+    if (type === 'appointment') title = `🚨 OVERDUE: เลยกำหนดนัดหมายรถเข้า (SA: ${currentViewSA})`;
+    else if (type === 'target') title = `🚨 OVERDUE: เลยกำหนดเป้าซ่อมเสร็จ (SA: ${currentViewSA})`;
+    else if (type === 'delivery') title = `🚨 OVERDUE: เลยกำหนดส่งมอบรถ (SA: ${currentViewSA})`;
+
+    document.getElementById('modal_status_name').innerText = title;
+    renderJobTableInModal(jobsToShow, 'overdue');
+    document.getElementById('jobListModal').classList.remove('hidden');
+}
 
         function renderSACalendar(jobs) {
             const fMonth = document.getElementById('sa_cal_month').value; 
