@@ -12,7 +12,7 @@ let globalStatusOptionsHtml = '';
 let statusChartInstance = null;
 let insuranceChartInstance = null;
 let financeChartInstance = null;
-let paymentChartInstance = null;
+let paymentChartInstance = null; 
 
 let userRole = '';
 let userBranch = '';
@@ -249,7 +249,7 @@ function renderDailyReport() {
 
     const reportDef = {
         customers: [
-            { label: "ติดต่อประจำวัน (อิงวันเริ่มต้น)", icon: "🔥", filter: j => j.contact_date && j.contact_date.split('T')[0] === todayDate },
+            { label: "ติดต่อประจำวัน (Today)", icon: "🔥", filter: j => j.contact_date && j.contact_date.split('T')[0] === todayDate },
             { label: "ติดต่อรวมช่วงเวลาที่เลือก", icon: "📅", filter: j => isDateInRange(j.contact_date, start, end) },
             ...dynamicCustomerTypes
         ],
@@ -272,7 +272,7 @@ function renderDailyReport() {
             { label: "พักซ่อม", icon: "👥", filter: j => (j.job_status||'').includes('พักซ่อม') }
         ],
         finance: [
-            { label: "ออกบิลแล้ว (ประจำวัน)", icon: "🔥", filter: j => (j.job_status||'').includes('ออกบิลแล้ว') && j.billing_date && j.billing_date.split('T')[0] === todayDate },
+            { label: "ออกบิลแล้ว (ประจำวัน Today)", icon: "🔥", filter: j => (j.job_status||'').includes('ออกบิลแล้ว') && j.billing_date && j.billing_date.split('T')[0] === todayDate },
             { label: "วางบิลประกัน (ตามช่วงเวลา)", icon: "💳", filter: j => (j.job_status||'').includes('วางบิลประกัน') && isDateInRange(j.billing_date, start, end) },
             { label: "ชำระเงินสด (ตามช่วงเวลา)", icon: "💵", filter: j => (j.job_status||'').includes('ชำระเงินสด') && isDateInRange(j.billing_date, start, end) },
             { label: "วางบิล Tesla (ตามช่วงเวลา)", icon: "🏎️", filter: j => (j.job_status||'').includes('วางบิล Tesla') && isDateInRange(j.billing_date, start, end) },
