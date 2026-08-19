@@ -12,7 +12,7 @@ let globalStatusOptionsHtml = '';
 let statusChartInstance = null;
 let insuranceChartInstance = null;
 let financeChartInstance = null;
-let paymentChartInstance = null; // 🌟 เพิ่มตัวแปรสำหรับกราฟ Payment Type
+let paymentChartInstance = null;
 
 let userRole = '';
 let userBranch = '';
@@ -151,7 +151,7 @@ function applyFilters() {
     renderDailyReport(); 
     renderStatusChart();
     renderInsuranceChart();
-    renderPaymentChart(); // 🌟 เพิ่มเรนเดอร์กราฟ Payment Type
+    renderPaymentChart(); 
     renderFinanceChart(startDate, endDate);
     renderSASection();
     renderStationSection();
@@ -171,14 +171,12 @@ function isDateInRange(dateStr, start, end) {
     return true;
 }
 
-// 🌟 อัปเดต KPI ยอดส่งมอบให้เช็คสถานะเฉพาะตามที่ระบุ
 function renderKPIs(start, end) {
     const contacted = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end)).length;
     const parked = filteredJobs.filter(j => isDateInRange(j.appointment_date, start, end)).length;
     const billedJobs = filteredJobs.filter(j => isDateInRange(j.billing_date, start, end));
     const billed = billedJobs.length;
 
-    // 🌟 ยอดส่งมอบ: เช็ค delivery_date และ สถานะต้องตรงกับที่กำหนด
     const deliveredStatuses = [
         '12.ส่งมอบ', '13.วางบิลประกัน', '14.ชำระเงินสด', 
         '15.วางบิล Tesla', '16.วางบิล EV ME', '17.รอออกบิล', '19.ออกบิลแล้ว'
@@ -237,7 +235,9 @@ function renderDailyReport() {
     const start = document.getElementById('report_start_date').value || getFirstDayOfMonth();
     const end = document.getElementById('report_end_date').value || getLastDayOfMonth();
     
-    const todayDate = new Date().toISOString().split('T')[0];
+    // 🌟 เปลี่ยนจากการใช้วันที่ระบบ เป็น "วันที่เริ่มต้น" ที่เลือก เพื่อให้ดึงข้อมูลได้ตรงตามที่ค้นหา
+    const todayDate = start; 
+
     const activeContacts = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end));
     const uniqueCustomerTypes = [...new Set(activeContacts.map(j => (j.customer_type || 'ไม่ระบุ').trim()))].sort();
 
@@ -249,14 +249,14 @@ function renderDailyReport() {
 
     const reportDef = {
         customers: [
-            { label: "ติดต่อประจำวัน (Today)", icon: "🔥", filter: j => j.contact_date && j.contact_date.split('T')[0] === todayDate },
+            { label: "ติดต่อประจำวัน (อิงวันเริ่มต้น)", icon: "🔥", filter: j => j.contact_date && j.contact_date.split('T')[0] === todayDate },
             { label: "ติดต่อรวมช่วงเวลาที่เลือก", icon: "📅", filter: j => isDateInRange(j.contact_date, start, end) },
             ...dynamicCustomerTypes
         ],
         workStatus: [
-            { label: "รถเข้าจอด (ประจำวัน Today)", icon: "🔥", filter: j => j.arrived_date && j.arrived_date.split('T')[0] === todayDate },
-            { label: "ซ่อมเสร็จ (ประจำวัน Today)", icon: "🔥", filter: j => j.repair_finish_date && j.repair_finish_date.split('T')[0] === todayDate },
-            { label: "ส่งมอบ (ประจำวัน Today)", icon: "🔥", filter: j => (j.job_status||'').includes('ส่งมอบ') && !(j.job_status||'').includes('ซ่อมเสร็จรอส่งมอบ') && j.delivery_date && j.delivery_date.split('T')[0] === todayDate },
+            { label: "รถเข้าจอด (ประจำวัน)", icon: "🔥", filter: j => j.arrived_date && j.arrived_date.split('T')[0] === todayDate },
+            { label: "ซ่อมเสร็จ (ประจำวัน)", icon: "🔥", filter: j => j.repair_finish_date && j.repair_finish_date.split('T')[0] === todayDate },
+            { label: "ส่งมอบ (ประจำวัน)", icon: "🔥", filter: j => (j.job_status||'').includes('ส่งมอบ') && !(j.job_status||'').includes('ซ่อมเสร็จรอส่งมอบ') && j.delivery_date && j.delivery_date.split('T')[0] === todayDate },
             { label: "รอเสนอประกัน", icon: "⏳", filter: j => (j.job_status||'').includes('รอเสนอประกัน') },
             { label: "รอประกันอนุมัติ", icon: "📝", filter: j => (j.job_status||'').includes('รอประกันอนุมัติ') },
             { label: "รอลูกค้าอนุมัติ (เงินสด)", icon: "💵", filter: j => (j.job_status||'').includes('รอลูกค้าอนุมัติ') },
@@ -272,7 +272,7 @@ function renderDailyReport() {
             { label: "พักซ่อม", icon: "👥", filter: j => (j.job_status||'').includes('พักซ่อม') }
         ],
         finance: [
-            { label: "ออกบิลแล้ว (ประจำวัน Today)", icon: "🔥", filter: j => (j.job_status||'').includes('ออกบิลแล้ว') && j.billing_date && j.billing_date.split('T')[0] === todayDate },
+            { label: "ออกบิลแล้ว (ประจำวัน)", icon: "🔥", filter: j => (j.job_status||'').includes('ออกบิลแล้ว') && j.billing_date && j.billing_date.split('T')[0] === todayDate },
             { label: "วางบิลประกัน (ตามช่วงเวลา)", icon: "💳", filter: j => (j.job_status||'').includes('วางบิลประกัน') && isDateInRange(j.billing_date, start, end) },
             { label: "ชำระเงินสด (ตามช่วงเวลา)", icon: "💵", filter: j => (j.job_status||'').includes('ชำระเงินสด') && isDateInRange(j.billing_date, start, end) },
             { label: "วางบิล Tesla (ตามช่วงเวลา)", icon: "🏎️", filter: j => (j.job_status||'').includes('วางบิล Tesla') && isDateInRange(j.billing_date, start, end) },
@@ -311,7 +311,6 @@ function openReportModal(cat, itemIdx) {
     document.getElementById('jobListModal').classList.remove('hidden');
 }
 
-// 🌟 ปรับปรุงการนับยอดและจัดเรียงลำดับสถานะ (เอา 17.รอออกบิล มาต่อ 12.ส่งมอบ)
 function renderStatusChart() {
     const targetStatuses = [
         '01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ', 
@@ -416,7 +415,6 @@ function renderInsuranceChart() {
     });
 }
 
-// 🌟 เพิ่มฟังก์ชันกราฟโดนัท Payment Type
 function renderPaymentChart() {
     const paymentTypes = {};
     filteredJobs.forEach(j => {
@@ -549,7 +547,7 @@ function renderStationSection() {
 
 function openStationModal(stationName) {
     document.getElementById('modal_status_name').innerText = `สถานีช่าง: ${stationName}`;
-    const jobsToShow = filteredJobs.filter(j => !j.job_status?.includes('ส่งมอบแล้ว') && computeHighestStationIFS(j) === stationName);
+    const jobsToShow = filteredJobs.filter(j => j.job_status !== '12.ส่งมอบแล้ว' && computeHighestStationIFS(j) === stationName);
     renderJobTableInModalGroupedBySA(jobsToShow);
     document.getElementById('jobListModal').classList.remove('hidden');
 }
