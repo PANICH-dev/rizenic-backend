@@ -153,10 +153,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name') || 'ช่างซ่อม';
-    currentBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+    
+    // 🌟 ดึงสาขาจาก branch_name ของตาราง rizenicmployeemaster (เก็บผ่าน sessionStorage)
+    currentBranch = sessionStorage.getItem('branch_name') || sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
     document.getElementById('display_branch').innerText = currentBranch;
     
-    // 🌟 ตรวจสอบสิทธิ์และจัดการ Dropdown เลือกสาขา 🌟
+    // 🌟 ตรวจสอบสิทธิ์ระดับผู้ใช้ (BA / Manager / Admin)
     const userRole = sessionStorage.getItem('emp_role') || '';
     const isManager = ['BA', 'Manager', 'Admin', 'แอดมิน'].includes(userRole);
     const branchSelectEl = document.getElementById('branchSelect');
@@ -169,7 +171,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
             selectedBranchFilter = currentBranch;
             branchSelectEl.value = currentBranch;
-            branchSelectEl.disabled = true; // ล็อกไม่ให้พนักงานทั่วไปเปลี่ยน
+            branchSelectEl.disabled = true; // ล็อกสาขาตาม branch_name ของพนักงาน
         }
     }
     

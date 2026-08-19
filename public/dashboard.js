@@ -45,15 +45,23 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = 'index.html'; return;
     }
     
-    userRole = sessionStorage.getItem('emp_role');
-    userBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+    userRole = sessionStorage.getItem('emp_role') || '';
+    
+    // 🌟 ดึงข้อมูลจาก branch_name ก่อนเป็นอันดับแรก (ตามโครงสร้างใหม่) 🌟
+    userBranch = sessionStorage.getItem('branch_name') || sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
 
     const rStr = String(userRole).toLowerCase();
-    if (rStr.includes('admin') || rStr.includes('แอดมิน') || rStr.includes('manager') || rStr.includes('ba')) {
-        document.getElementById('nav_admin').classList.remove('hidden');
+    const navAdmin = document.getElementById('nav_admin');
+    
+    if (navAdmin) {
+        if (rStr.includes('admin') || rStr.includes('แอดมิน') || rStr.includes('manager') || rStr.includes('ba')) {
+            navAdmin.classList.remove('hidden');
+        } else {
+            navAdmin.classList.add('hidden');
+        }
     }
 
-    document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name');
+    document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name') || 'ไม่ระบุชื่อ';
     document.getElementById('display_branch').innerText = userBranch;
     
     const today = new Date();
@@ -75,9 +83,12 @@ function logout() {
 
 function setupBranchDropdown() {
     const filterSelect = document.getElementById('branchFilter');
+    if (!filterSelect) return;
+    
     const rStr = String(userRole).toLowerCase();
     if (rStr.includes('admin') || rStr.includes('แอดมิน') || rStr.includes('manager') || rStr.includes('ba')) {
         filterSelect.innerHTML = `<option value="all">-- ทุกสาขา --</option>`;
+        filterSelect.disabled = false;
     } else {
         filterSelect.innerHTML = `<option value="${userBranch}">${userBranch}</option>`;
         filterSelect.disabled = true;
@@ -118,13 +129,17 @@ async function fetchDashboardData() {
 }
 
 function applyFilters() {
-    const selectedBranch = document.getElementById('branchFilter').value;
+    const filterSelect = document.getElementById('branchFilter');
+    const selectedBranch = filterSelect ? filterSelect.value : 'all';
+    
     const startDate = document.getElementById('dash_start_date').value;
     const endDate = document.getElementById('dash_end_date').value;
     
-    document.getElementById('chartBranchLabel').innerText = selectedBranch === 'all' ? 'ทุกสาขา' : selectedBranch;
+    const chartBranchLabel = document.getElementById('chartBranchLabel');
+    if (chartBranchLabel) {
+        chartBranchLabel.innerText = selectedBranch === 'all' ? 'ทุกสาขา' : selectedBranch;
+    }
 
-    // กรองสาขา
     if (selectedBranch === 'all') {
         filteredJobs = [...allJobs];
         filteredPartOrders = [...allPartOrders];
@@ -162,10 +177,10 @@ function renderKPIs(start, end) {
     const repaired = filteredJobs.filter(j => isDateInRange(j.repair_finish_date, start, end)).length;
     const delivered = filteredJobs.filter(j => isDateInRange(j.delivery_date, start, end)).length;
 
-    document.getElementById('stat_contacted').innerText = contacted;
-    document.getElementById('stat_arrived').innerText = arrived;
-    document.getElementById('stat_repaired').innerText = repaired;
-    document.getElementById('stat_delivered').innerText = delivered;
+    if (document.getElementById('stat_contacted')) document.getElementById('stat_contacted').innerText = contacted;
+    if (document.getElementById('stat_arrived')) document.getElementById('stat_arrived').innerText = arrived;
+    if (document.getElementById('stat_repaired')) document.getElementById('stat_repaired').innerText = repaired;
+    if (document.getElementById('stat_delivered')) document.getElementById('stat_delivered').innerText = delivered;
 }
 
 function renderDailyReport() {
@@ -224,6 +239,7 @@ function renderDailyReport() {
     ['customers', 'workStatus', 'finance'].forEach((cat, colIdx) => {
         const containerId = colIdx === 0 ? 'report_col_customers' : (colIdx === 1 ? 'report_col_status' : 'report_col_finance');
         const container = document.getElementById(containerId);
+        if(!container) return;
         
         container.innerHTML = reportDef[cat].map((item, itemIdx) => {
             const count = filteredJobs.filter(item.filter).length;
