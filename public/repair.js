@@ -538,9 +538,13 @@ function renderRepairListTable(data) {
                 case 'target_finish_date': 
                     cellData = `<div class="${isOverdue ? 'text-rose-600' : 'text-amber-600'} text-[14px] font-mono font-bold text-center px-2 py-2">${formatThaiDate(j.target_finish_date)}</div>`; 
                     break;
-                case 'repair_finish_date': 
-                    cellData = `<div class="text-center px-2 py-1.5"><input type="date" min="${getTodayString()}" value="${finishDateStr}" onchange="fastUpdateField('${j.id}', 'repair_finish_date', this.value)" class="inline-edit-input w-full font-mono text-base text-[#00320D] font-bold"></div>`; 
-                    break;
+      case 'repair_finish_date': 
+    let displayValue = finishDateStr ? formatThaiDate(finishDateStr) : '';
+    cellData = `<div class="text-center px-2 py-1.5 relative group">
+        <div class="absolute inset-0 flex items-center justify-center font-mono text-base text-[#00320D] font-bold bg-white z-10 pointer-events-none group-hover:hidden group-focus-within:hidden">${displayValue}</div>
+        <input type="date" value="${finishDateStr}" onchange="fastUpdateField('${j.id}', 'repair_finish_date', this.value)" class="inline-edit-input w-full font-mono text-base text-[#00320D] font-bold relative z-0">
+    </div>`; 
+    break;
                 case 'delivery_date': 
                     cellData = `<div class="text-emerald-600 text-[14px] font-mono font-bold text-center px-2 py-2">${formatThaiDate(j.delivery_date)}</div>`; 
                     break;

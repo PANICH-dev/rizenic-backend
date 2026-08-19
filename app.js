@@ -644,7 +644,7 @@ app.put('/api/report/:id/fast-date', async (req, res) => {
     const validFields = [
     'target_finish_date', 'repair_finish_date', 'delivery_date', 'contact_date', 'arrived_date', 'order_part_date', 'est_part_date',
     'appointment_date', // 👈 เพิ่ม 'appointment_date' (วันที่ลูกค้านัดหมาย) ตรงนี้ครับ
-    'car_plate', 'notes', 'qt_no', 'so_no', 'bl_no', 'sa_owner', 'damage_level', 'job_status',
+    'car_plate', 'notes', 'qt_no', 'so_no', 'bl_no', 'sa_owner', 'damage_level', 'job_status','repair_notes',
     'billing_date', 'ivn_no', 'cost_labor', 'cost_part', 'cost_external',
     'department_routing', 'is_parked', 'customer_type', 'payment_type', 
     'car_brand', 'car_model', 'vin_no', 'customer_name', 'phone_number', 
