@@ -23,7 +23,6 @@ const statusOptions = [
     "09.จอดรอเข้าซ่อม", "10.กำลังซ่อม", "11.รถซ่อมเสร็จรอส่งมอบ", "12.รอส่งมอบ", "21.พักซ่อม"
 ];
 
-// 🌟 เปลี่ยนคำว่า รอรับรถ เป็น ส่งจ๊อบ 🌟
 const stationLevels = ["ส่งจ๊อบ", "01.เคาะ", "02.โป๊ว", "03.เตรียมพื้น", "04.พ่นสี", "05.ประกอบ", "06.ขัดสี", "07.QC", "08.แม็ก", "09.กระจก", "10.ฟิล์ม", "11.พักซ่อม", "12.รอส่งมอบ"];
 
 const stationsTimeline = [
@@ -56,7 +55,7 @@ let columnsDef = [
 ];
 
 let hiddenCols = new Set(); 
-let isCalendarFilterActive = false; // 🌟 เพิ่มตัวแปรเช็กว่าคลิกมาจากปฏิทินหรือไม่
+let isCalendarFilterActive = false; // สำหรับเช็กว่าคลิกจากปฏิทินหรือไม่
 
 function formatThaiDate(dateStr) {
     if (!dateStr || dateStr === '' || dateStr === '-') return '-';
@@ -276,7 +275,6 @@ function isTrue(val) {
     const strVal = String(val).trim().toUpperCase(); return strVal === "TRUE" || strVal === "1" || val === true || val === 1; 
 }
 
-// 🌟 เปลี่ยนคำว่า รอรับรถ เป็น ส่งจ๊อบ 🌟
 function computeHighestStationIFS(j) {
     if(isTrue(j.station_ready)) return "12.รอส่งมอบ"; if(isTrue(j.station_pak)) return "11.พักซ่อม"; if(isTrue(j.station_film)) return "10.ฟิล์ม";
     if(isTrue(j.station_kraj)) return "09.กระจก"; if(isTrue(j.station_mag)) return "08.แม็ก"; if(isTrue(j.station_qc)) return "07.QC";
@@ -323,8 +321,8 @@ function runTableFilters() {
     const searchTxt = (document.getElementById('global_search_input')?.value || '').toLowerCase();
     
     const filteredData = originalRepairJobs.filter(job => {
-        // 🌟 1. อนุโลมให้ไม่ต้องกรองแผนกซ่อม ถ้าเป็นการคลิกมาจากปฏิทิน 🌟
-        if (!isCalendarFilterActive && job.department_routing !== 'ซ่อม') return false;
+        // 🌟 ถ้ารถคันนี้ไม่ได้อยู่แผนกซ่อม แล้ว "ไม่ได้" กดมาจากปฏิทิน -> ให้ข้ามไปเลย
+        if (job.department_routing !== 'ซ่อม' && !isCalendarFilterActive) return false;
 
         // กรองตามการกดป้าย KPI สีๆ
         if (activeKpiFilter) {
@@ -364,7 +362,7 @@ function filterBoardByKpi(type) {
     switchTab('tab-board');
     activeFilters = {}; 
     activeKpiFilter = type; 
-    isCalendarFilterActive = false; // ปิดสถานะการกดจากปฏิทิน
+    isCalendarFilterActive = false; // ปิดสถานะปฏิทิน
     document.getElementById('global_search_input').value = '';
     document.querySelectorAll('.filter-icon').forEach(icon => icon.classList.remove('active'));
     runTableFilters(); 
@@ -373,7 +371,7 @@ function filterBoardByKpi(type) {
 function clearAllFilters() {
     activeFilters = {}; 
     activeKpiFilter = null; 
-    isCalendarFilterActive = false; // เคลียร์สถานะการกดจากปฏิทิน
+    isCalendarFilterActive = false; // เคลียร์สถานะปฏิทิน
     document.getElementById('global_search_input').value = '';
     document.querySelectorAll('.filter-icon').forEach(icon => { icon.classList.remove('active'); });
     runTableFilters();
@@ -417,6 +415,7 @@ async function fetchJobList() {
         const userRole = sessionStorage.getItem('emp_role') || '';
         const isManager = ['BA', 'Manager', 'Admin', 'แอดมิน'].includes(userRole);
 
+        // 🌟 ดึงข้อมูลเฉพาะสาขาของเรามาเก็บเป็นต้นฉบับ
         originalRepairJobs = rawReports.filter(j => {
             const isBranchMatch = isManager ? true : j.branch_name === currentBranch;
             const st = j.job_status || '';
@@ -522,7 +521,7 @@ function renderRepairListTable(data) {
                 case 'car_plate': 
                     cellData = `<div class="font-mono text-base font-black px-3 py-2 truncate ${isOverdue ? 'text-rose-600' : 'text-[#00320D]'}">${isOverdue ? '<i class="fa-solid fa-circle-exclamation mr-1 animate-pulse"></i>' : ''}${j.car_plate || '-'}</div>`; 
                     break;
-                case 'sa_owner': // 🌟 แสดงชื่อ SA
+                case 'sa_owner': 
                     cellData = `<div class="px-3 py-2 font-bold text-slate-700 text-sm truncate" title="${j.sa_owner || ''}"><i class="fa-solid fa-user-tie text-amber-500 mr-1"></i> ${j.sa_owner || '-'}</div>`; 
                     break;
                 case 'car_brand': 
@@ -572,7 +571,7 @@ function renderRepairListTable(data) {
                     }
                     cellData = `<div class="px-2 py-1.5"><select onchange="fastUpdateField('${j.id}', 'job_status', this.value)" class="inline-edit-select text-[#00320D] font-bold text-sm">${safeOpts}</select></div>`; 
                     break;
-                case 'department_routing': // 🌟 โค้ด Dropdown สำหรับส่งต่อแผนก
+                case 'department_routing': 
                     const routingOptions = ['ซ่อม', 'บริการ', 'อะไหล่', 'บัญชี', 'รอดำเนินการ'];
                     let routingHtml = routingOptions.map(r => `<option value="${r}" ${j.department_routing === r ? 'selected' : ''}>${r}</option>`).join('');
                     cellData = `<div class="px-2 py-1.5"><select onchange="fastUpdateField('${j.id}', 'department_routing', this.value)" class="inline-edit-select text-indigo-700 font-bold bg-indigo-50 border-indigo-200 hover:bg-indigo-100 text-sm">${routingHtml}</select></div>`; 
@@ -772,7 +771,7 @@ function filterBoardByDate(dateStr, type) {
     switchTab('tab-board');
     activeFilters = {}; 
     activeKpiFilter = null;
-    isCalendarFilterActive = true; // 🌟 กำหนดว่าคลิกมาจากปฏิทิน
+    isCalendarFilterActive = true; // 🌟 กำหนดว่าคลิกมาจากปฏิทิน 🌟
     
     let colIdx;
     if (type === 'arrived') colIdx = columnsDef.find(c => c.key === 'arrived_date').idx;
@@ -792,7 +791,7 @@ function clickCalendarDate(dateString) {
     switchTab('tab-board');
     activeFilters = {}; 
     activeKpiFilter = null;
-    isCalendarFilterActive = true; // 🌟 กำหนดว่าคลิกมาจากปฏิทิน
+    isCalendarFilterActive = true; // 🌟 กำหนดว่าคลิกมาจากปฏิทิน 🌟
     document.getElementById('global_search_input').value = formatThaiDate(dateString);
     runTableFilters();
 }
