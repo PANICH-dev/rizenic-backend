@@ -55,7 +55,7 @@ let columnsDef = [
 ];
 
 let hiddenCols = new Set(); 
-let isCalendarFilterActive = false; // สำหรับเช็กว่าคลิกจากปฏิทินหรือไม่
+let isCalendarFilterActive = false; 
 
 function formatThaiDate(dateStr) {
     if (!dateStr || dateStr === '' || dateStr === '-') return '-';
@@ -321,10 +321,13 @@ function runTableFilters() {
     const searchTxt = (document.getElementById('global_search_input')?.value || '').toLowerCase();
     
     const filteredData = originalRepairJobs.filter(job => {
-        // 🌟 ถ้ารถคันนี้ไม่ได้อยู่แผนกซ่อม แล้ว "ไม่ได้" กดมาจากปฏิทิน -> ให้ข้ามไปเลย
-        if (job.department_routing !== 'ซ่อม' && !isCalendarFilterActive) return false;
+        // 🌟 1. อนุโลมให้เห็นรถทุกแผนก ถ้ากดมาจากปฏิทิน 🌟
+        if (!isCalendarFilterActive && job.department_routing !== 'ซ่อม') return false;
 
-        // กรองตามการกดป้าย KPI สีๆ
+        // 🌟 2. แต่ยังคงต้อง "กรองสาขา" ให้เห็นเฉพาะของตัวเองเสมอ! 🌟
+        if (currentBranch !== 'สำนักงานใหญ่' && job.branch_name !== currentBranch) return false;
+
+        // กรองตามป้าย KPI
         if (activeKpiFilter) {
             if (activeKpiFilter === 'repairing') {
                 if (job.calculated_station === '12.รอส่งมอบ') return false;
@@ -415,7 +418,7 @@ async function fetchJobList() {
         const userRole = sessionStorage.getItem('emp_role') || '';
         const isManager = ['BA', 'Manager', 'Admin', 'แอดมิน'].includes(userRole);
 
-        // 🌟 ดึงข้อมูลเฉพาะสาขาของเรามาเก็บเป็นต้นฉบับ
+        // 🌟 ดึงข้อมูลและเก็บต้นฉบับไว้ทั้งหมด
         originalRepairJobs = rawReports.filter(j => {
             const isBranchMatch = isManager ? true : j.branch_name === currentBranch;
             const st = j.job_status || '';
@@ -771,7 +774,7 @@ function filterBoardByDate(dateStr, type) {
     switchTab('tab-board');
     activeFilters = {}; 
     activeKpiFilter = null;
-    isCalendarFilterActive = true; // 🌟 กำหนดว่าคลิกมาจากปฏิทิน 🌟
+    isCalendarFilterActive = true; 
     
     let colIdx;
     if (type === 'arrived') colIdx = columnsDef.find(c => c.key === 'arrived_date').idx;
@@ -791,7 +794,7 @@ function clickCalendarDate(dateString) {
     switchTab('tab-board');
     activeFilters = {}; 
     activeKpiFilter = null;
-    isCalendarFilterActive = true; // 🌟 กำหนดว่าคลิกมาจากปฏิทิน 🌟
+    isCalendarFilterActive = true; 
     document.getElementById('global_search_input').value = formatThaiDate(dateString);
     runTableFilters();
 }
@@ -851,7 +854,6 @@ function generateMiniCardHTML(j, type) {
 
 function closeDayListModal() { document.getElementById('dayListModal').classList.add('hidden'); }
 
-// 🌟 กราฟพาย 🌟
 function renderPieChartAndList() {
     const counters = { "เคาะ":0, "โป๊ว":0, "เตรียมพื้น":0, "พ่นสี":0, "ประกอบ":0, "ขัดสี":0, "QC":0, "แม็ก":0, "กระจก":0, "ฟิล์ม":0, "พักซ่อม":0, "รอส่งมอบ":0 };
     const stationJobs = {}; 
@@ -859,11 +861,7 @@ function renderPieChartAndList() {
 
     originalRepairJobs.forEach(j => {
         const st = j.job_status || '';
-        
-        // ❌ ข้ามรถที่ถูกยกเลิก
         if(st.includes('ยกเลิก')) return; 
-        
-        // 🌟 กรองเอาเฉพาะรถที่ Routing อยู่แผนก "ซ่อม" เท่านั้น!
         if(j.department_routing !== 'ซ่อม') return;
 
         const fullStation = computeHighestStationIFS(j);
@@ -937,10 +935,8 @@ function renderPieChartAndList() {
     const breakdownDiv = document.getElementById('station_breakdown_list'); let listHTML = '';
     Object.keys(stationJobs).forEach(stationKey => {
         if(stationJobs[stationKey].length > 0) {
-
-            // 🌟 เรียงลำดับรถตาม "เป้าซ่อมเสร็จ" (น้อยไปมาก) 🌟
             stationJobs[stationKey].sort((a, b) => {
-                let dateA = a.target_finish_date ? new Date(a.target_finish_date).getTime() : Infinity; // Infinity จะทำให้ค่าว่างไปอยู่ล่างสุด
+                let dateA = a.target_finish_date ? new Date(a.target_finish_date).getTime() : Infinity; 
                 let dateB = b.target_finish_date ? new Date(b.target_finish_date).getTime() : Infinity;
                 return dateA - dateB;
             });
