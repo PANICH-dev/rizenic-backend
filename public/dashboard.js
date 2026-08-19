@@ -46,8 +46,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     userRole = sessionStorage.getItem('emp_role') || '';
-    
-    // 🌟 ดึงข้อมูลจาก branch_name ก่อนเป็นอันดับแรก (ตามโครงสร้างใหม่) 🌟
     userBranch = sessionStorage.getItem('branch_name') || sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
 
     const rStr = String(userRole).toLowerCase();
@@ -69,8 +67,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('dash_start_date').value = getFirstDayOfMonth();
     document.getElementById('dash_end_date').value = getLastDayOfMonth();
-    document.getElementById('report_start_date').value = getFirstDayOfMonth();
-    document.getElementById('report_end_date').value = getLastDayOfMonth();
 
     setupBranchDropdown();
     fetchDashboardData();
@@ -149,8 +145,7 @@ function applyFilters() {
     }
 
     renderKPIs(startDate, endDate);
-    renderDailyReport(); 
-    renderStatusChart();
+    renderStatusChart(startDate, endDate);
     renderInsuranceChart();
     renderFinanceChart(startDate, endDate);
     renderSASection();
@@ -164,101 +159,43 @@ function applyFilters() {
 }
 
 function isDateInRange(dateStr, start, end) {
-    if(!dateStr) return false;
+    if(!dateStr || String(dateStr).trim() === '') return false;
     const dStr = dateStr.split('T')[0];
     if(start && dStr < start) return false;
     if(end && dStr > end) return false;
     return true;
 }
 
+// 🌟 1. ปรับ KPI Cards และ การเงิน
 function renderKPIs(start, end) {
+    // 1. รถติดต่อเข้ามา
     const contacted = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end)).length;
-    const arrived = filteredJobs.filter(j => isDateInRange(j.arrived_date, start, end)).length;
-    const repaired = filteredJobs.filter(j => isDateInRange(j.repair_finish_date, start, end)).length;
+    // 2. รถเข้ามาจอด
+    const parked = filteredJobs.filter(j => isDateInRange(j.appointment_date, start, end)).length;
+    // 3. ยอดส่งมอบ
     const delivered = filteredJobs.filter(j => isDateInRange(j.delivery_date, start, end)).length;
+    // 4. ยอดปิดบิล
+    const billedJobs = filteredJobs.filter(j => isDateInRange(j.billing_date, start, end));
+    const billed = billedJobs.length;
 
     if (document.getElementById('stat_contacted')) document.getElementById('stat_contacted').innerText = contacted;
-    if (document.getElementById('stat_arrived')) document.getElementById('stat_arrived').innerText = arrived;
-    if (document.getElementById('stat_repaired')) document.getElementById('stat_repaired').innerText = repaired;
+    if (document.getElementById('stat_parked')) document.getElementById('stat_parked').innerText = parked;
     if (document.getElementById('stat_delivered')) document.getElementById('stat_delivered').innerText = delivered;
-}
+    if (document.getElementById('stat_billed')) document.getElementById('stat_billed').innerText = billed;
 
-function renderDailyReport() {
-    const start = document.getElementById('report_start_date').value || getFirstDayOfMonth();
-    const end = document.getElementById('report_end_date').value || getLastDayOfMonth();
-    
-    const todayDate = new Date().toISOString().split('T')[0];
-    const activeContacts = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end));
-    const uniqueCustomerTypes = [...new Set(activeContacts.map(j => (j.customer_type || 'ไม่ระบุ').trim()))].sort();
-
-    const dynamicCustomerTypes = uniqueCustomerTypes.map(type => ({
-        label: `${type}`,
-        icon: "🏷️",
-        filter: j => (j.customer_type || 'ไม่ระบุ').trim() === type && isDateInRange(j.contact_date, start, end)
-    }));
-
-    const reportDef = {
-        customers: [
-            { label: "ติดต่อประจำวัน (Today)", icon: "🔥", filter: j => j.contact_date && j.contact_date.split('T')[0] === todayDate },
-            { label: "ติดต่อรวมช่วงเวลาที่เลือก", icon: "📅", filter: j => isDateInRange(j.contact_date, start, end) },
-            ...dynamicCustomerTypes
-        ],
-        workStatus: [
-            { label: "รถเข้าจอด (ประจำวัน Today)", icon: "🔥", filter: j => j.arrived_date && j.arrived_date.split('T')[0] === todayDate },
-            { label: "ซ่อมเสร็จ (ประจำวัน Today)", icon: "🔥", filter: j => j.repair_finish_date && j.repair_finish_date.split('T')[0] === todayDate },
-            { label: "ส่งมอบ (ประจำวัน Today)", icon: "🔥", filter: j => (j.job_status||'').includes('ส่งมอบ') && !(j.job_status||'').includes('ซ่อมเสร็จรอส่งมอบ') && j.delivery_date && j.delivery_date.split('T')[0] === todayDate },
-            { label: "รอเสนอประกัน", icon: "⏳", filter: j => (j.job_status||'').includes('รอเสนอประกัน') },
-            { label: "รอประกันอนุมัติ", icon: "📝", filter: j => (j.job_status||'').includes('รอประกันอนุมัติ') },
-            { label: "รอลูกค้าอนุมัติ (เงินสด)", icon: "💵", filter: j => (j.job_status||'').includes('รอลูกค้าอนุมัติ') },
-            { label: "อนุมัติแล้ว", icon: "✅", filter: j => (j.job_status||'').includes('อนุมัติแล้ว') },
-            { label: "สั่งอะไหล่", icon: "🛠️", filter: j => (j.job_status||'').includes('สั่งอะไหล่') },
-            { label: "รอนัดหมายเข้าซ่อม", icon: "📅", filter: j => (j.job_status||'').includes('รอนัดหมายเข้าซ่อม') },
-            { label: "นัดหมายแล้วรอเข้าซ่อม", icon: "🕒", filter: j => (j.job_status||'').includes('นัดหมายแล้วรอเข้าซ่อม') },
-            { label: "จอดรอเข้าซ่อม", icon: "🚗", filter: j => (j.job_status||'').includes('จอดรอเข้าซ่อม') },
-            { label: "กำลังซ่อม", icon: "🔧", filter: j => (j.job_status||'').includes('กำลังซ่อม') },
-            { label: "ซ่อมTC", icon: "🏷️", filter: j => (j.job_status||'').includes('ซ่อม TC') || (j.job_status||'').includes('ซ่อมTC') },
-            { label: "รถซ่อมเสร็จรอส่งมอบ", icon: "🎁", filter: j => (j.job_status||'').includes('ซ่อมเสร็จรอส่งมอบ') },
-            { label: "ส่งมอบ", icon: "🏁", filter: j => j.job_status === '12.ส่งมอบแล้ว' || j.job_status === 'ส่งมอบแล้ว' },
-            { label: "พักซ่อม", icon: "👥", filter: j => (j.job_status||'').includes('พักซ่อม') }
-        ],
-        finance: [
-            { label: "ออกบิลแล้ว (ประจำวัน Today)", icon: "🔥", filter: j => (j.job_status||'').includes('ออกบิลแล้ว') && j.billing_date && j.billing_date.split('T')[0] === todayDate },
-            { label: "วางบิลประกัน (ตามช่วงเวลา)", icon: "💳", filter: j => (j.job_status||'').includes('วางบิลประกัน') && isDateInRange(j.billing_date, start, end) },
-            { label: "ชำระเงินสด (ตามช่วงเวลา)", icon: "💵", filter: j => (j.job_status||'').includes('ชำระเงินสด') && isDateInRange(j.billing_date, start, end) },
-            { label: "วางบิล Tesla (ตามช่วงเวลา)", icon: "🏎️", filter: j => (j.job_status||'').includes('วางบิล Tesla') && isDateInRange(j.billing_date, start, end) },
-            { label: "วางบิล EV ME (ตามช่วงเวลา)", icon: "⚡", filter: j => ((j.job_status||'').includes('วางบิล EV ME') || (j.job_status||'').includes('วางบิล EVME')) && isDateInRange(j.billing_date, start, end) },
-            { label: "รอออกบิล (สะสมรวม)", icon: "⏳", filter: j => (j.job_status||'').includes('รอออกบิล') },
-            { label: "ลูกค้ายกเลิก", icon: "❌", filter: j => (j.job_status||'').includes('ยกเลิก') },
-            { label: "ออกบิลแล้ว (ตามช่วงเวลา)", icon: "📄", filter: j => (j.job_status||'').includes('ออกบิลแล้ว') && isDateInRange(j.billing_date, start, end) },
-            { label: "สรุปออกบิลรวม (ตามช่วงเวลา)", icon: "📄", filter: j => isDateInRange(j.billing_date, start, end) }
-        ]
-    };
-
-    window.currentReportDef = reportDef;
-
-    ['customers', 'workStatus', 'finance'].forEach((cat, colIdx) => {
-        const containerId = colIdx === 0 ? 'report_col_customers' : (colIdx === 1 ? 'report_col_status' : 'report_col_finance');
-        const container = document.getElementById(containerId);
-        if(!container) return;
-        
-        container.innerHTML = reportDef[cat].map((item, itemIdx) => {
-            const count = filteredJobs.filter(item.filter).length;
-            return `
-                <div onclick="openReportModal('${cat}', ${itemIdx})" class="flex justify-between items-center py-2 px-3 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors group border border-transparent hover:border-slate-200">
-                    <span class="text-sm font-medium text-slate-700 group-hover:text-blue-600 transition-colors">${item.icon} ${item.label}</span>
-                    <span class="text-base font-black ${count > 0 ? 'text-blue-600' : 'text-slate-400'}">${count}</span>
-                </div>
-            `;
-        }).join('');
+    // คำนวณสรุปการเงินเฉพาะงานที่ ปิดบิลแล้วในช่วงเวลาที่กำหนด
+    let sumLabor = 0, sumParts = 0, sumOutsource = 0;
+    billedJobs.forEach(j => {
+        sumLabor += Number(j.cost_labor || j.labor_total || 0);
+        sumParts += Number(j.cost_part || j.part_total || 0);
+        sumOutsource += Number(j.cost_external || j.outsource_total || 0);
     });
-}
 
-function openReportModal(cat, itemIdx) {
-    const item = window.currentReportDef[cat][itemIdx];
-    const jobsToShow = filteredJobs.filter(item.filter);
-    document.getElementById('modal_status_name').innerText = `รายงาน: ${item.label}`;
-    renderJobTableInModalGroupedBySA(jobsToShow);
-    document.getElementById('jobListModal').classList.remove('hidden');
+    const formatMoney = (val) => val.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    
+    if (document.getElementById('sum_labor')) document.getElementById('sum_labor').innerText = formatMoney(sumLabor);
+    if (document.getElementById('sum_parts')) document.getElementById('sum_parts').innerText = formatMoney(sumParts);
+    if (document.getElementById('sum_outsource')) document.getElementById('sum_outsource').innerText = formatMoney(sumOutsource);
 }
 
 function openFilteredModal(type) {
@@ -267,26 +204,45 @@ function openFilteredModal(type) {
     
     let jobsToShow = []; 
     let title = "";
-    if(type === 'contacted') { jobsToShow = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end)); title = "1. ติดต่อสอบถาม"; }
-    if(type === 'arrived') { jobsToShow = filteredJobs.filter(j => isDateInRange(j.arrived_date, start, end)); title = "2. รถเข้าจอดอู่"; }
-    if(type === 'finished') { jobsToShow = filteredJobs.filter(j => isDateInRange(j.repair_finish_date, start, end)); title = "4. ซ่อมเสร็จจริง"; }
-    if(type === 'delivered') { jobsToShow = filteredJobs.filter(j => isDateInRange(j.delivery_date, start, end)); title = "5. ส่งมอบรถลูกค้า"; }
+    if(type === 'contacted') { jobsToShow = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end)); title = "1. รถติดต่อเข้าศูนย์"; }
+    if(type === 'parked') { jobsToShow = filteredJobs.filter(j => isDateInRange(j.appointment_date, start, end)); title = "2. รถเข้ามาจอด"; }
+    if(type === 'delivered') { jobsToShow = filteredJobs.filter(j => isDateInRange(j.delivery_date, start, end)); title = "3. ยอดส่งมอบรถ"; }
+    if(type === 'billed') { jobsToShow = filteredJobs.filter(j => isDateInRange(j.billing_date, start, end)); title = "4. ยอดปิดบิล"; }
 
     document.getElementById('modal_status_name').innerText = title;
     renderJobTableInModalGroupedBySA(jobsToShow);
     document.getElementById('jobListModal').classList.remove('hidden');
 }
 
-function renderStatusChart() {
+// 🌟 2. ปรับการตั้งค่ากราฟแท่ง (เฉพาะสถานะที่ระบุ)
+function renderStatusChart(start, end) {
+    const targetStatuses = [
+        '13.วางบิลประกัน', '14.ชำระเงินสด', '15.วางบิล Tesla', 
+        '16.วางบิล EV ME', '17.รอออกบิล', '18.ลูกค้ายกเลิก', '19.ออกบิลแล้ว'
+    ];
+    
     const statusCounts = {};
-    allStatuses.forEach(s => statusCounts[s.status_name] = 0);
+    targetStatuses.forEach(s => statusCounts[s] = 0);
+
     filteredJobs.forEach(job => {
-        const st = job.job_status || "ไม่ระบุสถานะ";
-        if(statusCounts[st] !== undefined) statusCounts[st]++;
-        else statusCounts[st] = 1;
+        const st = (job.job_status || "").trim();
+        const matchedStatus = targetStatuses.find(t => st === t || st.includes(t));
+        
+        if (matchedStatus) {
+            // นับโดยใช้วันที่ billing_date
+            if (isDateInRange(job.billing_date, start, end)) {
+                statusCounts[matchedStatus]++;
+            } else if (!job.billing_date && (matchedStatus.includes('รอออกบิล') || matchedStatus.includes('ลูกค้ายกเลิก'))) {
+                // อนุโลมกรณี 'รอออกบิล' หรือ 'ลูกค้ายกเลิก' ถ้าไม่มีบิลให้เช็คจากวันที่อื่นเพื่อให้กราฟไม่ว่างเปล่า
+                let altDate = job.delivery_date || job.repair_finish_date || job.target_finish_date || job.arrived_date || job.contact_date;
+                if(isDateInRange(altDate, start, end)) {
+                    statusCounts[matchedStatus]++;
+                }
+            }
+        }
     });
 
-    const labels = Object.keys(statusCounts).sort();
+    const labels = targetStatuses;
     const data = labels.map(l => statusCounts[l]);
 
     if (statusChartInstance) statusChartInstance.destroy();
@@ -294,7 +250,7 @@ function renderStatusChart() {
     statusChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: labels.map(l => l.substring(3)), 
+            labels: labels.map(l => l.replace(/^[0-9]+\./, '')), 
             datasets: [{ label: 'จำนวน (คัน)', data: data, backgroundColor: '#00320D', borderRadius: 4, barPercentage: 0.6, hoverBackgroundColor: '#f59e0b' }]
         },
         options: { 
@@ -307,8 +263,7 @@ function renderStatusChart() {
             onClick: (evt, elements) => {
                 if(elements.length > 0) {
                     const index = elements[0].index;
-                    const fullStatusName = labels[index];
-                    openStatusModal(fullStatusName);
+                    openStatusModal(labels[index]);
                 }
             }
         }
@@ -316,8 +271,22 @@ function renderStatusChart() {
 }
 
 function openStatusModal(statusName) {
-    document.getElementById('modal_status_name').innerText = statusName;
-    const jobsToShow = filteredJobs.filter(j => (j.job_status || "ไม่ระบุสถานะ") === statusName);
+    document.getElementById('modal_status_name').innerText = `รายการ: ${statusName.replace(/^[0-9]+\./, '')}`;
+    const start = document.getElementById('dash_start_date').value;
+    const end = document.getElementById('dash_end_date').value;
+
+    const jobsToShow = filteredJobs.filter(job => {
+        const st = (job.job_status || "").trim();
+        if (st === statusName || st.includes(statusName)) {
+            if (isDateInRange(job.billing_date, start, end)) return true;
+            if (!job.billing_date && (statusName.includes('รอออกบิล') || statusName.includes('ลูกค้ายกเลิก'))) {
+                let altDate = job.delivery_date || job.repair_finish_date || job.target_finish_date || job.arrived_date || job.contact_date;
+                return isDateInRange(altDate, start, end);
+            }
+        }
+        return false;
+    });
+
     renderJobTableInModalGroupedBySA(jobsToShow);
     document.getElementById('jobListModal').classList.remove('hidden');
 }
@@ -657,7 +626,6 @@ function renderCalendarByRange(startDate, endDate) {
     while(currentDay <= end) {
         const dateStr = `${currentDay.getFullYear()}-${String(currentDay.getMonth()+1).padStart(2,'0')}-${String(currentDay.getDate()).padStart(2,'0')}`;
         
-        // กรองรถเข้าตามสาขา (filteredJobs ถูกกรองสาขามาแล้วจาก applyFilters)
         const arrived = filteredJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr);
         const target = filteredJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr);
         const delivery = filteredJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr);
@@ -884,69 +852,3 @@ async function fastUpdateJob(jobId, field, value) {
 }
 
 function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
-
-// ==========================================
-// 🚀 ส่งข้อมูล Report ไปที่ LINE
-// ==========================================
-async function sendReportToLine(targetBranch) {
-    const btn = document.getElementById(`btnSendLine_${targetBranch}`);
-    const orgHtml = btn.innerHTML;
-    
-    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังส่ง...`;
-    btn.disabled = true;
-
-    try {
-        const startDate = document.getElementById('report_start_date').value;
-        const endDate = document.getElementById('report_end_date').value;
-        const branchName = targetBranch === 'Navamin' ? 'สาขานวมินทร์' : 'สาขารังสิต';
-        
-        let msg = `\n📋 RIZENIC Report\nสาขา: ${branchName}\nช่วงเวลา: ${startDate || 'ไม่ระบุ'} ถึง ${endDate || 'ไม่ระบุ'}\n`;
-        
-        if (!window.currentReportDef) {
-            throw new Error("ยังไม่มีข้อมูล Report กรุณากดค้นหาบนหน้าจอก่อนครับ");
-        }
-
-        const branchJobs = allJobs.filter(j => 
-            (targetBranch === 'Navamin' && (j.branch_name === 'Navamin' || j.branch_name === 'สาขานวมินทร์')) ||
-            (targetBranch === 'Rangsit' && (j.branch_name === 'Rangsit' || j.branch_name === 'สาขารังสิต'))
-        );
-
-        const categories = {
-            'customers': '\n👥 จำแนกประเภทลูกค้า',
-            'workStatus': '\n🛠️ สถานะงานซ่อม',
-            'finance': '\n💵 การเงิน & ออกบิล'
-        };
-
-        for (const [catKey, catTitle] of Object.entries(categories)) {
-            msg += catTitle + '\n';
-            window.currentReportDef[catKey].forEach(item => {
-                const count = branchJobs.filter(item.filter).length;
-                if (count > 0) {
-                    msg += `${item.icon} ${item.label}: ${count}\n`;
-                }
-            });
-        }
-
-        const res = await fetch(`${API_BASE_URL}/api/send-line-notify`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                branch: targetBranch,
-                message: msg 
-            })
-        });
-
-        if (res.ok) {
-            alert(`✅ ส่งข้อมูลเข้ากลุ่ม LINE ${branchName} สำเร็จแล้วครับ!`);
-        } else {
-            const errData = await res.json();
-            throw new Error(errData.error || "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
-        }
-
-    } catch (err) {
-        alert("❌ ขัดข้อง: " + err.message);
-    } finally {
-        btn.innerHTML = orgHtml;
-        btn.disabled = false;
-    }
-}
