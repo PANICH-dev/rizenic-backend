@@ -1009,34 +1009,6 @@ app.post('/api/send-line-notify', async (req, res) => {
   }
 });
 
-// ==========================================
-// 🕵️‍♂️ API ดักจับ Webhook เพื่อหา Group ID
-// ==========================================
-app.options('/api/webhook', (req, res) => {
-    res.status(200).end();
-});
-
-app.post('/api/webhook', (req, res) => {
-    try {
-        const events = req.body && req.body.events ? req.body.events : [];
-        
-        if (Array.isArray(events) && events.length > 0) {
-            events.forEach(event => {
-                if (event.source && event.source.type === 'group') {
-                    console.log('====================================');
-                    console.log('✅ เจอ Group ID แล้ว:', event.source.groupId);
-                    console.log('====================================');
-                }
-            });
-        }
-
-        // ตอบกลับ Status 200 ให้ LINE เสมอ
-        return res.status(200).json({ success: true });
-    } catch (err) {
-        console.error('Webhook Error:', err);
-        return res.status(200).json({ success: true });
-    }
-});
 
 /// ==========================================
 // 🚀 Start Server
