@@ -235,8 +235,8 @@ function renderDailyReport() {
     const start = document.getElementById('report_start_date').value || getFirstDayOfMonth();
     const end = document.getElementById('report_end_date').value || getLastDayOfMonth();
     
-    // 🌟 เปลี่ยนจากการใช้วันที่ระบบ เป็น "วันที่เริ่มต้น" ที่เลือก เพื่อให้ดึงข้อมูลได้ตรงตามที่ค้นหา
-    const todayDate = start; 
+    // 🌟 ดึงวันที่ปัจจุบันของจริงมาใช้สำหรับคำว่า "Today / ประจำวัน"
+    const todayDate = new Date().toISOString().split('T')[0]; 
 
     const activeContacts = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end));
     const uniqueCustomerTypes = [...new Set(activeContacts.map(j => (j.customer_type || 'ไม่ระบุ').trim()))].sort();
@@ -254,9 +254,9 @@ function renderDailyReport() {
             ...dynamicCustomerTypes
         ],
         workStatus: [
-            { label: "รถเข้าจอด (ประจำวัน)", icon: "🔥", filter: j => j.arrived_date && j.arrived_date.split('T')[0] === todayDate },
-            { label: "ซ่อมเสร็จ (ประจำวัน)", icon: "🔥", filter: j => j.repair_finish_date && j.repair_finish_date.split('T')[0] === todayDate },
-            { label: "ส่งมอบ (ประจำวัน)", icon: "🔥", filter: j => (j.job_status||'').includes('ส่งมอบ') && !(j.job_status||'').includes('ซ่อมเสร็จรอส่งมอบ') && j.delivery_date && j.delivery_date.split('T')[0] === todayDate },
+            { label: "รถเข้าจอด (ประจำวัน Today)", icon: "🔥", filter: j => j.arrived_date && j.arrived_date.split('T')[0] === todayDate },
+            { label: "ซ่อมเสร็จ (ประจำวัน Today)", icon: "🔥", filter: j => j.repair_finish_date && j.repair_finish_date.split('T')[0] === todayDate },
+            { label: "ส่งมอบ (ประจำวัน Today)", icon: "🔥", filter: j => (j.job_status||'').includes('ส่งมอบ') && !(j.job_status||'').includes('ซ่อมเสร็จรอส่งมอบ') && j.delivery_date && j.delivery_date.split('T')[0] === todayDate },
             { label: "รอเสนอประกัน", icon: "⏳", filter: j => (j.job_status||'').includes('รอเสนอประกัน') },
             { label: "รอประกันอนุมัติ", icon: "📝", filter: j => (j.job_status||'').includes('รอประกันอนุมัติ') },
             { label: "รอลูกค้าอนุมัติ (เงินสด)", icon: "💵", filter: j => (j.job_status||'').includes('รอลูกค้าอนุมัติ') },
@@ -272,7 +272,7 @@ function renderDailyReport() {
             { label: "พักซ่อม", icon: "👥", filter: j => (j.job_status||'').includes('พักซ่อม') }
         ],
         finance: [
-            { label: "ออกบิลแล้ว (ประจำวัน Today)", icon: "🔥", filter: j => (j.job_status||'').includes('ออกบิลแล้ว') && j.billing_date && j.billing_date.split('T')[0] === todayDate },
+            // 🌟 เอาออกบิลแล้วประจำวัน ออกไปแล้ว ตามคำสั่ง 🌟
             { label: "วางบิลประกัน (ตามช่วงเวลา)", icon: "💳", filter: j => (j.job_status||'').includes('วางบิลประกัน') && isDateInRange(j.billing_date, start, end) },
             { label: "ชำระเงินสด (ตามช่วงเวลา)", icon: "💵", filter: j => (j.job_status||'').includes('ชำระเงินสด') && isDateInRange(j.billing_date, start, end) },
             { label: "วางบิล Tesla (ตามช่วงเวลา)", icon: "🏎️", filter: j => (j.job_status||'').includes('วางบิล Tesla') && isDateInRange(j.billing_date, start, end) },
