@@ -82,9 +82,17 @@
                 <i class="fa-solid fa-table-list text-amber-400 text-xl"></i>
                 <h1 class="text-lg font-black tracking-wider text-white">RIZENIC <span class="text-green-400">TRACKING</span></h1>
                 
-                <div class="hidden sm:flex relative ml-4">
-                    <input type="text" id="global_search_plate" onkeypress="if(event.key==='Enter') globalSearchCar()" class="px-4 py-1.5 rounded-full text-xs font-bold text-slate-800 w-52 outline-none border-2 border-transparent focus:border-amber-400 transition-all shadow-inner" placeholder="🔍 ค้นหาทะเบียนด่วน...">
-                    <button onclick="globalSearchCar()" class="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-slate-400 hover:text-amber-500 bg-white rounded-full"><i class="fa-solid fa-arrow-right"></i></button>
+                <div class="hidden sm:flex relative ml-4 items-center gap-2">
+                    <div class="relative">
+                        <input type="text" id="global_search_plate" onkeypress="if(event.key==='Enter') globalSearchCar()" class="px-4 py-1.5 rounded-full text-xs font-bold text-slate-800 w-44 outline-none border-2 border-transparent focus:border-amber-400 transition-all shadow-inner" placeholder="🔍 ทะเบียนด่วน...">
+                        <button onclick="globalSearchCar()" class="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-slate-400 hover:text-amber-500 bg-white rounded-full"><i class="fa-solid fa-arrow-right"></i></button>
+                    </div>
+                    
+                    <!-- 🌟 สาขา Dropdown (ตามสิทธิ์) 🌟 -->
+                    <div class="relative bg-white rounded-full px-2 py-1 shadow-inner flex items-center border border-slate-300">
+                        <i class="fa-solid fa-building text-green-700 text-xs ml-1"></i>
+                        <select id="branch_filter" onchange="onBranchChange()" class="bg-transparent outline-none text-[11px] font-bold text-[#00320D] cursor-pointer ml-1 pr-2 py-1 max-w-[120px]"></select>
+                    </div>
                 </div>
             </div>
             <nav class="flex flex-col sm:flex-row items-center gap-3">
@@ -187,15 +195,12 @@
 
             <!-- สถานะค้าง & ปิดบิล -->
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                <!-- 🌟 กล่อง Active Jobs ย่อส่วนลงมาให้พื้นที่กับกล่องการเงิน -->
                 <div class="lg:col-span-7 bg-white rounded-xl shadow-sm border border-slate-200 p-5">
                     <h3 class="font-black text-slate-800 mb-4 border-b pb-2"><i class="fa-solid fa-chart-pie text-purple-500"></i> สรุปงานค้างแยกตามสถานะ (Active Jobs)</h3>
                     <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="sa_status_grid"></div>
                 </div>
                 
-                <!-- 🌟 แยกกล่อง รอปิดบิล และ ปิดบิลแล้ว + สรุปยอดเงิน 🌟 -->
                 <div class="lg:col-span-5 grid grid-cols-1 gap-4">
-                    <!-- กล่องรอปิดบิล -->
                     <div class="bg-amber-50 rounded-xl shadow-sm border border-amber-200 p-4 flex justify-between items-center cursor-pointer hover:bg-amber-100 transition" onclick="openSAFilteredModal('WaitBill')">
                         <div class="flex items-center gap-3">
                             <i class="fa-solid fa-file-invoice text-3xl text-amber-400"></i>
@@ -207,7 +212,6 @@
                         <span class="text-3xl font-black text-amber-600" id="sa_waitbill_count">0</span>
                     </div>
                     
-                    <!-- กล่องปิดบิลแล้ว + สรุปรายการ -->
                     <div class="bg-emerald-50 rounded-xl shadow-sm border border-emerald-200 p-4 cursor-pointer hover:bg-emerald-100 transition flex flex-col justify-center" onclick="openSAFilteredModal('Billed')">
                         <div class="flex justify-between items-center mb-3">
                             <div class="flex items-center gap-3">
@@ -220,7 +224,6 @@
                             <span class="text-3xl font-black text-emerald-600" id="sa_billed_count">0</span>
                         </div>
                         
-                        <!-- 🌟 สรุปสถิติ 🌟 -->
                         <div class="grid grid-cols-4 gap-2 text-center border-t border-emerald-200/60 pt-3">
                             <div>
                                 <p class="text-[10px] text-emerald-700 font-bold mb-0.5">ชิ้น(หลัก/รอง)</p>
@@ -251,7 +254,6 @@
                 </div>
                 <div class="flex-1 overflow-auto custom-scrollbar p-1.5 bg-slate-100">
                     <table class="excel-table-green" id="parkedTable">
-                        <!-- 🌟 แก้ไข: จัดคอลัมน์ให้ตรงเป๊ะกับข้อมูล Javascript 11 คอลัมน์ 🌟 -->
                         <thead>
                             <tr>
                                 <th style="width: 60px;">จอด(วัน)<div class="resizer-green"></div></th>
@@ -325,12 +327,14 @@
 
     <script>
         const API_BASE_URL = window.location.origin;
+        let masterJobsData = [];
         let allJobsData = [];
         let allPartOrders = [];
         let globalStatusOptionsHtml = '';
         let userRole = '';
         let userBranch = '';
         let currentViewSA = ''; 
+        let selectedBranchFilter = 'ALL';
 
         const activeProcessStatuses = [
             '01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ', 
@@ -338,6 +342,14 @@
             '07.รอนัดหมายเข้าซ่อม', '08.นัดหมายแล้วรอเข้าซ่อม', '09.จอดรอเข้าซ่อม', 
             '10.กำลังซ่อม', '11.รถซ่อมเสร็จรอส่งมอบ'
         ];
+
+        // 🌟 Helper ดักจับค่าว่างหรือ Null ของวันที่ 🌟
+        function getValidDateStr(val) {
+            if (!val || String(val).trim() === '' || String(val) === 'null' || String(val) === 'undefined') return '';
+            const str = String(val).split('T')[0];
+            if (str.startsWith('1970') || str.startsWith('0000')) return '';
+            return str;
+        }
 
         function showToast(msg, type='success') {
             const toast = document.getElementById('toastMsg');
@@ -378,7 +390,8 @@
                 const results = await Promise.allSettled([
                     fetch(`${API_BASE_URL}/api/statuses`).then(res => res.json()),
                     fetch(`${API_BASE_URL}/api/part-orders`).then(res => res.json()),
-                    fetch(`${API_BASE_URL}/api/reports`).then(res => res.json())
+                    fetch(`${API_BASE_URL}/api/reports`).then(res => res.json()),
+                    fetch(`${API_BASE_URL}/api/employees`).then(res => res.json())
                 ]);
 
                 if (results[0].status === 'fulfilled') {
@@ -386,27 +399,71 @@
                     globalStatusOptionsHtml = globalStatuses.length > 0 ? globalStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('') : `<option value="09.จอดรอเข้าซ่อม">09.จอดรอเข้าซ่อม</option>`;
                 }
                 if (results[1].status === 'fulfilled') allPartOrders = results[1].value;
+                
+                // 🌟 จัดการระบบสาขา (Branch Filter)
+                if (results[3].status === 'fulfilled') {
+                    const employees = results[3].value;
+                    const masterBranches = [...new Set(employees.map(e => e.branch_name).filter(Boolean))].sort();
+                    const branchSelect = document.getElementById('branch_filter');
+                    const isManager = ['BA','Manager','Admin','แอดมิน'].includes(userRole);
+                    
+                    let optionsHtml = isManager ? `<option value="ALL">🏢 รวมทุกสาขา</option>` : '';
+                    if(masterBranches.length === 0) masterBranches = [userBranch];
+                    masterBranches.forEach(b => {
+                        optionsHtml += `<option value="${b}">${b}</option>`;
+                    });
+                    
+                    if (branchSelect) {
+                        branchSelect.innerHTML = optionsHtml;
+                        if (isManager) {
+                            branchSelect.value = selectedBranchFilter;
+                            branchSelect.disabled = false;
+                        } else {
+                            selectedBranchFilter = userBranch;
+                            branchSelect.value = userBranch;
+                            branchSelect.disabled = true;
+                        }
+                    }
+                }
+
                 if (results[2].status === 'fulfilled') {
-                    const data = results[2].value;
-                    allJobsData = (['BA','Manager','Admin','แอดมิน'].includes(userRole)) ? data : data.filter(d => d.branch_name === userBranch);
+                    masterJobsData = results[2].value;
+                    filterDataByBranch();
                 } else {
                     throw new Error("ไม่สามารถดึงข้อมูลรายงานหลักได้");
                 }
-                
-                const yearSelect = document.getElementById('sa_cal_year');
-                const years = new Set([new Date().getFullYear()]);
-                allJobsData.forEach(j => { if(j.arrived_date) { const y = new Date(j.arrived_date).getFullYear(); if(!isNaN(y)) years.add(y); } });
-                let savedYear = yearSelect.value || new Date().getFullYear().toString();
-                yearSelect.innerHTML = '';
-                [...years].sort((a,b)=>b-a).forEach(y => yearSelect.innerHTML += `<option value="${y}">${y}</option>`);
-                if(years.has(parseInt(savedYear))) yearSelect.value = savedYear;
-                
-                if(currentViewSA) openSADetail(currentViewSA); 
-                else renderSAList();
-
             } catch (error) {
                 console.error(error);
                 showToast('มีปัญหาในการโหลดข้อมูล', 'error');
+            }
+        }
+
+        // 🌟 กรองข้อมูลเมื่อเปลี่ยนสาขา
+        function onBranchChange() {
+            selectedBranchFilter = document.getElementById('branch_filter').value;
+            filterDataByBranch();
+            showToast(`สลับการแสดงผลเป็น: ${selectedBranchFilter === 'ALL' ? 'ทุกสาขา' : selectedBranchFilter}`, 'info');
+        }
+
+        function filterDataByBranch() {
+            if (selectedBranchFilter === 'ALL') {
+                allJobsData = masterJobsData;
+            } else {
+                allJobsData = masterJobsData.filter(d => d.branch_name === selectedBranchFilter);
+            }
+            
+            const yearSelect = document.getElementById('sa_cal_year');
+            const years = new Set([new Date().getFullYear()]);
+            allJobsData.forEach(j => { if(j.arrived_date) { const y = new Date(j.arrived_date).getFullYear(); if(!isNaN(y)) years.add(y); } });
+            let savedYear = yearSelect.value || new Date().getFullYear().toString();
+            yearSelect.innerHTML = '';
+            [...years].sort((a,b)=>b-a).forEach(y => yearSelect.innerHTML += `<option value="${y}">${y}</option>`);
+            if(years.has(parseInt(savedYear))) yearSelect.value = savedYear;
+            
+            if(currentViewSA) {
+                openSADetail(currentViewSA); 
+            } else {
+                renderSAList();
             }
         }
 
@@ -414,7 +471,7 @@
             const plate = document.getElementById('global_search_plate').value.trim().toLowerCase();
             if(!plate) return;
             
-            const matchedJobs = allJobsData.filter(j => j.car_plate && j.car_plate.toLowerCase().includes(plate));
+            const matchedJobs = masterJobsData.filter(j => j.car_plate && j.car_plate.toLowerCase().includes(plate));
             
             if(matchedJobs.length === 0) {
                 showToast('ไม่พบรถทะเบียน: ' + plate, 'error');
@@ -542,13 +599,13 @@
                 const isProcessJob = activeProcessStatuses.some(status => st.includes(status) || st.startsWith(status.substring(0, 2)));
 
                 if (isProcessJob) {
-                    const appVal = j.appointment_date ? String(j.appointment_date).split('T')[0] : '';
-                    if (appVal && appVal <= todayStr && j.is_parked !== 'จอดซ่อม' && !j.arrived_date) ovApp++;
+                    const appVal = getValidDateStr(j.appointment_date);
+                    if (appVal && appVal <= todayStr && j.is_parked !== 'จอดซ่อม' && !getValidDateStr(j.arrived_date)) ovApp++;
 
-                    const tgtVal = j.target_finish_date ? String(j.target_finish_date).split('T')[0] : '';
-                    if (tgtVal && tgtVal < todayStr && !j.repair_finish_date) ovTgt++;
+                    const tgtVal = getValidDateStr(j.target_finish_date);
+                    if (tgtVal && tgtVal < todayStr && !getValidDateStr(j.repair_finish_date)) ovTgt++;
 
-                    const delVal = j.delivery_date ? String(j.delivery_date).split('T')[0] : '';
+                    const delVal = getValidDateStr(j.delivery_date);
                     if (delVal && delVal < todayStr && !st.includes('ส่งมอบ')) ovDel++;
                 }
             });
@@ -569,40 +626,38 @@
             else { btnDel.className = 'px-2.5 py-1 bg-white border border-purple-300 hover:bg-purple-100 rounded-lg text-xs font-bold text-purple-800 transition flex items-center gap-1 shadow-2xs'; }
         }
 
-  function openSAOverdueModal(type) {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
-    let jobsToShow = [];
-    let title = '';
+        function openSAOverdueModal(type) {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
+            let jobsToShow = [];
+            let title = '';
 
-    jobsToShow = saJobs.filter(j => {
-        const st = j.job_status || '';
-        // 🌟 1. ดักให้ดึงเฉพาะรถที่อยู่ในกระบวนการซ่อม 01-11 เท่านั้น (เหมือนตัวคำนวณ)
-        const isProcessJob = activeProcessStatuses.some(status => st.includes(status) || st.startsWith(status.substring(0, 2)));
-        if (!isProcessJob) return false;
+            jobsToShow = saJobs.filter(j => {
+                const st = j.job_status || '';
+                const isProcessJob = activeProcessStatuses.some(status => st.includes(status) || st.startsWith(status.substring(0, 2)));
+                if (!isProcessJob) return false;
 
-        // 🌟 2. กรองเงื่อนไข Overdue ตามประเภทที่กด
-        if (type === 'appointment') {
-            const appVal = j.appointment_date ? String(j.appointment_date).split('T')[0] : '';
-            return appVal && appVal <= todayStr && j.is_parked !== 'จอดซ่อม' && !j.arrived_date;
-        } else if (type === 'target') {
-            const tgtVal = j.target_finish_date ? String(j.target_finish_date).split('T')[0] : '';
-            return tgtVal && tgtVal < todayStr && !j.repair_finish_date;
-        } else if (type === 'delivery') {
-            const delVal = j.delivery_date ? String(j.delivery_date).split('T')[0] : '';
-            return delVal && delVal < todayStr && !st.includes('ส่งมอบ');
+                if (type === 'appointment') {
+                    const appVal = getValidDateStr(j.appointment_date);
+                    return appVal && appVal <= todayStr && j.is_parked !== 'จอดซ่อม' && !getValidDateStr(j.arrived_date);
+                } else if (type === 'target') {
+                    const tgtVal = getValidDateStr(j.target_finish_date);
+                    return tgtVal && tgtVal < todayStr && !getValidDateStr(j.repair_finish_date);
+                } else if (type === 'delivery') {
+                    const delVal = getValidDateStr(j.delivery_date);
+                    return delVal && delVal < todayStr && !st.includes('ส่งมอบ');
+                }
+                return false;
+            });
+
+            if (type === 'appointment') title = `🚨 OVERDUE: เลยกำหนดนัดหมายรถเข้า (SA: ${currentViewSA})`;
+            else if (type === 'target') title = `🚨 OVERDUE: เลยกำหนดเป้าซ่อมเสร็จ (SA: ${currentViewSA})`;
+            else if (type === 'delivery') title = `🚨 OVERDUE: เลยกำหนดส่งมอบรถ (SA: ${currentViewSA})`;
+
+            document.getElementById('modal_status_name').innerText = title;
+            renderJobTableInModal(jobsToShow, 'overdue');
+            document.getElementById('jobListModal').classList.remove('hidden');
         }
-        return false;
-    });
-
-    if (type === 'appointment') title = `🚨 OVERDUE: เลยกำหนดนัดหมายรถเข้า (SA: ${currentViewSA})`;
-    else if (type === 'target') title = `🚨 OVERDUE: เลยกำหนดเป้าซ่อมเสร็จ (SA: ${currentViewSA})`;
-    else if (type === 'delivery') title = `🚨 OVERDUE: เลยกำหนดส่งมอบรถ (SA: ${currentViewSA})`;
-
-    document.getElementById('modal_status_name').innerText = title;
-    renderJobTableInModal(jobsToShow, 'overdue');
-    document.getElementById('jobListModal').classList.remove('hidden');
-}
 
         function renderSACalendar(jobs) {
             const fMonth = document.getElementById('sa_cal_month').value; 
@@ -620,9 +675,9 @@
 
             for(let day = 1; day <= totalDays; day++) {
                 const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-                const arrJobs = jobs.filter(j => (j.appointment_date && j.appointment_date.split('T')[0] === dateStr) || (j.arrived_date && j.arrived_date.split('T')[0] === dateStr));
-                const tgtJobs = jobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr);
-                const delJobs = jobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr);
+                const arrJobs = jobs.filter(j => getValidDateStr(j.appointment_date) === dateStr || getValidDateStr(j.arrived_date) === dateStr);
+                const tgtJobs = jobs.filter(j => getValidDateStr(j.target_finish_date) === dateStr);
+                const delJobs = jobs.filter(j => getValidDateStr(j.delivery_date) === dateStr);
                 daysData.push({ day, dateStr, arrJobs, tgtJobs, delJobs });
             }
 
@@ -653,15 +708,15 @@
 
             if(type === 'arrived') { 
                 typeLabel = "นัดเข้า / รถเข้า"; 
-                jobsToShow = saJobs.filter(j => (j.appointment_date && j.appointment_date.split('T')[0] === dateStr) || (j.arrived_date && j.arrived_date.split('T')[0] === dateStr));
+                jobsToShow = saJobs.filter(j => getValidDateStr(j.appointment_date) === dateStr || getValidDateStr(j.arrived_date) === dateStr);
             }
             else if(type === 'target') { 
                 typeLabel = "เป้าซ่อมเสร็จ"; 
-                jobsToShow = saJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr); 
+                jobsToShow = saJobs.filter(j => getValidDateStr(j.target_finish_date) === dateStr); 
             }
             else if(type === 'delivery') { 
                 typeLabel = "นัดส่งมอบ"; 
-                jobsToShow = saJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr); 
+                jobsToShow = saJobs.filter(j => getValidDateStr(j.delivery_date) === dateStr); 
             }
 
             document.getElementById('modal_status_name').innerText = `วันที่ ${new Date(dateStr).toLocaleDateString('th-TH')} (${typeLabel})`;
@@ -669,7 +724,6 @@
             document.getElementById('jobListModal').classList.remove('hidden');
         }
 
-        // 🌟 ฟังก์ชันคำนวณและอัปเดตยอดรวมการเงิน (แสดงบนแผงบอร์ดหน้า SA) 🌟
         function updateBilledCount(jobs) {
             const fMonth = document.getElementById('sa_cal_month').value;
             const fYear = document.getElementById('sa_cal_year').value;
@@ -696,12 +750,11 @@
                 }
                 
                 // 2. ปิดบิลแล้ว (ชำระเงินสด, ออกบิลแล้ว, วางบิลประกัน) + ต้องมีวันที่ออกบิล
-                if ((st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิลประกัน')) && job.billing_date) {
+                if ((st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิลประกัน')) && getValidDateStr(job.billing_date)) {
                     const d = new Date(job.billing_date);
                     if (String(d.getMonth() + 1).padStart(2, '0') === fMonth && String(d.getFullYear()) === fYear) {
                         billedCount++;
                         
-                        // คำนวณชิ้นส่วนและค่าใช้จ่ายของรถที่ปิดบิลแล้ว
                         const mQty = Number(job.main_part_qty) || (job.main_part_name ? job.main_part_name.split(',').filter(Boolean).length : 0);
                         const sQty = Number(job.sub_part_qty) || (job.sub_part_name ? job.sub_part_name.split(',').filter(Boolean).length : 0);
                         
@@ -719,7 +772,6 @@
             document.getElementById('waitbill_month_label').innerText = `(เดือน ${fMonth}/${fYear})`;
             document.getElementById('billed_month_label').innerText = `(เดือน ${fMonth}/${fYear})`;
 
-            // อัปเดตสถิติลงหน้าจอ
             const formatMoney = (val) => val.toLocaleString('th-TH', {minimumFractionDigits: 0, maximumFractionDigits: 2});
             
             document.getElementById('sum_main_parts').innerText = sumMain;
@@ -733,7 +785,7 @@
             const statusCounts = {}; 
             jobs.forEach(job => { 
                 const st = job.job_status || "ไม่ระบุสถานะ"; 
-                if (!(job.billing_date || st.includes('ออกบิลแล้ว') || job.department_routing === 'บัญชี')) { 
+                if (!(getValidDateStr(job.billing_date) || st.includes('ออกบิลแล้ว') || job.department_routing === 'บัญชี')) { 
                     statusCounts[st] = (statusCounts[st] || 0) + 1; 
                 } 
             });
@@ -760,7 +812,7 @@
             if (statusType === 'Billed') { 
                 jobsToShow = saJobs.filter(job => {
                     const st = job.job_status || "";
-                    if ((st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิลประกัน')) && job.billing_date) {
+                    if ((st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิลประกัน')) && getValidDateStr(job.billing_date)) {
                         const d = new Date(job.billing_date);
                         return (String(d.getMonth() + 1).padStart(2, '0') === fMonth && String(d.getFullYear()) === fYear);
                     }
@@ -793,7 +845,6 @@
         function renderSAParkedCars(jobs) {
             const tbody = document.getElementById('sa_parked_body'); 
             
-            // กรองเฉพาะรถที่ "จอดซ่อม" และยังไม่หลุดลูป 01-12 จริงๆ
             const parkedCars = jobs.filter(j => {
                 const st = j.job_status || '';
                 return j.is_parked === 'จอดซ่อม' && activeProcessStatuses.some(p => st.includes(p));
@@ -809,12 +860,12 @@
             parkedCars.sort((a,b) => new Date(a.arrived_date || 0) - new Date(b.arrived_date || 0)); 
 
             tbody.innerHTML = parkedCars.map(j => {
-                const arrDateStr = j.arrived_date ? String(j.arrived_date).split('T')[0] : '-';
-                const tgtDateStr = j.target_finish_date ? String(j.target_finish_date).split('T')[0] : '-';
+                const arrDateStr = getValidDateStr(j.arrived_date) ? String(j.arrived_date).split('T')[0] : '-';
+                const tgtDateStr = getValidDateStr(j.target_finish_date) ? String(j.target_finish_date).split('T')[0] : '-';
 
                 const arrDate = new Date(j.arrived_date); arrDate.setHours(0,0,0,0);
                 const diffTime = Math.abs(today - arrDate); 
-                const diffDays = j.arrived_date ? Math.floor(diffTime / (1000 * 60 * 60 * 24)) : 0;
+                const diffDays = getValidDateStr(j.arrived_date) ? Math.floor(diffTime / (1000 * 60 * 60 * 24)) : 0;
                 let dayBadge = diffDays > 14 ? 'text-red-600 font-black bg-red-50 py-0.5 px-2 rounded-full' : (diffDays > 7 ? 'text-amber-600 font-bold bg-amber-50 py-0.5 px-2 rounded-full' : 'text-emerald-700 font-bold bg-emerald-50 py-0.5 px-2 rounded-full');
 
                 let safeStatus = j.job_status || ''; 
@@ -876,7 +927,7 @@
                     <td class="font-bold ${nameStyle} whitespace-normal break-words">${o.part_name || '-'}</td>
                     <td class="text-center font-bold"><span class="text-amber-600">${o.qty_ordered || 0}</span> / <span class="text-emerald-600">${o.qty_received || 0}</span></td>
                     <td class="font-bold text-slate-700 text-center">${currentViewSA || '-'}</td>
-                    <td class="font-mono text-slate-600 font-bold text-center">${o.est_arrival_date ? o.est_arrival_date.split('T')[0] : '-'}</td>
+                    <td class="font-mono text-slate-600 font-bold text-center">${getValidDateStr(o.est_arrival_date)}</td>
                     <td class="text-center"><button onclick="goToExcelTabFilterPlate('${o.car_plate}')" class="bg-slate-100 border border-slate-300 text-slate-700 px-2 py-1 rounded text-[10px] font-bold hover:bg-slate-200 transition shadow-2xs"><i class="fa-solid fa-up-right-from-square"></i></button></td>
                 </tr>`;
             }).join('');
@@ -940,7 +991,11 @@
                 const formatMoney = (val) => Number(val || 0).toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 const mainQty = Number(j.main_part_qty) || (j.main_part_name ? j.main_part_name.split(',').filter(Boolean).length : 0);
                 const subQty = Number(j.sub_part_qty) || (j.sub_part_name ? j.sub_part_name.split(',').filter(Boolean).length : 0);
-                const formatDt = (d) => d ? new Date(d).toLocaleDateString('th-TH') : '-';
+                
+                const formatDt = (d) => {
+                    const validStr = getValidDateStr(d);
+                    return validStr ? new Date(validStr).toLocaleDateString('th-TH') : '-';
+                };
 
                 if (viewType === 'finance') {
                     return `<tr class="hover:bg-emerald-50/50 transition cursor-pointer border-b border-slate-100" onclick="goToEditJob('${j.id}')">
