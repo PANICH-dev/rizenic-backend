@@ -377,9 +377,9 @@
                 const res = await fetch(`${API_BASE_URL}/api/reports`);
                 const data = await res.json();
                 
-                allAccJobs = data.filter(d => d.department_routing === 'บัญชี');
+                // 🌟 กรองข้อมูล: อยู่แผนกบัญชี "และ" ไม่ใช่สถานะ 'ปิดงาน' 🌟
+                allAccJobs = data.filter(d => d.department_routing === 'บัญชี' && d.job_status !== 'ปิดงาน');
                 
-                // 🌟 ปรับปรุงการกรองสาขาพื้นฐาน 🌟
                 if (!['BA','Manager','Admin','แอดมิน'].includes(userRole)) {
                     allAccJobs = allAccJobs.filter(d => d.branch_name === userBranch);
                 }
@@ -393,18 +393,15 @@
             }
         }
 
-        // 🌟 โหลดตัวเลือกสาขา (Dropdown) 🌟
         function buildBranchDropdown() {
             const branchSelect = document.getElementById('branch_filter_select');
             const savedValue = branchSelect.value;
             
             if (['Manager', 'Admin', 'BA', 'แอดมิน'].includes(userRole)) {
-                // ดึงสาขาทั้งหมดที่มีในข้อมูล
                 const uniqueBranches = [...new Set(allAccJobs.map(j => j.branch_name).filter(Boolean))].sort();
                 branchSelect.innerHTML = '<option value="ALL">-- ทุกสาขา --</option>' + uniqueBranches.map(b => `<option value="${b}">${b}</option>`).join('');
                 if(savedValue && savedValue !== 'ALL' && uniqueBranches.includes(savedValue)) branchSelect.value = savedValue;
             } else {
-                // ล็อกไว้แค่สาขาของตัวเอง
                 branchSelect.innerHTML = `<option value="${userBranch}">${userBranch}</option>`;
                 branchSelect.disabled = true;
             }
@@ -438,7 +435,6 @@
             }
         }
 
-        // 🌟 ฟังก์ชันตัวช่วยเรียกอัปเดตฟิลเตอร์ทั้งหมด
         function applyGlobalFilters() {
             if (document.getElementById('tab-dashboard').classList.contains('active')) {
                 updateDashboard();
@@ -452,7 +448,6 @@
             const filterYear = document.getElementById('year_filter_select').value;
             const filterBranch = document.getElementById('branch_filter_select').value;
 
-            // 🌟 กรองข้อมูลตามสาขาก่อนคำนวณแดชบอร์ด
             const branchFilteredJobs = allAccJobs.filter(j => filterBranch === 'ALL' || j.branch_name === filterBranch);
 
             const unmanaged = branchFilteredJobs.filter(j => !j.billing_date || j.billing_date.trim() === '').length;
@@ -537,9 +532,17 @@
                     if (jobIndex > -1) {
                         allAccJobs[jobIndex][field] = valToSend;
                         if (field === 'insurance_pay_date') allAccJobs[jobIndex]['insurance_payment_date'] = valToSend;
+                        
+                        // 🌟 หากอัปเดตสถานะเป็น "ปิดงาน" ให้เตะออกจากตารางอัตโนมัติ 🌟
+                        if (field === 'job_status' && valToSend === 'ปิดงาน') {
+                            allAccJobs.splice(jobIndex, 1);
+                            showToast('สถานะปิดงาน ถูกเก็บลงประวัติย้อนหลังเรียบร้อย', 'info');
+                        }
                     }
                     
-                    showToast('อัปเดตข้อมูลอัตโนมัติสำเร็จ!');
+                    if (field !== 'job_status' || valToSend !== 'ปิดงาน') {
+                        showToast('อัปเดตข้อมูลอัตโนมัติสำเร็จ!');
+                    }
                     
                     if (field === 'billing_date' && valToSend) {
                         const managedType = document.getElementById('managed_filter_select').value; 
@@ -597,6 +600,7 @@
 
             let statusOpts = accStatuses.length > 0 ? [...accStatuses] : ['รอออกบิล', 'ออกบิลแล้ว', 'รับชำระแล้ว'];
             if (!statusOpts.includes('13.วางบิลประกัน')) statusOpts.push('13.วางบิลประกัน');
+            if (!statusOpts.includes('ปิดงาน')) statusOpts.push('ปิดงาน'); // ให้มีตัวเลือก "ปิดงาน" ใน Dropdown
             let optsHtml = statusOpts.map(s => `<option value="${s}">${s}</option>`).join('');
 
             tbody.innerHTML = data.map(job => {
@@ -638,30 +642,23 @@
                 return;
             }
 
-            // จัดเตรียมข้อมูล Array เพื่อสร้างไฟล์
             const exportData = [];
-            
-            // 1. หัวตาราง
             const headers = columnsDef.map(col => col.title);
             exportData.push(headers);
             
-            // 2. ข้อมูลแต่ละแถว
             currentFilteredData.forEach(job => {
                 const row = columnsDef.map(colDef => getJobColumnDisplayValue(job, colDef));
                 exportData.push(row);
             });
             
-            // สร้าง Worksheet และดาวน์โหลด
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet(exportData);
             
-            // ปรับความกว้างคอลัมน์อัตโนมัติ
             const colWidths = columnsDef.map(c => ({ wpx: c.width || 100 }));
             ws['!cols'] = colWidths;
 
             XLSX.utils.book_append_sheet(wb, ws, "Finance_Data");
             
-            // ตั้งชื่อไฟล์ตามวันที่และสาขา
             const todayStr = new Date().toISOString().split('T')[0];
             const fileName = `Rizenic_Finance_${userBranch}_${todayStr}.xlsx`;
             XLSX.writeFile(wb, fileName);
@@ -770,9 +767,8 @@
         function applyFilters() {
             const searchTxt = document.getElementById('search_input').value.toLowerCase();
             const managedType = document.getElementById('managed_filter_select').value; 
-            const branchFilter = document.getElementById('branch_filter_select').value; // 🌟 รับค่าสาขาจากฟิลเตอร์
+            const branchFilter = document.getElementById('branch_filter_select').value; 
             
-            // ดึงค่า Range วันที่
             const dateType = document.getElementById('date_filter_type').value;
             const dateStart = document.getElementById('date_start').value;
             const dateEnd = document.getElementById('date_end').value;
@@ -780,10 +776,8 @@
             let sumLabor = 0, sumPart = 0, sumExt = 0, sumTotal = 0;
 
             const filteredData = allAccJobs.filter(job => {
-                // 🌟 1. กรองตามสาขา
                 if (branchFilter !== 'ALL' && job.branch_name !== branchFilter) return false;
 
-                // 2. ค้นหาข้อความ
                 if (searchTxt) {
                     const matchStr = Object.values(job).join(' ').toLowerCase();
                     if(!matchStr.includes(searchTxt)) return false;
@@ -791,14 +785,11 @@
                 
                 const hasBillingDate = job.billing_date && String(job.billing_date).trim() !== '';
                 
-                // 3. กรองสถานะงาน
                 if (managedType === 'รอจัดการ' && hasBillingDate) return false;
                 if (managedType === 'จัดการแล้ว' && !hasBillingDate) return false;
                 if (managedType === '13.วางบิลประกัน' && job.job_status !== '13.วางบิลประกัน') return false;
 
-                // 4. กรองช่วงวันที่ (Start - End)
                 if (dateStart || dateEnd) {
-                    // เลือกคอลัมน์ที่ต้องการเทียบ
                     let targetDateStr = null;
                     if (dateType === 'billing_date') {
                         targetDateStr = job.billing_date;
@@ -823,7 +814,6 @@
                     }
                 }
                 
-                // 5. กรอง Excel Checkbox ที่หัวตาราง
                 for (let key in activeFilters) {
                     const colDef = columnsDef.find(c => Number(c.idx) === Number(key)); 
                     if (!colDef) continue; 
@@ -891,7 +881,6 @@
 
             rows.forEach(row => tbody.appendChild(row));
             
-            // 🌟 อัปเดตข้อมูลที่จะ export ให้เรียงตามที่เราเพิ่งกด sort ในหน้าเว็บ
             const newOrderIds = rows.map(r => r.cells[0].innerText.replace(/[^A-Za-z0-9ก-๙]/g, '').trim());
             currentFilteredData.sort((a,b) => {
                 return newOrderIds.indexOf(String(a.car_plate).replace(/[^A-Za-z0-9ก-๙]/g, '').trim()) - newOrderIds.indexOf(String(b.car_plate).replace(/[^A-Za-z0-9ก-๙]/g, '').trim());
