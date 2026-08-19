@@ -10,6 +10,7 @@ let currentYear = new Date().getFullYear();
 let currentMonth = new Date().getMonth(); 
 let chartInstance = null;
 let currentBranch = 'สำนักงานใหญ่';
+let selectedBranchFilter = 'ALL'; // 🌟 ตัวแปรเลือกสาขา (ค่าเริ่มต้นเป็น ALL สำหรับสิทธิ์สูง)
 
 let activeFilters = {}; 
 let activeKpiFilter = null; 
@@ -155,12 +156,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
     document.getElementById('display_branch').innerText = currentBranch;
     
+    // 🌟 ตรวจสอบสิทธิ์และจัดการ Dropdown เลือกสาขา 🌟
+    const userRole = sessionStorage.getItem('emp_role') || '';
+    const isManager = ['BA', 'Manager', 'Admin', 'แอดมิน'].includes(userRole);
+    const branchSelectEl = document.getElementById('branchSelect');
+
+    if (branchSelectEl) {
+        if (isManager) {
+            selectedBranchFilter = 'ALL';
+            branchSelectEl.value = 'ALL';
+            branchSelectEl.disabled = false;
+        } else {
+            selectedBranchFilter = currentBranch;
+            branchSelectEl.value = currentBranch;
+            branchSelectEl.disabled = true; // ล็อกไม่ให้พนักงานทั่วไปเปลี่ยน
+        }
+    }
+    
     document.getElementById('m_repair_date').setAttribute('min', getTodayString());
 
     await loadUserColumnPreferences(); 
     buildTableHeaders(); renderHideColumnMenu(); fetchJobList();
     renderTimelineModal();
 });
+
+// 🌟 เมื่อมีการสลับสาขาผ่าน Dropdown
+function onBranchChange(newBranchVal) {
+    selectedBranchFilter = newBranchVal;
+    updateKPIs();
+    renderCalendar();
+    runTableFilters();
+    showToast(`สลับการแสดงผลเป็น: ${newBranchVal === 'ALL' ? 'ทุกสาขา' : newBranchVal}`, 'info');
+}
 
 function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
 
@@ -293,6 +320,9 @@ function updateKPIs() {
     kpiData = { arrived: [], repairing: [], done: [], delayed: [] };
     
     originalRepairJobs.forEach(j => {
+        // 🌟 กรองสาขาตามที่เลือกใน Header
+        if (selectedBranchFilter !== 'ALL' && j.branch_name !== selectedBranchFilter) return;
+
         const st = j.job_status || '';
         if (st.includes('ยกเลิก')) return; 
         
@@ -321,11 +351,11 @@ function runTableFilters() {
     const searchTxt = (document.getElementById('global_search_input')?.value || '').toLowerCase();
     
     const filteredData = originalRepairJobs.filter(job => {
-        // 🌟 1. อนุโลมให้เห็นรถทุกแผนก ถ้ากดมาจากปฏิทิน 🌟
-        if (!isCalendarFilterActive && job.department_routing !== 'ซ่อม') return false;
+        // 🌟 1. กรองตามสาขาที่เลือก 🌟
+        if (selectedBranchFilter !== 'ALL' && job.branch_name !== selectedBranchFilter) return false;
 
-        // 🌟 2. แต่ยังคงต้อง "กรองสาขา" ให้เห็นเฉพาะของตัวเองเสมอ! 🌟
-        if (currentBranch !== 'สำนักงานใหญ่' && job.branch_name !== currentBranch) return false;
+        // 🌟 2. อนุโลมให้เห็นรถทุกแผนก ถ้ากดมาจากปฏิทิน 🌟
+        if (!isCalendarFilterActive && job.department_routing !== 'ซ่อม') return false;
 
         // กรองตามป้าย KPI
         if (activeKpiFilter) {
@@ -365,7 +395,7 @@ function filterBoardByKpi(type) {
     switchTab('tab-board');
     activeFilters = {}; 
     activeKpiFilter = type; 
-    isCalendarFilterActive = false; // ปิดสถานะปฏิทิน
+    isCalendarFilterActive = false; 
     document.getElementById('global_search_input').value = '';
     document.querySelectorAll('.filter-icon').forEach(icon => icon.classList.remove('active'));
     runTableFilters(); 
@@ -374,7 +404,7 @@ function filterBoardByKpi(type) {
 function clearAllFilters() {
     activeFilters = {}; 
     activeKpiFilter = null; 
-    isCalendarFilterActive = false; // เคลียร์สถานะปฏิทิน
+    isCalendarFilterActive = false; 
     document.getElementById('global_search_input').value = '';
     document.querySelectorAll('.filter-icon').forEach(icon => { icon.classList.remove('active'); });
     runTableFilters();
@@ -414,17 +444,13 @@ async function fetchJobList() {
         allBodyPartsMaster = Array.isArray(resBodyParts) ? resBodyParts : (resBodyParts.data || []); 
 
         const rawReports = Array.isArray(resReports) ? resReports : (resReports.data || []);
-        
-        const userRole = sessionStorage.getItem('emp_role') || '';
-        const isManager = ['BA', 'Manager', 'Admin', 'แอดมิน'].includes(userRole);
 
         // 🌟 ดึงข้อมูลและเก็บต้นฉบับไว้ทั้งหมด
         originalRepairJobs = rawReports.filter(j => {
-            const isBranchMatch = isManager ? true : j.branch_name === currentBranch;
             const st = j.job_status || '';
             const isNotCancelled = !st.includes('ยกเลิก');
             const isNotDelivered = !st.includes('ส่งมอบแล้ว') && st !== '12.ส่งมอบ';
-            return isBranchMatch && isNotCancelled && isNotDelivered;
+            return isNotCancelled && isNotDelivered;
         }).map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
 
         updateKPIs();
@@ -606,6 +632,8 @@ function openExcelFilter(e, colIndex, title) {
     e.stopPropagation(); currentFilterCol = colIndex; document.getElementById('ef_col_name').innerText = title; document.getElementById('ef_search').value = '';
     const uniqueValues = new Set();
     originalRepairJobs.forEach(job => {
+        if (selectedBranchFilter !== 'ALL' && job.branch_name !== selectedBranchFilter) return;
+
         let val = ''; const key = columnsDef.find(c => c.idx === colIndex).key;
         if(['arrived_date', 'target_finish_date', 'repair_finish_date', 'delivery_date'].includes(key)) { val = job[key] ? String(job[key]).split('T')[0] : ''; } 
         else if (key === 'car_brand') { val = `${job.car_brand || ''} ${job.car_model || ''}`.trim(); } 
@@ -704,27 +732,30 @@ function renderCalendar() {
 
     for(let i = 0; i < firstDay; i++) { grid.innerHTML += `<div class="bg-slate-50/50"></div>`; }
 
+    // 🌟 กรองรถตามสาขาสำหรับโหมดปฏิทิน
+    const jobsForCalendar = originalRepairJobs.filter(j => selectedBranchFilter === 'ALL' || j.branch_name === selectedBranchFilter);
+
     let monthMaxQty = 1; 
     for(let day = 1; day <= totalDays; day++) {
         const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-        const aQty = originalRepairJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length;
-        const tQty = originalRepairJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).length;
-        const dQty = originalRepairJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
+        const aQty = jobsForCalendar.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length;
+        const tQty = jobsForCalendar.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).length;
+        const dQty = jobsForCalendar.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
         const maxInDay = Math.max(aQty, tQty, dQty);
         if (maxInDay > monthMaxQty) monthMaxQty = maxInDay;
     }
 
-    const branchQuota = allQuotas.find(q => q.branch_name === currentBranch) || { max_main_parts: 0, max_sub_parts: 0 };
+    const branchQuota = allQuotas.find(q => q.branch_name === (selectedBranchFilter === 'ALL' ? currentBranch : selectedBranchFilter)) || { max_main_parts: 0, max_sub_parts: 0 };
     const maxMain = branchQuota.max_main_parts || 0;
     const maxSub = branchQuota.max_sub_parts || 0;
 
     for(let day = 1; day <= totalDays; day++) {
         const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
         
-        const arrivedQty = originalRepairJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length;
-        const targetJobsInDay = originalRepairJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr);
+        const arrivedQty = jobsForCalendar.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length;
+        const targetJobsInDay = jobsForCalendar.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr);
         const targetQty = targetJobsInDay.length;
-        const deliveryQty = originalRepairJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
+        const deliveryQty = jobsForCalendar.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
 
         let sumMainDay = 0, sumSubDay = 0;
         targetJobsInDay.forEach(j => {
@@ -732,7 +763,7 @@ function renderCalendar() {
             sumSubDay += Number(j.sub_part_qty) || (j.sub_part_name ? j.sub_part_name.split(',').filter(Boolean).length : 0);
         });
 
-        const overdueJobsInDay = originalRepairJobs.filter(j => (j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr) && checkOverdue(j));
+        const overdueJobsInDay = jobsForCalendar.filter(j => (j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr) && checkOverdue(j));
         const hasOverdue = overdueJobsInDay.length > 0;
         
         const overMain = maxMain > 0 && sumMainDay > maxMain;
@@ -860,6 +891,8 @@ function renderPieChartAndList() {
     Object.keys(counters).forEach(k => stationJobs[k] = []); 
 
     originalRepairJobs.forEach(j => {
+        if (selectedBranchFilter !== 'ALL' && j.branch_name !== selectedBranchFilter) return;
+
         const st = j.job_status || '';
         if(st.includes('ยกเลิก')) return; 
         if(j.department_routing !== 'ซ่อม') return;
@@ -980,6 +1013,7 @@ function renderPieChartAndList() {
     });
     breakdownDiv.innerHTML = listHTML || '<div class="text-center py-10 text-slate-500 text-base font-bold">🎉 ไม่มีรถค้างในสถานีเลยครับ!</div>';
 }
+
 let mainPartsList = [];
 let subPartsList = [];
 
@@ -1104,8 +1138,8 @@ async function openModal(jobId) {
             if (po.order_status === 'ยกเลิก') return false;
             if (po.job_id) return String(po.job_id) === String(job.id); 
             if (po.car_plate !== job.car_plate) return false;
-            if (job.qt_no && po.qt_no && job.qt_no.includes(po.qt_no)) return true;
-            if (job.so_no && po.so_no && job.so_no.includes(po.so_no)) return true;
+            if (job.qt_no && po.qt_no && j.qt_no.includes(po.qt_no)) return true;
+            if (job.so_no && po.so_no && j.so_no.includes(po.so_no)) return true;
             return (!po.qt_no && !po.so_no);
         });
 
