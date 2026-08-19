@@ -749,8 +749,10 @@
                     }
                 }
                 
-                // 2. ปิดบิลแล้ว (ชำระเงินสด, ออกบิลแล้ว, วางบิลประกัน) + ต้องมีวันที่ออกบิล
-                if ((st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิลประกัน')) && getValidDateStr(job.billing_date)) {
+                // 2. ปิดบิลแล้ว 
+                const isBilledStatus = st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิลประกัน') || st.includes('วางบิล Tesla') || st.includes('วางบิล EV ME') || st.includes('วางบิล EVME');
+                
+                if (isBilledStatus && getValidDateStr(job.billing_date)) {
                     const d = new Date(job.billing_date);
                     if (String(d.getMonth() + 1).padStart(2, '0') === fMonth && String(d.getFullYear()) === fYear) {
                         billedCount++;
@@ -785,7 +787,10 @@
             const statusCounts = {}; 
             jobs.forEach(job => { 
                 const st = job.job_status || "ไม่ระบุสถานะ"; 
-                if (!(getValidDateStr(job.billing_date) || st.includes('ออกบิลแล้ว') || job.department_routing === 'บัญชี')) { 
+                // ไม่นับรวมในงานค้าง ถ้ามีวันที่ออกบิลแล้ว หรือ สถานะเกี่ยวกับการออกบิล หรือ อยู่แผนกบัญชี
+                const isBilled = getValidDateStr(job.billing_date) || st.includes('ออกบิลแล้ว') || st.includes('ชำระเงินสด') || st.includes('วางบิลประกัน') || st.includes('วางบิล Tesla') || st.includes('วางบิล EV') || job.department_routing === 'บัญชี';
+                
+                if (!isBilled) { 
                     statusCounts[st] = (statusCounts[st] || 0) + 1; 
                 } 
             });
@@ -812,7 +817,9 @@
             if (statusType === 'Billed') { 
                 jobsToShow = saJobs.filter(job => {
                     const st = job.job_status || "";
-                    if ((st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิลประกัน')) && getValidDateStr(job.billing_date)) {
+                    const isBilledStatus = st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิลประกัน') || st.includes('วางบิล Tesla') || st.includes('วางบิล EV ME') || st.includes('วางบิล EVME');
+                    
+                    if (isBilledStatus && getValidDateStr(job.billing_date)) {
                         const d = new Date(job.billing_date);
                         return (String(d.getMonth() + 1).padStart(2, '0') === fMonth && String(d.getFullYear()) === fYear);
                     }
