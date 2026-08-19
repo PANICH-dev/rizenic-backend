@@ -671,19 +671,26 @@ function renderCarModelsCheckbox(selectedStr) {
 // Excel Grid Paste Multi-Items (การก็อปวาง Excel)
 // ------------------------------------------
 function openExcelPasteModal(type) {
-    document.getElementById('paste_target_type').value = type; const title = document.getElementById('paste_modal_title'); const text = document.getElementById('paste_instructions_text'); const thead = document.getElementById('paste_grid_thead'); const tbody = document.getElementById('paste_grid_tbody');
+    document.getElementById('paste_target_type').value = type; 
+    const title = document.getElementById('paste_modal_title'); 
+    const text = document.getElementById('paste_instructions_text'); 
+    const thead = document.getElementById('paste_grid_thead'); 
+    const tbody = document.getElementById('paste_grid_tbody');
+    
     tbody.innerHTML = '';
     
     if (type === 'po') {
-        title.innerHTML = '<i class="fa-solid fa-cart-plus text-blue-600 mr-2"></i> สร้างใบสั่งซื้อ (PO) หลายรายการพร้อมกัน'; title.className = "font-black text-blue-900 text-sm sm:text-base";
+        title.innerHTML = '<i class="fa-solid fa-cart-plus text-blue-600 mr-2"></i> วางข้อมูลตารางสั่งซื้อ (PO) แบบด่วน'; 
+        title.className = "font-black text-blue-900 text-sm sm:text-base";
         document.getElementById('btn_submit_paste').className = "px-8 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-lg shadow-md transition flex items-center gap-2";
-        text.innerHTML = `<b>วิธีใช้งาน:</b> ก๊อปปี้ข้อมูลจาก Excel แล้วคลิกที่ช่องแรก (ทะเบียนรถ) กด <b>Ctrl+V</b> <br> *ลำดับคอลัมน์ Excel ต้องเรียงตามนี้: 1.ทะเบียนรถ, 2.หมายเลขอะไหล่, 3.จำนวน, 4.หมายเหตุ, 5.EPC No (ถ้ามี)`;
-        thead.innerHTML = `<tr><th class="excel-grid-th w-32">1. ทะเบียนรถ *</th><th class="excel-grid-th w-40">2. บาร์โค้ดอะไหล่ *</th><th class="excel-grid-th w-20 text-center">3. จำนวน *</th><th class="excel-grid-th w-48">4. หมายเหตุ</th><th class="excel-grid-th w-32">5. EPC No (ตัวเลือก)</th><th class="excel-grid-th w-10">ลบ</th></tr>`;
-    } else {
-        title.innerHTML = '<i class="fa-solid fa-truck-ramp-box text-emerald-600 mr-2"></i> รับเข้าคลัง (Inbound) หลายรายการพร้อมกัน'; title.className = "font-black text-emerald-900 text-sm sm:text-base";
-        document.getElementById('btn_submit_paste').className = "px-8 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-lg shadow-md transition flex items-center gap-2";
-        text.innerHTML = `<b>วิธีใช้งาน:</b> ก๊อปปี้ข้อมูลจาก Excel แล้วคลิกที่ช่องแรก (บาร์โค้ดอะไหล่) กด <b>Ctrl+V</b> <br> *ลำดับคอลัมน์ Excel ต้องเรียงตามนี้: 1.หมายเลขอะไหล่, 2.จำนวน, 3.ราคาต่อหน่วย, 4.EPC No (ถ้ามี)`;
-        thead.innerHTML = `<tr><th class="excel-grid-th w-40">1. บาร์โค้ดอะไหล่ *</th><th class="excel-grid-th w-20 text-center">2. จำนวน *</th><th class="excel-grid-th w-32 text-center">3. ราคา/หน่วย *</th><th class="excel-grid-th w-32">4. EPC No (ตัวเลือก)</th><th class="excel-grid-th w-10">ลบ</th></tr>`;
+        text.innerHTML = `<b>วิธีใช้งาน:</b> ก๊อปปี้ข้อมูลจาก Excel 7 คอลัมน์ แล้วคลิกช่องแรก กด <b>Ctrl+V</b> <br> *ลำดับ Excel: 1.EPC No, 2.ทะเบียน, 3.สถานะการสั่ง, 4.ยอดสั่ง, 5.วันที่สั่ง, 6.คาดการณ์เข้า, 7.วันที่เข้าครบ`;
+        thead.innerHTML = `<tr><th class="excel-grid-th w-32">1. EPC No *</th><th class="excel-grid-th w-24">2. ทะเบียน *</th><th class="excel-grid-th w-32">3. สถานะการสั่ง</th><th class="excel-grid-th w-16 text-center">4. ยอดสั่ง</th><th class="excel-grid-th w-28">5. วันที่สั่ง</th><th class="excel-grid-th w-28">6. คาดการณ์เข้า</th><th class="excel-grid-th w-28">7. วันที่เข้าครบ</th><th class="excel-grid-th w-10">ลบ</th></tr>`;
+    } else if (type === 'outbound') {
+        title.innerHTML = '<i class="fa-solid fa-upload text-purple-600 mr-2"></i> วางข้อมูลตารางเบิก/จองอะไหล่ แบบด่วน'; 
+        title.className = "font-black text-purple-900 text-sm sm:text-base";
+        document.getElementById('btn_submit_paste').className = "px-8 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-lg shadow-md transition flex items-center gap-2";
+        text.innerHTML = `<b>วิธีใช้งาน:</b> ก๊อปปี้ข้อมูลจาก Excel 7 คอลัมน์ แล้วคลิกช่องแรก กด <b>Ctrl+V</b> <br> *ลำดับ Excel: 1.วันที่, 2.สถานะเบิก, 3.หมายเลขอะไหล่, 4.จำนวน, 5.ทะเบียน, 6.QT No., 7.SO No.`;
+        thead.innerHTML = `<tr><th class="excel-grid-th w-28">1. วันที่ *</th><th class="excel-grid-th w-32">2. สถานะเบิก *</th><th class="excel-grid-th w-40">3. หมายเลขอะไหล่ *</th><th class="excel-grid-th w-16 text-center">4. จำนวน</th><th class="excel-grid-th w-24">5. ทะเบียน</th><th class="excel-grid-th w-28">6. QT No.</th><th class="excel-grid-th w-28">7. SO No.</th><th class="excel-grid-th w-10">ลบ</th></tr>`;
     }
     
     for(let i=0; i<5; i++) addPasteRow();
@@ -693,51 +700,135 @@ function openExcelPasteModal(type) {
 function closeExcelPasteModal() { document.getElementById('excelPasteModal').classList.add('hidden'); document.getElementById('excelPasteModal').classList.remove('flex'); }
 
 function addPasteRow() {
-    const type = document.getElementById('paste_target_type').value; const tbody = document.getElementById('paste_grid_tbody'); const tr = document.createElement('tr');
+    const type = document.getElementById('paste_target_type').value; 
+    const tbody = document.getElementById('paste_grid_tbody'); 
+    const tr = document.createElement('tr');
+    
     if (type === 'po') {
-        tr.innerHTML = `<td class="excel-cell"><input type="text" class="excel-input paste-cell uppercase font-bold text-amber-700" onpaste="handleGridPaste(event, this)"></td><td class="excel-cell"><input type="text" class="excel-input uppercase font-bold text-blue-700"></td><td class="excel-cell"><input type="number" class="excel-input text-center font-black text-lg" value="1" min="1"></td><td class="excel-cell"><input type="text" class="excel-input text-xs text-slate-600"></td><td class="excel-cell"><input type="text" class="excel-input uppercase font-mono text-center text-xs text-slate-500"></td><td class="excel-cell text-center"><button tabindex="-1" type="button" onclick="this.closest('tr').remove()" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button></td>`;
-    } else {
-        tr.innerHTML = `<td class="excel-cell"><input type="text" class="excel-input paste-cell uppercase font-bold text-blue-700" onpaste="handleGridPaste(event, this)"></td><td class="excel-cell"><input type="number" class="excel-input text-center font-black text-lg" value="1" min="1"></td><td class="excel-cell"><input type="number" class="excel-input text-right font-mono" value="0" step="0.01"></td><td class="excel-cell"><input type="text" class="excel-input uppercase font-mono text-center text-xs text-slate-500"></td><td class="excel-cell text-center"><button tabindex="-1" type="button" onclick="this.closest('tr').remove()" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button></td>`;
+        // [EPC, ทะเบียน, สถานะสั่ง, ยอดสั่ง, วันที่สั่ง, คาดการณ์, เข้าครบ]
+        tr.innerHTML = `<td class="excel-cell"><input type="text" class="excel-input paste-cell uppercase font-bold text-amber-700" onpaste="handleGridPaste(event, this)"></td><td class="excel-cell"><input type="text" class="excel-input uppercase font-bold text-blue-700"></td><td class="excel-cell"><input type="text" class="excel-input text-xs text-slate-700" value="รอสั่งซื้อ"></td><td class="excel-cell"><input type="number" class="excel-input text-center font-black text-lg" value="1" min="1"></td><td class="excel-cell"><input type="date" class="excel-input font-mono text-center text-xs text-slate-600"></td><td class="excel-cell"><input type="date" class="excel-input font-mono text-center text-xs text-amber-600"></td><td class="excel-cell"><input type="date" class="excel-input font-mono text-center text-xs text-emerald-600"></td><td class="excel-cell text-center"><button tabindex="-1" type="button" onclick="this.closest('tr').remove()" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button></td>`;
+    } else if (type === 'outbound') {
+        // [วันที่, สถานะ, หมายเลขอะไหล่, จำนวน, ทะเบียน, QT, SO]
+        tr.innerHTML = `<td class="excel-cell"><input type="date" class="excel-input paste-cell font-mono text-center text-xs" onpaste="handleGridPaste(event, this)"></td><td class="excel-cell"><input type="text" class="excel-input text-xs text-slate-700" value="เบิกอะไหล่"></td><td class="excel-cell"><input type="text" class="excel-input uppercase font-bold text-blue-700"></td><td class="excel-cell"><input type="number" class="excel-input text-center font-black text-lg" value="1" min="1"></td><td class="excel-cell"><input type="text" class="excel-input uppercase font-bold text-amber-700"></td><td class="excel-cell"><input type="text" class="excel-input uppercase font-mono text-center text-xs"></td><td class="excel-cell"><input type="text" class="excel-input uppercase font-mono text-center text-xs"></td><td class="excel-cell text-center"><button tabindex="-1" type="button" onclick="this.closest('tr').remove()" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button></td>`;
     }
     tbody.appendChild(tr);
 }
 
 function handleGridPaste(e, cellInput) {
-    e.preventDefault(); const clipboardData = e.clipboardData || window.clipboardData; const pastedText = clipboardData.getData('Text'); if (!pastedText) return;
-    const rows = pastedText.split(/\r\n|\n|\r/).filter(row => row.trim() !== ''); const tbody = document.getElementById('paste_grid_tbody'); let currentRow = cellInput.closest('tr');
+    e.preventDefault(); 
+    const clipboardData = e.clipboardData || window.clipboardData; 
+    const pastedText = clipboardData.getData('Text'); 
+    if (!pastedText) return;
+    
+    const rows = pastedText.split(/\r\n|\n|\r/).filter(row => row.trim() !== ''); 
+    const tbody = document.getElementById('paste_grid_tbody'); 
+    let currentRow = cellInput.closest('tr');
+    
     rows.forEach((rowStr, i) => {
-        const cols = rowStr.split('\t'); if (!currentRow) { addPasteRow(); currentRow = tbody.lastElementChild; }
+        const cols = rowStr.split('\t'); 
+        if (!currentRow) { addPasteRow(); currentRow = tbody.lastElementChild; }
         const inputs = currentRow.querySelectorAll('.excel-input:not([readonly])');
-        cols.forEach((colVal, j) => { if (inputs[j]) { inputs[j].value = colVal.trim(); inputs[j].classList.add('bg-amber-50'); setTimeout(() => inputs[j].classList.remove('bg-amber-50'), 1000); } });
+        cols.forEach((colVal, j) => { 
+            if (inputs[j]) { 
+                inputs[j].value = colVal.trim(); 
+                inputs[j].classList.add('bg-amber-50'); 
+                setTimeout(() => inputs[j].classList.remove('bg-amber-50'), 1000); 
+            } 
+        });
         currentRow = currentRow.nextElementSibling;
     });
 }
 
 async function processExcelPasteData() {
-    const type = document.getElementById('paste_target_type').value; const rows = document.querySelectorAll('#paste_grid_tbody tr'); const payloadArr = []; const todayStr = new Date().toISOString().split('T')[0];
+    const type = document.getElementById('paste_target_type').value; 
+    const rows = document.querySelectorAll('#paste_grid_tbody tr'); 
+    const payloadArr = []; 
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    let errorCount = 0;
+
     for (let tr of rows) {
         const inputs = tr.querySelectorAll('.excel-input:not([readonly])');
+        
         if (type === 'po') {
-            const plate = inputs[0].value.trim().toUpperCase(); const partNo = inputs[1].value.trim().toUpperCase(); const qty = parseInt(inputs[2].value) || 0; const note = inputs[3].value.trim() || null; const epc = inputs[4].value.trim().toUpperCase() || null;
-            if (plate && partNo && qty > 0) {
-                let partName = partNo; let partMain = null; const m = allMasterPartsCache.find(x => x.part_no && x.part_no.toUpperCase() === partNo); if (m) { partName = m.part_name; partMain = m.part_main_no; }
-                payloadArr.push({ car_plate: plate, part_no: partNo, part_main_no: partMain, part_name: partName, qty_ordered: qty, order_status: 'รอสั่งซื้อ', order_date: todayStr, notes: note, epc_no: epc, branch_name: userBranch });
+            // [EPC, ทะเบียน, สถานะสั่ง, ยอดสั่ง, วันที่สั่ง, คาดการณ์, เข้าครบ]
+            const epc = inputs[0].value.trim().toUpperCase(); 
+            const plate = inputs[1].value.trim().toUpperCase(); 
+            const status = inputs[2].value.trim() || 'รอสั่งซื้อ'; 
+            const qty = parseInt(inputs[3].value) || 0; 
+            const orderDate = inputs[4].value || todayStr;
+            const etaDate = inputs[5].value || null;
+            const rcvDate = inputs[6].value || null;
+
+            if (epc && plate && qty > 0) {
+                payloadArr.push({ 
+                    epc_no: epc, car_plate: plate, order_status: status, qty_ordered: qty, 
+                    order_date: orderDate, est_arrival_date: etaDate, part_received_all_date: rcvDate, 
+                    branch_name: userBranch,
+                    // สร้างชื่อ dummy ไว้ก่อน เพราะเราไม่ได้บังคับให้กรอก part_no ในฟอร์มนี้
+                    part_name: 'ระบุจาก EPC ' + epc, part_no: epc 
+                });
             }
-        } else {
-            const partNo = inputs[0].value.trim().toUpperCase(); const qty = parseInt(inputs[1].value) || 0; const price = parseFloat(inputs[2].value) || 0; const epc = inputs[3].value.trim().toUpperCase() || null;
+            
+        } else if (type === 'outbound') {
+            // [วันที่, สถานะ, หมายเลขอะไหล่, จำนวน, ทะเบียน, QT, SO]
+            const issueDate = inputs[0].value || todayStr; 
+            const status = inputs[1].value.trim() || 'เบิกอะไหล่'; 
+            const partNo = inputs[2].value.trim().toUpperCase(); 
+            const qty = parseInt(inputs[3].value) || 0; 
+            const plate = inputs[4].value.trim().toUpperCase() || null;
+            const qt = inputs[5].value.trim().toUpperCase() || null;
+            const so = inputs[6].value.trim().toUpperCase() || null;
+
             if (partNo && qty > 0) {
-                let partName = partNo; let partMain = null; const m = allMasterPartsCache.find(x => x.part_no && x.part_no.toUpperCase() === partNo); if (m) { partName = m.part_name; partMain = m.part_main_no; }
-                payloadArr.push({ received_date: todayStr, epc_no: epc, part_no: partNo, part_main_no: partMain, part_name: partName, qty: qty, unit_price: price, branch_name: userBranch });
+                // เช็ก Master Parts 🌟
+                let partName = partNo; 
+                let partMain = null; 
+                const m = allMasterPartsCache.find(x => x.part_no && x.part_no.toUpperCase() === partNo); 
+                
+                if (m) { 
+                    partName = m.part_name; partMain = m.part_main_no; 
+                } else {
+                    errorCount++;
+                    tr.style.backgroundColor = '#fff1f2'; // สีแดงอ่อนแจ้งเตือน
+                    continue; // ข้ามแถวที่หาไม่เจอ
+                }
+
+                payloadArr.push({ 
+                    issue_date: issueDate, job_status: status, part_no: partNo, part_main_no: partMain, 
+                    part_name: partName, qty: qty, car_plate: plate, qt_no: qt, so_no: so, 
+                    branch_name: userBranch 
+                });
             }
         }
     }
+
+    if (errorCount > 0) {
+        alert(`⚠️ พบหมายเลขอะไหล่ที่ไม่มีใน Master Data จำนวน ${errorCount} รายการ (แถวสีแดง)\nระบบจะบันทึกเฉพาะรายการที่ถูกต้องเท่านั้นครับ`);
+    }
+
     if (payloadArr.length === 0) return alert('ไม่พบข้อมูลที่ถูกต้องสำหรับบันทึก กรุณาตรวจสอบข้อมูลอีกครั้งครับ');
+    
     if (!confirm(`ยืนยันการบันทึกข้อมูลแบบกลุ่ม จำนวน ${payloadArr.length} รายการ?`)) return;
 
     try {
-        const btn = document.getElementById('btn_submit_paste'); btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> บันทึก...'; btn.disabled = true;
-        const endpoint = type === 'po' ? '/api/part-orders' : '/api/part-inbound';
-        await Promise.all(payloadArr.map(item => fetch(`${API_BASE_URL}${endpoint}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(item) })));
-        showToast(`บันทึกข้อมูลสำเร็จ ${payloadArr.length} รายการ!`); closeExcelPasteModal(); loadAllData();
-    } catch(err) { showToast('บันทึกล้มเหลว', 'error'); }
+        const btn = document.getElementById('btn_submit_paste'); 
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> บันทึก...'; 
+        btn.disabled = true;
+        
+        const endpoint = type === 'po' ? '/api/part-orders' : '/api/part-outbound';
+        
+        await Promise.all(payloadArr.map(item => fetch(`${API_BASE_URL}${endpoint}`, { 
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(item) 
+        })));
+        
+        showToast(`บันทึกข้อมูลสำเร็จ ${payloadArr.length} รายการ!`); 
+        closeExcelPasteModal(); 
+        loadAllData();
+    } catch(err) { 
+        showToast('บันทึกล้มเหลว', 'error'); 
+        const btn = document.getElementById('btn_submit_paste'); 
+        btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> ยืนยันบันทึกข้อมูล'; 
+        btn.disabled = false;
+    }
 }
