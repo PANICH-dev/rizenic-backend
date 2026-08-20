@@ -2,6 +2,14 @@
 // 🎨 RIZENIC - Parts UI & Rendering (parts_ui.js)
 // ==========================================
 
+// ตัวแปรสำรองสำหรับสถานะ (เผื่อตัวหลักโหลดไม่ขึ้น)
+const fallbackStatuses = [
+    {status_name: 'รอสั่งซื้อ'},
+    {status_name: 'รออะไหล่'},
+    {status_name: 'เข้าครบ'},
+    {status_name: 'Back Order'}
+];
+
 // ------------------------------------------
 // 1. แจ้งเตือน SA (SA Alerts) & โต๊ะคีย์อัปเดต
 // ------------------------------------------
@@ -10,7 +18,6 @@ function renderSAAlerts() {
     const badge = document.getElementById('alert_count');
     if(!tbody) return;
     
-    // ดึงรถที่ค้างสั่งแบบมี PO ค้าง
     const uncompletedPOs = allPartOrders.filter(p => !p.order_status || !p.order_status.includes('ครบ'));
     
     const grouped = {};
@@ -57,7 +64,7 @@ function renderSAAlerts() {
     const plates = Object.keys(grouped);
     
     if (plates.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-10 text-slate-400 font-bold bg-white"><i class="fa-solid fa-check-circle text-3xl mb-3 text-emerald-300 block"></i> ไม่มีรายการอะไหล่ที่ต้องจัดการครับ! 🎉</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-400 font-bold bg-white"><i class="fa-solid fa-check-circle text-3xl mb-3 text-emerald-300 block"></i> ไม่มีรายการอะไหล่ที่ต้องจัดการครับ! 🎉</td></tr>`;
         if(badge) badge.classList.add('hidden');
         return;
     }
@@ -73,11 +80,7 @@ function renderSAAlerts() {
         
         const arrDate = first.order_date ? String(first.order_date).split('T')[0] : '-';
         const customerName = first.customer_name || '-';
-        
-        // สร้างลิสต์อะไหล่ที่ SA ต้องการ
-        const reqPartsList = [first.main_part_name, first.sub_part_name].filter(p => p && p.trim() !== '').join(', ') || '<span class="text-slate-400 italic">ไม่ได้ระบุ</span>';
 
-        // โชว์รายการที่คีย์แล้ว พร้อม Part No
         let itemsHtml = items.map(p => {
             let color = (p.order_status === 'รอสั่งซื้อ' || p.order_status === 'รออัปเดต') ? 'text-red-600' : 'text-amber-600';
             if (p.is_empty_po) color = 'text-rose-500 animate-pulse'; 
@@ -94,13 +97,6 @@ function renderSAAlerts() {
                 <td class="font-bold text-slate-600 text-xs px-2 py-2">${first.car_model || '-'}</td>
                 <td class="font-bold text-slate-700 text-xs px-2 py-2 truncate max-w-[150px]" title="${customerName}">${customerName}</td>
                 <td class="font-mono text-xs font-bold text-blue-600 px-2 py-2">${first.epc_no || '-'}</td>
-                
-                <td class="px-2 py-2">
-                    <div class="text-[11px] font-bold text-indigo-700 bg-indigo-50 p-2 rounded-lg border border-indigo-200 max-h-[80px] overflow-y-auto custom-scrollbar">
-                        ${reqPartsList}
-                    </div>
-                </td>
-
                 <td class="px-2 py-2 max-h-[80px] overflow-y-auto block custom-scrollbar bg-slate-50/50 rounded my-1 border border-slate-100">${itemsHtml}</td>
                 <td class="text-center px-2 py-2">
                     <button onclick="openAlertModal('${plate}')" class="bg-[#00320D] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-black transition shadow-sm w-full">
@@ -148,7 +144,9 @@ function openAlertModal(plate) {
                 <tbody class="divide-y divide-slate-200">
     `;
 
-    const statusOptionsHtml = allStatuses.length > 0 ? allStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('') : '<option value="รอสั่งซื้อ">รอสั่งซื้อ</option><option value="รออะไหล่">รออะไหล่</option>';
+    // ใช้ Fallback Status เพื่อป้องกัน Error ตอนกดเปิดโต๊ะคีย์
+    const safeStatusList = (typeof allStatuses !== 'undefined' && allStatuses.length > 0) ? allStatuses : fallbackStatuses;
+    const statusOptionsHtml = safeStatusList.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
 
     uncompleted.forEach(p => {
         let safeOpts = statusOptionsHtml;
@@ -190,7 +188,8 @@ function openAlertModal(plate) {
 
 window.addNewAlertRow = function(plate) {
     const tbody = document.querySelector('#modal_dynamic_table_container tbody');
-    const statusOptionsHtml = allStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
+    const safeStatusList = (typeof allStatuses !== 'undefined' && allStatuses.length > 0) ? allStatuses : fallbackStatuses;
+    const statusOptionsHtml = safeStatusList.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
     let safeOpts = statusOptionsHtml.replace(`value="รอสั่งซื้อ"`, `value="รอสั่งซื้อ" selected`);
     
     const tr = document.createElement('tr');
@@ -211,10 +210,8 @@ window.addNewAlertRow = function(plate) {
     tbody.appendChild(tr);
 };
 
-// ดึงข้อมูลชื่อจาก Master Data เมื่อคีย์ Part No
 function autoFillDynName(inputEl) {
-    const pNo = inputEl.value.trim().toUpperCase(); 
-    if (!pNo) return;
+    const pNo = inputEl.value.trim().toUpperCase(); if (!pNo) return;
     const tr = inputEl.closest('tr');
     const matched = allMasterPartsCache.find(x => x.part_no && x.part_no.toUpperCase() === pNo);
     if(matched) {
@@ -223,12 +220,8 @@ function autoFillDynName(inputEl) {
     }
 }
 
-function closeAlertModal() { 
-    document.getElementById('alertModal').classList.add('hidden'); 
-    document.getElementById('alertModal').classList.remove('flex'); 
-}
+function closeAlertModal() { document.getElementById('alertModal').classList.add('hidden'); document.getElementById('alertModal').classList.remove('flex'); }
 
-// อัปเดตข้อมูลกลับไปให้ SA โดยใช้ลอจิกเดิม /fast ยิงแยกทีละช่อง
 async function saveSAAlertUpdate(e) {
     e.preventDefault();
     const rows = document.querySelectorAll('#modal_dynamic_table_container tbody tr');
@@ -239,7 +232,7 @@ async function saveSAAlertUpdate(e) {
         const partName = tr.querySelector('.dyn-name').value.trim();
         const partNo = tr.querySelector('.dyn-partno').value.trim();
 
-        // ข้ามการบันทึกถ้าเป็นแถวว่าง
+        // ข้ามแถวที่ถูกเพิ่มขึ้นมาแต่ยังไม่ได้กรอกอะไร
         if (isNew && !partName && !partNo) return;
 
         updates.push({
