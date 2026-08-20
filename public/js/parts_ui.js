@@ -3,16 +3,14 @@
 // ==========================================
 
 // ------------------------------------------
-// 1. แจ้งเตือน SA (SA Alerts)
-// ------------------------------------------
-// ------------------------------------------
-// 1. ปรับเพิ่มปุ่ม "ส่งไปเบิก (รอซ่อม)" ใน SA Alerts
+// 1. แจ้งเตือน SA (SA Alerts) & โต๊ะคีย์อัปเดต
 // ------------------------------------------
 function renderSAAlerts() {
     const tbody = document.getElementById('sa_alerts_body');
     const badge = document.getElementById('alert_count');
     if(!tbody) return;
     
+    // ดึงรถที่ค้างสั่งแบบมี PO ค้าง
     const uncompletedPOs = allPartOrders.filter(p => !p.order_status || !p.order_status.includes('ครบ'));
     
     const grouped = {};
@@ -38,8 +36,8 @@ function renderSAAlerts() {
                         car_model: job.car_model,
                         customer_name: job.customer_name,
                         epc_no: job.epc_no,
-                        part_name: '⚠️ รอแผนกอะไหล่คีย์รายการเข้าตาราง',
-                        order_status: 'รอสั่งซื้อ',
+                        part_name: '⚠️ รอคีย์รายการให้ SA',
+                        order_status: 'รออัปเดต',
                         main_part_name: job.main_part_name,
                         sub_part_name: job.sub_part_name,
                         qt_no: job.qt_no,
@@ -59,7 +57,7 @@ function renderSAAlerts() {
     const plates = Object.keys(grouped);
     
     if (plates.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-slate-400 font-bold bg-white"><i class="fa-solid fa-check-circle text-3xl mb-3 text-emerald-300 block"></i> ไม่มีรายการอะไหล่ค้างสั่งครับ! 🎉</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-10 text-slate-400 font-bold bg-white"><i class="fa-solid fa-check-circle text-3xl mb-3 text-emerald-300 block"></i> ไม่มีรายการอะไหล่ที่ต้องจัดการครับ! 🎉</td></tr>`;
         if(badge) badge.classList.add('hidden');
         return;
     }
@@ -74,384 +72,227 @@ function renderSAAlerts() {
         const first = items[0];
         
         const arrDate = first.order_date ? String(first.order_date).split('T')[0] : '-';
-        const etaDate = first.est_arrival_date ? String(first.est_arrival_date).split('T')[0] : '-';
-        const rcvDate = (first.received_date || first.part_received_all_date) ? String(first.received_date || first.part_received_all_date).split('T')[0] : '-';
         const customerName = first.customer_name || '-';
         
+        // 🌟 สร้างลิสต์อะไหล่ที่ SA ต้องการ 🌟
+        const reqPartsList = [first.main_part_name, first.sub_part_name].filter(p => p && p.trim() !== '').join(', ') || '<span class="text-slate-400 italic">ไม่ได้ระบุ</span>';
+
+        // 🌟 โชว์รายการที่คีย์แล้ว พร้อม Part No 🌟
         let itemsHtml = items.map(p => {
-            let color = p.order_status === 'รอสั่งซื้อ' ? 'text-red-600' : 'text-amber-600';
+            let color = (p.order_status === 'รอสั่งซื้อ' || p.order_status === 'รออัปเดต') ? 'text-red-600' : 'text-amber-600';
             if (p.is_empty_po) color = 'text-rose-500 animate-pulse'; 
-            return `<span class="text-[11px] font-bold ${color} block truncate" title="${p.part_name}"><i class="fa-solid fa-caret-right"></i> [${p.order_status || '-'}] ${p.part_name}</span>`;
+            
+            // เพิ่มการโชว์ Part No.
+            let partNoDisplay = (p.part_no && p.part_no !== 'AUTO-JOB') ? `<span class="text-blue-600 font-mono">[${p.part_no}]</span> ` : '';
+
+            return `<span class="text-[11px] font-bold ${color} block truncate" title="${p.part_name}"><i class="fa-solid fa-caret-right"></i> ${partNoDisplay}${p.part_name} <span class="text-slate-500">(${p.order_status || '-'})</span></span>`;
         }).join('');
 
         return `
             <tr class="hover:bg-amber-50/50 transition border-b border-slate-100">
                 <td class="font-black text-amber-700 text-sm px-2 py-2"><span class="bg-amber-50 px-2 py-1 rounded shadow-sm border border-amber-200">${plate}</span></td>
                 <td class="text-slate-500 font-mono font-bold text-center px-2 py-2">${arrDate}</td>
-                <td class="text-amber-600 font-mono font-bold text-center px-2 py-2">${etaDate}</td>
-                <td class="text-emerald-600 font-mono font-bold text-center px-2 py-2">${rcvDate}</td>
                 <td class="font-bold text-slate-600 text-xs px-2 py-2">${first.car_model || '-'}</td>
                 <td class="font-bold text-slate-700 text-xs px-2 py-2 truncate max-w-[150px]" title="${customerName}">${customerName}</td>
                 <td class="font-mono text-xs font-bold text-blue-600 px-2 py-2">${first.epc_no || '-'}</td>
+                
+                <!-- 🌟 คอลัมน์รายการอะไหล่จาก SA -->
+                <td class="px-2 py-2">
+                    <div class="text-[11px] font-bold text-indigo-700 bg-indigo-50 p-2 rounded-lg border border-indigo-200 max-h-[80px] overflow-y-auto custom-scrollbar">
+                        ${reqPartsList}
+                    </div>
+                </td>
+
                 <td class="px-2 py-2 max-h-[80px] overflow-y-auto block custom-scrollbar bg-slate-50/50 rounded my-1 border border-slate-100">${itemsHtml}</td>
-                <td class="text-center px-2 py-2 flex flex-col gap-1">
-                    <button onclick="openAlertModal('${plate}')" class="bg-[#00320D] text-white px-2.5 py-1 rounded text-xs font-bold hover:bg-black transition shadow-sm w-full"><i class="fa-solid fa-pen-to-square"></i> คีย์อะไหล่</button>
-                    <button onclick="sendDirectToOutbound('${plate}')" class="bg-purple-600 text-white px-2.5 py-1 rounded text-xs font-bold hover:bg-purple-800 transition shadow-sm w-full whitespace-nowrap" title="ส่งไปจองในตารางเบิก"><i class="fa-solid fa-share"></i> จอง (รอซ่อม)</button>
+                <td class="text-center px-2 py-2">
+                    <button onclick="openAlertModal('${plate}')" class="bg-[#00320D] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-black transition shadow-sm w-full">
+                        <i class="fa-solid fa-pen-to-square"></i> โต๊ะคีย์ (อัปเดต SA)
+                    </button>
                 </td>
             </tr>
         `;
     }).join('');
 }
 
-// 🌟 ฟังก์ชันกดปุ่ม "จอง (รอซ่อม)" ยิงเข้า Outbound ทันที
-async function sendDirectToOutbound(plate) {
-    const job = allReports.find(j => j.car_plate === plate);
-    if (!job) return showToast('ไม่พบข้อมูลใบงานของรถคันนี้', 'error');
-
-    const mainParts = job.main_part_name ? job.main_part_name.split(',').map(p => p.trim()) : [];
-    const subParts = job.sub_part_name ? job.sub_part_name.split(',').map(p => p.trim()) : [];
-    const allParts = [...mainParts, ...subParts].filter(Boolean);
-
-    if (allParts.length === 0) {
-        return alert('⚠️ โต๊ะคีย์งานยังไม่ได้กรอกชื่ออะไหล่หลัก/รอง ของรถทะเบียนนี้ครับ');
-    }
-
-    if (!confirm(`ยืนยันการส่งรายการอะไหล่จำนวน ${allParts.length} ชิ้น ของรถ [${plate}] ไปที่ตารางเบิก (สถานะ: รอเข้าซ่อม)?`)) return;
-
-    const todayStr = new Date().toISOString().split('T')[0];
-
-    try {
-        await Promise.all(allParts.map(partName => {
-            const matchedMaster = allMasterPartsCache.find(m => m.part_name && m.part_name.trim() === partName.trim());
-            return fetch(`${API_BASE_URL}/api/part-outbound`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    issue_date: todayStr,
-                    job_status: 'รอเข้าซ่อม', // 🌟 ตั้งสถานะเป็น รอเข้าซ่อม
-                    part_no: matchedMaster ? matchedMaster.part_no : 'AUTO-JOB',
-                    part_main_no: matchedMaster ? matchedMaster.part_main_no : null,
-                    part_name: partName,
-                    qty: 1,
-                    car_plate: plate,
-                    qt_no: job.qt_no || null,
-                    so_no: job.so_no || null,
-                    branch_name: userBranch
-                })
-            });
-        }));
-
-        showToast(`✅ ส่งรายการอะไหล่ [${plate}] ไปหน้าเบิก (รอซ่อม) เรียบร้อยแล้ว!`);
-        loadAllData();
-    } catch(e) {
-        showToast('เกิดข้อผิดพลาดในการส่งข้อมูล', 'error');
-    }
-}
-
 // ------------------------------------------
-// 2. สั่งซื้อ (PO Tracking)
+// โต๊ะคีย์ Modal (อัปเดต SA)
 // ------------------------------------------
-function renderPOTracking() {
-    const tbody = document.getElementById('po_table_body'); if(!tbody) return;
-    const btnHide = document.getElementById('btn_toggle_completed_po');
-    const hideCompleted = btnHide ? btnHide.classList.contains('active-hide') : false;
+function openAlertModal(plate) {
+    const uncompleted = allPartOrders.filter(p => p.car_plate === plate && (!p.order_status || !p.order_status.includes('ครบ')));
+    const container = document.getElementById('modal_dynamic_table_container');
     
-    let filteredData = allPartOrders;
-    if (hideCompleted) { filteredData = filteredData.filter(p => !p.order_status || !p.order_status.includes('ครบ')); }
+    let html = `
+        <div class="mb-4 bg-amber-50 p-4 rounded-xl border border-amber-200 flex justify-between items-center shadow-sm">
+            <div>
+                <h4 class="font-black text-amber-900 text-lg">โต๊ะคีย์อัปเดตสถานะอะไหล่ส่งให้ SA: <span class="bg-white px-2 py-0.5 rounded shadow-sm font-mono border border-amber-300 ml-1 text-amber-700">${plate}</span></h4>
+                <p class="text-xs font-bold text-amber-700 mt-1">คีย์ข้อมูลลงตาราง แล้วกดบันทึก ข้อมูลจะวิ่งไปโชว์ที่หน้าใบงานของ SA ทันที</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-slate-600">ตั้งค่า EPC No:</span>
+                <input type="text" id="mass_epc_update" class="px-3 py-1.5 border border-slate-300 rounded font-mono text-sm w-32 outline-none focus:border-amber-500 uppercase" placeholder="EPC-XXX" onkeyup="document.querySelectorAll('.dyn-epc').forEach(el=>el.value=this.value)">
+            </div>
+        </div>
+        <div class="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-200">
+            <table class="excel-table w-full">
+                <thead class="bg-[#00320D] text-white sticky top-0 z-10">
+                    <tr>
+                        <th class="w-24 text-center px-2 py-2">EPC No</th>
+                        <th class="w-32 text-center px-2 py-2">หมายเลขอะไหล่ (Part No)</th>
+                        <th class="w-32 px-2 py-2">MAIN No</th>
+                        <th class="w-48 px-2 py-2">ชื่อชิ้นส่วน</th>
+                        <th class="w-16 text-center px-2 py-2">จำนวน</th>
+                        <th class="w-36 text-center px-2 py-2">สถานะ</th>
+                        <th class="w-24 text-center px-2 py-2">คาดการณ์ (ETA)</th>
+                        <th class="w-24 text-center px-2 py-2">เข้าครบ</th>
+                        <th class="w-40 px-2 py-2">หมายเหตุ</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+    `;
 
-    if (filteredData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="14" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีรายการสั่งซื้ออะไหล่</td></tr>`; return;
-    }
-
-    const sortedData = [...filteredData].sort((a,b) => b.order_id - a.order_id);
-
-    tbody.innerHTML = sortedData.map(p => {
-        let isComplete = p.order_status && p.order_status.includes('ครบ');
-        let statusBadge = isComplete ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : (p.order_status === 'รอสั่งซื้อ' || String(p.order_status).includes('Back Order') ? 'bg-red-50 text-red-700 border-red-300 font-black animate-pulse' : 'bg-amber-50 text-amber-700 border-amber-300 font-bold');
-        let qtyClass = isComplete ? 'text-emerald-600' : 'text-amber-600';
-        const hasETA = p.est_arrival_date && String(p.est_arrival_date).trim() !== '';
-
-        const actionBtns = hasETA ? `<span class="text-slate-400 font-bold text-[10px]"><i class="fa-solid fa-lock"></i> ล็อก</span>` : `<button onclick="deletePO('${p.order_id}')" class="bg-white text-slate-400 hover:text-red-500 hover:bg-red-50 px-2 py-1 rounded border border-slate-200 transition shadow-sm"><i class="fa-solid fa-trash"></i></button>`;
-
-        const receivedDateVal = p.received_date || p.part_received_all_date;
-
-        return `
-            <tr class="${isComplete ? 'bg-emerald-50/20' : 'hover:bg-blue-50/50'} transition-colors border-b border-slate-100">
-                <td class="text-center font-mono text-[10px] text-slate-400 border border-slate-200">${p.order_id}</td>
-                <td class="p-0 border border-slate-200"><input type="text" value="${p.epc_no||''}" onchange="fastUpdateField('part-orders', '${p.order_id}', 'epc_no', this.value)" class="inline-edit-input font-mono uppercase text-center ${p.epc_no ? 'font-bold' : ''}" placeholder="-"></td>
-                <td class="p-0 border border-slate-200"><input type="text" list="master_parts_datalist" value="${p.part_no||''}" onchange="fastUpdateField('part-orders', '${p.order_id}', 'part_no', this.value)" class="inline-edit-input font-mono uppercase text-center font-bold text-blue-700 bg-blue-50/30"></td>
-                <td class="p-0 border border-slate-200"><input type="text" value="${p.car_plate||''}" onchange="fastUpdateField('part-orders', '${p.order_id}', 'car_plate', this.value)" class="inline-edit-input font-mono uppercase text-center font-bold" placeholder="-"></td>
-                <td class="p-0 border border-slate-200"><select onchange="fastUpdateField('part-orders', '${p.order_id}', 'order_status', this.value)" class="inline-edit-select ${statusBadge}">${allStatuses.map(s => `<option value="${s.status_name}" ${p.order_status === s.status_name ? 'selected' : ''}>${s.status_name}</option>`).join('')}</select></td>
-                <td class="p-0 border border-slate-200"><input type="number" value="${p.qty_ordered||1}" onchange="fastUpdateField('part-orders', '${p.order_id}', 'qty_ordered', this.value)" class="inline-edit-input text-center font-black ${qtyClass}"></td>
-                <td class="text-center font-black ${p.qty_received >= p.qty_ordered ? 'text-emerald-600' : 'text-slate-400'} border border-slate-200">${p.qty_received||0}</td>
-                <td class="p-0 border border-slate-200"><input type="text" value="${p.part_name||''}" onchange="fastUpdateField('part-orders', '${p.order_id}', 'part_name', this.value)" class="inline-edit-input font-bold" placeholder="-"></td>
-                <td class="text-center font-mono text-xs text-slate-500 border border-slate-200">${p.order_date ? String(p.order_date).split('T')[0] : '-'}</td>
-                <td class="p-0 border border-slate-200"><input type="date" value="${p.est_arrival_date ? String(p.est_arrival_date).split('T')[0] : ''}" onchange="fastUpdateField('part-orders', '${p.order_id}', 'est_arrival_date', this.value)" class="inline-edit-input font-mono text-center text-xs ${hasETA ? 'text-amber-600 font-bold' : ''}"></td>
-                <td class="p-0 border border-slate-200"><input type="date" value="${receivedDateVal ? String(receivedDateVal).split('T')[0] : ''}" onchange="fastUpdateField('part-orders', '${p.order_id}', 'part_received_all_date', this.value)" class="inline-edit-input font-mono text-center text-xs text-emerald-600 font-bold"></td>
-                <td class="p-0 border border-slate-200"><input type="text" value="${p.notes||''}" onchange="fastUpdateField('part-orders', '${p.order_id}', 'notes', this.value)" class="inline-edit-input text-xs" placeholder="-"></td>
-                <td class="p-0 border border-slate-200"><input type="text" value="${p.part_main_no||''}" onchange="fastUpdateField('part-orders', '${p.order_id}', 'part_main_no', this.value)" class="inline-edit-input font-mono text-slate-500" placeholder="-"></td>
-                <td class="text-center border border-slate-200">${actionBtns}</td>
-            </tr>
+    window.addNewAlertRow = function(plate) {
+        const tbody = document.querySelector('#modal_dynamic_table_container tbody');
+        const statusOptionsHtml = allStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
+        let safeOpts = statusOptionsHtml.replace(`value="รอสั่งซื้อ"`, `value="รอสั่งซื้อ" selected`);
+        
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-amber-50/50 transition-colors";
+        tr.setAttribute('data-id', 'new');
+        tr.setAttribute('data-plate', plate);
+        tr.innerHTML = `
+            <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-epc font-mono uppercase text-center"></td>
+            <td class="p-0 border border-slate-200"><input type="text" list="master_parts_datalist" class="inline-edit-input dyn-partno font-mono uppercase text-center font-bold text-blue-700 bg-blue-50/30" onchange="autoFillDynName(this)"></td>
+            <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-main font-mono text-slate-500"></td>
+            <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-name font-bold"></td>
+            <td class="p-0 border border-slate-200"><input type="number" class="inline-edit-input dyn-qty text-center font-black text-amber-600 bg-amber-50" value="1" min="1"></td>
+            <td class="p-0 border border-slate-200"><select class="inline-edit-select dyn-status font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 cursor-pointer">${safeOpts}</select></td>
+            <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-eta font-mono text-center text-xs"></td>
+            <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-rcv font-mono text-center text-xs"></td>
+            <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-notes text-xs"></td>
         `;
-    }).join('');
-}
-
-function toggleCompletedPO() {
-    const btn = document.getElementById('btn_toggle_completed_po'); if(!btn) return;
-    if (btn.classList.contains('active-hide')) {
-        btn.classList.remove('active-hide'); btn.innerHTML = '<i class="fa-solid fa-eye-slash"></i> ซ่อนที่เข้าครบแล้ว';
-        btn.classList.replace('bg-blue-100', 'bg-white'); btn.classList.replace('text-blue-700', 'text-slate-600');
-    } else {
-        btn.classList.add('active-hide'); btn.innerHTML = '<i class="fa-solid fa-eye"></i> แสดงทั้งหมด';
-        btn.classList.replace('bg-white', 'bg-blue-100'); btn.classList.replace('text-slate-600', 'text-blue-700');
-    }
-    renderPOTracking();
-}
-
-function openPOModal() {
-    document.getElementById('poForm').reset(); document.getElementById('edit_po_id').value = '';
-    document.getElementById('po_date').value = new Date().toISOString().split('T')[0];
-    document.getElementById('poModal').classList.remove('hidden'); document.getElementById('poModal').classList.add('flex');
-}
-function closePOModal() { document.getElementById('poModal').classList.add('hidden'); document.getElementById('poModal').classList.remove('flex'); }
-
-async function submitPO(e) {
-    e.preventDefault();
-    const id = document.getElementById('edit_po_id').value;
-    const payload = {
-        qt_no: document.getElementById('po_qt').value.trim() || null,
-        so_no: document.getElementById('po_so').value.trim() || null,
-        epc_no: document.getElementById('po_epc').value.trim() || null,
-        order_date: document.getElementById('po_date').value,
-        est_arrival_date: document.getElementById('po_est').value || null,
-        part_received_all_date: document.getElementById('po_rcv_all_date').value || null,
-        car_plate: document.getElementById('po_plate').value.trim().toUpperCase(),
-        part_no: document.getElementById('po_part_no').value.trim().toUpperCase(),
-        qty_ordered: parseInt(document.getElementById('po_qty').value) || 1,
-        order_status: document.getElementById('po_bo').value,
-        notes: document.getElementById('po_note').value.trim() || null,
-        part_main_no: document.getElementById('po_part_main').value.trim() || null,
-        part_name: document.getElementById('po_part_name').value.trim(),
-        part_type: document.getElementById('po_type').value || 'อะไหล่แท้',
-        car_model: document.getElementById('po_model').value || null,
-        vin_no: document.getElementById('po_vin').value || null,
-        branch_name: userBranch
+        tbody.appendChild(tr);
     };
 
-    try {
-        const url = id ? `${API_BASE_URL}/api/part-orders/${id}` : `${API_BASE_URL}/api/part-orders`;
-        const method = id ? 'PUT' : 'POST';
-        const res = await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-        if(res.ok) { showToast('บันทึกคำสั่งซื้อเรียบร้อย!'); closePOModal(); loadAllData(); } else throw new Error();
-    } catch(e) { showToast('บันทึกล้มเหลว', 'error'); }
-}
+    // สมมติฐานข้อมูลสถานะที่มี
+    const statusOptionsHtml = allStatuses.length > 0 ? allStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('') : '<option value="รอสั่งซื้อ">รอสั่งซื้อ</option><option value="รออะไหล่">รออะไหล่</option>';
 
-async function deletePO(id) {
-    if(!confirm('🚨 ยืนยันการลบรายการสั่งซื้อนี้?')) return;
-    try {
-        const res = await fetch(`${API_BASE_URL}/api/part-orders/${id}`, { method: 'DELETE' });
-        if(res.ok) { showToast('ลบรายการสำเร็จ'); loadAllData(); } else throw new Error();
-    } catch(e) { showToast('ลบไม่สำเร็จ', 'error'); }
-}
-
-// ------------------------------------------
-// 3. รับเข้า (Inbound)
-// ------------------------------------------
-function renderInbound() {
-    const tbody = document.getElementById('inbound_table_body'); if(!tbody) return;
-    if (allInbounds.length === 0) { tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีประวัติการรับเข้า</td></tr>`; return; }
-    const sortedData = [...allInbounds].sort((a,b) => b.inbound_id - a.inbound_id);
-
-    // 🌟 เพิ่มไอคอน Filter สำหรับคอลัมน์จำนวน (index 6 ของ tbody inTable) ในส่วนของ header HTML
-    const inThs = document.getElementById('inTable').querySelectorAll('thead th');
-    if(inThs[6] && !inThs[6].querySelector('.filter-icon')) {
-        inThs[6].querySelector('div').innerHTML += ` <i class="fa-solid fa-filter filter-icon ml-2 text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 6, 'จำนวน', 'inTable')"></i>`;
-    }
-
-    tbody.innerHTML = sortedData.map(i => `
-        <tr class="hover:bg-emerald-50/40 transition-colors border-b border-slate-100">
-            <td class="text-center font-mono text-[10px] text-slate-400 border border-slate-200">${i.inbound_id}</td>
-            <td class="p-0 border border-slate-200"><input type="date" value="${i.received_date ? String(i.received_date).split('T')[0] : ''}" onchange="fastUpdateField('part-inbound', '${i.inbound_id}', 'received_date', this.value)" class="inline-edit-input font-mono text-center text-xs text-emerald-700 font-bold"></td>
-            <td class="p-0 border border-slate-200"><input type="text" value="${i.epc_no||''}" onchange="fastUpdateField('part-inbound', '${i.inbound_id}', 'epc_no', this.value)" class="inline-edit-input font-mono uppercase text-center" placeholder="-"></td>
-            <td class="p-0 border border-slate-200"><input type="text" list="master_parts_datalist" value="${i.part_no||''}" onchange="fastUpdateField('part-inbound', '${i.inbound_id}', 'part_no', this.value)" class="inline-edit-input font-mono uppercase text-center font-bold text-blue-700 bg-blue-50/30"></td>
-            <td class="p-0 border border-slate-200"><input type="text" value="${i.part_main_no||''}" onchange="fastUpdateField('part-inbound', '${i.inbound_id}', 'part_main_no', this.value)" class="inline-edit-input font-mono text-slate-500" placeholder="-"></td>
-            <td class="p-0 border border-slate-200"><input type="text" value="${i.part_name||''}" onchange="fastUpdateField('part-inbound', '${i.inbound_id}', 'part_name', this.value)" class="inline-edit-input font-bold text-slate-800" placeholder="-"></td>
-            <td class="p-0 border border-slate-200"><input type="number" value="${i.qty||1}" onchange="fastUpdateField('part-inbound', '${i.inbound_id}', 'qty', this.value)" class="inline-edit-input text-center font-black text-emerald-600 bg-emerald-50"></td>
-            <td class="p-0 border border-slate-200"><input type="number" value="${i.unit_price||0}" onchange="fastUpdateField('part-inbound', '${i.inbound_id}', 'unit_price', this.value)" class="inline-edit-input text-right font-mono" step="0.01"></td>
-            <td class="text-center border border-slate-200"><button onclick="deleteInbound('${i.inbound_id}')" class="bg-white text-slate-400 hover:text-red-500 hover:bg-red-50 px-2 py-1 rounded border border-slate-200 transition shadow-sm"><i class="fa-solid fa-trash"></i></button></td>
-        </tr>
-    `).join('');
-}
-
-function openInboundModal() {
-    const tbody = document.getElementById('multi_inbound_body');
-    const pendingOrders = allPartOrders.filter(p => !p.order_status || !p.order_status.includes('ครบ'));
-    
-    if (pendingOrders.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-10 text-emerald-600 font-bold bg-white text-sm"><i class="fa-solid fa-check-circle text-2xl block mb-2 text-emerald-400"></i> ไม่มีรายการอะไหล่ที่ค้างรับจากศูนย์เลยครับ! ยอดเยี่ยมมาก 🎉</td></tr>`;
-    } else {
-        const sorted = [...pendingOrders].sort((a,b) => new Date(a.order_date||0) - new Date(b.order_date||0));
-        const todayStr = new Date().toISOString().split('T')[0];
-        
-        tbody.innerHTML = sorted.map(p => {
-            const pendingQty = Math.max(0, (p.qty_ordered || 0) - (p.qty_received || 0));
-            return `
-                <tr class="hover:bg-slate-50 transition" data-po-id="${p.order_id}">
-                    <td class="text-center py-2"><input type="checkbox" class="inbound-chk w-4 h-4 accent-emerald-500 cursor-pointer" onchange="updateInboundCount()"></td>
-                    <td class="py-2 px-1"><input type="date" class="in-date w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs font-mono outline-none focus:border-emerald-500" value="${todayStr}"></td>
-                    <td class="text-center py-2 font-black text-amber-700 text-xs">${p.car_plate || '-'}</td>
-                    <td class="text-center py-2"><input type="text" class="in-epc w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-[10px] font-mono uppercase text-center outline-none focus:border-emerald-500" value="${p.epc_no || ''}" placeholder="EPC"></td>
-                    <td class="text-center py-2 font-mono text-blue-700 font-bold text-[11px] in-partno">${p.part_no || '-'}</td>
-                    <td class="py-2 text-[11px] font-bold text-slate-700 truncate max-w-[200px]" title="${p.part_name}"><span class="in-name hidden">${p.part_name||''}</span><span class="in-main hidden">${p.part_main_no||''}</span><span class="in-model hidden">${p.car_model||''}</span>${p.part_name}</td>
-                    <td class="text-center py-2 font-black text-red-500">${pendingQty}</td>
-                    <td class="py-2 px-1"><input type="number" class="in-qty w-full bg-emerald-50 border border-emerald-300 rounded px-2 py-1 text-center text-xs font-black text-emerald-700 outline-none focus:ring-2 focus:ring-emerald-500/30" value="${pendingQty}" min="1" max="${pendingQty}"></td>
-                </tr>
-            `;
-        }).join('');
-    }
-    
-    if(document.getElementById('chk_all_inbound')) document.getElementById('chk_all_inbound').checked = false;
-    updateInboundCount();
-    document.getElementById('inboundModal').classList.remove('hidden'); document.getElementById('inboundModal').classList.add('flex');
-}
-function closeInboundModal() { document.getElementById('inboundModal').classList.add('hidden'); document.getElementById('inboundModal').classList.remove('flex'); }
-function toggleAllInbound(checked) { document.querySelectorAll('.inbound-chk').forEach(cb => { if(cb.closest('tr').style.display !== 'none') cb.checked = checked; }); updateInboundCount(); }
-function updateInboundCount() { const count = document.querySelectorAll('.inbound-chk:checked').length; if(document.getElementById('multi_inbound_count')) document.getElementById('multi_inbound_count').innerText = count; }
-
-async function submitMultiInbound(e) {
-    e.preventDefault();
-    const rows = document.querySelectorAll('#multi_inbound_body tr'); const selected = [];
-    rows.forEach(tr => {
-        const chk = tr.querySelector('.inbound-chk');
-        if (chk && chk.checked) {
-            selected.push({
-                po_id: tr.getAttribute('data-po-id'), received_date: tr.querySelector('.in-date').value,
-                epc_no: tr.querySelector('.in-epc').value.trim() || null, part_no: tr.querySelector('.in-partno').innerText.trim() || null,
-                part_name: tr.querySelector('.in-name').innerText.trim() || null, part_main_no: tr.querySelector('.in-main').innerText.trim() || null,
-                car_model: tr.querySelector('.in-model').innerText.trim() || null, qty: parseInt(tr.querySelector('.in-qty').value) || 1, unit_price: 0, branch_name: userBranch
-            });
+    uncompleted.forEach(p => {
+        let safeOpts = statusOptionsHtml;
+        if (p.order_status && !safeOpts.includes(`value="${p.order_status}"`)) {
+            safeOpts = `<option value="${p.order_status}">${p.order_status}</option>` + safeOpts;
         }
+        safeOpts = safeOpts.replace(`value="${p.order_status || 'รอสั่งซื้อ'}"`, `value="${p.order_status || 'รอสั่งซื้อ'}" selected`);
+
+        html += `
+            <tr class="hover:bg-amber-50/50 transition-colors" data-id="${p.order_id}">
+                <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-epc font-mono uppercase text-center" value="${p.epc_no || ''}"></td>
+                <td class="p-0 border border-slate-200"><input type="text" list="master_parts_datalist" class="inline-edit-input dyn-partno font-mono uppercase text-center font-bold text-blue-700 bg-blue-50/30" value="${p.part_no || ''}" onchange="autoFillDynName(this)"></td>
+                <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-main font-mono text-slate-500" value="${p.part_main_no || ''}"></td>
+                <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-name font-bold" value="${p.part_name || ''}"></td>
+                <td class="p-0 border border-slate-200"><input type="number" class="inline-edit-input dyn-qty text-center font-black text-amber-600 bg-amber-50" value="${p.qty_ordered || 1}"></td>
+                <td class="p-0 border border-slate-200"><select class="inline-edit-select dyn-status font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 cursor-pointer">${safeOpts}</select></td>
+                <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-eta font-mono text-center text-xs" value="${p.est_arrival_date ? String(p.est_arrival_date).split('T')[0] : ''}"></td>
+                <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-rcv font-mono text-center text-xs" value="${p.part_received_all_date ? String(p.part_received_all_date).split('T')[0] : ''}"></td>
+                <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-notes text-xs" value="${p.notes || ''}"></td>
+            </tr>
+        `;
     });
 
-    if (selected.length === 0) return alert('กรุณาเลือกรายการที่ต้องการรับเข้าอย่างน้อย 1 รายการครับ!');
+    html += `</tbody></table></div>`;
+    
+    html += `
+        <div class="mt-3">
+            <button type="button" onclick="addNewAlertRow('${plate}')" class="px-4 py-2 bg-white border border-amber-300 text-amber-700 font-bold rounded-lg hover:bg-amber-50 text-xs shadow-sm transition">
+                <i class="fa-solid fa-plus"></i> เพิ่มรายการอะไหล่ให้ SA
+            </button>
+        </div>
+    `;
+
+    container.innerHTML = html;
+    document.getElementById('alertModal').classList.remove('hidden');
+    document.getElementById('alertModal').classList.add('flex');
+}
+
+function autoFillDynName(inputEl) {
+    const pNo = inputEl.value.trim().toUpperCase();
+    if (!pNo) return;
+    const tr = inputEl.closest('tr');
+    const matched = allMasterPartsCache.find(x => x.part_no.toUpperCase() === pNo);
+    if(matched) {
+        tr.querySelector('.dyn-name').value = matched.part_name || '';
+        tr.querySelector('.dyn-main').value = matched.part_main_no || '';
+    }
+}
+
+function closeAlertModal() { 
+    document.getElementById('alertModal').classList.add('hidden'); 
+    document.getElementById('alertModal').classList.remove('flex'); 
+}
+
+async function saveSAAlertUpdate(e) {
+    e.preventDefault();
+    const rows = document.querySelectorAll('#modal_dynamic_table_container tbody tr');
+    const updates = [];
+
+    rows.forEach(tr => {
+        if (tr.getAttribute('data-id') === 'new' && !tr.querySelector('.dyn-name').value.trim() && !tr.querySelector('.dyn-partno').value.trim()) {
+            return;
+        }
+        updates.push({
+            id: tr.getAttribute('data-id'),
+            car_plate: tr.getAttribute('data-plate') || '',
+            epc_no: tr.querySelector('.dyn-epc').value.trim() || null,
+            part_no: tr.querySelector('.dyn-partno').value.trim() || null,
+            part_main_no: tr.querySelector('.dyn-main').value.trim() || null,
+            part_name: tr.querySelector('.dyn-name').value.trim() || null,
+            qty_ordered: parseInt(tr.querySelector('.dyn-qty').value) || 1,
+            order_status: tr.querySelector('.dyn-status').value,
+            est_arrival_date: tr.querySelector('.dyn-eta').value || null,
+            part_received_all_date: tr.querySelector('.dyn-rcv').value || null,
+            notes: tr.querySelector('.dyn-notes').value.trim() || null
+        });
+    });
+
+    if (updates.length === 0) return closeAlertModal();
+
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalBtnHtml = btn.innerHTML;
 
     try {
-        const btn = document.getElementById('btn_submit_inbound'); btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...'; btn.disabled = true;
-        await Promise.all(selected.map(item => fetch(`${API_BASE_URL}/api/part-inbound`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(item) })));
-        showToast(`รับเข้าสำเร็จ ${selected.length} รายการ!`); closeInboundModal(); loadAllData();
-    } catch(err) { showToast('บันทึกล้มเหลว', 'error'); }
-}
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> บันทึก...'; btn.disabled = true;
 
-async function deleteInbound(id) {
-    if(!confirm('🚨 ยืนยันการลบประวัติรับเข้านี้?')) return;
-    try {
-        const res = await fetch(`${API_BASE_URL}/api/part-inbound/${id}`, { method: 'DELETE' });
-        if(res.ok) { showToast('ลบรายการสำเร็จ'); loadAllData(); } else throw new Error();
-    } catch(e) { showToast('ลบไม่สำเร็จ', 'error'); }
-}
+        await Promise.all(updates.map(u => {
+            if (u.id === 'new') {
+                const todayStr = new Date().toISOString().split('T')[0];
+                return fetch(`${API_BASE_URL}/api/part-orders`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ 
+                        car_plate: u.car_plate, part_no: u.part_no, part_main_no: u.part_main_no, 
+                        part_name: u.part_name, qty_ordered: u.qty_ordered, order_status: u.order_status, 
+                        order_date: todayStr, epc_no: u.epc_no, notes: u.notes, branch_name: userBranch
+                    })
+                });
+            } else {
+                const promises = [];
+                ['epc_no', 'part_no', 'part_main_no', 'part_name', 'qty_ordered', 'order_status', 'est_arrival_date', 'part_received_all_date', 'notes'].forEach(field => {
+                    promises.push(fetch(`${API_BASE_URL}/api/part-orders/${u.id}/fast`, {
+                        method: 'PUT', headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ field, value: u[field] })
+                    }));
+                });
+                return Promise.all(promises);
+            }
+        }));
 
-// ------------------------------------------
-// 4. เบิก / จอง (Outbound)
-// ------------------------------------------
-function renderOutbound() {
-    const tbody = document.getElementById('outbound_table_body'); if(!tbody) return;
-    if (allOutbounds.length === 0) { tbody.innerHTML = `<tr><td colspan="12" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีประวัติการเบิกหรือจองอะไหล่</td></tr>`; return; }
-    const sortedData = [...allOutbounds].sort((a,b) => b.outbound_id - a.outbound_id);
-
-    tbody.innerHTML = sortedData.map((o, idx) => {
-        let badge = o.job_status === 'รอเข้าซ่อม' ? 'bg-amber-100 text-amber-700 border-amber-300' : 'bg-purple-100 text-purple-700 border-purple-300';
-        return `
-            <tr class="hover:bg-purple-50/40 transition-colors border-b border-slate-100">
-                <td class="text-center font-mono text-[10px] text-slate-400 border border-slate-200">${o.outbound_id}</td>
-                <td class="text-center font-bold text-slate-400 text-[10px] border border-slate-200">${sortedData.length - idx}</td>
-                <td class="p-0 border border-slate-200"><input type="date" value="${o.issue_date ? String(o.issue_date).split('T')[0] : ''}" onchange="fastUpdateField('part-outbound', '${o.outbound_id}', 'issue_date', this.value)" class="inline-edit-input font-mono text-center text-xs"></td>
-                <td class="p-0 border border-slate-200"><select onchange="fastUpdateField('part-outbound', '${o.outbound_id}', 'job_status', this.value)" class="inline-edit-select font-bold text-xs text-center ${badge}"><option value="รอเข้าซ่อม" ${o.job_status === 'รอเข้าซ่อม' ? 'selected' : ''}>จอง (รอซ่อม)</option><option value="เบิกอะไหล่" ${o.job_status === 'เบิกอะไหล่' ? 'selected' : ''}>เบิกตัดสต๊อกจริง</option></select></td>
-                <td class="p-0 border border-slate-200"><input type="text" list="master_parts_datalist" value="${o.part_no||''}" onchange="fastUpdateField('part-outbound', '${o.outbound_id}', 'part_no', this.value)" class="inline-edit-input font-mono uppercase text-center font-bold text-blue-700 bg-blue-50/30"></td>
-                <td class="p-0 border border-slate-200"><input type="text" value="${o.part_main_no||''}" onchange="fastUpdateField('part-outbound', '${o.outbound_id}', 'part_main_no', this.value)" class="inline-edit-input font-mono text-slate-500" placeholder="-"></td>
-                <td class="p-0 border border-slate-200"><input type="number" value="${o.qty||1}" onchange="fastUpdateField('part-outbound', '${o.outbound_id}', 'qty', this.value)" class="inline-edit-input text-center font-black text-purple-600 bg-purple-50"></td>
-                <td class="p-0 border border-slate-200"><input type="text" value="${o.car_plate||''}" onchange="fastUpdateField('part-outbound', '${o.outbound_id}', 'car_plate', this.value)" class="inline-edit-input font-mono uppercase text-center font-bold text-amber-700" placeholder="-"></td>
-                <td class="p-0 border border-slate-200"><input type="text" value="${o.qt_no||''}" onchange="fastUpdateField('part-outbound', '${o.outbound_id}', 'qt_no', this.value)" class="inline-edit-input font-mono uppercase" placeholder="-"></td>
-                <td class="p-0 border border-slate-200"><input type="text" value="${o.so_no||''}" onchange="fastUpdateField('part-outbound', '${o.outbound_id}', 'so_no', this.value)" class="inline-edit-input font-mono uppercase" placeholder="-"></td>
-                <td class="p-0 border border-slate-200"><input type="text" value="${o.part_name||''}" onchange="fastUpdateField('part-outbound', '${o.outbound_id}', 'part_name', this.value)" class="inline-edit-input font-bold text-slate-800" placeholder="-"></td>
-                <td class="text-center border border-slate-200"><button onclick="deleteOutbound('${o.outbound_id}')" class="bg-white text-slate-400 hover:text-red-500 hover:bg-red-50 px-2 py-1 rounded border border-slate-200 transition shadow-sm"><i class="fa-solid fa-trash"></i></button></td>
-            </tr>
-        `;
-    }).join('');
-}
-
-function openOutboundModal() {
-    document.getElementById('outboundForm').reset(); document.getElementById('edit_outbound_id').value = '';
-    document.getElementById('out_date').value = new Date().toISOString().split('T')[0];
-    document.getElementById('outboundModal').classList.remove('hidden'); document.getElementById('outboundModal').classList.add('flex');
-}
-function closeOutboundModal() { document.getElementById('outboundModal').classList.add('hidden'); document.getElementById('outboundModal').classList.remove('flex'); }
-
-async function submitOutbound(e) {
-    e.preventDefault(); const id = document.getElementById('edit_outbound_id').value;
-    const payload = {
-        issue_date: document.getElementById('out_date').value, part_no: document.getElementById('out_part_no').value.trim().toUpperCase(),
-        part_main_no: document.getElementById('out_part_main').value.trim() || null, part_name: document.getElementById('out_part_name').value.trim(),
-        qty: parseInt(document.getElementById('out_qty').value) || 1, car_plate: document.getElementById('out_plate').value.trim().toUpperCase(),
-        qt_no: document.getElementById('out_qt').value.trim() || null, so_no: document.getElementById('out_so').value.trim() || null,
-        unit_price: parseFloat(document.getElementById('out_price').value) || 0, part_type: document.getElementById('out_type').value || 'อะไหล่หลัก',
-        car_model: document.getElementById('out_model').value || null, job_status: document.getElementById('out_job_status').value, branch_name: userBranch
-    };
-
-    try {
-        const url = id ? `${API_BASE_URL}/api/part-outbound/${id}` : `${API_BASE_URL}/api/part-outbound`;
-        const method = id ? 'PUT' : 'POST';
-        const res = await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-        if(res.ok) { showToast('บันทึกรายการเบิก/จองเรียบร้อย!'); closeOutboundModal(); loadAllData(); } else throw new Error();
-    } catch(e) { showToast('บันทึกล้มเหลว', 'error'); }
-}
-
-async function deleteOutbound(id) {
-    if(!confirm('🚨 ยืนยันการลบประวัติการเบิก/จองนี้?')) return;
-    try {
-        const res = await fetch(`${API_BASE_URL}/api/part-outbound/${id}`, { method: 'DELETE' });
-        if(res.ok) { showToast('ลบรายการสำเร็จ'); loadAllData(); } else throw new Error();
-    } catch(e) { showToast('ลบไม่สำเร็จ', 'error'); }
-}
-
-// ------------------------------------------
-// 5. สต๊อกคงเหลือ (Inventory)
-// ------------------------------------------
-async function loadStockInHouse() {
-    try {
-        const resStock = await fetch(`${API_BASE_URL}/api/parts-inventory?branch=${encodeURIComponent(userBranch)}&_t=${new Date().getTime()}`);
-        if(resStock.ok) { allStock = await resStock.json(); renderStock(); showToast('อัปเดตสต๊อกล่าสุดแล้ว!', 'info'); }
-    } catch(e) { showToast('โหลดสต๊อกล้มเหลว', 'error'); }
-}
-
-function renderStock() {
-    const tbody = document.getElementById('stock_table_body'); if(!tbody) return;
-    if (allStock.length === 0) { tbody.innerHTML = `<tr><td colspan="10" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีข้อมูลสต๊อกคงเหลือ</td></tr>`; return; }
-
-    tbody.innerHTML = allStock.map(s => {
-        const master = allMasterPartsCache.find(m => m.part_no === s.part_no) || {};
-        const safe = parseInt(master.safety_stock) || 0;
-        const totalIn = parseInt(s.total_inbound) || 0; const totalIss = parseInt(s.total_issued) || 0; const totalBook = parseInt(s.total_booked) || 0;
-        const actualRemain = totalIn - totalIss - totalBook;
-        
-        let rowClass = 'hover:bg-amber-50/30'; let safeBadge = '';
-        if (actualRemain < 0) { rowClass = 'bg-red-50 hover:bg-red-100'; safeBadge = '<i class="fa-solid fa-triangle-exclamation text-red-500 ml-1 animate-pulse" title="สต๊อกติดลบ!"></i>'; } 
-        else if (safe > 0 && actualRemain <= safe) { rowClass = 'bg-amber-50 hover:bg-amber-100'; safeBadge = '<i class="fa-solid fa-bell text-amber-500 ml-1" title="ต่ำกว่าจุดสั่งซื้อ (Safety Stock)"></i>'; }
-
-        return `
-            <tr class="${rowClass} transition-colors border-b border-slate-100">
-                <td class="font-mono text-slate-500 text-center px-4 py-2">${s.part_main_no || '-'}</td>
-                <td class="font-mono text-blue-700 font-bold px-4 py-2">${s.part_no}</td>
-                <td class="font-bold text-slate-800 px-4 py-2">${s.part_name}</td>
-                <td class="text-center font-bold px-4 py-2">${totalIn - totalIss}</td>
-                <td class="text-center font-bold text-amber-600 px-4 py-2">${totalBook}</td>
-                <td class="text-center font-black text-lg ${actualRemain < 0 ? 'text-red-600' : 'text-emerald-600'} px-4 py-2">${actualRemain} ${safeBadge}</td>
-                <td class="text-center font-bold text-slate-600 px-4 py-2">${master.location || '-'}</td>
-                <td class="text-slate-600 text-[11px] font-bold px-4 py-2">${s.car_model || master.car_model || '-'}</td>
-                <td class="text-right font-mono text-slate-600 px-4 py-2">${parseFloat(master.unit_price || 0).toLocaleString('th-TH', {minimumFractionDigits:2})}</td>
-                <td class="text-center px-4 py-2"><span class="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded text-[10px] font-bold">${master.part_category || 'อะไหล่ทั่วไป'}</span></td>
-            </tr>
-        `;
-    }).join('');
+        showToast('อัปเดตข้อมูลอะไหล่กลับไปให้ SA เรียบร้อย!', 'success');
+        closeAlertModal();
+        loadAllData();
+    } catch(err) {
+        showToast('เกิดข้อผิดพลาดในการบันทึก', 'error');
+    } finally {
+        btn.innerHTML = originalBtnHtml || '<i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลส่งให้ SA';
+        btn.disabled = false;
+    }
 }
 
 // ------------------------------------------
@@ -474,8 +315,6 @@ function renderMasterTable() {
         </tr>
     `).join('');
 }
-
-function searchMasterTable() { filterTableByText('master_table_body', event.target.value); }
 
 function openMasterModal() {
     document.getElementById('edit_master_id').value = ''; document.getElementById('master_part_no').value = '';
@@ -547,169 +386,4 @@ function renderCarModelsCheckbox(selectedStr) {
             `).join('');
         }
     }).catch(()=>{});
-}
-
-// ------------------------------------------
-// Excel Grid Paste Multi-Items (การก็อปวาง Excel)
-// ------------------------------------------
-function openExcelPasteModal(type) {
-    document.getElementById('paste_target_type').value = type; 
-    const title = document.getElementById('paste_modal_title'); 
-    const text = document.getElementById('paste_instructions_text'); 
-    const thead = document.getElementById('paste_grid_thead'); 
-    const tbody = document.getElementById('paste_grid_tbody');
-    
-    tbody.innerHTML = '';
-    
-    if (type === 'po') {
-        title.innerHTML = '<i class="fa-solid fa-cart-plus text-blue-600 mr-2"></i> วางข้อมูลตารางสั่งซื้อ (PO) แบบด่วน'; 
-        title.className = "font-black text-blue-900 text-sm sm:text-base";
-        document.getElementById('btn_submit_paste').className = "px-8 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-lg shadow-md transition flex items-center gap-2";
-        text.innerHTML = `<b>วิธีใช้งาน:</b> ก๊อปปี้ข้อมูลจาก Excel 7 คอลัมน์ แล้วคลิกช่องแรก กด <b>Ctrl+V</b> <br> *ลำดับ Excel: 1.EPC No, 2.ทะเบียน, 3.สถานะการสั่ง, 4.ยอดสั่ง, 5.วันที่สั่ง, 6.คาดการณ์เข้า, 7.วันที่เข้าครบ`;
-        thead.innerHTML = `<tr><th class="excel-grid-th w-32">1. EPC No *</th><th class="excel-grid-th w-24">2. ทะเบียน *</th><th class="excel-grid-th w-32">3. สถานะการสั่ง</th><th class="excel-grid-th w-16 text-center">4. ยอดสั่ง</th><th class="excel-grid-th w-28">5. วันที่สั่ง</th><th class="excel-grid-th w-28">6. คาดการณ์เข้า</th><th class="excel-grid-th w-28">7. วันที่เข้าครบ</th><th class="excel-grid-th w-10">ลบ</th></tr>`;
-    } else if (type === 'outbound') {
-        title.innerHTML = '<i class="fa-solid fa-upload text-purple-600 mr-2"></i> วางข้อมูลตารางเบิก/จองอะไหล่ แบบด่วน'; 
-        title.className = "font-black text-purple-900 text-sm sm:text-base";
-        document.getElementById('btn_submit_paste').className = "px-8 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-lg shadow-md transition flex items-center gap-2";
-        text.innerHTML = `<b>วิธีใช้งาน:</b> ก๊อปปี้ข้อมูลจาก Excel 7 คอลัมน์ แล้วคลิกช่องแรก กด <b>Ctrl+V</b> <br> *ลำดับ Excel: 1.วันที่, 2.สถานะเบิก, 3.หมายเลขอะไหล่, 4.จำนวน, 5.ทะเบียน, 6.QT No., 7.SO No.`;
-        thead.innerHTML = `<tr><th class="excel-grid-th w-28">1. วันที่ *</th><th class="excel-grid-th w-32">2. สถานะเบิก *</th><th class="excel-grid-th w-40">3. หมายเลขอะไหล่ *</th><th class="excel-grid-th w-16 text-center">4. จำนวน</th><th class="excel-grid-th w-24">5. ทะเบียน</th><th class="excel-grid-th w-28">6. QT No.</th><th class="excel-grid-th w-28">7. SO No.</th><th class="excel-grid-th w-10">ลบ</th></tr>`;
-    }
-    
-    for(let i=0; i<5; i++) addPasteRow();
-    document.getElementById('excelPasteModal').classList.remove('hidden'); document.getElementById('excelPasteModal').classList.add('flex');
-}
-
-function closeExcelPasteModal() { document.getElementById('excelPasteModal').classList.add('hidden'); document.getElementById('excelPasteModal').classList.remove('flex'); }
-
-function addPasteRow() {
-    const type = document.getElementById('paste_target_type').value; 
-    const tbody = document.getElementById('paste_grid_tbody'); 
-    const tr = document.createElement('tr');
-    
-    if (type === 'po') {
-        // [EPC, ทะเบียน, สถานะสั่ง, ยอดสั่ง, วันที่สั่ง, คาดการณ์, เข้าครบ]
-        tr.innerHTML = `<td class="excel-cell"><input type="text" class="excel-input paste-cell uppercase font-bold text-amber-700" onpaste="handleGridPaste(event, this)"></td><td class="excel-cell"><input type="text" class="excel-input uppercase font-bold text-blue-700"></td><td class="excel-cell"><input type="text" class="excel-input text-xs text-slate-700" value="รอสั่งซื้อ"></td><td class="excel-cell"><input type="number" class="excel-input text-center font-black text-lg" value="1" min="1"></td><td class="excel-cell"><input type="date" class="excel-input font-mono text-center text-xs text-slate-600"></td><td class="excel-cell"><input type="date" class="excel-input font-mono text-center text-xs text-amber-600"></td><td class="excel-cell"><input type="date" class="excel-input font-mono text-center text-xs text-emerald-600"></td><td class="excel-cell text-center"><button tabindex="-1" type="button" onclick="this.closest('tr').remove()" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button></td>`;
-    } else if (type === 'outbound') {
-        // [วันที่, สถานะ, หมายเลขอะไหล่, จำนวน, ทะเบียน, QT, SO]
-        tr.innerHTML = `<td class="excel-cell"><input type="date" class="excel-input paste-cell font-mono text-center text-xs" onpaste="handleGridPaste(event, this)"></td><td class="excel-cell"><input type="text" class="excel-input text-xs text-slate-700" value="เบิกอะไหล่"></td><td class="excel-cell"><input type="text" class="excel-input uppercase font-bold text-blue-700"></td><td class="excel-cell"><input type="number" class="excel-input text-center font-black text-lg" value="1" min="1"></td><td class="excel-cell"><input type="text" class="excel-input uppercase font-bold text-amber-700"></td><td class="excel-cell"><input type="text" class="excel-input uppercase font-mono text-center text-xs"></td><td class="excel-cell"><input type="text" class="excel-input uppercase font-mono text-center text-xs"></td><td class="excel-cell text-center"><button tabindex="-1" type="button" onclick="this.closest('tr').remove()" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button></td>`;
-    }
-    tbody.appendChild(tr);
-}
-
-function handleGridPaste(e, cellInput) {
-    e.preventDefault(); 
-    const clipboardData = e.clipboardData || window.clipboardData; 
-    const pastedText = clipboardData.getData('Text'); 
-    if (!pastedText) return;
-    
-    const rows = pastedText.split(/\r\n|\n|\r/).filter(row => row.trim() !== ''); 
-    const tbody = document.getElementById('paste_grid_tbody'); 
-    let currentRow = cellInput.closest('tr');
-    
-    rows.forEach((rowStr, i) => {
-        const cols = rowStr.split('\t'); 
-        if (!currentRow) { addPasteRow(); currentRow = tbody.lastElementChild; }
-        const inputs = currentRow.querySelectorAll('.excel-input:not([readonly])');
-        cols.forEach((colVal, j) => { 
-            if (inputs[j]) { 
-                inputs[j].value = colVal.trim(); 
-                inputs[j].classList.add('bg-amber-50'); 
-                setTimeout(() => inputs[j].classList.remove('bg-amber-50'), 1000); 
-            } 
-        });
-        currentRow = currentRow.nextElementSibling;
-    });
-}
-
-async function processExcelPasteData() {
-    const type = document.getElementById('paste_target_type').value; 
-    const rows = document.querySelectorAll('#paste_grid_tbody tr'); 
-    const payloadArr = []; 
-    const todayStr = new Date().toISOString().split('T')[0];
-    
-    let errorCount = 0;
-
-    for (let tr of rows) {
-        const inputs = tr.querySelectorAll('.excel-input:not([readonly])');
-        
-        if (type === 'po') {
-            // [EPC, ทะเบียน, สถานะสั่ง, ยอดสั่ง, วันที่สั่ง, คาดการณ์, เข้าครบ]
-            const epc = inputs[0].value.trim().toUpperCase(); 
-            const plate = inputs[1].value.trim().toUpperCase(); 
-            const status = inputs[2].value.trim() || 'รอสั่งซื้อ'; 
-            const qty = parseInt(inputs[3].value) || 0; 
-            const orderDate = inputs[4].value || todayStr;
-            const etaDate = inputs[5].value || null;
-            const rcvDate = inputs[6].value || null;
-
-            if (epc && plate && qty > 0) {
-                payloadArr.push({ 
-                    epc_no: epc, car_plate: plate, order_status: status, qty_ordered: qty, 
-                    order_date: orderDate, est_arrival_date: etaDate, part_received_all_date: rcvDate, 
-                    branch_name: userBranch,
-                    part_name: 'ระบุจาก EPC ' + epc, part_no: epc 
-                });
-            }
-            
-        } else if (type === 'outbound') {
-            // [วันที่, สถานะ, หมายเลขอะไหล่, จำนวน, ทะเบียน, QT, SO]
-            const issueDate = inputs[0].value || todayStr; 
-            const status = inputs[1].value.trim() || 'เบิกอะไหล่'; 
-            const partNo = inputs[2].value.trim().toUpperCase(); 
-            const qty = parseInt(inputs[3].value) || 0; 
-            const plate = inputs[4].value.trim().toUpperCase() || null;
-            const qt = inputs[5].value.trim().toUpperCase() || null;
-            const so = inputs[6].value.trim().toUpperCase() || null;
-
-            if (partNo && qty > 0) {
-                // เช็ก Master Parts 🌟
-                let partName = partNo; 
-                let partMain = null; 
-                const m = allMasterPartsCache.find(x => x.part_no && x.part_no.toUpperCase() === partNo); 
-                
-                if (m) { 
-                    partName = m.part_name; partMain = m.part_main_no; 
-                } else {
-                    errorCount++;
-                    tr.style.backgroundColor = '#fff1f2'; 
-                    continue; 
-                }
-
-                payloadArr.push({ 
-                    issue_date: issueDate, job_status: status, part_no: partNo, part_main_no: partMain, 
-                    part_name: partName, qty: qty, car_plate: plate, qt_no: qt, so_no: so, 
-                    branch_name: userBranch 
-                });
-            }
-        }
-    }
-
-    if (errorCount > 0) {
-        alert(`⚠️ พบหมายเลขอะไหล่ที่ไม่มีใน Master Data จำนวน ${errorCount} รายการ (แถวสีแดง)\nระบบจะบันทึกเฉพาะรายการที่ถูกต้องเท่านั้นครับ`);
-    }
-
-    if (payloadArr.length === 0) return alert('ไม่พบข้อมูลที่ถูกต้องสำหรับบันทึก กรุณาตรวจสอบข้อมูลอีกครั้งครับ');
-    
-    if (!confirm(`ยืนยันการบันทึกข้อมูลแบบกลุ่ม จำนวน ${payloadArr.length} รายการ?`)) return;
-
-    try {
-        const btn = document.getElementById('btn_submit_paste'); 
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> บันทึก...'; 
-        btn.disabled = true;
-        
-        const endpoint = type === 'po' ? '/api/part-orders' : '/api/part-outbound';
-        
-        await Promise.all(payloadArr.map(item => fetch(`${API_BASE_URL}${endpoint}`, { 
-            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(item) 
-        })));
-        
-        showToast(`บันทึกข้อมูลสำเร็จ ${payloadArr.length} รายการ!`); 
-        closeExcelPasteModal(); 
-        loadAllData();
-    } catch(err) { 
-        showToast('บันทึกล้มเหลว', 'error'); 
-        const btn = document.getElementById('btn_submit_paste'); 
-        btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> ยืนยันบันทึกข้อมูล'; 
-        btn.disabled = false;
-    }
 }

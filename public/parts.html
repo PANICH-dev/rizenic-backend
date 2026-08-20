@@ -8,7 +8,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RIZENIC ERP - Parts Department</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
     <style type="text/tailwindcss">
@@ -26,7 +25,7 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
         .minimal-input { @apply w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-lg outline-none transition-all duration-200 text-sm font-bold text-[#00320D] focus:border-[#00320D] focus:ring-4 focus:ring-green-500/10 focus:bg-white shadow-sm; }
-        .minimal-input[readonly], .minimal-input:disabled { @apply bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed shadow-none font-medium; }
+        .minimal-input[readonly] { @apply bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed shadow-none font-medium; }
         .card-container { @apply bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-4 flex flex-col flex-1; }
         .label-text { @apply flex items-center gap-1.5 text-[11px] font-bold text-slate-500 mb-1.5 tracking-wide uppercase; }
         
@@ -35,21 +34,8 @@
         .modern-table tbody td { @apply p-0 border border-slate-200 text-slate-700 align-middle overflow-hidden; }
         .modern-table tbody tr:hover td { @apply bg-green-50/40 transition-colors; }
         
-        .resizer { @apply absolute top-0 right-0 w-1.5 h-full cursor-col-resize z-20 hover:bg-amber-400 transition-colors; }
-        .sort-icon { @apply ml-1 opacity-40 transition-opacity group-hover:opacity-100 text-[10px]; }
-        .filter-icon { @apply ml-2 text-slate-400 hover:text-amber-400 transition-colors p-1 rounded hover:bg-white/20 cursor-pointer; }
-        
-        .excel-grid-table { @apply w-full text-left bg-white text-[11px] whitespace-nowrap border-collapse border border-slate-300; }
-        .excel-grid-th { @apply px-3 py-2 bg-slate-100 text-slate-700 font-black border border-slate-300 relative; }
-        .excel-cell { @apply p-0 border border-slate-200 relative; }
-        .excel-input { @apply w-full h-full border-0 bg-transparent px-3 py-2.5 outline-none font-mono text-slate-900 transition-colors; }
-        .excel-select { @apply w-full h-full border-0 bg-transparent px-2 py-2.5 outline-none font-bold text-slate-800 transition-colors cursor-pointer; }
-        .excel-input:focus, .excel-select:focus { @apply bg-blue-50 outline outline-2 outline-blue-500 z-10 relative shadow-sm; }
-
         .inline-edit-input { @apply w-full h-full border-0 bg-transparent px-3 py-2 outline-none font-medium text-slate-900 transition-colors hover:bg-slate-50 focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-xs; }
         .inline-edit-select { @apply w-full h-full border-0 bg-transparent px-2 py-2 outline-none font-bold text-slate-800 transition-colors cursor-pointer hover:bg-slate-50 focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-[11px]; }
-        
-        .paste-cell:focus { @apply bg-amber-50 outline-2 outline-amber-500 shadow-inner rounded-sm z-10; }
     </style>
 </head>
 <body class="text-slate-800 h-screen flex flex-col selection:bg-[#00320D] selection:text-white">
@@ -75,23 +61,6 @@
             <span id="toastContent"><i class="fa-solid fa-circle-check text-xl"></i> บันทึกข้อมูลสำเร็จ!</span>
         </div>
 
-        <div id="excelFilterModal" class="absolute bg-white border border-slate-200 shadow-2xl rounded-xl p-3 z-[200] w-64 text-sm hidden flex-col transition-all">
-            <div class="flex justify-between items-center border-b pb-2 mb-2">
-                <span class="font-bold text-[#00320D] text-xs"><i class="fa-solid fa-filter mr-1"></i> ตัวกรอง: <span id="ef_col_name" class="text-amber-600"></span></span>
-                <button onclick="closeExcelFilter()" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <input type="text" id="ef_search" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none focus:border-amber-500 bg-slate-50" placeholder="🔍 ค้นหาในตัวกรอง..." onkeyup="searchExcelFilter()">
-            <div class="flex items-center gap-2 mt-2 px-1 pb-1 border-b">
-                <input type="checkbox" id="ef_select_all" checked onchange="toggleAllExcelFilters(this.checked)" class="w-3.5 h-3.5 cursor-pointer accent-[#00320D]">
-                <label for="ef_select_all" class="text-xs font-bold text-[#00320D] cursor-pointer select-none">เลือกทั้งหมด</label>
-            </div>
-            <div id="ef_checkbox_list" class="max-h-48 overflow-y-auto space-y-1 mt-2 p-1 rounded custom-scrollbar"></div>
-            <div class="flex gap-2 mt-3 pt-2 border-t">
-                <button onclick="applyExcelFilter()" class="flex-1 bg-[#00320D] text-white text-xs font-bold py-2 rounded-lg hover:bg-black transition shadow-md"><i class="fa-solid fa-check"></i> ตกลง</button>
-                <button onclick="clearSpecificExcelFilter()" class="flex-1 bg-slate-100 text-slate-700 text-xs font-bold py-2 rounded-lg hover:bg-slate-200 transition border border-slate-300"><i class="fa-solid fa-eraser"></i> ล้าง</button>
-            </div>
-        </div>
-
         <header class="bg-[#00320D] text-white shadow-lg z-50 shrink-0 border-b-4 border-amber-500">
             <div class="px-6 py-3 flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div class="flex items-center gap-3">
@@ -114,18 +83,12 @@
             </div>
         </header>
 
-        <!-- แถบเลือก Tab เหลือเพียง 2 เมนูหลัก -->
-<div class="bg-white border-b border-slate-200 z-40 shrink-0 shadow-sm">
-    <div class="flex overflow-x-auto custom-scrollbar px-2 pt-2">
-        <button onclick="switchTab('tab-alert')" id="btn-tab-alert" class="px-6 py-3.5 text-sm font-bold border-b-2 border-[#00320D] text-[#00320D] flex items-center gap-2 whitespace-nowrap bg-green-50/80 rounded-t-xl transition-all">
-            <i class="fa-solid fa-bell text-amber-500 animate-bounce"></i> 1. แจ้งเตือนสั่งอะไหล่ (SA Alerts) 
-            <span id="alert_count" class="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full hidden shadow-sm">0</span>
-        </button>
-        <button onclick="switchTab('tab-master')" id="btn-tab-master" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 whitespace-nowrap rounded-t-xl transition-all">
-            <i class="fa-solid fa-database text-slate-400"></i> 2. ข้อมูลมาสเตอร์อะไหล่ (Master)
-        </button>
-    </div>
-</div>
+        <div class="bg-white border-b border-slate-200 z-40 shrink-0 shadow-sm">
+            <div class="flex overflow-x-auto custom-scrollbar px-2 pt-2">
+                <button onclick="switchTab('tab-alert')" id="btn-tab-alert" class="px-6 py-3.5 text-sm font-bold border-b-2 border-[#00320D] text-[#00320D] flex items-center gap-2 whitespace-nowrap bg-green-50/80 rounded-t-xl transition-all"><i class="fa-solid fa-bell text-amber-500 animate-bounce"></i> 1. แจ้งเตือนสั่งอะไหล่ (SA Alerts) <span id="alert_count" class="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full hidden shadow-sm">0</span></button>
+                <button onclick="switchTab('tab-master')" id="btn-tab-master" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 whitespace-nowrap rounded-t-xl transition-all"><i class="fa-solid fa-database text-slate-400"></i> 2. ข้อมูลมาสเตอร์ (Master Data)</button>
+            </div>
+        </div>
 
         <main class="flex-1 overflow-y-auto p-4 flex flex-col h-full bg-slate-100">
 
@@ -146,179 +109,23 @@
                         <table class="modern-table" id="saTable">
                             <thead class="bg-[#00320D] text-white sticky top-0 z-10 shadow-sm text-xs">
                                 <tr>
-                                    <th class="w-32 px-2 py-3 text-left">ทะเบียนรถ</th>
-                                    <th class="w-24 px-2 py-3 text-center">วันที่สั่ง</th>
-                                    <th class="w-24 px-2 py-3 text-center text-amber-300">คาดการณ์</th>
-                                    <th class="w-24 px-2 py-3 text-center text-emerald-300">เข้าครบ</th>
+                                    <th class="w-28 px-2 py-3 text-left">ทะเบียนรถ</th>
+                                    <th class="w-24 px-2 py-3 text-center">วันที่รับงาน</th>
                                     <th class="w-24 px-2 py-3 text-left">รุ่นรถ</th>
                                     <th class="w-32 px-2 py-3 text-left">ชื่อลูกค้า</th>
                                     <th class="w-20 px-2 py-3 text-left">EPC No</th>
-                                    <th class="w-56 px-2 py-3 text-left">สถานะแต่ละชิ้นส่วน</th>
+                                    <th class="w-48 px-2 py-3 text-left text-indigo-300"><i class="fa-solid fa-list"></i> ความต้องการ (จาก SA)</th>
+                                    <th class="w-64 px-2 py-3 text-left text-amber-300"><i class="fa-solid fa-pen-to-square"></i> สถานะอะไหล่ที่คีย์อัปเดตแล้ว</th>
                                     <th class="w-24 px-2 py-3 text-center">จัดการ</th>
                                 </tr>
                             </thead>
-                            <tbody id="sa_alerts_body"><tr><td colspan="9" class="text-center py-10 text-slate-400">กำลังดึงข้อมูล...</td></tr></tbody>
+                            <tbody id="sa_alerts_body"><tr><td colspan="8" class="text-center py-10 text-slate-400">กำลังดึงข้อมูล...</td></tr></tbody>
                         </table>
                     </div>
                 </div>
             </section>
 
-            <!-- 🛒 2. สั่งอะไหล่จากศูนย์ -->
-            <section id="tab-po" class="parts-tab-content flex-col">
-                <div class="card-container border-l-4 border-l-blue-600">
-                    <div class="px-5 py-3.5 bg-slate-50 border-b flex flex-wrap justify-between items-center gap-3 shrink-0">
-                        <span class="text-sm font-bold text-[#00320D] flex items-center gap-2"><i class="fa-solid fa-cart-plus text-blue-600"></i> ตารางติดตามสถานะการสั่งซื้ออะไหล่ศูนย์ (PO Tracking)</span>
-                        <div class="flex flex-wrap items-center gap-2">
-                            <div class="relative w-48 sm:w-64">
-                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                                <input type="text" onkeyup="filterTableByText('po_table_body', this.value)" class="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:border-blue-500" placeholder="🔍 ค้นหา EPC, ทะเบียน, บาร์โค้ด...">
-                            </div>
-                            <button onclick="loadAllData()" class="text-xs bg-white text-slate-600 px-4 py-2 rounded-lg shadow-sm font-bold hover:bg-slate-100 transition border border-slate-300"><i class="fa-solid fa-rotate-right"></i></button>
-                            <button onclick="openPOModal()" class="text-xs bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm font-bold hover:bg-blue-700 transition"><i class="fa-solid fa-plus"></i> เพิ่มสั่งซื้อใหม่</button>
-                            <button onclick="openExcelPasteModal('po')" class="text-xs bg-amber-500 text-white px-4 py-2 rounded-lg shadow-sm font-bold hover:bg-amber-600 transition"><i class="fa-solid fa-bolt"></i> วางตาราง PO แบบด่วน</button>
-                            <button onclick="openSmartExcelUpload('po')" class="text-xs bg-indigo-600 text-white px-4 py-2 rounded-lg shadow-sm font-bold hover:bg-indigo-700 transition"><i class="fa-solid fa-file-excel"></i> อัปโหลด Excel (PO)</button>
-                            <button id="btn_toggle_completed_po" onclick="toggleCompletedPO()" class="text-xs bg-white border border-slate-300 px-4 py-2 rounded-lg shadow-sm font-bold text-slate-600 hover:bg-slate-100 transition"><i class="fa-solid fa-eye-slash"></i> ซ่อนที่เข้าครบแล้ว</button>
-                        </div>
-                    </div>
-                    <div class="flex-1 overflow-auto custom-scrollbar">
-                        <table class="modern-table" id="poTable">
-                            <thead>
-                                <tr>
-                                    <th style="width:70px;" class="text-center group">ID <div class="resizer"></div></th>
-                                    <th style="width:120px;" class="group">EPC No <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 1, 'EPC No', 'poTable')"></i><div class="resizer"></div></th>
-                                    <th style="width:130px;" class="group">บาร์โค้ดอะไหล่ <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 2, 'บาร์โค้ดอะไหล่', 'poTable')"></i><div class="resizer"></div></th>
-                                    <th style="width:110px;" class="group">ทะเบียนรถ <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 3, 'ทะเบียนรถ', 'poTable')"></i><div class="resizer"></div></th>
-                                    <th style="width:150px;" class="group">สถานะการสั่ง <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 4, 'สถานะการสั่ง', 'poTable')"></i><div class="resizer"></div></th>
-                                    <th style="width:70px;" class="text-center group">ยอดสั่ง <div class="resizer"></div></th>
-                                    <th style="width:70px;" class="text-center group">รับจริง <div class="resizer"></div></th>
-                                    <th style="width:200px;" class="group">รายการอะไหล่ <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 7, 'รายการอะไหล่', 'poTable')"></i><div class="resizer"></div></th>
-                                    <th style="width:100px;" class="text-center group">วันที่สั่ง <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 8, 'วันที่สั่ง', 'poTable')"></i><div class="resizer"></div></th>
-                                    <th style="width:110px;" class="text-center group">คาดการณ์เข้า <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 9, 'คาดการณ์เข้า', 'poTable')"></i><div class="resizer"></div></th>
-                                    <th style="width:110px;" class="text-center group">วันที่เข้าครบ <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 10, 'วันที่เข้าครบ', 'poTable')"></i><div class="resizer"></div></th>
-                                    <th style="width:160px;">หมายเหตุ<div class="resizer"></div></th>
-                                    <th style="width:120px;" class="group">MAIN No. <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 12, 'MAIN No', 'poTable')"></i><div class="resizer"></div></th>
-                                    <th style="width:80px;" class="text-center">จัดการ</th>
-                                </tr>
-                            </thead>
-                            <tbody id="po_table_body"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- 📥 3. รับเข้า -->
-            <section id="tab-inbound" class="parts-tab-content flex-col">
-                <div class="card-container border-l-4 border-l-emerald-600">
-                    <div class="px-5 py-3.5 bg-slate-50 border-b flex flex-wrap justify-between items-center gap-3 shrink-0">
-                        <span class="text-sm font-bold text-[#00320D] flex items-center gap-2"><i class="fa-solid fa-download text-emerald-600"></i> ประวัติการรับเข้าคลังสินค้าพาร์ทอะไหล่ (Inbound)</span>
-                        <div class="flex flex-wrap items-center gap-2">
-                            <div class="relative w-48 sm:w-64">
-                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                                <input type="text" onkeyup="filterTableByText('inbound_table_body', this.value)" class="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:border-emerald-500" placeholder="🔍 ค้นหาบาร์โค้ด, EPC...">
-                            </div>
-                            <button onclick="loadAllData()" class="text-xs bg-white text-slate-600 px-4 py-2 rounded-lg shadow-sm font-bold hover:bg-slate-100 transition border border-slate-300"><i class="fa-solid fa-rotate-right"></i></button>
-                            <button onclick="openInboundModal()" class="text-xs bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-sm font-bold hover:bg-emerald-700 transition"><i class="fa-solid fa-list-check"></i> รับเข้าจากค้างส่ง (เลือก)</button>
-                            <button onclick="openExcelPasteModal('inbound')" class="text-xs bg-amber-500 text-white px-4 py-2 rounded-lg shadow-sm font-bold hover:bg-amber-600 transition"><i class="fa-solid fa-bolt"></i> วางรับเข้าแบบด่วน</button>
-                            <button onclick="openSmartExcelUpload('inbound')" class="text-xs bg-indigo-600 text-white px-4 py-2 rounded-lg shadow-sm font-bold hover:bg-indigo-700 transition"><i class="fa-solid fa-file-excel"></i> อัปโหลด Excel รับเข้า</button>
-                        </div>
-                    </div>
-                    <div class="flex-1 overflow-auto custom-scrollbar">
-                        <table class="modern-table" id="inTable">
-                            <thead>
-                                <tr>
-                                    <th style="width:70px;" class="text-center group">ID <div class="resizer"></div></th>
-                                    <th style="width:110px;" class="text-center group">วันที่ของเข้า <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 1, 'วันที่ของเข้า', 'inTable')"></i><div class="resizer"></div></th>
-                                    <th style="width:120px;" class="group">EPC No <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 2, 'EPC No', 'inTable')"></i><div class="resizer"></div></th>
-                                    <th style="width:130px;" class="group">หมายเลขอะไหล่ <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 3, 'หมายเลขอะไหล่', 'inTable')"></i><div class="resizer"></div></th>
-                                    <th style="width:120px;" class="group">MAIN No. <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 4, 'MAIN No.', 'inTable')"></i><div class="resizer"></div></th>
-                                    <th style="width:220px;" class="group">รายการชิ้นส่วน <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 5, 'รายการชิ้นส่วน', 'inTable')"></i><div class="resizer"></div></th>
-                                    <th style="width:80px;" class="text-center">จำนวน<div class="resizer"></div></th>
-                                    <th style="width:100px;" class="text-right">ราคา/หน่วย<div class="resizer"></div></th>
-                                    <th style="width:80px;" class="text-center">จัดการ</th>
-                                </tr>
-                            </thead>
-                            <tbody id="inbound_table_body"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- 📤 4. เบิกอะไหล่ / จอง -->
-            <section id="tab-outbound" class="parts-tab-content flex-col">
-                <div class="card-container border-l-4 border-l-purple-600">
-                    <div class="px-5 py-3.5 bg-slate-50 border-b flex flex-wrap justify-between items-center gap-3 shrink-0">
-                        <span class="text-sm font-bold text-purple-900 flex items-center gap-2"><i class="fa-solid fa-upload text-purple-600"></i> ตารางตรวจสอบประวัติใบเบิกอะไหล่ (Outbound & Booking)</span>
-                        <div class="flex flex-wrap items-center gap-2">
-                            <div class="relative w-48 sm:w-64">
-                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                                <input type="text" onkeyup="filterTableByText('outbound_table_body', this.value)" class="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:border-purple-500" placeholder="🔍 ค้นหาทะเบียน, บาร์โค้ด...">
-                            </div>
-                            <button onclick="loadAllData()" class="text-xs bg-white text-slate-600 px-4 py-2 rounded-lg shadow-sm font-bold hover:bg-slate-100 transition border border-slate-300"><i class="fa-solid fa-rotate-right"></i></button>
-                            <button onclick="openOutboundModal()" class="text-xs bg-purple-600 text-white px-4 py-2 rounded-lg shadow-sm font-bold hover:bg-purple-700 transition"><i class="fa-solid fa-plus"></i> สร้างใบเบิก/จองใหม่</button>
-                            <button onclick="openExcelPasteModal('outbound')" class="text-xs bg-amber-500 text-white px-4 py-2 rounded-lg shadow-sm font-bold hover:bg-amber-600 transition"><i class="fa-solid fa-bolt"></i> วางตารางเบิกแบบด่วน</button>
-                            <button onclick="openSmartExcelUpload('outbound')" class="text-xs bg-indigo-600 text-white px-4 py-2 rounded-lg shadow-sm font-bold hover:bg-indigo-700 transition"><i class="fa-solid fa-file-excel"></i> อัปโหลด Excel ใบเบิก/จอง</button>
-                        </div>
-                    </div>
-                    <div class="flex-1 overflow-auto custom-scrollbar">
-                        <table class="modern-table" id="outTable">
-                            <thead>
-                                <tr>
-                                    <th style="width:70px;" class="text-center group">ID <div class="resizer"></div></th>
-                                    <th style="width:50px;" class="text-center">#<div class="resizer"></div></th>
-                                    <th style="width:110px;" class="text-center group">วันที่ทำรายการ <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 2, 'วันที่ทำรายการ', 'outTable')"></i><div class="resizer"></div></th>
-                                    <th style="width:120px;" class="text-center group">สถานะเบิก <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 3, 'สถานะเบิก', 'outTable')"></i><div class="resizer"></div></th>
-                                    <th style="width:130px;" class="group">หมายเลขอะไหล่ <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 4, 'หมายเลขอะไหล่', 'outTable')"></i><div class="resizer"></div></th>
-                                    <th style="width:110px;" class="group">MAIN No. <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 5, 'MAIN No.', 'outTable')"></i><div class="resizer"></div></th>
-                                    <th style="width:70px;" class="text-center">จำนวน<div class="resizer"></div></th>
-                                    <th style="width:100px;" class="text-center group">ทะเบียน <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 7, 'ทะเบียน', 'outTable')"></i><div class="resizer"></div></th>
-                                    <th style="width:100px;" class="group">QT No. <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 8, 'QT No.', 'outTable')"></i><div class="resizer"></div></th>
-                                    <th style="width:100px;" class="group">SO No. <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 9, 'SO No.', 'outTable')"></i><div class="resizer"></div></th>
-                                    <th style="width:200px;" class="group">ชิ้นส่วน <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 10, 'ชิ้นส่วน', 'outTable')"></i><div class="resizer"></div></th>
-                                    <th style="width:80px;" class="text-center">จัดการ</th>
-                                </tr>
-                            </thead>
-                            <tbody id="outbound_table_body"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- 📊 5. สต๊อกคงเหลือ -->
-            <section id="tab-stock" class="parts-tab-content flex-col">
-                <div class="card-container border-l-4 border-l-amber-500">
-                    <div class="p-4 bg-slate-50 border-b flex justify-between items-center shrink-0">
-                        <h3 class="font-bold text-[#00320D] text-sm flex items-center gap-2"><i class="fa-solid fa-cubes-stacked text-amber-500"></i> สรุปยอดคลังสินค้าสต๊อกคงเหลือ</h3>
-                        <div class="flex items-center gap-2 w-full sm:w-auto">
-                            <div class="relative flex-1 sm:w-64">
-                                <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                                <input type="text" onkeyup="filterTableByText('stock_table_body', this.value)" class="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:border-amber-500 shadow-sm" placeholder="ค้นหา MAIN, ชื่อ...">
-                            </div>
-                            <button onclick="loadStockInHouse()" class="px-4 py-1.5 bg-white border border-slate-300 font-bold rounded-lg text-xs hover:bg-slate-100 transition"><i class="fa-solid fa-rotate-right"></i> รีเฟรชสต๊อก</button>
-                        </div>
-                    </div>
-                    <div class="flex-1 overflow-auto custom-scrollbar">
-                        <table class="modern-table" id="stockTable">
-                            <thead>
-                                <tr>
-                                    <th style="width:120px;" class="text-center group">MAIN No. <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 0, 'MAIN No.', 'stockTable')"></i></th>
-                                    <th style="width:150px;" class="group">หมายเลขอะไหล่ <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 1, 'หมายเลขอะไหล่', 'stockTable')"></i></th>
-                                    <th style="width:200px;" class="group">ชื่อชิ้นส่วน <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 2, 'ชื่อชิ้นส่วน', 'stockTable')"></i></th>
-                                    <th style="width:80px;" class="text-center">ยอดรวม</th>
-                                    <th style="width:80px;" class="text-center">ติดจอง</th>
-                                    <th style="width:80px;" class="text-center">คงเหลือจริง</th>
-                                    <th style="width:100px;" class="group">Location <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 6, 'Location', 'stockTable')"></i></th>
-                                    <th style="width:150px;" class="group">รุ่นรถ <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 7, 'รุ่นรถ', 'stockTable')"></i></th>
-                                    <th style="width:100px;" class="text-right">ราคา/หน่วย</th>
-                                    <th style="width:100px;" class="text-center group">ประเภท <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 9, 'ประเภท', 'stockTable')"></i></th>
-                                </tr>
-                            </thead>
-                            <tbody id="stock_table_body"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- 🗄️ 6. ข้อมูลมาสเตอร์ -->
+            <!-- 🗄️ 2. ข้อมูลมาสเตอร์ -->
             <section id="tab-master" class="parts-tab-content flex-col">
                 <div class="card-container border-t-4 border-slate-700">
                     <div class="px-5 py-3.5 bg-slate-50 border-b flex justify-between items-center shrink-0">
@@ -326,7 +133,7 @@
                         <div class="flex items-center gap-2">
                             <div class="relative w-64">
                                 <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                                <input type="text" onkeyup="searchMasterTable()" class="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:border-slate-500 shadow-sm" placeholder="ค้นหา บาร์โค้ด, ชิ้นส่วน...">
+                                <input type="text" onkeyup="filterTableByText('master_table_body', this.value)" class="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:border-slate-500 shadow-sm" placeholder="ค้นหา บาร์โค้ด, ชิ้นส่วน...">
                             </div>
                             <button onclick="openMasterModal()" class="text-xs bg-slate-800 text-white px-4 py-1.5 rounded-lg shadow-sm font-bold hover:bg-slate-900 transition"><i class="fa-solid fa-plus"></i> เพิ่มอะไหล่มาสเตอร์</button>
                         </div>
@@ -335,13 +142,13 @@
                         <table class="modern-table" id="masterTable">
                             <thead>
                                 <tr>
-                                    <th style="width:140px;" class="group">บาร์โค้ด (Part 2) <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 0, 'บาร์โค้ด', 'masterTable')"></i></th>
-                                    <th style="width:200px;" class="group">ชื่อชิ้นส่วน <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 1, 'ชื่อชิ้นส่วน', 'masterTable')"></i></th>
-                                    <th style="width:120px;" class="group">MAIN No. <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 2, 'MAIN No.', 'masterTable')"></i></th>
-                                    <th style="width:150px;" class="group">รุ่นรถที่รองรับ <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 3, 'รุ่นรถที่รองรับ', 'masterTable')"></i></th>
-                                    <th style="width:100px;" class="group">หมวดหมู่ <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 4, 'หมวดหมู่', 'masterTable')"></i></th>
+                                    <th style="width:140px;">หมายเลขอะไหล่ (Part No)</th>
+                                    <th style="width:200px;">ชื่อชิ้นส่วน</th>
+                                    <th style="width:120px;">MAIN No.</th>
+                                    <th style="width:150px;">รุ่นรถที่รองรับ</th>
+                                    <th style="width:100px;">หมวดหมู่</th>
                                     <th style="width:100px;" class="text-right">ราคา/หน่วย</th>
-                                    <th style="width:100px;" class="text-center group">Location <i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, 6, 'Location', 'masterTable')"></i></th>
+                                    <th style="width:100px;" class="text-center">Location</th>
                                     <th style="width:80px;" class="text-center">จัดการ</th>
                                 </tr>
                             </thead>
@@ -352,218 +159,28 @@
             </section>
 
         </main>
-    </div> <!-- /Main App Wrapper -->
+    </div>
 
     <!-- 🌟 MODAL: โต๊ะคีย์อะไหล่ 🌟 -->
     <div id="alertModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-7xl overflow-hidden border-t-4 border-t-amber-500 flex flex-col max-h-[90vh]">
             <div class="px-6 py-4 border-b flex justify-between items-center bg-amber-50/50 shrink-0">
-                <h3 class="font-black text-amber-900 flex items-center gap-2 text-sm sm:text-base"><i class="fa-solid fa-table-cells text-amber-500"></i> โต๊ะคีย์อะไหล่ (อัปเดตสเตตัสแบบตาราง Excel)</h3>
+                <h3 class="font-black text-amber-900 flex items-center gap-2 text-sm sm:text-base"><i class="fa-solid fa-table-cells text-amber-500"></i> โต๊ะคีย์อัปเดตสถานะให้ SA</h3>
                 <button type="button" onclick="closeAlertModal()" class="text-slate-400 hover:text-red-500 transition"><i class="fa-solid fa-xmark text-2xl"></i></button>
             </div>
             <form onsubmit="saveSAAlertUpdate(event)" class="flex flex-col flex-1 overflow-hidden bg-slate-50">
-                <input type="hidden" id="modal_job_id"><input type="hidden" id="modal_epc">
                 <div class="p-6 flex-1 overflow-y-auto custom-scrollbar" id="modal_dynamic_table_container"></div>
                 <div class="bg-white px-6 py-4 border-t flex justify-end gap-3 shrink-0 shadow-md">
                     <button type="button" onclick="closeAlertModal()" class="px-5 py-2.5 bg-white text-slate-600 rounded-lg font-bold border border-slate-300 hover:bg-slate-100 transition shadow-sm">ปิดหน้าต่าง</button>
                     <button type="submit" class="px-8 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-black rounded-lg shadow-md hover:from-amber-600 hover:to-amber-700 transition-all flex items-center gap-1.5">
-                        <i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลอะไหล่ทั้งหมด
+                        <i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลส่งให้ SA
                     </button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- 🌟 MODAL: Copy/Paste Multi-Items แบบตารางกริด Excel 🌟 -->
-    <div id="excelPasteModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-7xl overflow-hidden border-t-4 border-t-amber-500 flex flex-col max-h-[90vh]">
-            <div class="px-6 py-4 border-b flex justify-between items-center bg-amber-50/50 shrink-0">
-                <h3 class="font-black text-amber-900 text-sm sm:text-base" id="paste_modal_title"><i class="fa-solid fa-paste mr-2"></i> นำเข้าข้อมูลจากตาราง Excel (Multi-Paste)</h3>
-                <button type="button" onclick="closeExcelPasteModal()" class="text-slate-400 hover:text-red-500 transition"><i class="fa-solid fa-xmark text-2xl"></i></button>
-            </div>
-            <div class="p-4 bg-white border-b shrink-0 flex flex-col items-start gap-2">
-                <p class="text-[11px] font-bold text-blue-800 bg-blue-50 border border-blue-200 p-2.5 rounded-lg w-full" id="paste_instructions_text">
-                    <!-- ข้อความแนะนำจะถูกแทนที่ด้วย JS -->
-                </p>
-                <div id="template_download_area" class="w-full"></div>
-                <input type="hidden" id="paste_target_type" value="inbound">
-            </div>
-            <div class="flex-1 overflow-auto custom-scrollbar bg-slate-100 p-4">
-                <div class="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm min-h-[300px]">
-                    <table class="excel-grid-table w-full" id="paste_grid_table">
-                        <thead id="paste_grid_thead"></thead>
-                        <tbody id="paste_grid_tbody"></tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="bg-slate-50 px-6 py-4 border-t flex justify-between items-center shrink-0">
-                <button type="button" onclick="addPasteRow()" class="px-4 py-2 bg-white text-blue-600 rounded-lg font-bold border border-blue-200 hover:bg-blue-50 transition shadow-sm text-xs"><i class="fa-solid fa-plus"></i> เพิ่มแถวว่าง</button>
-                <div class="flex gap-3">
-                    <button type="button" onclick="closeExcelPasteModal()" class="px-5 py-2.5 bg-white text-slate-600 rounded-lg font-bold border border-slate-300 hover:bg-slate-100 transition shadow-sm">ยกเลิก</button>
-                    <button type="button" id="btn_submit_paste" onclick="processExcelPasteData()" class="px-8 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-lg shadow-md transition flex items-center gap-2"><i class="fa-solid fa-cloud-arrow-up"></i> ยืนยันบันทึกข้อมูล</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 🌟 MODAL: 2. สร้าง/เพิ่มใบสั่งซื้อใหม่ (PO) 🌟 -->
-    <div id="poModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden border-t-4 border-t-blue-600 flex flex-col max-h-[90vh]">
-            <div class="px-6 py-4 border-b flex justify-between items-center bg-blue-50/50 shrink-0">
-                <h3 class="font-black text-blue-900 flex items-center gap-2 text-sm sm:text-base"><i class="fa-solid fa-cart-plus text-blue-600"></i> สร้างใบสั่งซื้ออะไหล่ส่งศูนย์บริการ</h3>
-                <button type="button" onclick="closePOModal()" class="text-slate-400 hover:text-red-500 transition"><i class="fa-solid fa-xmark text-2xl"></i></button>
-            </div>
-            <form id="poForm" onsubmit="submitPO(event)" class="flex flex-col flex-1 overflow-hidden">
-                <div class="p-6 flex-1 overflow-y-auto custom-scrollbar">
-                    <input type="hidden" id="edit_po_id">
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                        <div><label class="label-text">หมายเลข QT</label><input type="text" id="po_qt" class="minimal-input font-mono placeholder-slate-300" placeholder="QT-XXX"></div>
-                        <div><label class="label-text">หมายเลข SO</label><input type="text" id="po_so" class="minimal-input font-mono placeholder-slate-300" placeholder="SO-XXX"></div>
-                        <div><label class="label-text text-amber-600">EPC No *</label><input type="text" id="po_epc" required class="minimal-input font-mono uppercase bg-amber-50 border-amber-200 text-amber-900" placeholder="อ้างอิง EPC"></div>
-                        <div><label class="label-text">วันที่สั่งอะไหล่ *</label><input type="date" id="po_date" required class="minimal-input font-mono"></div>
-                        
-                        <div><label class="label-text">ประมาณการณ์เข้า (ETA)</label><input type="date" id="po_est" class="minimal-input font-mono"></div>
-                        <div><label class="label-text text-emerald-600 font-black">วันที่อะไหล่เข้าครบแล้ว</label><input type="date" id="po_rcv_all_date" class="minimal-input font-mono bg-emerald-50 border-emerald-300 text-emerald-900"></div>
-                        <div class="md:col-span-2"><label class="label-text text-blue-600">สถานะมาร์คของ (Admin)</label><select id="po_bo" class="minimal-input font-bold text-blue-800 border-blue-300 bg-blue-50"><option value="รออะไหล่">รออะไหล่</option></select></div>
-                        
-                        <div><label class="label-text text-blue-600">ทะเบียนรถ *</label><input type="text" id="po_plate" required class="minimal-input uppercase border-blue-200" onblur="fetchJobDataByPlate('po')" placeholder="กข 1234"></div>
-                        <div class="md:col-span-2"><label class="label-text text-blue-600">สแกนบาร์โค้ดอะไหล่ (Part 2) *</label><input type="text" id="po_part_no" list="master_parts_datalist" required class="minimal-input font-mono uppercase bg-blue-50 border-blue-200 text-blue-900" onblur="fetchMasterPart('po')" placeholder="Part Number..."></div>
-                        <div><label class="label-text text-amber-600">จำนวนที่สั่ง *</label><input type="number" id="po_qty" required min="1" value="1" class="minimal-input text-center font-black text-lg"></div>
-                        
-                        <div class="md:col-span-4"><label class="label-text">หมายเหตุการสั่งจากศูนย์</label><input type="text" id="po_note" class="minimal-input" placeholder="พิมพ์หมายเหตุ..."></div>
-                        
-                        <div><label class="label-text">หมายเลข MAIN</label><input type="text" id="po_part_main" class="minimal-input" readonly></div>
-                        <div class="md:col-span-1"><label class="label-text">รายการชิ้นส่วน (Auto)</label><input type="text" id="po_part_name" class="minimal-input text-blue-700" readonly></div>
-                        <div><label class="label-text">ประเภท / รุ่นรถ</label><div class="flex gap-1"><input type="text" id="po_type" class="minimal-input w-1/2" readonly><input type="text" id="po_model" class="minimal-input w-1/2" readonly></div></div>
-                        <div><label class="label-text">VIN No (Auto)</label><input type="text" id="po_vin" class="minimal-input text-xs" readonly></div>
-                    </div>
-                </div>
-                <div class="bg-slate-50 px-6 py-4 border-t flex justify-end gap-3 shrink-0">
-                    <button type="button" onclick="closePOModal()" class="px-5 py-2.5 bg-white text-slate-600 rounded-lg font-bold border border-slate-300 hover:bg-slate-100 transition shadow-sm">ยกเลิก</button>
-                    <button type="submit" class="px-8 py-2.5 bg-blue-600 text-white font-black rounded-lg shadow-md hover:bg-blue-700 transition flex items-center gap-2"><i class="fa-solid fa-save"></i> บันทึก PO</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- 🌟 MODAL: 3.1 บันทึกรับเข้าใหม่ (จากที่ค้างรับ) 🌟 -->
-    <div id="inboundModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden border-t-4 border-t-emerald-500 flex flex-col max-h-[90vh]">
-            <div class="px-6 py-4 border-b flex justify-between items-center bg-emerald-50/50 shrink-0">
-                <h3 class="font-black text-emerald-900 flex items-center gap-2 text-sm sm:text-base"><i class="fa-solid fa-truck-ramp-box text-emerald-600"></i> บันทึกรับเข้าคลังสินค้า (เลือกจากรายการที่ค้างรับ)</h3>
-                <button type="button" onclick="closeInboundModal()" class="text-slate-400 hover:text-red-500 transition"><i class="fa-solid fa-xmark text-2xl"></i></button>
-            </div>
-            <div class="p-4 bg-white border-b shrink-0 flex gap-4 items-center justify-between flex-wrap">
-                <div class="relative w-full max-w-md">
-                    <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                    <input type="text" id="multi_inbound_search" onkeyup="filterTableByText('multi_inbound_body', this.value)" class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none text-sm font-bold text-slate-700 focus:border-emerald-500 shadow-sm" placeholder="ค้นหา EPC, บาร์โค้ด, ทะเบียน...">
-                </div>
-                <div class="flex items-center gap-3">
-                    <div class="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
-                        <span class="text-xs font-bold text-slate-500">เลือกทั้งหมด</span>
-                        <input type="checkbox" id="chk_all_inbound" onchange="toggleAllInbound(this.checked)" class="w-5 h-5 accent-emerald-500 cursor-pointer rounded">
-                    </div>
-                </div>
-            </div>
-            <form onsubmit="submitMultiInbound(event)" class="flex flex-col flex-1 overflow-hidden">
-                <div class="flex-1 overflow-y-auto custom-scrollbar p-0 bg-slate-50">
-                    <table class="modern-table w-full" id="multiInboundTable">
-                        <thead class="bg-[#00320D] text-white sticky top-0 shadow-sm z-10">
-                            <tr>
-                                <th class="w-12 text-center py-3">เลือก</th>
-                                <th class="w-36 text-center py-3">วันที่รับเข้า</th>
-                                <th class="w-24 text-center py-3">ทะเบียนรถ</th>
-                                <th class="w-24 py-3 text-center">EPC No</th>
-                                <th class="w-32 py-3 text-center">บาร์โค้ด</th>
-                                <th class="py-3">รายการชิ้นส่วน</th>
-                                <th class="w-20 text-center py-3">ค้างรับ</th>
-                                <th class="w-24 text-center py-3">รับรอบนี้</th>
-                            </tr>
-                        </thead>
-                        <tbody id="multi_inbound_body" class="divide-y divide-slate-200 bg-white"></tbody>
-                    </table>
-                </div>
-                <div class="bg-white px-6 py-4 border-t flex flex-col sm:flex-row justify-between items-center shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] gap-4">
-                    <div class="text-sm font-bold text-slate-600 bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-200 w-full sm:w-auto text-center">
-                        เลือกรับเข้า <span id="multi_inbound_count" class="text-emerald-700 font-black text-lg mx-1">0</span> รายการ
-                    </div>
-                    <div class="flex gap-3 w-full sm:w-auto justify-end">
-                        <button type="button" onclick="closeInboundModal()" class="px-5 py-2.5 bg-white text-slate-600 rounded-lg font-bold border border-slate-300 hover:bg-slate-100 transition shadow-sm">ยกเลิก</button>
-                        <button type="submit" id="btn_submit_inbound" class="px-8 py-2.5 bg-emerald-600 text-white font-black rounded-lg shadow-md hover:bg-emerald-700 transition flex items-center gap-2"><i class="fa-solid fa-check-double"></i> ยืนยันรับเข้า</button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- 🌟 MODAL: 3.2 แก้ไขข้อมูลรับเข้าคลัง (Inbound) 🌟 -->
-    <div id="editInboundModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden border-t-4 border-t-emerald-500 flex flex-col">
-            <div class="px-6 py-4 border-b flex justify-between items-center bg-emerald-50/50">
-                <h3 class="font-black text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-pen"></i> แก้ไขข้อมูลรับเข้าคลัง</h3>
-                <button type="button" onclick="closeEditInboundModal()" class="text-slate-400 hover:text-red-500 transition"><i class="fa-solid fa-xmark text-2xl"></i></button>
-            </div>
-            <form id="editInboundForm" onsubmit="submitEditInbound(event)" class="p-6 space-y-4">
-                <input type="hidden" id="edit_inbound_id">
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <div><label class="label-text">วันที่รับเข้า</label><input type="date" id="edit_in_date" required class="minimal-input font-mono"></div>
-                    <div><label class="label-text">EPC No</label><input type="text" id="edit_in_epc" class="minimal-input font-mono uppercase" onblur="autoFillInboundFromEPC(this.value)"></div>
-                    <div><label class="label-text">บาร์โค้ด</label><input type="text" id="edit_in_part_no" list="master_parts_datalist" required class="minimal-input font-mono uppercase"></div>
-                    <div><label class="label-text">MAIN No.</label><input type="text" id="edit_in_part_main" class="minimal-input font-mono text-slate-500"></div>
-                    <div class="md:col-span-2"><label class="label-text">ชื่อชิ้นส่วน</label><input type="text" id="edit_in_part_name" required class="minimal-input"></div>
-                    <div><label class="label-text">จำนวน</label><input type="number" id="edit_in_qty" required min="1" value="1" class="minimal-input text-center font-black" onchange="calcEditInTotal()"></div>
-                    <div><label class="label-text">ราคา/หน่วย</label><input type="number" id="edit_in_price" step="0.01" value="0" class="minimal-input text-right font-mono" onchange="calcEditInTotal()"></div>
-                    <div><label class="label-text">ราคารวม</label><input type="text" id="edit_in_total" class="minimal-input text-right font-mono font-bold bg-slate-100" readonly></div>
-                    <div class="md:col-span-3"><label class="label-text">รุ่นรถ</label><input type="text" id="edit_in_model" class="minimal-input"></div>
-                </div>
-                <div class="flex justify-end gap-3 pt-4 border-t mt-4">
-                    <button type="button" onclick="closeEditInboundModal()" class="px-5 py-2.5 bg-white text-slate-600 rounded-lg font-bold border border-slate-300 hover:bg-slate-100 transition shadow-sm">ยกเลิก</button>
-                    <button type="submit" class="px-8 py-2.5 bg-emerald-600 text-white font-black rounded-lg shadow-md hover:bg-emerald-700 transition"><i class="fa-solid fa-save"></i> บันทึกการแก้ไข</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- 🌟 MODAL: 4. เบิก/จอง อะไหล่ 🌟 -->
-    <div id="outboundModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden border-t-4 border-t-purple-600 flex flex-col max-h-[90vh]">
-            <div class="px-6 py-4 border-b flex justify-between items-center bg-purple-50/50 shrink-0">
-                <h3 class="font-black text-purple-900 flex items-center gap-2 text-sm sm:text-base"><i class="fa-solid fa-upload text-purple-600"></i> สร้างรายการเบิก / จองอะไหล่</h3>
-                <button type="button" onclick="closeOutboundModal()" class="text-slate-400 hover:text-red-500 transition"><i class="fa-solid fa-xmark text-2xl"></i></button>
-            </div>
-            <form id="outboundForm" onsubmit="submitOutbound(event)" class="flex flex-col flex-1 overflow-hidden">
-                <div class="p-6 flex-1 overflow-y-auto custom-scrollbar">
-                    <input type="hidden" id="edit_outbound_id">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end mb-4">
-                        <div><label class="label-text text-purple-700 font-black">1. วันที่เบิก/จอง *</label><input type="date" id="out_date" required class="minimal-input bg-purple-50/50 border-purple-400"></div>
-                        <div><label class="label-text text-purple-700 font-black">2. ทะเบียนรถ *</label><input type="text" id="out_plate" required class="minimal-input uppercase bg-purple-50/50 border-purple-400 font-black" placeholder="กข 1234" onblur="fetchJobDataByPlate('out')"></div>
-                        <div><label class="label-text text-purple-700 font-black">3. หมายเลขอะไหล่ *</label><input type="text" id="out_part_no" list="master_parts_datalist" required class="minimal-input font-mono uppercase bg-purple-50/50 border-purple-400" placeholder="สแกนบาร์โค้ด" onblur="fetchMasterPart('out')"></div>
-                        <div><label class="label-text text-purple-700 font-black">4. จำนวนเบิก *</label><input type="number" id="out_qty" required min="1" value="1" class="minimal-input text-center font-black text-purple-700 text-lg border-purple-400"></div>
-                        <div><label class="label-text text-purple-700 font-black">5. หมายเลข QT</label><input type="text" id="out_qt" class="minimal-input font-mono uppercase bg-purple-50/50 border-purple-400" placeholder="QT-XXX"></div>
-                        <div>
-                            <label class="label-text text-blue-700 font-black">6. Status รายการเบิก *</label>
-                            <select id="out_job_status" required class="minimal-input bg-blue-50 border-blue-400 font-bold text-blue-900 cursor-pointer">
-                                <option value="รอเข้าซ่อม">รอเข้าซ่อม (จองอะไหล่)</option>
-                                <option value="เบิกอะไหล่">เบิกอะไหล่ (ตัดสต๊อกจริง)</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="border-t border-slate-100 pt-3 flex gap-2">
-                        <input type="text" id="out_part_name" class="minimal-input text-xs" readonly placeholder="ชื่อชิ้นส่วน Auto">
-                        <input type="text" id="out_part_main" class="minimal-input text-xs w-1/3" readonly placeholder="Main No. Auto">
-                        <input type="text" id="out_model" class="minimal-input text-xs w-1/3" readonly placeholder="รุ่นรถ Auto">
-                    </div>
-                    <input type="hidden" id="out_price"><input type="hidden" id="out_so"><input type="hidden" id="out_type" value="อะไหล่หลัก">
-                </div>
-                <div class="bg-slate-50 px-6 py-4 border-t flex justify-end gap-3 shrink-0">
-                    <button type="button" onclick="closeOutboundModal()" class="px-5 py-2.5 bg-white text-slate-600 rounded-lg font-bold border border-slate-300 hover:bg-slate-100 transition shadow-sm">ยกเลิก</button>
-                    <button type="submit" class="px-8 py-2.5 bg-purple-600 text-white font-black rounded-lg shadow-md hover:bg-purple-700 transition flex items-center gap-2"><i class="fa-solid fa-dolly"></i> บันทึกรายการ</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- 🌟 MODAL: 6. ข้อมูลมาสเตอร์อะไหล่ 🌟 -->
+    <!-- 🌟 MODAL: ข้อมูลมาสเตอร์อะไหล่ 🌟 -->
     <div id="masterModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden border-t-4 border-t-slate-700 flex flex-col max-h-[90vh]">
             <div class="px-6 py-4 border-b flex justify-between items-center bg-slate-100 shrink-0">
@@ -574,7 +191,7 @@
                 <input type="hidden" id="edit_master_id">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                     <div class="space-y-4">
-                        <div><label class="label-text text-blue-700">บาร์โค้ด (Part 2) *</label><input type="text" id="master_part_no" list="master_parts_datalist" class="minimal-input font-mono bg-blue-50 uppercase border-blue-200" required></div>
+                        <div><label class="label-text text-blue-700">หมายเลขอะไหล่ (Part No) *</label><input type="text" id="master_part_no" list="master_parts_datalist" class="minimal-input font-mono bg-blue-50 uppercase border-blue-200" required></div>
                         <div><label class="label-text">ชื่อชิ้นส่วน *</label><input type="text" id="master_part_name" class="minimal-input" required></div>
                         <div><label class="label-text">หมายเลข MAIN</label><input type="text" id="master_part_main" class="minimal-input font-mono uppercase"></div>
                         <div><label class="label-text">ประเภทอะไหล่</label><select id="master_category" class="minimal-input"><option value="อะไหล่หลัก">อะไหล่หลัก</option><option value="อะไหล่รอง">อะไหล่รอง</option></select></div>
@@ -584,7 +201,7 @@
                     </div>
                     
                     <div class="border border-slate-200 rounded-xl p-4 bg-slate-50 h-full max-h-[55vh] flex flex-col overflow-hidden">
-                        <label class="label-text text-blue-800 font-black"><i class="fa-solid fa-car"></i> ติ๊กรุ่นรถที่อะไหล่ชิ้นนี้รองรับ (เลือกได้มากกว่า 1 รุ่น)</label>
+                        <label class="label-text text-blue-800 font-black"><i class="fa-solid fa-car"></i> ติ๊กรุ่นรถที่อะไหล่ชิ้นนี้รองรับ</label>
                         <div id="master_car_models_container" class="flex-1 overflow-y-auto custom-scrollbar mt-2 pr-1 space-y-4"></div>
                     </div>
                 </div>
@@ -596,72 +213,9 @@
         </div>
     </div>
     
-    <!-- 🌟 Datalist สำหรับระบบค้นหาอะไหล่อัตโนมัติ (Dropdown) 🌟 -->
     <datalist id="master_parts_datalist"></datalist>
 
-    <div id="smartExcelModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] hidden items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden border-t-4 border-t-indigo-600 flex flex-col max-h-[90vh]">
-            <div class="px-6 py-4 border-b flex justify-between items-center bg-indigo-50/50 shrink-0">
-                <h3 id="smart_excel_title" class="font-black text-indigo-900 text-sm sm:text-base"><i class="fa-solid fa-file-excel mr-2"></i> ระบบอัปโหลดไฟล์ Excel (Smart Import)</h3>
-                <button type="button" onclick="closeSmartExcelUpload()" class="text-slate-400 hover:text-red-500 transition"><i class="fa-solid fa-xmark text-2xl"></i></button>
-            </div>
-            
-            <div class="flex flex-col flex-1 overflow-hidden bg-slate-100 p-6">
-                <div id="excel_upload_zone" class="bg-white border-2 border-dashed border-indigo-300 rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-indigo-50 transition-colors shadow-sm mb-4">
-                    <input type="file" id="excel_file_input" accept=".xlsx, .xls, .csv" class="hidden" onchange="processSmartExcel(event)">
-                    <i class="fa-solid fa-cloud-arrow-up text-5xl text-indigo-400 mb-4"></i>
-                    <h4 class="text-lg font-black text-indigo-900 mb-1">คลิกหรือลากไฟล์ Excel มาวางที่นี่</h4>
-                    <p class="text-sm font-bold text-slate-500">รองรับไฟล์ .xlsx, .xls, .csv</p>
-                    
-                    <div class="mt-4">
-                        <button type="button" onclick="event.stopPropagation(); downloadExcelTemplate();" class="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm">
-                            <i class="fa-solid fa-file-arrow-down text-base text-indigo-600"></i> ดาวน์โหลดแบบฟอร์มตัวอย่าง (Template .xlsx)
-                        </button>
-                    </div>
-
-                    <p id="smart_excel_format" class="text-xs text-slate-400 mt-4 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
-                        <i class="fa-solid fa-circle-info"></i> รูปแบบตารางที่รองรับ: <b>A (EPC No)</b> | <b>B (Part No)</b> | <b>C (จำนวน)</b> | D (ราคา) | E (วันที่ของเข้า YYYY-MM-DD)
-                    </p>
-                </div>
-
-                <div id="excel_preview_zone" class="hidden flex-col flex-1 overflow-hidden bg-white border border-slate-300 rounded-xl shadow-sm">
-                    <div class="p-3 bg-slate-50 border-b flex justify-between items-center shrink-0">
-                        <span class="text-sm font-bold text-slate-700">ตรวจสอบข้อมูลก่อนบันทึก</span>
-                        <div class="flex gap-4 text-xs font-bold">
-                            <span class="text-emerald-600 bg-emerald-50 px-2 py-1 rounded"><i class="fa-solid fa-circle-check"></i> พร้อมอัปโหลด: <span id="excel_ready_count">0</span></span>
-                            <span class="text-rose-600 bg-rose-50 px-2 py-1 rounded"><i class="fa-solid fa-circle-xmark"></i> ไม่พบใน Master: <span id="excel_error_count">0</span></span>
-                        </div>
-                    </div>
-                    <div class="flex-1 overflow-y-auto custom-scrollbar">
-                        <table class="w-full text-left border-collapse text-xs whitespace-nowrap">
-                            <thead class="bg-[#00320D] text-white sticky top-0" id="excel_preview_thead">
-                                <tr>
-                                    <th class="p-2 border text-center w-20">สถานะ</th>
-                                    <th class="p-2 border text-amber-300 font-mono w-28 text-center">EPC No</th>
-                                    <th class="p-2 border text-blue-300 font-mono w-36">Part No (Excel)</th>
-                                    <th class="p-2 border text-center w-16">จำนวน</th>
-                                    <th class="p-2 border text-right w-24">ราคา/หน่วย</th>
-                                    <th class="p-2 border text-emerald-300 font-mono text-center w-28">วันที่ของเข้า</th>
-                                    <th class="p-2 border text-slate-200">ชื่อชิ้นส่วน (Auto ดึงจาก Master)</th>
-                                    <th class="p-2 border text-amber-300 text-center w-36">ผลการเชื่อม PO</th>
-                                </tr>
-                            </thead>
-                            <tbody id="excel_preview_tbody"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-slate-50 px-6 py-4 border-t flex justify-between items-center shrink-0">
-                <button type="button" onclick="closeSmartExcelUpload()" class="px-5 py-2.5 bg-white text-slate-600 rounded-lg font-bold border border-slate-300 hover:bg-slate-100 transition shadow-sm">ยกเลิก</button>
-                <button type="button" id="btn_submit_smart_excel" onclick="submitSmartExcel()" class="hidden px-8 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-lg shadow-md transition items-center gap-2"><i class="fa-solid fa-cloud-arrow-up"></i> ยืนยันบันทึกข้อมูล</button>
-            </div>
-        </div>
-    </div>
-
- <!-- 🌟 โหลด Script แกนหลักก่อน แล้วค่อยโหลด UI 🌟 -->
     <script src="js/parts_core.js"></script>
     <script src="js/parts_ui.js"></script>
-    <script src="js/parts_excel.js"></script> 
 </body>
 </html>
