@@ -9,8 +9,28 @@ const fallbackStatuses = [
     {status_name: 'Back Order'}
 ];
 
+// 🌟 คืนชีพ! ระบบค้นหาอะไหล่จาก Master Data ตอนพิมพ์ (Datalist Autofill)
+document.addEventListener('input', function(e) {
+    if (e.target.tagName === 'INPUT' && e.target.getAttribute('list') === 'master_parts_datalist') {
+        const keyword = e.target.value.trim().toLowerCase();
+        const datalist = document.getElementById('master_parts_datalist');
+        if(!datalist) return;
+
+        if (keyword.length < 2) { datalist.innerHTML = ''; return; }
+
+        const filteredParts = allMasterPartsCache.filter(p => 
+            (p.part_no && p.part_no.toLowerCase().includes(keyword)) || 
+            (p.part_name && p.part_name.toLowerCase().includes(keyword))
+        ).slice(0, 50);
+
+        datalist.innerHTML = filteredParts.map(p => 
+            `<option value="${p.part_no}">${p.part_name} (MAIN: ${p.part_main_no || '-'})</option>`
+        ).join('');
+    }
+});
+
 // ------------------------------------------
-// 1. แจ้งเตือน SA (SA Alerts) ยึดตาม Job ID
+// 1. แจ้งเตือน SA (SA Alerts) 
 // ------------------------------------------
 function renderSAAlerts() {
     const tbody = document.getElementById('sa_alerts_body');
@@ -19,7 +39,6 @@ function renderSAAlerts() {
     
     const jobsToDisplay = [];
 
-    // 1. หาใบงาน (Job) ที่กำลังรออะไหล่จากตาราง Reports เป็นหลัก
     if (typeof allReports !== 'undefined') {
         allReports.forEach(job => {
             const st = job.job_status || '';
@@ -33,7 +52,7 @@ function renderSAAlerts() {
     }
     
     if (jobsToDisplay.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-10 text-slate-400 font-bold bg-white"><i class="fa-solid fa-check-circle text-3xl mb-3 text-emerald-300 block"></i> ไม่มีรายการใบงานที่ต้องจัดการครับ! 🎉</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-400 font-bold bg-white"><i class="fa-solid fa-check-circle text-3xl mb-3 text-emerald-300 block"></i> ไม่มีรายการใบงานที่ต้องจัดการครับ! 🎉</td></tr>`;
         if(badge) badge.classList.add('hidden');
         return;
     }
@@ -43,23 +62,21 @@ function renderSAAlerts() {
         badge.classList.remove('hidden');
     }
 
-    // 2. เรนเดอร์ตารางโดยลูปตาม "ใบงาน (Job)"
     tbody.innerHTML = jobsToDisplay.map(job => {
-        // ใช้ ID ใบงาน เป็นตัวเชื่อมหลัก (รองรับทั้ง key report_id หรือ id)
         const jobId = job.report_id || job.id; 
         const plate = job.car_plate || 'ไม่ระบุทะเบียน';
         const arrDate = (job.arrived_date || job.contact_date) ? String(job.arrived_date || job.contact_date).split('T')[0] : '-';
         const customerName = job.customer_name || '-';
         
-        // 3. กรองหาอะไหล่จาก part_orders ที่ "ผูกกับ Job ID นี้" และยังไม่ครบ
-        const relatedParts = allPartOrders.filter(p => String(p.report_id) === String(jobId) && (!p.order_status || !p.order_status.includes('ครบ')));
-
-        // สร้างลิสต์ความต้องการจาก SA
-        const reqPartsList = [job.main_part_name, job.sub_part_name].filter(p => p && p.trim() !== '').join(', ') || '<span class="text-slate-400 italic">ไม่ได้ระบุ</span>';
+        // 🌟 แก้บั๊กของหาย: ให้หารายการโดยใช้ Job ID หรือ ทะเบียนรถ (สำหรับของเก่า)
+        const relatedParts = allPartOrders.filter(p => 
+            (String(p.report_id) === String(jobId) || (!p.report_id && p.car_plate === plate)) && 
+            (!p.order_status || !p.order_status.includes('ครบ'))
+        );
 
         let itemsHtml = '';
         if (relatedParts.length === 0) {
-            itemsHtml = `<span class="text-[11px] font-bold text-rose-500 animate-pulse block truncate"><i class="fa-solid fa-caret-right"></i> ⚠️ รอคีย์รายการให้ SA</span>`;
+            itemsHtml = `<span class="text-[11px] font-bold text-rose-500 animate-pulse block truncate"><i class="fa-solid fa-caret-right"></i> ⚠️ ยังไม่มีรายการสั่งอะไหล่</span>`;
         } else {
             itemsHtml = relatedParts.map(p => {
                 let color = (p.order_status === 'รอสั่งซื้อ' || p.order_status === 'รออัปเดต') ? 'text-red-600' : 'text-amber-600';
@@ -79,16 +96,11 @@ function renderSAAlerts() {
                 <td class="font-bold text-slate-700 text-xs px-2 py-2 truncate max-w-[150px]" title="${customerName}">${customerName}</td>
                 <td class="font-mono text-xs font-bold text-blue-600 px-2 py-2">${job.epc_no || '-'}</td>
                 
-                <td class="px-2 py-2">
-                    <div class="text-[11px] font-bold text-indigo-700 bg-indigo-50 p-2 rounded-lg border border-indigo-200 max-h-[80px] overflow-y-auto custom-scrollbar">
-                        ${reqPartsList}
-                    </div>
-                </td>
-
                 <td class="px-2 py-2 max-h-[80px] overflow-y-auto block custom-scrollbar bg-slate-50/50 rounded my-1 border border-slate-100">${itemsHtml}</td>
+                
                 <td class="text-center px-2 py-2">
                     <button onclick="openAlertModal('${jobId}', '${plate}', '${job.epc_no || ''}')" class="bg-[#00320D] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-black transition shadow-sm w-full">
-                        <i class="fa-solid fa-pen-to-square"></i> โต๊ะคีย์ (อัปเดต SA)
+                        <i class="fa-solid fa-pen-to-square"></i> คีย์อะไหล่ (PO)
                     </button>
                 </td>
             </tr>
@@ -97,11 +109,15 @@ function renderSAAlerts() {
 }
 
 // ------------------------------------------
-// โต๊ะคีย์ Modal (รับค่า Job ID)
+// โต๊ะคีย์ Modal 
 // ------------------------------------------
 function openAlertModal(jobId, plate, epcNo) {
-    // 🌟 ดึงอะไหล่มาโชว์โดยเทียบจาก report_id แทนทะเบียนรถ 🌟
-    const uncompleted = allPartOrders.filter(p => String(p.report_id) === String(jobId) && (!p.order_status || !p.order_status.includes('ครบ')));
+    // 🌟 ดึงข้อมูลด้วยลอจิกเดียวกัน (Job ID หรือ ทะเบียนรถสำหรับของเก่า)
+    const uncompleted = allPartOrders.filter(p => 
+        (String(p.report_id) === String(jobId) || (!p.report_id && p.car_plate === plate)) && 
+        (!p.order_status || !p.order_status.includes('ครบ'))
+    );
+    
     const container = document.getElementById('modal_dynamic_table_container');
     
     let html = `
@@ -112,7 +128,7 @@ function openAlertModal(jobId, plate, epcNo) {
             </div>
             <div class="flex items-center gap-2">
                 <span class="text-xs font-bold text-slate-600">ตั้งค่า EPC No:</span>
-                <input type="text" id="mass_epc_update" class="px-3 py-1.5 border border-slate-300 rounded font-mono text-sm w-32 outline-none focus:border-amber-500 uppercase" placeholder="EPC-XXX" value="${epcNo}" onkeyup="document.querySelectorAll('.dyn-epc').forEach(el=>el.value=this.value)">
+                <input type="text" id="mass_epc_update" class="px-3 py-1.5 border border-slate-300 rounded font-mono text-sm w-32 outline-none focus:border-amber-500 uppercase" placeholder="EPC-XXX" value="${epcNo !== 'undefined' ? epcNo : ''}" onkeyup="document.querySelectorAll('.dyn-epc').forEach(el=>el.value=this.value)">
             </div>
         </div>
         <div class="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-200">
@@ -145,7 +161,7 @@ function openAlertModal(jobId, plate, epcNo) {
 
         html += `
             <tr class="hover:bg-amber-50/50 transition-colors" data-id="${p.order_id}" data-jobid="${jobId}" data-plate="${plate}">
-                <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-epc font-mono uppercase text-center" value="${p.epc_no || epcNo}"></td>
+                <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-epc font-mono uppercase text-center" value="${p.epc_no || epcNo || ''}"></td>
                 <td class="p-0 border border-slate-200"><input type="text" list="master_parts_datalist" class="inline-edit-input dyn-partno font-mono uppercase text-center font-bold text-blue-700 bg-blue-50/30" value="${p.part_no || ''}" onchange="autoFillDynName(this)"></td>
                 <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-main font-mono text-slate-500" value="${p.part_main_no || ''}"></td>
                 <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-name font-bold" value="${p.part_name || ''}"></td>
@@ -163,9 +179,8 @@ function openAlertModal(jobId, plate, epcNo) {
     html += `
         <div class="mt-3 flex justify-between items-center">
             <button type="button" onclick="addNewAlertRow('${jobId}', '${plate}', '${epcNo}')" class="px-4 py-2 bg-white border border-amber-300 text-amber-700 font-bold rounded-lg hover:bg-amber-50 text-xs shadow-sm transition">
-                <i class="fa-solid fa-plus"></i> เพิ่มรายการอะไหล่ให้ SA
+                <i class="fa-solid fa-plus"></i> เพิ่มรายการอะไหล่
             </button>
-            <span class="text-xs font-bold text-slate-400">*หากกดเพิ่ม จะบันทึกเข้าตารางการสั่งอะไหล่ทันทีที่กดบันทึกด้านล่าง</span>
         </div>
     `;
 
@@ -186,7 +201,7 @@ window.addNewAlertRow = function(jobId, plate, epcNo) {
     tr.setAttribute('data-jobid', jobId);
     tr.setAttribute('data-plate', plate);
     tr.innerHTML = `
-        <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-epc font-mono uppercase text-center" value="${epcNo}"></td>
+        <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-epc font-mono uppercase text-center" value="${epcNo !== 'undefined' ? epcNo : ''}"></td>
         <td class="p-0 border border-slate-200"><input type="text" list="master_parts_datalist" class="inline-edit-input dyn-partno font-mono uppercase text-center font-bold text-blue-700 bg-blue-50/30" onchange="autoFillDynName(this)"></td>
         <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-main font-mono text-slate-500"></td>
         <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-name font-bold"></td>
@@ -223,7 +238,6 @@ async function saveSAAlertUpdate(e) {
 
         if (isNew && !partName && !partNo) return;
 
-        // 🌟 ดึง report_id จากตารางเพื่อเตรียมส่งให้ Backend 🌟
         updates.push({
             id: tr.getAttribute('data-id'),
             report_id: tr.getAttribute('data-jobid') || null,
@@ -254,7 +268,6 @@ async function saveSAAlertUpdate(e) {
                 const todayStr = new Date().toISOString().split('T')[0];
                 return fetch(`${API_BASE_URL}/api/part-orders`, {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
-                    // 🌟 ส่ง report_id แนบไปตอนสร้าง PO ด้วย 🌟
                     body: JSON.stringify({ 
                         report_id: u.report_id, 
                         car_plate: u.car_plate, 
@@ -271,7 +284,6 @@ async function saveSAAlertUpdate(e) {
                 });
             } else {
                 const promises = [];
-                // 🌟 ท่าเดิม PUT /fast 🌟
                 ['epc_no', 'part_no', 'part_main_no', 'part_name', 'qty_ordered', 'order_status', 'est_arrival_date', 'part_received_all_date', 'notes'].forEach(field => {
                     promises.push(fetch(`${API_BASE_URL}/api/part-orders/${u.id}/fast`, {
                         method: 'PUT', headers: {'Content-Type': 'application/json'},
