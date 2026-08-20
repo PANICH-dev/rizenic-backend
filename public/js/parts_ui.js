@@ -5,12 +5,14 @@
 // ------------------------------------------
 // 1. แจ้งเตือน SA (SA Alerts)
 // ------------------------------------------
+// ------------------------------------------
+// 1. ปรับเพิ่มปุ่ม "ส่งไปเบิก (รอซ่อม)" ใน SA Alerts
+// ------------------------------------------
 function renderSAAlerts() {
     const tbody = document.getElementById('sa_alerts_body');
     const badge = document.getElementById('alert_count');
     if(!tbody) return;
     
-    // ดึงรถที่ค้างสั่งแบบมี PO ค้าง
     const uncompletedPOs = allPartOrders.filter(p => !p.order_status || !p.order_status.includes('ครบ'));
     
     const grouped = {};
@@ -22,7 +24,6 @@ function renderSAAlerts() {
 
     if (typeof allReports !== 'undefined') {
         allReports.forEach(job => {
-            // 🌟 1. ดึงสถานะ "รอรถเข้าซ่อม" กับ "สั่งอะไหล่" กลับมา
             const st = job.job_status || '';
             const isPartsDept = job.department_routing === 'อะไหล่';
             const isWaitingParts = st.includes('สั่งอะไหล่') || st.includes('รอรถเข้าซ่อม') || st.includes('รออะไหล่');
@@ -38,10 +39,18 @@ function renderSAAlerts() {
                         customer_name: job.customer_name,
                         epc_no: job.epc_no,
                         part_name: '⚠️ รอแผนกอะไหล่คีย์รายการเข้าตาราง',
-                        order_status: 'รอสั่งซื้อ'
+                        order_status: 'รอสั่งซื้อ',
+                        main_part_name: job.main_part_name,
+                        sub_part_name: job.sub_part_name,
+                        qt_no: job.qt_no,
+                        so_no: job.so_no
                     }];
                 } else {
                     grouped[plate][0].customer_name = job.customer_name;
+                    grouped[plate][0].main_part_name = job.main_part_name;
+                    grouped[plate][0].sub_part_name = job.sub_part_name;
+                    grouped[plate][0].qt_no = job.qt_no;
+                    grouped[plate][0].so_no = job.so_no;
                 }
             }
         });
@@ -67,7 +76,6 @@ function renderSAAlerts() {
         const arrDate = first.order_date ? String(first.order_date).split('T')[0] : '-';
         const etaDate = first.est_arrival_date ? String(first.est_arrival_date).split('T')[0] : '-';
         const rcvDate = (first.received_date || first.part_received_all_date) ? String(first.received_date || first.part_received_all_date).split('T')[0] : '-';
-        
         const customerName = first.customer_name || '-';
         
         let itemsHtml = items.map(p => {
@@ -86,185 +94,57 @@ function renderSAAlerts() {
                 <td class="font-bold text-slate-700 text-xs px-2 py-2 truncate max-w-[150px]" title="${customerName}">${customerName}</td>
                 <td class="font-mono text-xs font-bold text-blue-600 px-2 py-2">${first.epc_no || '-'}</td>
                 <td class="px-2 py-2 max-h-[80px] overflow-y-auto block custom-scrollbar bg-slate-50/50 rounded my-1 border border-slate-100">${itemsHtml}</td>
-                <td class="text-center px-2 py-2">
-                    <button onclick="openAlertModal('${plate}')" class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-sm w-full"><i class="fa-solid fa-pen-to-square"></i> คีย์อะไหล่</button>
+                <td class="text-center px-2 py-2 flex flex-col gap-1">
+                    <button onclick="openAlertModal('${plate}')" class="bg-[#00320D] text-white px-2.5 py-1 rounded text-xs font-bold hover:bg-black transition shadow-sm w-full"><i class="fa-solid fa-pen-to-square"></i> คีย์อะไหล่</button>
+                    <button onclick="sendDirectToOutbound('${plate}')" class="bg-purple-600 text-white px-2.5 py-1 rounded text-xs font-bold hover:bg-purple-800 transition shadow-sm w-full whitespace-nowrap" title="ส่งไปจองในตารางเบิก"><i class="fa-solid fa-share"></i> จอง (รอซ่อม)</button>
                 </td>
             </tr>
         `;
     }).join('');
 }
-function openAlertModal(plate) {
-    const uncompleted = allPartOrders.filter(p => p.car_plate === plate && (!p.order_status || !p.order_status.includes('ครบ')));
-    const container = document.getElementById('modal_dynamic_table_container');
-    
-    let html = `
-        <div class="mb-4 bg-amber-50 p-4 rounded-xl border border-amber-200 flex justify-between items-center shadow-sm">
-            <div>
-                <h4 class="font-black text-amber-900 text-lg">อัปเดตสถานะอะไหล่รถ: <span class="bg-white px-2 py-0.5 rounded shadow-sm font-mono border border-amber-300 ml-1 text-amber-700">${plate}</span></h4>
-                <p class="text-xs font-bold text-amber-700 mt-1">คีย์ข้อมูลแบบ Excel (พิมพ์แก้อัตโนมัติในช่องตารางแล้วกดบันทึก)</p>
-            </div>
-            <div class="flex items-center gap-2">
-                <span class="text-xs font-bold text-slate-600">ตั้งค่า EPC No:</span>
-                <input type="text" id="mass_epc_update" class="px-3 py-1.5 border border-slate-300 rounded font-mono text-sm w-32 outline-none focus:border-amber-500 uppercase" placeholder="EPC-XXX" onkeyup="document.querySelectorAll('.dyn-epc').forEach(el=>el.value=this.value)">
-            </div>
-        </div>
-        <div class="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-200">
-            <table class="excel-table w-full">
-                <thead class="bg-[#00320D] text-white sticky top-0 z-10">
-                    <tr>
-                        <th class="w-24 text-center px-2 py-2">EPC No</th>
-                        <th class="w-32 text-center px-2 py-2">บาร์โค้ด</th>
-                        <th class="w-32 px-2 py-2">MAIN No</th>
-                        <th class="w-48 px-2 py-2">ชื่อชิ้นส่วน</th>
-                        <th class="w-16 text-center px-2 py-2">จำนวน</th>
-                        <th class="w-36 text-center px-2 py-2">สถานะ</th>
-                        <th class="w-24 text-center px-2 py-2">คาดการณ์ (ETA)</th>
-                        <th class="w-24 text-center px-2 py-2">เข้าครบ</th>
-                        <th class="w-40 px-2 py-2">หมายเหตุ</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-200">
-    `;
 
-    const statusOptionsHtml = allStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
+// 🌟 ฟังก์ชันกดปุ่ม "จอง (รอซ่อม)" ยิงเข้า Outbound ทันที
+async function sendDirectToOutbound(plate) {
+    const job = allReports.find(j => j.car_plate === plate);
+    if (!job) return showToast('ไม่พบข้อมูลใบงานของรถคันนี้', 'error');
 
-    uncompleted.forEach(p => {
-        let safeOpts = statusOptionsHtml;
-        if (p.order_status && !safeOpts.includes(`value="${p.order_status}"`)) { safeOpts = `<option value="${p.order_status}">${p.order_status}</option>` + safeOpts; }
-        safeOpts = safeOpts.replace(`value="${p.order_status || 'รอสั่งซื้อ'}"`, `value="${p.order_status || 'รอสั่งซื้อ'}" selected`);
+    const mainParts = job.main_part_name ? job.main_part_name.split(',').map(p => p.trim()) : [];
+    const subParts = job.sub_part_name ? job.sub_part_name.split(',').map(p => p.trim()) : [];
+    const allParts = [...mainParts, ...subParts].filter(Boolean);
 
-        const receivedDateVal = p.received_date || p.part_received_all_date;
-
-        html += `
-            <tr class="hover:bg-amber-50/50 transition-colors" data-id="${p.order_id}">
-                <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-epc font-mono uppercase text-center" value="${p.epc_no || ''}"></td>
-                <td class="p-0 border border-slate-200"><input type="text" list="master_parts_datalist" class="inline-edit-input dyn-partno font-mono uppercase text-center font-bold text-blue-700 bg-blue-50/30" value="${p.part_no || ''}" onchange="autoFillDynName(this)"></td>
-                <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-main font-mono text-slate-500" value="${p.part_main_no || ''}"></td>
-                <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-name font-bold" value="${p.part_name || ''}"></td>
-                <td class="p-0 border border-slate-200"><input type="number" class="inline-edit-input dyn-qty text-center font-black text-amber-600 bg-amber-50" value="${p.qty_ordered || 1}"></td>
-                <td class="p-0 border border-slate-200"><select class="inline-edit-select dyn-status font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 cursor-pointer">${safeOpts}</select></td>
-                <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-eta font-mono text-center text-xs" value="${p.est_arrival_date ? String(p.est_arrival_date).split('T')[0] : ''}"></td>
-                <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-rcv font-mono text-center text-xs" value="${receivedDateVal ? String(receivedDateVal).split('T')[0] : ''}"></td>
-                <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-notes text-xs" value="${p.notes || ''}"></td>
-            </tr>
-        `;
-    });
-
-    html += `</tbody></table></div>`;
-    
-    html += `
-        <div class="mt-3 flex justify-between items-center">
-            <button type="button" onclick="addNewAlertRow('${plate}')" class="px-4 py-2 bg-white border border-amber-300 text-amber-700 font-bold rounded-lg hover:bg-amber-50 text-xs shadow-sm transition">
-                <i class="fa-solid fa-plus"></i> เพิ่มอะไหล่ชิ้นใหม่
-            </button>
-            <span class="text-xs font-bold text-slate-400">*หากกดเพิ่ม จะบันทึกเข้าตารางการสั่งอะไหล่ทันทีที่กดบันทึกด้านล่าง</span>
-        </div>
-    `;
-
-    container.innerHTML = html;
-    document.getElementById('alertModal').classList.remove('hidden');
-    document.getElementById('alertModal').classList.add('flex');
-}
-
-window.addNewAlertRow = function(plate) {
-    const tbody = document.querySelector('#modal_dynamic_table_container tbody');
-    const statusOptionsHtml = allStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
-    let safeOpts = statusOptionsHtml.replace(`value="รอสั่งซื้อ"`, `value="รอสั่งซื้อ" selected`);
-    
-    const tr = document.createElement('tr');
-    tr.className = "hover:bg-amber-50/50 transition-colors";
-    tr.setAttribute('data-id', 'new');
-    tr.setAttribute('data-plate', plate);
-    tr.innerHTML = `
-        <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-epc font-mono uppercase text-center"></td>
-        <td class="p-0 border border-slate-200"><input type="text" list="master_parts_datalist" class="inline-edit-input dyn-partno font-mono uppercase text-center font-bold text-blue-700 bg-blue-50/30" onchange="autoFillDynName(this)"></td>
-        <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-main font-mono text-slate-500"></td>
-        <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-name font-bold"></td>
-        <td class="p-0 border border-slate-200"><input type="number" class="inline-edit-input dyn-qty text-center font-black text-amber-600 bg-amber-50" value="1" min="1"></td>
-        <td class="p-0 border border-slate-200"><select class="inline-edit-select dyn-status font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 cursor-pointer">${safeOpts}</select></td>
-        <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-eta font-mono text-center text-xs"></td>
-        <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-rcv font-mono text-center text-xs"></td>
-        <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-notes text-xs"></td>
-    `;
-    tbody.appendChild(tr);
-};
-
-function autoFillDynName(inputEl) {
-    const pNo = inputEl.value.trim().toUpperCase(); if (!pNo) return;
-    const tr = inputEl.closest('tr');
-    const matched = allMasterPartsCache.find(x => x.part_no && x.part_no.toUpperCase() === pNo);
-    if(matched) {
-        tr.querySelector('.dyn-name').value = matched.part_name || '';
-        tr.querySelector('.dyn-main').value = matched.part_main_no || '';
+    if (allParts.length === 0) {
+        return alert('⚠️ โต๊ะคีย์งานยังไม่ได้กรอกชื่ออะไหล่หลัก/รอง ของรถทะเบียนนี้ครับ');
     }
-}
 
-function closeAlertModal() { document.getElementById('alertModal').classList.add('hidden'); document.getElementById('alertModal').classList.remove('flex'); }
+    if (!confirm(`ยืนยันการส่งรายการอะไหล่จำนวน ${allParts.length} ชิ้น ของรถ [${plate}] ไปที่ตารางเบิก (สถานะ: รอเข้าซ่อม)?`)) return;
 
-async function saveSAAlertUpdate(e) {
-    e.preventDefault();
-    const rows = document.querySelectorAll('#modal_dynamic_table_container tbody tr');
-    const updates = [];
-
-    rows.forEach(tr => {
-        if (tr.getAttribute('data-id') === 'new' && !tr.querySelector('.dyn-name').value.trim() && !tr.querySelector('.dyn-partno').value.trim()) {
-            return;
-        }
-        
-        updates.push({
-            id: tr.getAttribute('data-id'),
-            car_plate: tr.getAttribute('data-plate') || '',
-            epc_no: tr.querySelector('.dyn-epc').value.trim() || null,
-            part_no: tr.querySelector('.dyn-partno').value.trim() || null,
-            part_main_no: tr.querySelector('.dyn-main').value.trim() || null,
-            part_name: tr.querySelector('.dyn-name').value.trim() || null,
-            qty_ordered: parseInt(tr.querySelector('.dyn-qty').value) || 1,
-            order_status: tr.querySelector('.dyn-status').value,
-            est_arrival_date: tr.querySelector('.dyn-eta').value || null,
-            part_received_all_date: tr.querySelector('.dyn-rcv').value || null,
-            notes: tr.querySelector('.dyn-notes').value.trim() || null
-        });
-    });
-
-    if (updates.length === 0) return closeAlertModal();
-
-    const btn = e.target.querySelector('button[type="submit"]');
-    const originalBtnHtml = btn.innerHTML;
+    const todayStr = new Date().toISOString().split('T')[0];
 
     try {
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...'; 
-        btn.disabled = true;
-
-        await Promise.all(updates.map(u => {
-            if (u.id === 'new') {
-                const todayStr = new Date().toISOString().split('T')[0];
-                return fetch(`${API_BASE_URL}/api/part-orders`, {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ 
-                        car_plate: u.car_plate, part_no: u.part_no, part_main_no: u.part_main_no, 
-                        part_name: u.part_name, qty_ordered: u.qty_ordered, order_status: u.order_status, 
-                        order_date: todayStr, epc_no: u.epc_no, notes: u.notes, branch_name: userBranch
-                    })
-                });
-            } else {
-                const promises = [];
-                ['epc_no', 'part_no', 'part_main_no', 'part_name', 'qty_ordered', 'order_status', 'est_arrival_date', 'part_received_all_date', 'notes'].forEach(field => {
-                    promises.push(fetch(`${API_BASE_URL}/api/part-orders/${u.id}/fast`, {
-                        method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ field, value: u[field] })
-                    }));
-                });
-                return Promise.all(promises);
-            }
+        await Promise.all(allParts.map(partName => {
+            const matchedMaster = allMasterPartsCache.find(m => m.part_name && m.part_name.trim() === partName.trim());
+            return fetch(`${API_BASE_URL}/api/part-outbound`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    issue_date: todayStr,
+                    job_status: 'รอเข้าซ่อม', // 🌟 ตั้งสถานะเป็น รอเข้าซ่อม
+                    part_no: matchedMaster ? matchedMaster.part_no : 'AUTO-JOB',
+                    part_main_no: matchedMaster ? matchedMaster.part_main_no : null,
+                    part_name: partName,
+                    qty: 1,
+                    car_plate: plate,
+                    qt_no: job.qt_no || null,
+                    so_no: job.so_no || null,
+                    branch_name: userBranch
+                })
+            });
         }));
 
-        showToast('อัปเดตข้อมูลอะไหล่เรียบร้อย!', 'success');
-        closeAlertModal();
+        showToast(`✅ ส่งรายการอะไหล่ [${plate}] ไปหน้าเบิก (รอซ่อม) เรียบร้อยแล้ว!`);
         loadAllData();
-    } catch(err) { 
-        showToast('เกิดข้อผิดพลาดในการบันทึก', 'error'); 
-    } finally {
-        btn.innerHTML = originalBtnHtml || '<i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลอะไหล่ทั้งหมด';
-        btn.disabled = false;
+    } catch(e) {
+        showToast('เกิดข้อผิดพลาดในการส่งข้อมูล', 'error');
     }
 }
 
