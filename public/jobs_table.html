@@ -144,7 +144,9 @@
         
         <div class="flex items-center justify-end gap-1.5 w-full lg:w-auto">
             <span class="font-bold text-slate-600 bg-white px-2.5 py-1 rounded border border-slate-200 mr-1 shadow-2xs">พบ: <span id="row_count" class="text-blue-700 font-black">0</span> คัน</span>
-            <button onclick="openBulkModal()" class="px-3 py-1 bg-emerald-600 text-white font-bold rounded text-xs hover:bg-emerald-700 transition"><i class="fa-solid fa-bolt mr-1"></i> เพิ่มด่วน (PDI)</button>
+            <!-- 🌟 เพิ่มปุ่มดาวน์โหลด Excel ตามตัวกรอง 🌟 -->
+            <button onclick="exportToExcel()" class="px-3 py-1 bg-emerald-600 text-white font-bold rounded text-xs hover:bg-emerald-700 transition flex items-center gap-1"><i class="fa-solid fa-file-excel"></i> ดาวน์โหลด Excel</button>
+            <button onclick="openBulkModal()" class="px-3 py-1 bg-amber-500 text-slate-900 font-bold rounded text-xs hover:bg-amber-600 transition"><i class="fa-solid fa-bolt mr-1"></i> เพิ่มด่วน (PDI)</button>
             <button onclick="toggleColManager()" class="px-2.5 py-1 bg-white text-slate-700 font-bold rounded text-xs border border-slate-300 hover:bg-slate-100 transition"><i class="fa-solid fa-sliders"></i> ตั้งค่าคอลัมน์</button>
             <button onclick="clearAllFilters()" class="px-2.5 py-1 bg-white text-slate-700 font-bold rounded text-xs border border-slate-300 hover:bg-slate-100 transition"><i class="fa-solid fa-eraser"></i> ล้างฟิลเตอร์</button>
             <button onclick="loadJobsData()" class="px-3 py-1 bg-[#00320D] text-white font-bold rounded text-xs hover:bg-black transition"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
@@ -220,6 +222,7 @@
     <script>
         const API_BASE_URL = window.location.origin;
         let allJobsData = [];
+        let currentFilteredData = []; // 🌟 ตัวแปรเก็บข้อมูลที่ผ่านการกรองเพื่อดาวน์โหลด Excel
         let allPartOrders = [];
         let allMasterParts = [];
         
@@ -296,7 +299,6 @@
         
         let hiddenCols = new Set(columnsDef.filter(c => !defaultVisibleKeys.includes(c.key)).map(c => c.idx));
 
-        // 🌟 Helper: ดึงเฉพาะรายชื่อพนักงานที่เป็น SA ของสาขานี้ 🌟
         function getSAsForCurrentBranch() {
             if (!allEmployees || allEmployees.length === 0) return [];
             return [...new Set(allEmployees.filter(e => {
@@ -509,7 +511,6 @@
                     allJobsData = (['BA','Manager','Admin','แอดมิน'].includes(userRole)) ? data : data.filter(d => d.branch_name === userBranch);
                 }
                 
-                // 🌟 อัปเดต Datalists สำหรับ Bulk PDI 🌟
                 const dlBrands = document.getElementById('dl_car_brands');
                 const uniqueBrands = [...new Set(allCarModels.map(c => c.car_brand).filter(Boolean))].sort();
                 dlBrands.innerHTML = uniqueBrands.map(b => `<option value="${b}">`).join('');
@@ -537,7 +538,6 @@
             } else { branchSelect.innerHTML = `<option value="${userBranch}">${userBranch}</option>`; branchSelect.disabled = true; }
         }
 
-        // 🌟 แก้ไข: ตัวกรอง SA ด้านบน ให้เห็นเฉพาะ SA สาขาตัวเอง 🌟
         function buildSADropdown() {
             const saSelect = document.getElementById('sa_filter_select'); 
             const savedValue = saSelect.value; 
@@ -672,7 +672,6 @@
             const partsCount = partsArray.length;
             
             if (isBulkModalMode) {
-                // อัปเดตช่องในตาราง Bulk แทนการยิงฐานข้อมูล
                 const qtyFieldKey = activeFieldForParts === 'main_part_name' ? 'main_part_qty' : 'sub_part_qty';
                 const inputName = document.querySelector(`.bulk-row[data-row-id="${activeBulkRowId}"] .bulk-input-${activeFieldForParts}`);
                 const inputQty = document.querySelector(`.bulk-row[data-row-id="${activeBulkRowId}"] .bulk-input-${qtyFieldKey}`);
@@ -680,7 +679,6 @@
                 if(inputName) inputName.value = joinedPartsStr;
                 if(inputQty) inputQty.value = partsCount;
             } else {
-                // อัปเดตเข้าตารางจริงเหมือนเดิม
                 const qtyField = activeFieldForParts === 'main_part_name' ? 'main_part_qty' : 'sub_part_qty';
                 await fastUpdateJob(activeJobIdForParts, activeFieldForParts, joinedPartsStr, true);
                 await fastUpdateJob(activeJobIdForParts, qtyField, partsCount, false);
@@ -716,7 +714,56 @@
                 }
                 return true;
             });
-            renderTable(filteredData); document.getElementById('row_count').innerText = filteredData.length;
+
+            // 🌟 บันทึกข้อมูลรายการที่ผ่านการกรองไว้ดาวน์โหลดเป็นไฟล์ Excel
+            currentFilteredData = filteredData;
+
+            renderTable(filteredData); 
+            document.getElementById('row_count').innerText = filteredData.length;
+        }
+
+        // 🌟 2. ฟังก์ชันดาวน์โหลดข้อมูลในตารางเป็น Excel ตามตัวกรอง 🌟
+        function exportToExcel() {
+            if (!currentFilteredData || currentFilteredData.length === 0) {
+                showToast('ไม่มีข้อมูลในตารางให้โหลดครับ!', 'error');
+                return;
+            }
+
+            const exportData = [];
+            
+            // ดึงเฉพาะคอลัมน์ที่ไม่ใช่ Action
+            const exportCols = columnsDef.filter(c => c.key !== 'action');
+            
+            // 1. หัวตาราง
+            const headers = exportCols.map(col => col.title);
+            exportData.push(headers);
+            
+            // 2. ข้อมูลแต่ละแถว
+            currentFilteredData.forEach(job => {
+                const row = exportCols.map(colDef => {
+                    let val = job[colDef.key];
+                    if (colDef.key.includes('date') && val) {
+                        val = String(val).split('T')[0];
+                    }
+                    return val || '';
+                });
+                exportData.push(row);
+            });
+            
+            // สร้างไฟล์ Excel
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(exportData);
+            
+            const colWidths = exportCols.map(c => ({ wpx: c.width || 120 }));
+            ws['!cols'] = colWidths;
+
+            XLSX.utils.book_append_sheet(wb, ws, "Jobs_Data");
+            
+            const todayStr = new Date().toISOString().split('T')[0];
+            const fileName = `Rizenic_Jobs_${userBranch}_${todayStr}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+            
+            showToast('ดาวน์โหลดไฟล์ Excel เรียบร้อยแล้ว!');
         }
 
         function sortTable(colIndex) {
@@ -746,7 +793,6 @@
             </div>`;
         }
 
-        // 🌟 1. ปรับปรุงฟังก์ชัน renderTable ให้ทำงานเร็วขึ้น 🌟
         function renderTable(data) {
             const tbody = document.getElementById('jobs_table_body'); 
             if (!data || data.length === 0) { tbody.innerHTML = `<tr><td colspan="40" class="text-center py-16 text-slate-400 font-bold bg-white">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td></tr>`; return; }
@@ -759,7 +805,6 @@
 
             const branchSAs = getSAsForCurrentBranch();
 
-            // 🚀 OPTIMIZATION: จัดกลุ่มข้อมูลอะไหล่ไว้ก่อน (หลีกเลี่ยงการวนลูปซ้อนลูป)
             const activePartOrders = (allPartOrders || []).filter(p => p.order_status !== 'ยกเลิก');
             const partsByJobId = {};
             const partsByPlate = {};
@@ -777,7 +822,6 @@
             });
 
             data.forEach(job => {
-                // 🚀 ดึงข้อมูลอะไหล่แบบรวดเร็ว
                 let carParts = [];
                 if (job.id && partsByJobId[job.id]) {
                     carParts = partsByJobId[job.id];
