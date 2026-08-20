@@ -5,9 +5,6 @@
 // ------------------------------------------
 // 1. แจ้งเตือน SA (SA Alerts)
 // ------------------------------------------
-// ------------------------------------------
-// 1. แจ้งเตือน SA (SA Alerts)
-// ------------------------------------------
 function renderSAAlerts() {
     const tbody = document.getElementById('sa_alerts_body');
     const badge = document.getElementById('alert_count');
@@ -25,7 +22,12 @@ function renderSAAlerts() {
 
     if (typeof allReports !== 'undefined') {
         allReports.forEach(job => {
-            if ((job.job_status && job.job_status.includes('06.สั่งอะไหล่')) || job.department_routing === 'อะไหล่') {
+            // 🌟 1. ดึงสถานะ "รอรถเข้าซ่อม" กับ "สั่งอะไหล่" กลับมา
+            const st = job.job_status || '';
+            const isPartsDept = job.department_routing === 'อะไหล่';
+            const isWaitingParts = st.includes('สั่งอะไหล่') || st.includes('รอรถเข้าซ่อม') || st.includes('รออะไหล่');
+
+            if (isPartsDept || isWaitingParts) {
                 const plate = job.car_plate || 'ไม่ระบุทะเบียน';
                 if (!grouped[plate]) {
                     grouped[plate] = [{
@@ -48,7 +50,6 @@ function renderSAAlerts() {
     const plates = Object.keys(grouped);
     
     if (plates.length === 0) {
-        // 🌟 เปลี่ยนเลข colspan ให้ตรงกับจำนวนคอลัมน์ใหม่ (9 คอลัมน์)
         tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-slate-400 font-bold bg-white"><i class="fa-solid fa-check-circle text-3xl mb-3 text-emerald-300 block"></i> ไม่มีรายการอะไหล่ค้างสั่งครับ! 🎉</td></tr>`;
         if(badge) badge.classList.add('hidden');
         return;
@@ -63,7 +64,6 @@ function renderSAAlerts() {
         const items = grouped[plate];
         const first = items[0];
         
-        // 🌟 ดึงข้อมูลวันที่ทั้ง 3 แบบมาแสดงผล 🌟
         const arrDate = first.order_date ? String(first.order_date).split('T')[0] : '-';
         const etaDate = first.est_arrival_date ? String(first.est_arrival_date).split('T')[0] : '-';
         const rcvDate = (first.received_date || first.part_received_all_date) ? String(first.received_date || first.part_received_all_date).split('T')[0] : '-';
@@ -133,7 +133,6 @@ function openAlertModal(plate) {
         if (p.order_status && !safeOpts.includes(`value="${p.order_status}"`)) { safeOpts = `<option value="${p.order_status}">${p.order_status}</option>` + safeOpts; }
         safeOpts = safeOpts.replace(`value="${p.order_status || 'รอสั่งซื้อ'}"`, `value="${p.order_status || 'รอสั่งซื้อ'}" selected`);
 
-        // 🌟 แก้ไขจุดดึงข้อมูล dyn-rcv ให้ใช้ p.received_date
         const receivedDateVal = p.received_date || p.part_received_all_date;
 
         html += `
@@ -208,7 +207,6 @@ async function saveSAAlertUpdate(e) {
     const updates = [];
 
     rows.forEach(tr => {
-        // กรองแถวที่ว่างๆ ออก ไม่ให้บันทึกถ้าไม่ได้ใส่ชื่อชิ้นส่วน
         if (tr.getAttribute('data-id') === 'new' && !tr.querySelector('.dyn-name').value.trim() && !tr.querySelector('.dyn-partno').value.trim()) {
             return;
         }
@@ -231,7 +229,7 @@ async function saveSAAlertUpdate(e) {
     if (updates.length === 0) return closeAlertModal();
 
     const btn = e.target.querySelector('button[type="submit"]');
-    const originalBtnHtml = btn.innerHTML; // 🌟 เก็บหน้าตาปุ่มเดิมไว้ก่อน
+    const originalBtnHtml = btn.innerHTML;
 
     try {
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...'; 
@@ -265,7 +263,6 @@ async function saveSAAlertUpdate(e) {
     } catch(err) { 
         showToast('เกิดข้อผิดพลาดในการบันทึก', 'error'); 
     } finally {
-        // 🌟 ปลดล็อกและคืนค่าปุ่มกลับมาเหมือนเดิมเสมอ (ไม่ว่าจะเซฟผ่านหรือพัง)
         btn.innerHTML = originalBtnHtml || '<i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลอะไหล่ทั้งหมด';
         btn.disabled = false;
     }
@@ -296,7 +293,6 @@ function renderPOTracking() {
 
         const actionBtns = hasETA ? `<span class="text-slate-400 font-bold text-[10px]"><i class="fa-solid fa-lock"></i> ล็อก</span>` : `<button onclick="deletePO('${p.order_id}')" class="bg-white text-slate-400 hover:text-red-500 hover:bg-red-50 px-2 py-1 rounded border border-slate-200 transition shadow-sm"><i class="fa-solid fa-trash"></i></button>`;
 
-        // 🌟 แก้ไขจุดดึงข้อมูลให้ใช้ p.received_date
         const receivedDateVal = p.received_date || p.part_received_all_date;
 
         return `
@@ -385,6 +381,12 @@ function renderInbound() {
     const tbody = document.getElementById('inbound_table_body'); if(!tbody) return;
     if (allInbounds.length === 0) { tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีประวัติการรับเข้า</td></tr>`; return; }
     const sortedData = [...allInbounds].sort((a,b) => b.inbound_id - a.inbound_id);
+
+    // 🌟 เพิ่มไอคอน Filter สำหรับคอลัมน์จำนวน (index 6 ของ tbody inTable) ในส่วนของ header HTML
+    const inThs = document.getElementById('inTable').querySelectorAll('thead th');
+    if(inThs[6] && !inThs[6].querySelector('.filter-icon')) {
+        inThs[6].querySelector('div').innerHTML += ` <i class="fa-solid fa-filter filter-icon ml-2 text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 6, 'จำนวน', 'inTable')"></i>`;
+    }
 
     tbody.innerHTML = sortedData.map(i => `
         <tr class="hover:bg-emerald-50/40 transition-colors border-b border-slate-100">
@@ -765,7 +767,6 @@ async function processExcelPasteData() {
                     epc_no: epc, car_plate: plate, order_status: status, qty_ordered: qty, 
                     order_date: orderDate, est_arrival_date: etaDate, part_received_all_date: rcvDate, 
                     branch_name: userBranch,
-                    // สร้างชื่อ dummy ไว้ก่อน เพราะเราไม่ได้บังคับให้กรอก part_no ในฟอร์มนี้
                     part_name: 'ระบุจาก EPC ' + epc, part_no: epc 
                 });
             }
@@ -790,8 +791,8 @@ async function processExcelPasteData() {
                     partName = m.part_name; partMain = m.part_main_no; 
                 } else {
                     errorCount++;
-                    tr.style.backgroundColor = '#fff1f2'; // สีแดงอ่อนแจ้งเตือน
-                    continue; // ข้ามแถวที่หาไม่เจอ
+                    tr.style.backgroundColor = '#fff1f2'; 
+                    continue; 
                 }
 
                 payloadArr.push({ 

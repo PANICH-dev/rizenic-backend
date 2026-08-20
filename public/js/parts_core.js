@@ -3,7 +3,7 @@
 // ==========================================
 
 const API_BASE_URL = window.location.origin;
-let allReports = []; // 🌟 เพิ่มตัวแปรดึงใบงานทั้งหมด
+let allReports = []; 
 let allPartOrders = [];
 let allInbounds = [];
 let allOutbounds = [];
