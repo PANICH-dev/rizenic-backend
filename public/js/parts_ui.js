@@ -173,6 +173,139 @@ function openAlertModal(plate) {
         tbody.appendChild(tr);
     };
 
+    const statusOptionsHtml = allStatuses.length > 0 ? allStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('') : '<option value="รอสั่งซื้อ">รอสั่งซื้อ</option><option value="รออะไหล่">รออะไหล่</option>';
+
+    uncompleted.forEach(p => {
+        let safeOpts = statusOptionsHtml;
+        if (p.order_status && !safeOpts.includes(`value="${p.order_status}"`)) {
+            safeOpts = `<option value="${p.order_status}">${p.order_status}</option>` + safeOpts;
+        }
+        safeOpts = safeOpts.replace(`value="${p.order_status || 'รอสั่งซื้อ'}"`, `value="${p.order_status || 'รอสั่งซื้อ'}" selected`);
+
+        html += `
+            <tr class="hover:bg-amber-50/50 transition-colors" data-id="${p.order_id}" data-plate="${plate}">
+                <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-epc font-mono uppercase text-center" value="${p.epc_no || ''}"></td>
+                <td class="p-0 border border-slate-200"><input type="text" list="master_parts_datalist" class="inline-edit-input dyn-partno font-mono uppercase text-center font-bold text-blue-700 bg-blue-50/30" value="${p.part_no || ''}" onchange="autoFillDynName(this)"></td>
+                <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-main font-mono text-slate-500" value="${p.part_main_no || ''}"></td>
+                <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-name font-bold" value="${p.part_name || ''}"></td>
+                <td class="p-0 border border-slate-200"><input type="number" class="inline-edit-input dyn-qty text-center font-black text-amber-600 bg-amber-50" value="${p.qty_ordered || 1}"></td>
+                <td class="p-0 border border-slate-200"><select class="inline-edit-select dyn-status font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 cursor-pointer">${safeOpts}</select></td>
+                <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-eta font-mono text-center text-xs" value="${p.est_arrival_date ? String(p.est_arrival_date).split('T')[0] : ''}"></td>
+                <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-rcv font-mono text-center text-xs" value="${p.part_received_all_date ? String(p.part_received_all_date).split('T')[0] : ''}"></td>
+                <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-notes text-xs" value="${p.notes || ''}"></td>
+            </tr>
+        `;
+    });
+
+    html += `</tbody></table></div>`;
+    
+    html += `
+        <div class="mt-3">
+            <button type="button" onclick="addNewAlertRow('${plate}')" class="px-4 py-2 bg-white border border-amber-300 text-amber-700 font-bold rounded-lg hover:bg-amber-50 text-xs shadow-sm transition">
+                <i class="fa-solid fa-plus"></i> เพิ่มรายการอะไหล่ให้ SA
+            </button>
+        </div>
+    `;
+
+    container.innerHTML = html;
+    document.getElementById('alertModal').classList.remove('hidden');
+    document.getElementById('alertModal').classList.add('flex');
+}
+
+function autoFillDynName(inputEl) {
+    const pNo = inputEl.value.trim().toUpperCase();
+    if (!pNo) return;
+    const tr = inputEl.closest('tr');
+    const matched = allMasterPartsCache.find(x => x.part_no && x.part_no.toUpperCase() === pNo);
+    if(matched) {
+        tr.querySelector('.dyn-name').value = matched.part_name || '';
+        tr.querySelector('.dyn-main').value = matched.part_main_no || '';
+    }
+}
+
+function closeAlertModal() { 
+    document.getElementById('alertModal').classList.add('hidden'); 
+    document.getElementById('alertModal').classList.remove('flex'); 
+}
+
+// 🌟 อัปเดตฟังก์ชัน Save ให้ส่งข้อมูลแบบมัดรวมทีเดียว ป้องกันเซิร์ฟเวอร์ค้าง
+async function saveSAAlertUpdate(e) {
+    e.preventDefault();
+    const rows = document.querySelectorAll('#modal_dynamic_table_container tbody tr');
+    const updates = [];
+
+    rows.forEach(tr => {
+        const isNew = tr.getAttribute('data-id') === 'new';
+        const partName = tr.querySelector('.dyn-name').value.trim();
+        const partNo = tr.querySelector('.dyn-partno').value.trim();
+
+        // ข้ามการบันทึกถ้าเป็นแถวว่างที่ถูกเพิ่มขึ้นมาแต่ไม่ได้พิมพ์อะไร
+        if (isNew && !partName && !partNo) return;
+
+        updates.push({
+            id: tr.getAttribute('data-id'),
+            car_plate: tr.getAttribute('data-plate') || '',
+            epc_no: tr.querySelector('.dyn-epc').value.trim() || null,
+            part_no: partNo || (isNew ? 'AUTO-PART' : null),
+            part_main_no: tr.querySelector('.dyn-main').value.trim() || null,
+            part_name: partName || (isNew ? 'อะไหล่ทั่วไป' : null),
+            qty_ordered: parseInt(tr.querySelector('.dyn-qty').value) || 1,
+            order_status: tr.querySelector('.dyn-status').value,
+            est_arrival_date: tr.querySelector('.dyn-eta').value || null,
+            part_received_all_date: tr.querySelector('.dyn-rcv').value || null,
+            notes: tr.querySelector('.dyn-notes').value.trim() || null
+        });
+    });
+
+    if (updates.length === 0) return closeAlertModal();
+
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalBtnHtml = btn.innerHTML;
+
+    try {
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...'; 
+        btn.disabled = true;
+
+        await Promise.all(updates.map(u => {
+            const payload = {
+                car_plate: u.car_plate,
+                epc_no: u.epc_no,
+                part_no: u.part_no,
+                part_main_no: u.part_main_no,
+                part_name: u.part_name,
+                qty_ordered: u.qty_ordered,
+                order_status: u.order_status,
+                est_arrival_date: u.est_arrival_date,
+                part_received_all_date: u.part_received_all_date,
+                notes: u.notes,
+                branch_name: userBranch
+            };
+
+            // ท่ายิง API แบบส่งทีเดียวทั้งก้อน (ลดการทำงานของเซิร์ฟเวอร์)
+            if (u.id === 'new') {
+                payload.order_date = new Date().toISOString().split('T')[0];
+                return fetch(`${API_BASE_URL}/api/part-orders`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                }).then(res => { if(!res.ok) throw new Error(); });
+            } else {
+                return fetch(`${API_BASE_URL}/api/part-orders/${u.id}`, {
+                    method: 'PUT', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                }).then(res => { if(!res.ok) throw new Error(); });
+            }
+        }));
+
+        showToast('อัปเดตข้อมูลอะไหล่กลับไปให้ SA เรียบร้อย!', 'success');
+        closeAlertModal();
+        loadAllData();
+    } catch(err) {
+        showToast('เกิดข้อผิดพลาดในการบันทึก กรุณาลองใหม่', 'error');
+    } finally {
+        btn.innerHTML = originalBtnHtml || '<i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลส่งให้ SA';
+        btn.disabled = false;
+    }
+}
     // สมมติฐานข้อมูลสถานะที่มี
     const statusOptionsHtml = allStatuses.length > 0 ? allStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('') : '<option value="รอสั่งซื้อ">รอสั่งซื้อ</option><option value="รออะไหล่">รออะไหล่</option>';
 
