@@ -6,6 +6,7 @@ const fallbackStatuses = [
     {status_name: 'รอสั่งซื้อ'},
     {status_name: 'รออะไหล่'},
     {status_name: 'เข้าครบ'},
+    {status_name: 'มีสต๊อก'},
     {status_name: 'Back Order'}
 ];
 
@@ -62,7 +63,7 @@ function renderSAAlerts() {
     }
     
     if (jobsToDisplay.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-slate-400 font-bold bg-white"><i class="fa-solid fa-check-circle text-3xl mb-3 text-emerald-300 block"></i> ไม่มีรายการใบงานที่ต้องจัดการครับ! 🎉</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-10 text-slate-400 font-bold bg-white"><i class="fa-solid fa-check-circle text-3xl mb-3 text-emerald-300 block"></i> ไม่มีรายการใบงานที่ต้องจัดการครับ! 🎉</td></tr>`;
         if(badge) badge.classList.add('hidden');
         return;
     }
@@ -77,9 +78,8 @@ function renderSAAlerts() {
         const plate = job.car_plate || 'ไม่ระบุทะเบียน';
         const arrDate = (job.arrived_date || job.contact_date) ? String(job.arrived_date || job.contact_date).split('T')[0] : '-';
         const customerName = job.customer_name || '-';
-        const saOwner = job.sa_owner || 'ไม่ระบุ'; // 🌟 เพิ่มตัวแปร SA Owner
+        const saOwner = job.sa_owner || 'ไม่ระบุ';
         
-        // 🌟 ดึงอะไหล่ทั้งหมด
         const relatedParts = allPartOrders.filter(p => 
             (String(p.report_id) === String(jobId) || (!p.report_id && p.car_plate === plate))
         );
@@ -91,17 +91,21 @@ function renderSAAlerts() {
         if (relatedParts.length === 0) {
             itemsHtml = `<span class="text-[11px] font-bold text-rose-500 animate-pulse block truncate"><i class="fa-solid fa-circle-exclamation"></i> ⚠️ ยังไม่มีรายการสั่งอะไหล่</span>`;
         } else {
-            // 🌟 นำ ETA และ Received Date มาแสดงรวมในคอลัมน์นี้
             itemsHtml = relatedParts.map(p => {
-                const isComplete = p.order_status && p.order_status.includes('ครบ');
+                const isComplete = p.order_status && (p.order_status.includes('ครบ') || p.order_status === 'มีสต๊อก');
                 const color = isComplete ? 'text-emerald-600' : ((p.order_status === 'รอสั่งซื้อ' || p.order_status === 'รออัปเดต') ? 'text-red-600' : 'text-amber-600');
                 const icon = isComplete ? '<i class="fa-solid fa-circle-check text-emerald-500 text-sm"></i>' : '<i class="fa-solid fa-clock text-amber-500 text-sm"></i>';
                 
                 let partNoDisplay = (p.part_no && p.part_no !== 'AUTO-PART') ? `<span class="text-blue-600 font-mono">[${p.part_no}]</span> ` : '';
                 
+                // 🌟 เพิ่ม EPC ในแต่ละรายการ 🌟
+                let epcDisplay = p.epc_no ? `<span class="text-purple-600 font-mono ml-1 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 shadow-sm"><i class="fa-solid fa-barcode mr-1"></i>EPC: ${p.epc_no}</span>` : '';
+                
+                // 🌟 เพิ่ม วันที่คาดการณ์ (ETA) และ วันที่เข้าครบ (RCV) ในแต่ละรายการ 🌟
                 let dateInfo = '';
-                if (isComplete && (p.received_date || p.part_received_all_date)) {
-                    dateInfo = `<span class="text-emerald-600 font-mono ml-1 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 shadow-sm"><i class="fa-solid fa-box-open mr-1"></i>เข้า: ${String(p.received_date || p.part_received_all_date).split('T')[0]}</span>`;
+                const rcvDate = p.received_date || p.part_received_all_date;
+                if (isComplete && rcvDate) {
+                    dateInfo = `<span class="text-emerald-600 font-mono ml-1 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 shadow-sm"><i class="fa-solid fa-box-open mr-1"></i>เข้าครบ: ${String(rcvDate).split('T')[0]}</span>`;
                 } else if (!isComplete && p.est_arrival_date) {
                     dateInfo = `<span class="text-amber-600 font-mono ml-1 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shadow-sm"><i class="fa-solid fa-calendar-day mr-1"></i>ETA: ${String(p.est_arrival_date).split('T')[0]}</span>`;
                 }
@@ -112,13 +116,13 @@ function renderSAAlerts() {
                         <div class="leading-tight w-full flex flex-wrap items-center gap-1">
                             <span>${partNoDisplay}${p.part_name}</span> 
                             <span class="text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shadow-sm">${p.order_status || '-'}</span>
+                            ${epcDisplay}
                             ${dateInfo}
                         </div>
                     </div>`;
             }).join('');
         }
 
-        // เอา <td> ETA และ <td> เข้าครบ ออกจาก HTML นี้
         return `
             <tr class="hover:bg-amber-50/50 transition border-b border-slate-100">
                 <td class="font-black text-amber-700 text-xs px-2 py-2">
@@ -135,12 +139,11 @@ function renderSAAlerts() {
                 
                 <td class="font-mono text-xs font-bold text-slate-700 px-2 py-2">${qtDisplay}</td>
                 <td class="font-mono text-xs font-bold text-amber-700 px-2 py-2">${soDisplay}</td>
-                <td class="font-mono text-xs font-bold text-blue-600 px-2 py-2">${job.epc_no || '-'}</td>
                 
                 <td class="px-2 py-2 max-h-[120px] overflow-y-auto block custom-scrollbar bg-slate-50/50 rounded-xl my-1 border border-slate-200 shadow-inner">${itemsHtml}</td>
                 
                 <td class="text-center px-2 py-2">
-                    <button onclick="openAlertModal('${jobId}', '${plate}', '${job.epc_no || ''}')" class="bg-[#00320D] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-black transition shadow-sm w-full">
+                    <button onclick="openAlertModal('${jobId}', '${plate}')" class="bg-[#00320D] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-black transition shadow-sm w-full">
                         <i class="fa-solid fa-table-cells"></i> โต๊ะคีย์
                     </button>
                 </td>
@@ -152,7 +155,7 @@ function renderSAAlerts() {
 // ------------------------------------------
 // โต๊ะคีย์ Modal (อัปเกรด ProMax: Paste & Filter)
 // ------------------------------------------
-function openAlertModal(jobId, plate, epcNo) {
+function openAlertModal(jobId, plate) {
     const mainJob = (typeof allReports !== 'undefined') ? allReports.find(j => String(j.id) === String(jobId) || j.report_id === jobId) : null;
     const defaultQt = mainJob ? (mainJob.qt_no || mainJob.quotation_no || '') : '';
     const defaultSo = mainJob ? (mainJob.so_no || mainJob.job_order_no || '') : '';
@@ -176,7 +179,7 @@ function openAlertModal(jobId, plate, epcNo) {
             </div>
             <div class="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200 shadow-sm">
                 <span class="text-[10px] font-bold text-slate-500 uppercase">ตั้งค่า EPC ด่วน:</span>
-                <input type="text" id="mass_epc_update" class="px-2 py-1 border-b-2 border-slate-300 font-mono text-xs w-28 outline-none focus:border-emerald-500 uppercase bg-slate-50" placeholder="พิมพ์แล้ว Enter..." value="${epcNo !== 'undefined' ? epcNo : ''}" onkeyup="if(event.key==='Enter') document.querySelectorAll('.dyn-epc').forEach(el=>el.value=this.value)">
+                <input type="text" id="mass_epc_update" class="px-2 py-1 border-b-2 border-slate-300 font-mono text-xs w-28 outline-none focus:border-emerald-500 uppercase bg-slate-50" placeholder="พิมพ์แล้ว Enter..." onkeyup="if(event.key==='Enter') document.querySelectorAll('.dyn-epc').forEach(el=>el.value=this.value)">
             </div>
         </div>
         <div class="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-200 custom-scrollbar">
@@ -214,7 +217,7 @@ function openAlertModal(jobId, plate, epcNo) {
 
         html += `
             <tr class="hover:bg-amber-50/50 transition-colors" data-id="${p.order_id}" data-jobid="${jobId}" data-plate="${plate}">
-                <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-epc font-mono uppercase text-center" value="${p.epc_no || epcNo || ''}" onpaste="handleModalGridPaste(event, this)"></td>
+                <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-epc font-mono uppercase text-center" value="${p.epc_no || ''}" onpaste="handleModalGridPaste(event, this)"></td>
                 <td class="p-0 border border-slate-200"><input type="text" list="master_parts_datalist" class="inline-edit-input dyn-partno font-mono uppercase text-center font-bold text-blue-700 bg-blue-50/30" value="${p.part_no || ''}" onchange="autoFillDynName(this)" onpaste="handleModalGridPaste(event, this)"></td>
                 <td class="p-0 border border-slate-200"><input type="number" class="inline-edit-input dyn-qty text-center font-black text-amber-600 bg-amber-50" value="${p.qty_ordered || 1}" onpaste="handleModalGridPaste(event, this)"></td>
                 <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-name font-bold" value="${p.part_name || ''}"></td>
@@ -236,7 +239,7 @@ function openAlertModal(jobId, plate, epcNo) {
     
     html += `
         <div class="mt-3 flex justify-between items-center">
-            <button type="button" onclick="addNewAlertRow('${jobId}', '${plate}', '${epcNo}', '${defaultQt}', '${defaultSo}')" class="px-5 py-2.5 bg-white border border-emerald-300 text-emerald-700 font-bold rounded-lg hover:bg-emerald-50 text-xs shadow-sm transition flex items-center gap-2">
+            <button type="button" onclick="addNewAlertRow('${jobId}', '${plate}', '', '${defaultQt}', '${defaultSo}')" class="px-5 py-2.5 bg-white border border-emerald-300 text-emerald-700 font-bold rounded-lg hover:bg-emerald-50 text-xs shadow-sm transition flex items-center gap-2">
                 <i class="fa-solid fa-plus"></i> กดเพิ่มแถว
             </button>
             <button type="button" onclick="clearSpecificExcelFilter()" class="text-xs font-bold text-slate-400 hover:text-red-500 transition"><i class="fa-solid fa-filter-circle-xmark"></i> ล้างตัวกรองทั้งหมด</button>
@@ -262,7 +265,7 @@ window.addNewAlertRow = function(jobId, plate, epcNo, defaultQt = '', defaultSo 
     tr.setAttribute('data-jobid', jobId);
     tr.setAttribute('data-plate', plate);
     tr.innerHTML = `
-        <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-epc font-mono uppercase text-center" value="${epcNo !== 'undefined' ? epcNo : ''}" onpaste="handleModalGridPaste(event, this)"></td>
+        <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-epc font-mono uppercase text-center" value="${epcNo || ''}" onpaste="handleModalGridPaste(event, this)"></td>
         <td class="p-0 border border-slate-200"><input type="text" list="master_parts_datalist" class="inline-edit-input dyn-partno font-mono uppercase text-center font-bold text-blue-700 bg-blue-50/30" onchange="autoFillDynName(this)" onpaste="handleModalGridPaste(event, this)"></td>
         <td class="p-0 border border-slate-200"><input type="number" class="inline-edit-input dyn-qty text-center font-black text-amber-600 bg-amber-50" value="1" min="1" onpaste="handleModalGridPaste(event, this)"></td>
         <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-name font-bold"></td>
@@ -334,7 +337,7 @@ function autoFillDynName(inputEl) {
 
 function closeAlertModal() { document.getElementById('alertModal').classList.add('hidden'); document.getElementById('alertModal').classList.remove('flex'); }
 
-// 🌟 บังคับรีเฟรชหน้าต่างเพื่อให้ข้อมูลอัปเดตชัวร์ 100% 🌟
+// 🌟 ปรับระบบบันทึกและให้ตารางดึงข้อมูลมารีเฟรชในพื้นหลัง (ไม่โหลดหน้าจอใหม่) 🌟
 async function saveSAAlertUpdate(e) {
     e.preventDefault();
     const rows = document.querySelectorAll('#modal_dynamic_table_container tbody tr');
@@ -406,15 +409,21 @@ async function saveSAAlertUpdate(e) {
         }));
 
         showToast('อัปเดตข้อมูลอะไหล่เรียบร้อย!', 'success');
+        
+        // 🌟 ปิด Modal แต่ไม่โหลดหน้าใหม่
         closeAlertModal();
         
-        // 🌟 บังคับรอเซิร์ฟเวอร์เคลียร์ Transaction ให้เสร็จ แล้วรีเฟรช 🌟
-        await new Promise(resolve => setTimeout(resolve, 500));
-        window.location.reload(); 
+        // 🌟 เรียกฟังก์ชันดึงข้อมูลของ parts_core.js โดยตรง เพื่อให้ตารางรีเฟรชค่าใหม่ทันที (Background Fetch) 🌟
+        if (typeof loadAllData === 'function') {
+            await loadAllData();
+        } else if (typeof fetchAllData === 'function') {
+            await fetchAllData();
+        }
 
     } catch(err) {
         showToast('เกิดข้อผิดพลาดในการบันทึก กรุณาลองใหม่', 'error');
-        btn.innerHTML = originalBtnHtml || '<i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลส่งให้ SA';
+    } finally {
+        btn.innerHTML = originalBtnHtml || '<i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูล';
         btn.disabled = false;
     }
 }
@@ -485,7 +494,7 @@ async function saveMasterPart() {
         const url = id ? `${API_BASE_URL}/api/parts/${id}` : `${API_BASE_URL}/api/parts`;
         const method = id ? 'PUT' : 'POST';
         const res = await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-        if(res.ok) { showToast('บันทึกมาสเตอร์สำเร็จ!'); closeMasterModal(); window.location.reload(); } else throw new Error();
+        if(res.ok) { showToast('บันทึกมาสเตอร์สำเร็จ!'); closeMasterModal(); loadAllData(); } else throw new Error();
     } catch(e) { showToast('บันทึกล้มเหลว', 'error'); }
 }
 
@@ -493,7 +502,7 @@ async function deleteMaster(id) {
     if(!confirm('🚨 ยืนยันการลบข้อมูลมาสเตอร์นี้?')) return;
     try {
         const res = await fetch(`${API_BASE_URL}/api/parts/${id}`, { method: 'DELETE' });
-        if(res.ok) { showToast('ลบมาสเตอร์สำเร็จ'); window.location.reload(); } else throw new Error();
+        if(res.ok) { showToast('ลบมาสเตอร์สำเร็จ'); loadAllData(); } else throw new Error();
     } catch(e) { showToast('ลบไม่สำเร็จ', 'error'); }
 }
 
