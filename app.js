@@ -757,11 +757,13 @@ app.put('/api/part-orders/:id', async (req, res) => {
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
-// 🎯 แก้ไขจุดพิมพ์ผิด aapp เป็น app และขยายฟิลด์ที่แก้อัตโนมัติได้
+// 🎯 ขยายฟิลด์ที่แก้อัตโนมัติได้
 app.put('/api/part-orders/:id/fast', async (req, res) => {
   try {
     const { field, value } = req.body;
-    const validFields = ['epc_no', 'part_no', 'part_main_no', 'part_name', 'qty_ordered', 'order_status', 'est_arrival_date', 'part_received_all_date', 'notes', 'car_plate'];
+    // 👇 แก้ไขบรรทัดนี้: เปลี่ยน part_received_all_date เป็น received_date และเพิ่ม qt_no, so_no เข้าไป 👇
+    const validFields = ['epc_no', 'part_no', 'part_main_no', 'part_name', 'qty_ordered', 'order_status', 'est_arrival_date', 'received_date', 'notes', 'car_plate', 'qt_no', 'so_no'];
+    
     if (!validFields.includes(field)) return res.status(400).json({ error: 'ไม่อนุญาตให้แก้ฟิลด์นี้' });
     await pool.query(`UPDATE rizenic_part_orders SET ${field} = $1 WHERE order_id = $2`, [value || null, req.params.id]);
     res.json({ success: true });
