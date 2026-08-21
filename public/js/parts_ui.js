@@ -62,7 +62,7 @@ function renderSAAlerts() {
     }
     
     if (jobsToDisplay.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="11" class="text-center py-10 text-slate-400 font-bold bg-white"><i class="fa-solid fa-check-circle text-3xl mb-3 text-emerald-300 block"></i> ไม่มีรายการใบงานที่ต้องจัดการครับ! 🎉</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-slate-400 font-bold bg-white"><i class="fa-solid fa-check-circle text-3xl mb-3 text-emerald-300 block"></i> ไม่มีรายการใบงานที่ต้องจัดการครับ! 🎉</td></tr>`;
         if(badge) badge.classList.add('hidden');
         return;
     }
@@ -79,7 +79,7 @@ function renderSAAlerts() {
         const customerName = job.customer_name || '-';
         const saOwner = job.sa_owner || 'ไม่ระบุ'; // 🌟 เพิ่มตัวแปร SA Owner
         
-        // 🌟 ดึงอะไหล่ "ทั้งหมด" (ยกเลิกการซ่อนอะไหล่ที่มาครบแล้ว เพื่อให้โชว์ติ๊กถูก)
+        // 🌟 ดึงอะไหล่ทั้งหมด
         const relatedParts = allPartOrders.filter(p => 
             (String(p.report_id) === String(jobId) || (!p.report_id && p.car_plate === plate))
         );
@@ -87,22 +87,11 @@ function renderSAAlerts() {
         const qtDisplay = job.qt_no || job.quotation_no || (relatedParts.length > 0 ? (relatedParts[0].qt_no || '-') : '-');
         const soDisplay = job.so_no || job.job_order_no || (relatedParts.length > 0 ? (relatedParts[0].so_no || '-') : '-');
 
-        let etaDisplay = '-';
-        let rcvDisplay = '-';
-
-        if (relatedParts.length > 0) {
-            const etas = relatedParts.map(p => p.est_arrival_date ? String(p.est_arrival_date).split('T')[0] : null).filter(Boolean);
-            const rcvs = relatedParts.map(p => (p.received_date || p.part_received_all_date) ? String(p.received_date || p.part_received_all_date).split('T')[0] : null).filter(Boolean);
-            
-            if (etas.length > 0) etaDisplay = etas[0];
-            if (rcvs.length > 0) rcvDisplay = rcvs[0];
-        }
-
         let itemsHtml = '';
         if (relatedParts.length === 0) {
             itemsHtml = `<span class="text-[11px] font-bold text-rose-500 animate-pulse block truncate"><i class="fa-solid fa-circle-exclamation"></i> ⚠️ ยังไม่มีรายการสั่งอะไหล่</span>`;
         } else {
-            // 🌟 ออกแบบการแสดงผลอะไหล่รายชิ้น (ดีไซน์ใหม่) 🌟
+            // 🌟 นำ ETA และ Received Date มาแสดงรวมในคอลัมน์นี้
             itemsHtml = relatedParts.map(p => {
                 const isComplete = p.order_status && p.order_status.includes('ครบ');
                 const color = isComplete ? 'text-emerald-600' : ((p.order_status === 'รอสั่งซื้อ' || p.order_status === 'รออัปเดต') ? 'text-red-600' : 'text-amber-600');
@@ -129,6 +118,7 @@ function renderSAAlerts() {
             }).join('');
         }
 
+        // เอา <td> ETA และ <td> เข้าครบ ออกจาก HTML นี้
         return `
             <tr class="hover:bg-amber-50/50 transition border-b border-slate-100">
                 <td class="font-black text-amber-700 text-xs px-2 py-2">
@@ -138,7 +128,6 @@ function renderSAAlerts() {
                 <td class="text-slate-500 font-mono font-bold text-center px-2 py-2 text-xs">${arrDate}</td>
                 <td class="font-bold text-slate-600 text-xs px-2 py-2">${job.car_model || '-'}</td>
                 
-                <!-- 🌟 เพิ่ม SA Owner ใต้ชื่อลูกค้า -->
                 <td class="font-bold text-slate-700 text-xs px-2 py-2 truncate max-w-[150px]" title="${customerName}">
                     ${customerName}
                     <div class="text-[10px] text-blue-600 mt-1 flex items-center gap-1 bg-blue-50 px-1.5 py-0.5 rounded-full inline-block border border-blue-100"><i class="fa-solid fa-user-tie"></i> ${saOwner}</div>
@@ -150,9 +139,6 @@ function renderSAAlerts() {
                 
                 <td class="px-2 py-2 max-h-[120px] overflow-y-auto block custom-scrollbar bg-slate-50/50 rounded-xl my-1 border border-slate-200 shadow-inner">${itemsHtml}</td>
                 
-                <td class="font-mono text-xs font-bold text-center text-amber-600 px-2 py-2">${etaDisplay}</td>
-                <td class="font-mono text-xs font-bold text-center text-emerald-600 px-2 py-2">${rcvDisplay}</td>
-
                 <td class="text-center px-2 py-2">
                     <button onclick="openAlertModal('${jobId}', '${plate}', '${job.epc_no || ''}')" class="bg-[#00320D] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-black transition shadow-sm w-full">
                         <i class="fa-solid fa-table-cells"></i> โต๊ะคีย์
@@ -171,7 +157,6 @@ function openAlertModal(jobId, plate, epcNo) {
     const defaultQt = mainJob ? (mainJob.qt_no || mainJob.quotation_no || '') : '';
     const defaultSo = mainJob ? (mainJob.so_no || mainJob.job_order_no || '') : '';
 
-    // 🌟 ดึงอะไหล่มาโชว์ทั้งหมด ไม่กรองชิ้นที่ครบออกแล้ว
     const jobParts = allPartOrders.filter(p => 
         (String(p.report_id) === String(jobId) || (!p.report_id && p.car_plate === plate))
     );
@@ -349,7 +334,7 @@ function autoFillDynName(inputEl) {
 
 function closeAlertModal() { document.getElementById('alertModal').classList.add('hidden'); document.getElementById('alertModal').classList.remove('flex'); }
 
-// 🌟 ปรับระบบบันทึกและสั่งดึงข้อมูลตารางใหม่ทันที 🌟
+// 🌟 บังคับรีเฟรชหน้าต่างเพื่อให้ข้อมูลอัปเดตชัวร์ 100% 🌟
 async function saveSAAlertUpdate(e) {
     e.preventDefault();
     const rows = document.querySelectorAll('#modal_dynamic_table_container tbody tr');
@@ -423,21 +408,12 @@ async function saveSAAlertUpdate(e) {
         showToast('อัปเดตข้อมูลอะไหล่เรียบร้อย!', 'success');
         closeAlertModal();
         
-        // 🌟 บังคับรอ 0.5 วิ ให้ Database ทำงานเสร็จก่อนดึงข้อมูล 🌟
+        // 🌟 บังคับรอเซิร์ฟเวอร์เคลียร์ Transaction ให้เสร็จ แล้วรีเฟรช 🌟
         await new Promise(resolve => setTimeout(resolve, 500));
-
-        // 🌟 เรียกโหลดข้อมูลใหม่แบบสมบูรณ์ 🌟
-        if (typeof loadAllData === 'function') {
-            await loadAllData();
-        } else if (typeof fetchAllData === 'function') {
-            await fetchAllData();
-        } else {
-            window.location.reload();
-        }
+        window.location.reload(); 
 
     } catch(err) {
         showToast('เกิดข้อผิดพลาดในการบันทึก กรุณาลองใหม่', 'error');
-    } finally {
         btn.innerHTML = originalBtnHtml || '<i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลส่งให้ SA';
         btn.disabled = false;
     }
@@ -509,7 +485,7 @@ async function saveMasterPart() {
         const url = id ? `${API_BASE_URL}/api/parts/${id}` : `${API_BASE_URL}/api/parts`;
         const method = id ? 'PUT' : 'POST';
         const res = await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-        if(res.ok) { showToast('บันทึกมาสเตอร์สำเร็จ!'); closeMasterModal(); loadAllData(); } else throw new Error();
+        if(res.ok) { showToast('บันทึกมาสเตอร์สำเร็จ!'); closeMasterModal(); window.location.reload(); } else throw new Error();
     } catch(e) { showToast('บันทึกล้มเหลว', 'error'); }
 }
 
@@ -517,7 +493,7 @@ async function deleteMaster(id) {
     if(!confirm('🚨 ยืนยันการลบข้อมูลมาสเตอร์นี้?')) return;
     try {
         const res = await fetch(`${API_BASE_URL}/api/parts/${id}`, { method: 'DELETE' });
-        if(res.ok) { showToast('ลบมาสเตอร์สำเร็จ'); loadAllData(); } else throw new Error();
+        if(res.ok) { showToast('ลบมาสเตอร์สำเร็จ'); window.location.reload(); } else throw new Error();
     } catch(e) { showToast('ลบไม่สำเร็จ', 'error'); }
 }
 
