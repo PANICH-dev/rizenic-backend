@@ -698,8 +698,8 @@ app.get('/api/part-orders', async (req, res) => {
   try { res.json((await pool.query('SELECT * FROM rizenic_part_orders ORDER BY order_id DESC')).rows); } 
   catch (e) { res.status(500).json({ error: e.message }); }
 });
-// ==========================================
-// API สั่งเบิกอะไหล่ (เพิ่มการรับค่า job_id)
+/// ==========================================
+// API สั่งเบิกอะไหล่ (เพิ่มการรับค่า job_id และแก้ไขการรับค่า Status/Dates)
 // ==========================================
 app.post('/api/part-orders', async (req, res) => {
   try {
@@ -707,13 +707,13 @@ app.post('/api/part-orders', async (req, res) => {
     const queryText = `
       INSERT INTO rizenic_part_orders (
         qt_no, so_no, epc_no, order_date, est_arrival_date, car_plate,
-        vin_no, car_model, part_main_no, part_no, part_name, qty_ordered, qty_received, order_status, part_type, branch_name, notes, job_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 0, 'รอสั่งซื้อ', $13, $14, $15, $16) RETURNING *;
+        vin_no, car_model, part_main_no, part_no, part_name, qty_ordered, qty_received, order_status, part_type, branch_name, notes, job_id, received_date
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 0, $13, $14, $15, $16, $17, $18) RETURNING *;
     `;
     const values = [
       d.qt_no || null, d.so_no || null, d.epc_no || null, d.order_date, d.est_arrival_date || null, d.car_plate || null,
       d.vin_no || null, d.car_model || null, d.part_main_no || null, d.part_no, d.part_name, parseInt(d.qty_ordered) || 1,
-      d.part_type || 'อะไหล่แท้', d.branch_name, d.notes || null, d.job_id || null
+      d.order_status || 'รอสั่งซื้อ', d.part_type || 'อะไหล่แท้', d.branch_name, d.notes || null, d.job_id || null, d.received_date || null
     ];
     const result = await pool.query(queryText, values);
     res.status(201).json({ success: true, data: result.rows[0] });

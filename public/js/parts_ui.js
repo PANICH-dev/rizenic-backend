@@ -405,6 +405,8 @@ async function saveSAAlertUpdate(e) {
                         report_id: u.report_id, car_plate: u.car_plate, part_no: u.part_no, 
                         part_main_no: u.part_main_no, part_name: u.part_name, qty_ordered: u.qty_ordered, 
                         qt_no: u.qt_no, so_no: u.so_no, order_status: u.order_status, 
+                        est_arrival_date: u.est_arrival_date, // 🌟 เพิ่มตรงนี้
+                        received_date: u.received_date,       // 🌟 เพิ่มตรงนี้
                         order_date: todayStr, epc_no: u.epc_no, notes: u.notes, branch_name: userBranch
                     })
                 });
