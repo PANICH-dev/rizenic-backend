@@ -1,1292 +1,1142 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="th" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RIZENIC ERP - Service Advisor Portal</title>
+    <title>พานิช ธิมายอม - Business Systems Analyst | System Analyst Portfolio</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    
-    <style type="text/tailwindcss">
-        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap');
-        body { font-family: 'Kanit', sans-serif; background-color: #f8fafc; }
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap');
         
-        .bg-rizenic-green { background-color: #00320D; }
-        .text-rizenic-green { color: #00320D; }
+        body {
+            font-family: 'Prompt', sans-serif;
+            background-color: #F8FAFC;
+            color: #0F172A;
+            line-height: 1.6;
+        }
         
-        .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #94a3b8; border-radius: 20px; }
+        .minimal-shadow { box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05); }
         
-        .minimal-input { @apply w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none transition-all duration-300 text-sm font-bold text-slate-800 focus:bg-white focus:border-[#00320D] focus:ring-4 focus:ring-[#00320D]/15 hover:border-slate-400 shadow-sm; }
-        .minimal-input:disabled, .minimal-input[readonly] { @apply bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed shadow-none; }
-        
-        .card-container { @apply bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6 p-6 transition-all duration-300 hover:shadow-md; }
-        .section-header { @apply flex flex-col sm:flex-row items-start sm:items-center justify-between bg-[#00320D] px-5 py-3.5 -mx-6 -mt-6 mb-5 border-b border-green-900 shadow-sm; }
-        .section-title { @apply font-black text-base text-white flex items-center gap-3 tracking-wide; }
-        .section-icon { @apply text-amber-400 text-lg shrink-0; }
-        
-        .label-text { @apply flex items-center gap-1.5 text-xs font-bold text-slate-600 mb-2 tracking-wide uppercase; }
-        .timeline-row { @apply flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors bg-white font-bold text-slate-700; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #F1F5F9; }
+        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
 
-        .part-badge { @apply cursor-pointer px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold transition-all select-none inline-block shadow-sm text-slate-600; }
-        .part-badge.unselected { @apply bg-white hover:border-slate-400 hover:bg-slate-50; }
-        .part-badge.selected-main { @apply bg-blue-600 border-blue-700 text-white shadow-md shadow-blue-500/30 transform scale-105; }
-        .part-badge.selected-sub { @apply bg-amber-500 border-amber-600 text-white shadow-md shadow-amber-500/30 transform scale-105; }
+        .code-scroll::-webkit-scrollbar { height: 6px; width: 6px; }
+        .code-scroll::-webkit-scrollbar-track { background: #1E293B; }
+        .code-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
 
-        .dmg-btn { @apply cursor-pointer p-4 border-2 rounded-xl text-center text-sm font-black transition-all duration-200 transform hover:scale-[1.02]; }
-        .dmg-btn-light { @apply border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100; }
-        .dmg-btn-medium { @apply border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100; }
-        .dmg-btn-heavy { @apply border-rose-300 text-rose-800 bg-rose-50 hover:bg-rose-100; }
+        section { padding-top: 6rem; padding-bottom: 6rem; }
+        .bg-white-section { background-color: #FFFFFF; }
         
-        .modern-table { @apply w-full text-left border-collapse whitespace-nowrap text-sm; }
-        .modern-table th { @apply px-4 py-3 bg-slate-100 text-[#00320D] font-black uppercase text-[11px] tracking-wider border-b-2 border-slate-300; }
-        .modern-table td { @apply px-4 py-3 border-b border-slate-100 text-slate-800 font-medium; }
-        .modern-table tr:hover { @apply bg-green-50/40 transition-colors; }
+        .gradient-text {
+            background: linear-gradient(90deg, #0F172A, #334155);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
 
-        .excel-table-po {
-            width: 100%; text-align: left; border-collapse: collapse; white-space: nowrap;
-            font-size: 12px; background-color: #ffffff; table-layout: fixed; border: 1px solid #cbd5e1;
+        .mockup-browser {
+            border: 1px solid #E2E8F0; border-radius: 12px; overflow: hidden; background: #fff;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
         }
-        .excel-table-po thead th {
-            position: sticky; top: 0; z-index: 20; background-color: #00320D !important;
-            color: #ffffff !important; border: 1px solid #1e3a1e !important; font-weight: 700;
-            padding: 8px 6px; text-align: center; user-select: none; box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        .mockup-header {
+            background: #F1F5F9; padding: 10px 16px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #E2E8F0;
         }
-        .excel-table-po tbody td {
-            padding: 6px 8px; border: 1px solid #cbd5e1 !important; color: #1e293b;
-            vertical-align: middle; overflow: hidden; position: relative;
-        }
-        .excel-table-po tbody tr:nth-child(even) td { background-color: #f8fafc; }
-        .excel-table-po tbody tr:nth-child(odd) td { background-color: #ffffff; }
-        .excel-table-po tbody tr:hover td {
-            background-color: #fef3c7 !important; border-color: #fcd34d !important; color: #78350f !important;
-        }
-        .resizer-po {
-            position: absolute; top: 0; right: 0; width: 6px; height: 100%; cursor: col-resize; z-index: 30; user-select: none;
-        }
-        .resizer-po:hover, .resizer-po.resizing { background-color: #f59e0b !important; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dot-red { background: #EF4444; } .dot-yellow { background: #F59E0B; } .dot-green { background: #10B981; }
         
-        .sched-cell { @apply bg-white border border-slate-200 rounded-xl p-2 min-h-[135px] flex flex-col justify-between hover:border-blue-500 transition-all cursor-pointer hover:shadow-md; }
-        .quota-bar { @apply h-1.5 rounded-full bg-slate-200 overflow-hidden mt-0.5; }
-        .quota-fill { @apply h-full transition-all duration-500; }
-        .modal-fade { animation: fadeIn 0.2s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .mockup-content { max-height: 500px; height: 60vh; min-height: 350px; overflow-y: auto; }
+        .mockup-content::-webkit-scrollbar { width: 4px; }
+
+        /* API Method Colors */
+        .api-get { color: #10B981; }
+        .api-post { color: #3B82F6; }
+        .api-put { color: #F59E0B; }
+        .api-delete { color: #EF4444; }
+
+        @media print {
+            body { background-color: #F8FAFC !important; }
+            section, .bg-white, .mockup-browser, img, .rounded-3xl, .rounded-2xl { break-inside: avoid; page-break-inside: avoid; }
+            nav { display: none !important; }
+        }
     </style>
 </head>
-<body class="text-slate-800 min-h-screen relative selection:bg-[#00320D] selection:text-white">
+<body class="antialiased selection:bg-[#0F172A] selection:text-white">
 
-    <!-- Login Screen -->
-    <div id="login-screen" class="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-[100] flex items-center justify-center">
-        <div class="bg-white p-10 rounded-3xl shadow-2xl w-full max-w-md text-center transform transition-all border border-slate-200">
-            <div class="flex items-center justify-center gap-3 mb-6"><div class="bg-gradient-to-tr from-[#00320D] to-green-600 w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg"><i class="fa-solid fa-car text-2xl text-white"></i></div></div>
-            <h1 class="text-2xl font-black tracking-widest text-slate-800 mb-1">RIZENIC <span class="text-green-600">ERP</span></h1>
-            <h2 class="text-slate-500 mb-8 font-bold text-xs tracking-wide uppercase">Workspace Login</h2>
-            <form onsubmit="handleLogin(event)" class="space-y-5">
-                <div class="text-left"><label class="label-text">Username</label><input type="text" id="login_user" required class="minimal-input" placeholder="Enter your ID"></div>
-                <div class="text-left mb-6"><label class="label-text">Password</label><input type="password" id="login_pass" required class="minimal-input font-mono" placeholder="••••••••"></div>
-                <button type="submit" class="w-full py-3.5 bg-[#00320D] hover:bg-black text-white font-bold rounded-xl shadow-lg shadow-green-900/30 transition-all duration-300 transform hover:-translate-y-1">เข้าสู่ระบบ <i class="fa-solid fa-arrow-right-to-bracket ml-2"></i></button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Main App -->
-    <div id="main-app" class="hidden">
-        <header class="bg-[#00320D] border-b border-green-900 sticky top-0 z-50 shadow-md">
-            <div class="max-w-[1500px] mx-auto px-6 py-3 flex flex-col lg:flex-row justify-between items-center gap-4">
-                <div class="flex items-center gap-3"><div class="bg-white/10 p-2 rounded-lg border border-white/10 shadow-inner"><i class="fa-solid fa-car text-amber-400"></i></div><h1 class="text-lg font-black tracking-widest text-white">RIZENIC <span class="text-green-400">ERP</span></h1></div>
-                <nav class="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto justify-end">
-                    <div class="text-center sm:text-right sm:border-r border-green-800 sm:pr-4"><p class="text-xs font-black text-white" id="display_emp_name">SA Name</p><p class="text-[10px] text-green-300 font-bold">📍 <span id="display_branch">Branch</span></p></div>
-                    <div class="flex flex-wrap justify-center gap-1.5" id="nav-buttons">
-                        <a href="dashboard.html" class="px-4 py-2 rounded-lg text-green-200 hover:bg-white/10 font-bold transition-all text-xs">แดชบอร์ด</a>
-                        <button class="px-4 py-2 rounded-lg bg-gradient-to-r from-green-600 to-emerald-500 text-white font-black shadow-md shadow-black/20 border border-green-400 text-xs animate-pulse">เปิดบิลซ่อม</button>
-                        <a href="jobs.html" class="px-4 py-2 rounded-lg text-green-200 hover:bg-white/10 font-bold transition-all text-xs">บอร์ดใบงาน</a>
-                        <a href="repair.html" class="px-4 py-2 rounded-lg text-green-200 hover:bg-white/10 font-bold transition-all text-xs">สถานีช่าง</a>
-                        <a href="parts.html" class="px-4 py-2 rounded-lg text-green-200 hover:bg-white/10 font-bold transition-all text-xs">แผนกอะไหล่</a>
-                        <a href="finance.html" class="px-4 py-2 rounded-lg text-emerald-300 hover:bg-white/10 font-bold transition-all text-xs"><i class="fa-solid fa-file-invoice-dollar mr-1"></i> บัญชี</a>
-                        <button onclick="logout()" class="px-3 py-2 text-red-300 hover:text-red-100 transition-all text-xs bg-white/5 hover:bg-red-700/50 rounded-lg ml-2 border border-white/10"><i class="fa-solid fa-power-off"></i></button>
-                    </div>
-                </nav>
+    <nav class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 px-6 py-4">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="text-lg font-bold text-[#0F172A] tracking-wide uppercase text-sm flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-[#0F172A] animate-pulse"></span>
+                Panich.T
             </div>
-        </header>
-
-        <main class="max-w-[1500px] mx-auto px-4 py-8">
-            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
-                <div>
-                    <h2 class="text-2xl font-black text-slate-800 tracking-tight">เปิดบิลและประเมินงานซ่อม</h2>
-                    <p class="text-slate-500 text-sm mt-1 font-bold">Service Advisor Portal</p>
-                </div>
-
-                <div id="edit_mode_badge" class="hidden flex items-center gap-3 bg-amber-50 pl-4 pr-1 py-1 rounded-full border border-amber-300 shadow-sm">
-                    <span class="text-amber-700 text-xs font-bold animate-pulse"><i class="fa-solid fa-pen-to-square mr-1"></i> กำลังแก้ไขใบงาน: <span id="current_editing_id" class="font-mono bg-white px-2 py-0.5 rounded shadow-sm text-amber-700 border border-amber-200"></span></span>
-                    <button type="button" onclick="cancelEditMode()" id="btn_cancel_edit" class="px-4 py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-bold rounded-full hover:bg-slate-100 hover:text-slate-900 transition shadow-sm">ยกเลิก</button>
-                </div>
-            </div>
-
-            <form id="saForm" onsubmit="submitSaForm(event)">
-                <input type="hidden" id="sa_report_id">
-                
-                <!-- 🚗 บล็อก 1 -->
-                <div class="card-container">
-                    <div class="section-header">
-                        <h3 class="section-title"><i class="fa-solid fa-user section-icon"></i> 1. ข้อมูลลูกค้าและรถยนต์</h3>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        <div>
-                            <label class="label-text">SA ผู้รับผิดชอบ <span class="text-red-500">*</span></label>
-                            <input type="text" id="sa_owner_input" list="sa_list" class="minimal-input font-black text-blue-700 bg-blue-50 border-blue-200 focus:border-blue-500" placeholder="ระบุชื่อ SA">
-                            <datalist id="sa_list"></datalist>
-                        </div>
-
-                        <div><label class="label-text">ชื่อลูกค้า <span class="text-red-500">*</span></label><input type="text" id="customer_name" class="minimal-input" placeholder="ระบุชื่อลูกค้า"></div>
-                        <div><label class="label-text">เบอร์โทรศัพท์ <span class="text-red-500">*</span></label><input type="text" id="phone_number" class="minimal-input font-mono" placeholder="08X-XXX-XXXX"></div>
-                        <div><label class="label-text">ประเภทลูกค้า</label><select id="customer_type" class="minimal-input"><option value="">กำลังโหลด...</option></select></div>
-                        <div><label class="label-text">รูปแบบการชำระเงิน/ประกัน</label><select id="payment_type" class="minimal-input"><option value="">กำลังโหลด...</option></select></div>
-                        
-                        <div>
-                            <label class="label-text">ทะเบียนรถ <span class="text-red-500">*</span></label>
-                            <input type="text" id="car_plate" oninput="loadPartsTrackingTable(this.value.trim())" onchange="loadPartsTrackingTable(this.value.trim())" class="minimal-input uppercase text-lg text-center tracking-widest font-black text-green-800 bg-green-50 border-green-200 focus:border-green-500 focus:ring-green-500/20" placeholder="กข 1234">
-                        </div>
-                        
-                        <div>
-                            <label class="label-text">ยี่ห้อรถ <span class="text-red-500">*</span></label>
-                            <input type="text" id="car_brand" list="brand_list" class="minimal-input font-bold" value="Tesla" placeholder="พิมพ์ค้นหา..." onchange="updateCarModels(this.value)">
-                            <datalist id="brand_list"></datalist>
-                        </div>
-                        <div><label class="label-text">รุ่นรถ</label><select id="car_model" class="minimal-input"><option value="">-- เลือกรุ่นรถ --</option></select></div>
-                        <div><label class="label-text">หมายเลขตัวถัง (VIN)</label><input type="text" id="vin_no" class="minimal-input font-mono uppercase text-xs"></div>
-                    </div>
-                </div>
-
-                <!-- 📄 บล็อก 2 -->
-                <div class="card-container">
-                    <div class="section-header">
-                        <h3 class="section-title"><i class="fa-solid fa-file-contract section-icon"></i> 2. เอกสารอ้างอิงเชื่อมโยงระบบ</h3>
-                        <button type="button" onclick="addDocRow()" class="px-4 py-2 bg-slate-800 text-white text-xs font-bold rounded-xl shadow-md hover:bg-slate-900 transition-all border border-slate-700 w-full sm:w-auto mt-2 sm:mt-0">+ เพิ่มเอกสาร</button>
-                    </div>
-                    <div class="overflow-x-auto border border-slate-200 rounded-xl shadow-sm">
-                        <table class="modern-table">
-                            <thead><tr><th class="w-1/3">ประเภทเอกสาร</th><th class="w-1/2">หมายเลขเอกสาร</th><th class="w-1/6 text-center">จัดการ</th></tr></thead>
-                            <tbody id="docs_body"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- 🎨 บล็อก 3 -->
-                <div class="card-container">
-                    <div class="section-header">
-                        <h3 class="section-title"><i class="fa-solid fa-spray-can section-icon"></i> 3. ประเมินชิ้นส่วนตัวถังและทำสี</h3>
-                        <div class="flex gap-4 bg-slate-900 px-4 py-2 rounded-xl border border-black shadow-inner w-full sm:w-auto mt-2 sm:mt-0">
-                            <span class="text-xs font-bold text-green-300">ชิ้นส่วนหลัก: <span id="count_main" class="text-sm text-white ml-1 font-black">0</span></span>
-                            <div class="w-px h-4 bg-green-800"></div>
-                            <span class="text-xs font-bold text-amber-300">ชิ้นส่วนรอง: <span id="count_sub" class="text-sm text-white ml-1 font-black">0</span></span>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div>
-                            <p class="text-sm font-bold text-blue-800 mb-3"><i class="fa-solid fa-layer-group text-blue-500 mr-1"></i> ชิ้นส่วนหลัก (Main Parts)</p>
-                            <div id="body_parts_main" class="flex flex-wrap gap-2 content-start"><span class="text-xs text-slate-400 font-mono">กำลังโหลด...</span></div>
-                        </div>
-                        <div>
-                            <p class="text-sm font-bold text-amber-800 mb-3"><i class="fa-solid fa-puzzle-piece text-amber-500 mr-1"></i> ชิ้นส่วนรอง (Sub Parts)</p>
-                            <div id="body_parts_sub" class="flex flex-wrap gap-2 content-start"><span class="text-xs text-slate-400 font-mono">กำลังโหลด...</span></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 📦 บล็อก 4: สั่งซื้ออะไหล่ -->
-                <div class="card-container border-l-4 border-l-emerald-600">
-                    <div class="section-header">
-                        <h3 class="section-title"><i class="fa-solid fa-cart-plus section-icon"></i> 4. สร้างใบสั่งซื้ออะไหล่ (ส่งแผนกจัดซื้อ)</h3>
-                        <button type="button" onclick="addPartRow()" class="px-4 py-2 bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm hover:bg-emerald-800 transition-all border border-emerald-800 w-full sm:w-auto mt-2 sm:mt-0">+ เพิ่มรายการ</button>
-                    </div>
-                    <div class="overflow-x-auto border border-slate-200 rounded-xl shadow-sm">
-                        <table class="modern-table">
-                            <thead>
-                                <tr>
-                                    <th>บาร์โค้ด (Part 2)</th><th>MAIN No.</th><th>ชื่อชิ้นส่วน</th><th>รุ่นรถ</th><th>ประเภทอะไหล่</th>
-                                    <th class="text-right">ราคา</th><th>Location</th><th class="text-center">Safety Stock</th><th class="text-center">จำนวนสั่ง</th><th class="text-center">ดำเนินการ</th>
-                                </tr>
-                            </thead>
-                            <tbody id="order_parts_body"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- 🔍 บล็อก 5: PO Tracking -->
-                <div class="card-container">
-                    <div class="section-header">
-                        <h3 class="section-title"><i class="fa-solid fa-magnifying-glass-chart section-icon"></i> 5. ติดตามสถานะอะไหล่ (PO Tracking โต๊ะคีย์อะไหล่ SA)</h3>
-                        <button type="button" onclick="loadPartsTrackingTable(document.getElementById('car_plate').value.trim())" class="px-4 py-2 bg-white text-slate-700 text-xs font-bold border border-slate-300 rounded-xl shadow-sm hover:bg-slate-50 transition-all w-full sm:w-auto mt-2 sm:mt-0"><i class="fa-solid fa-rotate-right mr-1"></i> รีเฟรชตาราง</button>
-                    </div>
-                    <div class="overflow-x-auto border border-slate-300 rounded-xl shadow-sm bg-slate-100 p-1">
-                        <table class="excel-table-po" id="poTrackingTable">
-                            <thead>
-                                <tr>
-                                    <th style="width: 100px;">EPC No<div class="resizer-po"></div></th>
-                                    <th style="width: 110px;">บาร์โค้ด<div class="resizer-po"></div></th>
-                                    <th style="width: 110px;">MAIN No<div class="resizer-po"></div></th>
-                                    <th style="width: 220px;">รายการอะไหล่<div class="resizer-po"></div></th>
-                                    <th style="width: 90px;">ประเภท<div class="resizer-po"></div></th>
-                                    <th style="width: 80px;">สั่ง / รับ<div class="resizer-po"></div></th>
-                                    <th style="width: 110px;">สถานะคลัง<div class="resizer-po"></div></th>
-                                    <th style="width: 100px;">วันที่สั่ง<div class="resizer-po"></div></th>
-                                    <th style="width: 100px;">คาดการณ์ (ETA)<div class="resizer-po"></div></th>
-                                    <th style="width: 100px;">ของเข้าจริง<div class="resizer-po"></div></th>
-                                    <th style="width: 150px;">หมายเหตุ<div class="resizer-po"></div></th>
-                                    <th style="width: 70px;">จัดการ</th>
-                                </tr>
-                            </thead>
-                            <tbody id="track_parts_body">
-                                <tr><td colspan="12" class="text-center py-8 text-slate-400 text-xs font-bold bg-white">กรุณาระบุทะเบียนรถเพื่อติดตามสถานะอะไหล่</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- 👁️ บล็อก 6: สถานะช่าง (Read-Only) -->
-                <div class="card-container bg-slate-50/50">
-                    <div class="section-header">
-                        <h3 class="section-title"><i class="fa-solid fa-eye section-icon"></i> 6. ความคืบหน้าจากสถานีช่าง</h3>
-                    </div>
-                    <div class="flex flex-wrap gap-2" id="station_badges_container">
-                        <span id="badge_st_kho" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">01. เคาะ</span>
-                        <span id="badge_st_pou" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">02. โป๊ว</span>
-                        <span id="badge_st_puan" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">03. เตรียมพื้น</span>
-                        <span id="badge_st_pon" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">04. พ่นสี</span>
-                        <span id="badge_st_prak" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">05. ประกอบ</span>
-                        <span id="badge_st_kat" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">06. ขัดสี</span>
-                        <span id="badge_st_qc" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">07. เก็บงาน/QC</span>
-                        <span id="badge_st_mag" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">08. ซ่อมแม็ก</span>
-                        <span id="badge_st_kraj" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">09. กระจก</span>
-                        <span id="badge_st_film" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">10. ฟิล์ม</span>
-                        <span id="badge_st_pak" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">11. พักซ่อม</span>
-                        <span id="badge_st_ready" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">12. รอส่งมอบ</span>
-                    </div>
-                    <div id="repair_note_display" class="mt-3 text-xs text-amber-700 font-bold hidden bg-amber-50 p-2.5 rounded-lg border border-amber-200 shadow-inner">
-                        <i class="fa-solid fa-comment-dots text-amber-500 mr-1"></i> หมายเหตุจากช่าง: <span id="repair_note_text" class="text-slate-700 font-medium"></span>
-                    </div>
-                </div>
-
-                <!-- 🗓️ บล็อก 7/8 -->
-                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
-                    
-                    <div class="card-container lg:col-span-5 flex flex-col gap-3 !mb-0">
-                        <div class="section-header">
-                            <h3 class="section-title"><i class="fa-regular fa-calendar-days section-icon"></i> 7. กำหนดการนัดหมาย</h3>
-                            <button type="button" onclick="openScheduleCalendar()" class="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl shadow-md hover:bg-blue-700 transition-all border border-blue-700 w-full sm:w-auto mt-2 sm:mt-0"><i class="fa-solid fa-calendar-check mr-1"></i> เช็คตารางคิว & โควต้า</button>
-                        </div>
-                        <div class="timeline-row">
-                            <span class="text-xs font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-phone text-blue-500 w-5 text-center text-sm"></i> 1. ติดต่อสอบถาม</span>
-                            <input type="date" id="contact_date" class="minimal-input sm:w-40 py-2 !bg-white">
-                        </div>
-                        <div class="timeline-row">
-                            <span class="text-xs font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-truck-ramp-box text-emerald-600 w-5 text-center text-sm"></i> 2. รถเข้าจอดอู่</span>
-                            <input type="date" id="arrived_date" class="minimal-input sm:w-40 py-2 !bg-white focus:ring-emerald-500/30">
-                        </div>
-                        <div class="timeline-row">
-                            <span class="text-xs font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-car-tunnel text-amber-500 w-5 text-center text-sm"></i> 3. กำหนดซ่อมเสร็จ</span>
-                            <input type="date" id="target_finish_date" class="minimal-input sm:w-40 py-2 !bg-white">
-                        </div>
-                        <div class="timeline-row">
-                            <span class="text-xs font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-screwdriver-wrench text-slate-500 w-5 text-center text-sm"></i> 4. ซ่อมเสร็จจริง</span>
-                            <input type="date" id="repair_finish_date" class="minimal-input sm:w-40 py-2 !bg-white">
-                        </div>
-                        <div class="timeline-row">
-                            <span class="text-xs font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-key text-indigo-600 w-5 text-center text-sm"></i> 5. ส่งมอบรถลูกค้า</span>
-                            <input type="date" id="delivery_date" class="minimal-input sm:w-40 py-2 !bg-white">
-                        </div>
-                    </div>
-
-                    <div class="card-container lg:col-span-7 flex flex-col justify-between !mb-0">
-                        <div class="section-header">
-                            <h3 class="section-title"><i class="fa-solid fa-signal section-icon"></i> 8. สถานะและส่งต่อแผนก</h3>
-                        </div>
-                        <div class="space-y-6">
-                            <div>
-                                <label class="label-text">ระดับความเสียหาย (Damage Level)</label>
-                                <div class="grid grid-cols-3 gap-3 mt-1">
-                                    <div onclick="selectDamage('เบา')" id="dmg_btn_เบา" class="dmg-btn dmg-btn-light">เบา<br><span class="text-[10px] font-normal">Light</span></div>
-                                    <div onclick="selectDamage('กลาง')" id="dmg_btn_กลาง" class="dmg-btn dmg-btn-medium">กลาง<br><span class="text-[10px] font-normal">Medium</span></div>
-                                    <div onclick="selectDamage('หนัก')" id="dmg_btn_หนัก" class="dmg-btn dmg-btn-heavy">หนัก<br><span class="text-[10px] font-normal">Heavy</span></div>
-                                </div>
-                                <input type="hidden" id="damage_level" value="เบา">
-                            </div>
-
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 border-t border-slate-200 pt-5">
-                                <div>
-                                    <label class="label-text">ประเภทการรับรถ <span class="text-red-500">*</span></label>
-                                    <select id="park_status" class="minimal-input bg-blue-50 font-bold border-blue-200 text-blue-900 focus:bg-white" required>
-                                        <option value="ไม่จอดซ่อม">ไม่จอดซ่อม</option>
-                                        <option value="จอดซ่อม">จอดซ่อม</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="label-text">สถานะใบงาน (Job Status) <span class="text-red-500">*</span></label>
-                                    <select id="job_status" class="minimal-input bg-slate-50 font-bold border-slate-300" required onchange="autoMapRouting()">
-                                        <option value="">กำลังโหลด...</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="label-text">ส่งต่อแผนก (Routing) <span class="text-red-500">*</span></label>
-                                    <select id="department_routing" class="minimal-input bg-slate-100 font-black text-[#00320D] border-slate-300 focus:bg-white focus:border-[#00320D]" required>
-                                        <option value="รอดำเนินการ">รอดำเนินการ (Draft)</option>
-                                        <option value="บริการ">แผนกบริการ (SA)</option>
-                                        <option value="อะไหล่">แผนกอะไหล่ (Parts)</option>
-                                        <option value="ซ่อม">สถานีช่าง (Repair)</option>
-                                        <option value="บัญชี">แผนกบัญชี (Finance)</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div>
-                                <label class="label-text">หมายเหตุ / ความต้องการลูกค้า</label>
-                                <textarea id="notes" rows="3" class="minimal-input resize-none" placeholder="ระบุรายละเอียดเพิ่มเติม..."></textarea>
-                            </div>
-                        </div>
-                        <div class="pt-6">
-                            <button type="submit" id="btn_submit_sa" class="w-full py-4 rounded-xl bg-[#00320D] text-white font-black hover:bg-black shadow-lg shadow-green-900/30 transition-all transform hover:-translate-y-1 text-base tracking-wider border border-[#00320D]"><i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ</button>
-                        </div>
-                    </div>
-                </div>
-            </form>
-        </main>
-    </div>
-
-    <!-- 🌟 Modal: ปฏิทินคิวรถ -->
-    <div id="scheduleCalendarModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[120] flex items-center justify-center hidden p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden modal-fade border-t-4 border-blue-600 flex flex-col max-h-[90vh]">
-            <div class="bg-[#00320D] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md z-10 relative">
-                <h2 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-calendar-days text-blue-400"></i> ตารางคิวรถ และ โควต้าชิ้นงานทำสี</h2>
-                <button type="button" onclick="closeModal('scheduleCalendarModal')" class="hover:text-red-400 transition text-2xl"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="flex-1 overflow-auto custom-scrollbar p-6 bg-slate-50">
-                <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                    <div class="flex flex-wrap items-center gap-3 text-[11px] font-bold bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm">
-                        <span class="text-emerald-600 flex items-center"><div class="w-3 h-3 rounded-full bg-emerald-500 mr-1.5"></div> รถเข้าจอด</span>
-                        <span class="text-amber-600 flex items-center"><div class="w-3 h-3 rounded-full bg-amber-500 mr-1.5"></div> นัดซ่อมเสร็จ</span>
-                        <span class="text-blue-600 flex items-center"><div class="w-3 h-3 rounded-full bg-blue-500 mr-1.5"></div> ส่งมอบ</span>
-                    </div>
-                    <div class="flex items-center gap-4 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm">
-                        <button type="button" onclick="changeSchedMonth(-1)" class="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold transition-colors"><i class="fa-solid fa-chevron-left"></i></button>
-                        <h2 id="sched_month_title" class="text-sm font-black text-[#00320D] min-w-[140px] text-center">เดือน...</h2>
-                        <button type="button" onclick="changeSchedMonth(1)" class="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold transition-colors"><i class="fa-solid fa-chevron-right"></i></button>
-                    </div>
-                </div>
-                <div class="grid grid-cols-7 gap-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 bg-white py-2 rounded-xl border border-slate-200 shadow-sm">
-                    <div>อาทิตย์</div><div>จันทร์</div><div>อังคาร</div><div>พุธ</div><div>พฤหัสฯ</div><div>ศุกร์</div><div>เสาร์</div>
-                </div>
-                <div id="sched_calendar_grid" class="grid grid-cols-7 gap-2 min-h-[400px]"></div>
+            <div class="hidden lg:flex space-x-4 xl:space-x-6 text-sm font-medium text-gray-500">
+                <a href="#overview" class="hover:text-[#0F172A] transition-colors">Overview</a>
+                <a href="#techstack" class="hover:text-[#0F172A] transition-colors">Tech Stack</a>
+                <a href="#rizenic" class="hover:text-green-600 font-bold transition-colors">RIZENIC Web App 🌟</a>
+                <a href="#xpel" class="hover:text-[#0F172A] transition-colors">XPEL System</a>
+                <a href="#tms" class="hover:text-[#0F172A] transition-colors">TERN Logistic</a>
+                <a href="#roadmap" class="hover:text-blue-600 font-semibold transition-colors">Roadmap</a>
             </div>
         </div>
-    </div>
+    </nav>
 
-    <!-- 🌟 Modal: แก้ไขรายการ PO -->
-    <div id="editPOModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[150] flex items-center justify-center hidden p-4">
-        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden modal-fade border-t-4 border-[#00320D] flex flex-col">
-            <div class="bg-[#00320D] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md">
-                <h3 class="font-bold text-base flex items-center gap-2">
-                    <i class="fa-solid fa-pen-to-square text-amber-400"></i> แก้ไขรายการสั่งซื้ออะไหล่
-                </h3>
-                <button type="button" onclick="closeEditPOModal()" class="text-slate-300 hover:text-red-400 transition text-2xl">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            
-            <form id="editPOForm" onsubmit="submitEditPOModal(event)" class="p-6 space-y-4 bg-slate-50">
-                <input type="hidden" id="edit_po_modal_id">
-                <input type="hidden" id="edit_po_modal_car_plate">
-                
-                <div>
-                    <label class="label-text text-slate-700 font-bold">จำนวนสั่งซื้อ (ชิ้น)</label>
-                    <input type="number" id="edit_po_modal_qty" required min="1" class="minimal-input font-black text-center text-xl text-amber-600 bg-white border-slate-300">
-                </div>
-                
-                <div>
-                    <label class="label-text text-slate-700 font-bold">หมายเหตุเพิ่มเติม</label>
-                    <textarea id="edit_po_modal_notes" rows="4" class="minimal-input bg-white border-slate-300 resize-none text-xs font-medium" placeholder="พิมพ์รายละเอียดหมายเหตุที่นี่..."></textarea>
-                </div>
-                
-                <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
-                    <button type="button" onclick="closeEditPOModal()" class="px-5 py-2.5 bg-white text-slate-600 text-xs font-bold rounded-xl border border-slate-300 hover:bg-slate-100 transition shadow-sm">
-                        ยกเลิก
-                    </button>
-                    <button type="submit" id="btn_submit_edit_po" class="px-6 py-2.5 bg-[#00320D] hover:bg-black text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-2 border border-green-800">
-                        <i class="fa-solid fa-floppy-disk text-amber-400"></i> บันทึกข้อมูล
-                    </button>
-                </div>
-            </form>
+    <!-- Overview Section -->
+    <header id="overview" class="max-w-7xl mx-auto px-6 pt-24 pb-16 text-center">
+        <div class="relative w-40 h-40 mx-auto mb-8 group">
+            <div class="absolute inset-0 bg-[#0F172A] rounded-full scale-105 opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
+            <img src="S__41730082.jpg" alt="พานิช ธิมายอม" class="w-full h-full object-cover rounded-full minimal-shadow border-4 border-white relative z-10" onerror="this.src='https://placehold.co/400x400/0F172A/FFFFFF?text=PT'">
         </div>
-    </div>
-
-    <script>
-        const API_BASE_URL = window.location.origin;
-        let globalCarData = [];
-        let globalStatuses = [];
-
-        document.addEventListener('DOMContentLoaded', () => {
-            if(sessionStorage.getItem('isLoggedIn') !== 'true') {
-                document.getElementById('login-screen').classList.remove('hidden');
-                document.getElementById('main-app').classList.add('hidden');
-                return;
-            }
-            enterApp();
-        });
-
-        function selectDamage(level) {
-            document.getElementById('damage_level').value = level;
-            const b = document.getElementById('dmg_btn_เบา');
-            const m = document.getElementById('dmg_btn_กลาง');
-            const h = document.getElementById('dmg_btn_หนัก');
-
-            b.className = 'dmg-btn dmg-btn-light'; m.className = 'dmg-btn dmg-btn-medium'; h.className = 'dmg-btn dmg-btn-heavy';
-
-            if(level === 'เบา') b.className = 'dmg-btn bg-emerald-600 text-white border-emerald-700 shadow-md scale-[1.02]';
-            if(level === 'กลาง') m.className = 'dmg-btn bg-amber-500 text-slate-900 border-amber-600 shadow-md scale-[1.02]';
-            if(level === 'หนัก') h.className = 'dmg-btn bg-rose-600 text-white border-rose-700 shadow-md scale-[1.02]';
-        }
-
-        async function handleLogin(e) {
-            e.preventDefault();
-            const user = document.getElementById('login_user').value; 
-            const pass = document.getElementById('login_pass').value;
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: user, password: pass }) });
-                const data = await res.json();
-                if (data.success) {
-                    sessionStorage.setItem('isLoggedIn', 'true'); 
-                    sessionStorage.setItem('emp_name', data.employee.employee_name);
-                    sessionStorage.setItem('emp_role', data.employee.employee_role); 
-                    sessionStorage.setItem('emp_branch', data.employee.branch_name || 'สำนักงานใหญ่');
-                    
-                    const accessiblePages = data.employee.accessible_pages || '';
-                    sessionStorage.setItem('accessible_pages', accessiblePages);
-                    
-                    // เมื่อล็อกอินให้เข้าหน้าแดชบอร์ดทันที ตามความต้องการ
-                    window.location.href = 'dashboard.html';
-                } else alert('❌ ' + data.error);
-            } catch (err) { alert('❌ ระบบขัดข้อง'); }
-        }
-
-        function enterApp() {
-            document.getElementById('login-screen').classList.add('hidden');
-            document.getElementById('main-app').classList.remove('hidden');
-            
-            document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name') || 'Admin Test';
-            document.getElementById('display_branch').innerText = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
-            
-            // ใส่ชื่อคนที่ล็อกอินลงไปในช่อง SA อัตโนมัติเวลาเปิดหน้าสร้างบิล
-            document.getElementById('sa_owner_input').value = sessionStorage.getItem('emp_name') || '';
-
-            document.getElementById('contact_date').value = new Date().toISOString().split('T')[0];
-            selectDamage('เบา'); 
-            loadInitialData(); addDocRow(); addPartRow(); checkCrossPageEditMode();
-        }
-
-        function logout() { sessionStorage.clear(); window.location.reload(); }
-
-        function autoMapRouting() {
-            const selectedStatus = document.getElementById('job_status').value;
-            const mapping = globalStatuses.find(s => s.status_name === selectedStatus);
-            const routeSelect = document.getElementById('department_routing');
-            if(mapping && mapping.department) { routeSelect.value = mapping.department; }
-            
-            const parkedStatuses = [
-                "09.จอดรอเข้าซ่อม", "10.กำลังซ่อม", "11.รถซ่อมเสร็จรอส่งมอบ", 
-                "12.ส่งมอบ", "13.วางบิลประกัน", "14.ชำระเงินสด", 
-                "15.วางบิล Tesla", "16.วางบิล EV ME", "17.รอออกบิล", 
-                "19.ออกบิลแล้ว", "20.จอดซ่อม TC", "21.พักซ่อม"
-            ];
-            const isParked = parkedStatuses.some(st => selectedStatus.includes(st) || st.includes(selectedStatus));
-            document.getElementById('park_status').value = isParked ? 'จอดซ่อม' : 'ไม่จอดซ่อม';
-        }
-
-        async function loadInitialData() {
-            // ดึงรายชื่อพนักงานทั้งหมดมาใส่ใน Datalist SA (กรองเฉพาะตำแหน่ง SA และสาขาตัวเอง)
-            fetch(`${API_BASE_URL}/api/employees`).then(async r => {
-                if(r.ok) {
-                    const data = await r.json();
-                    const saList = document.getElementById('sa_list');
-                    saList.innerHTML = '';
-                    
-                    const userBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
-                    
-                    // 🌟 กรองเฉพาะพนักงานที่เป็น SA และอยู่สาขาเดียวกับเรา
-                    const branchSAs = data.filter(e => {
-                        const isSameBranch = e.branch_name === userBranch;
-                        const role = (e.employee_role || '').toUpperCase();
-                        const isSA = role === 'SA' || role.includes('SERVICE ADVISOR') || role.includes('SERVICE');
-                        return isSameBranch && isSA;
-                    });
-
-                    // 🌟 ตัดชื่อซ้ำ และเรียงตามตัวอักษร
-                    const uniqueSAs = [...new Set(branchSAs.map(e => e.employee_name).filter(Boolean))].sort();
-                    uniqueSAs.forEach(name => {
-                        saList.innerHTML += `<option value="${name}">`;
-                    });
-                }
-            }).catch(() => {});
-
-            fetch(`${API_BASE_URL}/api/statuses`).then(async r => {
-                if(!r.ok) throw new Error('API Error'); 
-                globalStatuses = await r.json();
-                const select = document.getElementById('job_status'); 
-                select.innerHTML = '<option value="">-- เลือกสถานะใบงาน --</option>';
-                globalStatuses.forEach(item => select.innerHTML += `<option value="${item.status_name}">${item.status_name}</option>`);
-            }).catch(() => {});
-
-            fetch(`${API_BASE_URL}/api/customer-types`).then(async r => {
-                if(!r.ok) throw new Error('API Error'); const data = await r.json();
-                const select = document.getElementById('customer_type'); select.innerHTML = '<option value="">-- เลือก --</option>';
-                data.forEach(item => select.innerHTML += `<option value="${item.type_name}">${item.type_name}</option>`);
-            }).catch(() => {});
-
-            fetch(`${API_BASE_URL}/api/car-models`).then(async r => {
-                if(!r.ok) throw new Error('API Error'); const data = await r.json();
-                globalCarData = data; 
-                const uniqueBrands = [...new Set(data.map(car => car.car_brand))];
-                const brandList = document.getElementById('brand_list'); 
-                brandList.innerHTML = '';
-                uniqueBrands.forEach(brand => brandList.innerHTML += `<option value="${brand}">`);
-                updateCarModels('Tesla'); 
-            }).catch(() => {});
-
-            fetch(`${API_BASE_URL}/api/insurances`).then(async r => {
-                if(!r.ok) throw new Error('API Error'); const data = await r.json();
-                const select = document.getElementById('payment_type'); select.innerHTML = '<option value="">-- เลือก --</option>';
-                data.forEach(item => select.innerHTML += `<option value="${item.insurance_name}">${item.insurance_name}</option>`);
-            }).catch(() => {});
-            
-            fetch(`${API_BASE_URL}/api/body-parts`).then(async r => {
-                if(!r.ok) throw new Error('API Error'); const data = await r.json();
-                repairBodyPartsList.main = data.filter(p => p.category === 'ชิ้นส่วนหลัก').map(p => p.part_name);
-                repairBodyPartsList.sub = data.filter(p => p.category === 'ชิ้นส่วนรอง').map(p => p.part_name);
-                renderBodyPartsUI();
-            }).catch(() => {});
-        }
-
-        function updateCarModels(brandName) {
-            const select = document.getElementById('car_model'); select.innerHTML = '<option value="">-- เลือกรุ่นรถ --</option>';
-            globalCarData.filter(car => car.car_brand === brandName).forEach(car => { select.innerHTML += `<option value="${car.car_model}">${car.car_model}</option>`; });
-        }
-
-        let repairBodyPartsList = { main: [], sub: [] };
-        let selectedBodyParts = { main: [], sub: [] };
-        function renderBodyPartsUI() {
-            const mainContainer = document.getElementById('body_parts_main'); const subContainer = document.getElementById('body_parts_sub');
-            mainContainer.innerHTML = ''; subContainer.innerHTML = '';
-            repairBodyPartsList.main.forEach(part => {
-                const isSelected = selectedBodyParts.main.includes(part);
-                mainContainer.innerHTML += `<span onclick="toggleBodyPart('main', '${part}')" class="part-badge ${isSelected ? 'selected-main' : 'unselected'}">${part}</span>`;
-            });
-            repairBodyPartsList.sub.forEach(part => {
-                const isSelected = selectedBodyParts.sub.includes(part);
-                subContainer.innerHTML += `<span onclick="toggleBodyPart('sub', '${part}')" class="part-badge ${isSelected ? 'selected-sub' : 'unselected'}">${part}</span>`;
-            });
-            document.getElementById('count_main').innerText = selectedBodyParts.main.length;
-            document.getElementById('count_sub').innerText = selectedBodyParts.sub.length;
-        }
-
-        function toggleBodyPart(category, partName) {
-            const index = selectedBodyParts[category].indexOf(partName);
-            if (index > -1) { selectedBodyParts[category].splice(index, 1); } else { selectedBodyParts[category].push(partName); }
-            renderBodyPartsUI();
-        }
-
-        function addDocRow(type = 'QT', val = '') {
-            const tbody = document.getElementById('docs_body');
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td class="px-4 py-3"><select class="minimal-input doc-type font-bold !py-1.5"><option value="QT" ${type==='QT'?'selected':''}>ใบเสนอราคา (QT)</option><option value="SO" ${type==='SO'?'selected':''}>ใบสั่งซ่อม (SO)</option><option value="BL" ${type==='BL'?'selected':''}>ใบวางบิล (BL)</option></select></td>
-                <td class="px-4 py-3"><input type="text" class="minimal-input doc-no font-mono uppercase !py-1.5" placeholder="กรอกหมายเลขเอกสาร" value="${val}"></td>
-                <td class="px-4 py-3 text-center"><button type="button" onclick="this.closest('tr').remove()" class="text-slate-400 hover:text-red-600 transition bg-white p-2 rounded-lg border border-slate-200 shadow-sm"><i class="fa-solid fa-trash"></i></button></td>
-            `;
-            tbody.appendChild(tr);
-        }
-
-        function addPartRow(partNo = '', partMain = '', partName = '', model = '', type = 'อะไหล่หลัก', price = '0', loc = '', safe = '0') {
-            const tbody = document.getElementById('order_parts_body'); if(!tbody) return;
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td class="px-2 py-2"><input type="text" class="minimal-input px-2 py-1.5 part-no-input font-mono uppercase text-xs bg-white" placeholder="บาร์โค้ด" value="${partNo}" onblur="checkMasterPart(this)"></td>
-                <td class="px-2 py-2"><input type="text" class="minimal-input px-2 py-1.5 part-main-input font-mono text-xs" placeholder="MAIN No" value="${partMain}" readonly></td>
-                <td class="px-2 py-2"><input type="text" class="minimal-input px-2 py-1.5 part-name-input text-xs" placeholder="ชื่อชิ้นส่วน" value="${partName}"></td>
-                <td class="px-2 py-2"><input type="text" class="minimal-input px-2 py-1.5 part-model-input text-xs" placeholder="รุ่นรถ" value="${model}"></td>
-                <td class="px-2 py-2 min-w-[120px]">
-                    <input type="text" class="minimal-input px-2 py-1.5 part-type-input text-xs font-bold" placeholder="ประเภท" value="${type}">
-                </td>
-                <td class="px-2 py-2"><input type="number" class="minimal-input px-2 py-1.5 part-price-input text-xs text-right" placeholder="ราคา" value="${price}"></td>
-                <td class="px-2 py-2"><input type="text" class="minimal-input px-2 py-1.5 part-loc-input text-xs" placeholder="Location" value="${loc}"></td>
-                <td class="px-2 py-2 text-center"><input type="number" class="minimal-input px-2 py-1.5 part-safe-input text-xs text-center font-bold" value="${safe}"></td>
-                <td class="px-2 py-2"><input type="number" class="minimal-input px-2 py-1.5 part-qty-input text-center font-black text-xs text-amber-600 bg-amber-50 border-amber-300 focus:border-amber-500" value="1" min="1"></td>
-                <td class="px-2 py-2 text-center flex flex-col gap-1.5">
-                    <button type="button" onclick="sendSinglePO(this)" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black px-3 py-1.5 rounded-lg shadow-sm transition-all whitespace-nowrap"><i class="fa-solid fa-paper-plane mr-1"></i> แอด</button>
-                    <button type="button" onclick="this.closest('tr').remove()" class="text-slate-400 hover:text-red-500 transition text-[10px] font-bold"><i class="fa-solid fa-trash"></i> ทิ้ง</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        }
-
-        async function checkMasterPart(inputElem) {
-            const partNo = inputElem.value.trim(); if(!partNo) return;
-            const tr = inputElem.closest('tr'); 
-            const n = tr.querySelector('.part-name-input'); const m = tr.querySelector('.part-main-input');
-            const mo = tr.querySelector('.part-model-input'); const p = tr.querySelector('.part-price-input');
-            const l = tr.querySelector('.part-loc-input'); const s = tr.querySelector('.part-safe-input');
-            const t = tr.querySelector('.part-type-input');
-
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/parts/check/${encodeURIComponent(partNo)}`);
-                if(res.ok) {
-                    const resData = await res.json();
-                    const data = Array.isArray(resData) ? resData[0] : (resData.data ? (Array.isArray(resData.data) ? resData.data[0] : resData.data) : resData);
-                    if (data && (data.part_name || data.part_no)) {
-                        if(n) n.value = data.part_name || ''; 
-                        if(m) m.value = data.part_main_no || '-'; 
-                        if(mo) mo.value = data.car_model || '-';
-                        if(t) t.value = data.part_category || 'อะไหล่หลัก'; 
-                        if(p) p.value = data.unit_price || 0; 
-                        if(l) l.value = data.location || '-'; 
-                        if(s) s.value = data.safety_stock || 0;
-                    }
-                }
-            } catch(e) { console.log(e); }
-        }
-
-        // 🌟 แก้ไขฟังก์ชันกด "แอด": บันทึก PO และเบิก/จองอะไหล่ (Outbound) พร้อมกัน
-        async function sendSinglePO(btnElem) {
-            const carPlate = document.getElementById('car_plate').value.trim();
-            if(!carPlate) { alert('⚠️ กรุณากรอก "ทะเบียนรถ" ด้านบนก่อนยิงออเดอร์ครับ!'); return; }
-
-            const tr = btnElem.closest('tr');
-            const pNo = tr.querySelector('.part-no-input')?.value?.trim() || ''; 
-            const pMain = tr.querySelector('.part-main-input')?.value?.trim() || '';
-            let pName = tr.querySelector('.part-name-input')?.value?.trim() || ''; 
-            const pType = tr.querySelector('.part-type-input')?.value?.trim() || 'อะไหล่หลัก';
-            const pQty = parseInt(tr.querySelector('.part-qty-input')?.value) || 1;
-            
-            if(!pNo) { alert('⚠️ กรุณาระบุบาร์โค้ดอะไหล่ก่อนสั่งซื้อ'); return; }
-
-            if (!pName) {
-                try {
-                    const resPart = await fetch(`${API_BASE_URL}/api/parts/check/${encodeURIComponent(pNo)}`);
-                    if (resPart.ok) {
-                        const resData = await resPart.json();
-                        const partData = Array.isArray(resData) ? resData[0] : (resData.data ? (Array.isArray(resData.data) ? resData.data[0] : resData.data) : resData);
-                        if (partData && partData.part_name) {
-                            pName = partData.part_name;
-                            if(tr.querySelector('.part-name-input')) tr.querySelector('.part-name-input').value = pName;
-                        }
-                    }
-                } catch(e) {}
-            }
-
-            if(!pName) { 
-                pName = prompt('ไม่พบชื่อชิ้นส่วนอะไหล่ในคลัง กรุณากรอกชื่ออะไหล่:');
-                if(!pName) return;
-                if(tr.querySelector('.part-name-input')) tr.querySelector('.part-name-input').value = pName;
-            }
-
-            let qtArr = [], soArr = [];
-            document.querySelectorAll('#docs_body tr').forEach(row => {
-                const type = row.querySelector('.doc-type')?.value; const val = row.querySelector('.doc-no')?.value?.trim();
-                if(val) { if(type === 'QT') qtArr.push(val); if(type === 'SO') soArr.push(val); }
-            });
-
-            const currentJobId = document.getElementById('sa_report_id')?.value || null;
-
-            try {
-                btnElem.disabled = true;
-                btnElem.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-                
-                // 1. บันทึกคำสั่งซื้อ
-                const resPO = await fetch(`${API_BASE_URL}/api/part-orders`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        job_id: currentJobId,
-                        car_plate: carPlate, vin_no: document.getElementById('vin_no')?.value || null, car_model: document.getElementById('car_model')?.value || null, 
-                        qt_no: qtArr.join(',') || null, so_no: soArr.join(',') || null, epc_no: null,
-                        part_no: pNo, part_main_no: pMain || null, part_name: pName, qty_ordered: pQty, part_type: pType, 
-                        branch_name: sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่', order_status: 'รอสั่งซื้อ', order_date: new Date().toISOString().split('T')[0]
-                    })
-                });
-
-                if (!resPO.ok) {
-                    throw new Error('บันทึกคำสั่งซื้ออะไหล่ไม่สำเร็จ');
-                }
-
-                // 2. บันทึกเบิก/จองอะไหล่ (Outbound) ให้ด้วยทันที
-                await fetch(`${API_BASE_URL}/api/part-outbound`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        job_id: currentJobId,
-                        issue_date: new Date().toISOString().split('T')[0],
-                        part_no: pNo, part_main_no: pMain || null, part_name: pName, qty: pQty,
-                        car_plate: carPlate, qt_no: qtArr.join(',') || null, so_no: soArr.join(',') || null,
-                        unit_price: 0, car_model: document.getElementById('car_model')?.value || null,
-                        job_status: 'รอเข้าซ่อม', part_type: pType,
-                        branch_name: sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่'
-                    })
-                }).catch(e => console.warn(e));
-
-                tr.remove(); 
-                if (document.querySelectorAll('#order_parts_body tr').length === 0) {
-                    addPartRow();
-                }
-
-                const toast = document.createElement('div');
-                toast.className = 'fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-5 py-2.5 rounded-xl shadow-2xl z-[200] flex items-center gap-2 border border-white/20 text-xs';
-                toast.innerHTML = `<i class="fa-solid fa-circle-check text-base"></i> แอดสั่งซื้อและจองอะไหล่เรียบร้อย!`;
-                document.body.appendChild(toast);
-                setTimeout(() => toast.remove(), 2500);
-
-                loadPartsTrackingTable(carPlate); 
-                
-            } catch(e) { 
-                alert('❌ เกิดข้อผิดพลาดในการยิงออเดอร์: ' + e.message); 
-            } finally {
-                if (btnElem && btnElem.isConnected) {
-                    btnElem.disabled = false;
-                    btnElem.innerHTML = '<i class="fa-solid fa-paper-plane mr-1"></i> แอด'; 
-                }
-            }
-        }
-
-        async function loadPartsTrackingTable(carPlate) {
-    const tbody = document.getElementById('track_parts_body');
-    if (!carPlate || !carPlate.trim()) {
-        tbody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400 text-xs font-bold bg-white">กรุณาระบุทะเบียนรถเพื่อติดตามสถานะอะไหล่</td></tr>`;
-        return;
-    }
-    try {
-        const clean = str => String(str || '').replace(/\s+/g, '').toUpperCase();
-        const searchPlate = clean(carPlate);
-
-        const res = await fetch(`${API_BASE_URL}/api/part-orders?_t=` + new Date().getTime(), { cache: 'no-store' });
-        if (!res.ok) return;
-        const resData = await res.json();
-        const data = Array.isArray(resData) ? resData : (resData.data || []);
         
-        const filtered = data.filter(p => {
-            if(!p || !p.car_plate) return false;
-            const pPlate = clean(p.car_plate);
-            return pPlate === searchPlate || pPlate.includes(searchPlate) || searchPlate.includes(pPlate);
-        });
+        <div class="inline-block px-4 py-1.5 border border-[#0F172A] text-[#0F172A] rounded-full text-xs font-semibold tracking-widest uppercase mb-6 bg-white minimal-shadow">
+            Professional Portfolio
+        </div>
+        
+        <h1 class="text-4xl md:text-5xl font-bold tracking-tight text-[#0F172A] mb-4 gradient-text">
+            พานิช ธิมายอม
+        </h1>
+        
+        <!-- Updated Title -->
+        <h2 class="text-xl md:text-2xl font-medium text-gray-600 mb-6 flex flex-col md:flex-row items-center justify-center gap-2 md:gap-3">
+            <span class="font-bold text-[#0F172A]">Business Systems Analyst</span> 
+            <span class="hidden md:inline text-gray-300">|</span> 
+            <span class="font-bold text-[#0F172A]">Full Stack Developer</span>
+            <span class="hidden md:inline text-gray-300">|</span> 
+            <span class="font-medium text-blue-600">System Analyst</span>
+        </h2>
+        
+        <p class="text-lg text-gray-600 leading-relaxed max-w-3xl mx-auto font-light mb-8">
+            มุ่งเน้นการวิเคราะห์ความต้องการทางธุรกิจ (Business Requirements) ปรับปรุงกระบวนการทำงาน (Process Improvement) และออกแบบระบบสารสนเทศ (Information Systems) เพื่อพัฒนา <strong>Enterprise Web Applications, Automation Systems และ BI Dashboards</strong> ที่ช่วยเพิ่มประสิทธิภาพการดำเนินงาน พร้อมขับเคลื่อนการตัดสินใจด้วยข้อมูล (Data-Driven Decision Making)
+        </p>
 
-        if (filtered.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400 text-xs font-bold bg-white">ไม่พบรายการสั่งซื้ออะไหล่สำหรับทะเบียน "${carPlate}"</td></tr>`;
-            return;
-        }
-
-        tbody.innerHTML = filtered.map(item => {
-            const orderId = item.id || item.order_id;
-            const hasETA = item.est_arrival_date && String(item.est_arrival_date).trim() !== '';
-            const encodedNotes = encodeURIComponent(item.notes || '');
-
-            const actionButtons = hasETA 
-                ? `<span class="text-slate-400 text-[11px] font-bold flex items-center justify-center gap-1" title="สั่งของแล้ว ไม่สามารถแก้ไขได้"><i class="fa-solid fa-lock"></i> ล็อก</span>`
-                : `<div class="flex items-center justify-center gap-1">
-                       <button type="button" onclick="openEditPOModal('${orderId}', '${item.qty_ordered || 1}', '${encodedNotes}', '${carPlate}')" class="text-blue-600 hover:text-blue-800 bg-white border border-slate-300 p-1 rounded shadow-2xs transition" title="แก้ไขรายการนี้"><i class="fa-solid fa-pen text-[11px]"></i></button>
-                       <button type="button" onclick="deletePO('${orderId}', '${carPlate}')" class="text-red-500 hover:text-red-700 bg-white border border-slate-300 p-1 rounded shadow-2xs transition" title="ลบรายการนี้"><i class="fa-solid fa-trash text-[11px]"></i></button>
-                   </div>`;
-
-            // 🌟 จุดสำคัญ: ดึงข้อมูลจาก received_date
-            const receivedDateVal = item.received_date || item.part_received_all_date;
-
-            return `
-            <tr class="hover:bg-amber-50/50 transition-colors border-b border-slate-100">
-                <td class="font-mono text-xs font-bold text-slate-600 text-center">${item.epc_no || '-'}</td>
-                <td class="font-mono text-xs font-bold text-blue-700 text-center">${item.part_no || '-'}</td>
-                <td class="font-mono text-xs font-bold text-slate-600 text-center">${item.part_main_no || '-'}</td>
-                <td class="font-bold text-slate-800 whitespace-normal break-words">${item.part_name || '-'}</td>
-                <td class="text-center font-bold text-slate-600">${item.part_type || 'หลัก'}</td>
-                <td class="text-center font-bold"><span class="text-amber-600">${item.qty_ordered || 0}</span> / <span class="text-emerald-600">${item.qty_received || 0}</span></td>
-                <td class="text-center"><span class="px-2 py-0.5 rounded border text-[10px] font-bold shadow-2xs bg-slate-100 text-slate-700">${item.order_status || 'รอสั่งซื้อ'}</span></td>
-                <td class="font-mono text-xs text-slate-500 text-center">${item.order_date ? String(item.order_date).split('T')[0] : '-'}</td>
-                <td class="font-mono text-xs font-bold text-center ${hasETA ? 'text-amber-600' : 'text-slate-400'}">${hasETA ? String(item.est_arrival_date).split('T')[0] : '-'}</td>
-                <td class="font-mono text-xs text-emerald-600 font-bold text-center">${receivedDateVal ? String(receivedDateVal).split('T')[0] : '-'}</td>
-                <td class="whitespace-normal break-words text-slate-600">${item.notes || '-'}</td>
-                <td class="text-center py-1.5">${actionButtons}</td>
-            </tr>
-        `}).join('');
-
-        setTimeout(initResizablePOColumns, 300);
-    } catch (e) {
-        console.error("Error loading tracking table:", e);
-    }
-}
-
-        function initResizablePOColumns() {
-            const cols = document.querySelectorAll('#poTrackingTable th');
-            cols.forEach(col => {
-                const resizer = col.querySelector('.resizer-po'); if(!resizer) return;
-                let startX = 0; let startWidth = 0;
-                
-                const onMouseDown = (e) => { 
-                    e.stopPropagation(); e.preventDefault(); 
-                    startX = e.clientX; startWidth = col.offsetWidth; 
-                    resizer.classList.add('resizing');
-                    document.addEventListener('mousemove', onMouseMove); 
-                    document.addEventListener('mouseup', onMouseUp); 
-                };
-                const onMouseMove = (e) => { 
-                    const newWidth = Math.max(40, startWidth + (e.clientX - startX));
-                    col.style.width = `${newWidth}px`; 
-                    col.style.minWidth = `${newWidth}px`; 
-                };
-                const onMouseUp = () => { 
-                    resizer.classList.remove('resizing');
-                    document.removeEventListener('mousemove', onMouseMove); 
-                    document.removeEventListener('mouseup', onMouseUp); 
-                };
-                resizer.removeEventListener('mousedown', onMouseDown);
-                resizer.addEventListener('mousedown', onMouseDown);
-            });
-        }
-
-        function openEditPOModal(id, qty, encodedNotes, carPlate) {
-            const decodedNotes = decodeURIComponent(encodedNotes);
-            document.getElementById('edit_po_modal_id').value = id;
-            document.getElementById('edit_po_modal_car_plate').value = carPlate;
-            document.getElementById('edit_po_modal_qty').value = qty;
-            document.getElementById('edit_po_modal_notes').value = decodedNotes;
+        <!-- CORE RESPONSIBILITIES -->
+        <div class="max-w-5xl mx-auto mt-12 text-left bg-white p-8 md:p-10 rounded-3xl border border-gray-100 shadow-lg relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-slate-50 rounded-bl-full -z-10"></div>
             
-            document.getElementById('editPOModal').classList.remove('hidden');
-        }
-
-        function closeEditPOModal() {
-            document.getElementById('editPOModal').classList.add('hidden');
-        }
-
-        async function submitEditPOModal(e) {
-            e.preventDefault();
-            const id = document.getElementById('edit_po_modal_id').value;
-            const carPlate = document.getElementById('edit_po_modal_car_plate').value;
-            const qty = parseInt(document.getElementById('edit_po_modal_qty').value) || 1;
-            const notes = document.getElementById('edit_po_modal_notes').value;
-
-            const btn = document.getElementById('btn_submit_edit_po');
-            const oldHtml = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
-
-            try {
-                const resMain = await fetch(`${API_BASE_URL}/api/part-orders/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ qty_ordered: qty, notes: notes })
-                });
-
-                if (!resMain.ok) {
-                    await fetch(`${API_BASE_URL}/api/part-orders/${id}/fast`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ field: 'qty_ordered', value: qty })
-                    });
-                    
-                    await new Promise(resolve => setTimeout(resolve, 200));
-
-                    await fetch(`${API_BASE_URL}/api/part-orders/${id}/fast`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ field: 'notes', value: notes })
-                    });
-                }
-
-                closeEditPOModal();
-                loadPartsTrackingTable(carPlate);
-            } catch(err) {
-                alert('❌ แก้ไขข้อมูลไม่สำเร็จ'); 
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = oldHtml;
-            }
-        }
-
-        async function deletePO(id, carPlate) {
-            if(confirm('🚨 ยืนยันการลบรายการสั่งซื้อนี้ออกจากระบบ?')) {
-                try { 
-                    const res = await fetch(`${API_BASE_URL}/api/part-orders/${id}`, { method: 'DELETE' }); 
-                    if(!res.ok) throw new Error();
-                    alert('✅ ลบข้อมูลเรียบร้อย'); 
-                    loadPartsTrackingTable(carPlate); 
-                } catch(e) { 
-                    alert('❌ ลบข้อมูลไม่สำเร็จ'); 
-                }
-            }
-        }
-
-        async function checkCrossPageEditMode() {
-            const idToEdit = sessionStorage.getItem('edit_job_id'); if(!idToEdit) return;
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/report/${idToEdit}`); if (!res.ok) return;
-                const job = await res.json();
+            <h3 class="text-2xl font-bold text-[#0F172A] mb-6 flex items-center gap-3 border-b border-gray-100 pb-4">
+                <span class="text-3xl">💼</span> ประสบการณ์และความรับผิดชอบหลัก
+            </h3>
+            <ul class="space-y-6 text-gray-600 font-light text-sm md:text-base relative z-10">
+                <li class="flex items-start gap-4">
+                    <span class="text-blue-500 mt-1 text-lg"><i class="fa-solid fa-chart-line"></i></span>
+                    <div><strong class="text-[#0F172A] font-medium">Business Process Improvement:</strong> วิเคราะห์ความต้องการทางธุรกิจ (Business Requirements) ศึกษากระบวนการทำงานปัจจุบัน (As-Is Process) และออกแบบกระบวนการทำงานใหม่ (To-Be Process) เพื่อเพิ่มประสิทธิภาพการดำเนินงาน</div>
+                </li>
+                <li class="flex items-start gap-4">
+                    <span class="text-indigo-500 mt-1 text-lg"><i class="fa-solid fa-list-check"></i></span>
+                    <div><strong class="text-[#0F172A] font-medium">Requirements Gathering & System Analysis:</strong> รวบรวมและวิเคราะห์ Requirement จากผู้บริหารและผู้ใช้งาน พร้อมออกแบบ Workflow และจัดทำ Functional Specification สำหรับการพัฒนาระบบ</div>
+                </li>
                 
-                document.getElementById('sa_report_id').value = job.id;
-                document.getElementById('current_editing_id').innerText = job.id;
-                document.getElementById('edit_mode_badge').classList.remove('hidden'); 
-                document.getElementById('btn_submit_sa').innerHTML = '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม';
-                updateStationProgress(job);
+                <!-- Highlight: Full Stack Web Dev -->
+                <li class="flex items-start gap-4 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+                    <span class="text-blue-600 mt-1 text-lg"><i class="fa-solid fa-laptop-code"></i></span>
+                    <div><strong class="text-blue-900 font-bold">Enterprise Web Development:</strong> ออกแบบและพัฒนาระบบ Custom Web Application เต็มรูปแบบ (Designed and Developed) ครอบคลุมทั้ง Frontend และ Backend RESTful API พร้อม Deploy ระบบขึ้นใช้งานบนระบบคลาวด์ระดับสากล (Vercel Cloud)</div>
+                </li>
+                
+                <!-- Highlight: Database & Architecture -->
+                <li class="flex items-start gap-4 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
+                    <span class="text-emerald-600 mt-1 text-lg"><i class="fa-solid fa-database"></i></span>
+                    <div><strong class="text-emerald-900 font-bold">Data Modeling & Database Design:</strong> ออกแบบฐานข้อมูล (Data Model), Entity Relationship Diagram (ERD) และโครงสร้างข้อมูลให้รองรับการสเกล พร้อมวางมาตรฐานการจัดเก็บข้อมูลด้วย <strong>SQL (PostgreSQL)</strong></div>
+                </li>
 
-                // ดึงชื่อ SA เดิมมาใส่ในช่อง SA หากเป็นการแก้ไข
-                document.getElementById('sa_owner_input').value = job.sa_owner || sessionStorage.getItem('emp_name') || '';
+                <li class="flex items-start gap-4">
+                    <span class="text-purple-500 mt-1 text-lg"><i class="fa-solid fa-robot"></i></span>
+                    <div><strong class="text-[#0F172A] font-medium">Data Integration & Automation:</strong> พัฒนาระบบ Automation (ETL) และเชื่อมโยงข้อมูลระหว่างหลายแหล่ง เพื่อลดการทำงานซ้ำซ้อน ลดข้อผิดพลาดจากการคีย์ข้อมูล และเพิ่มความรวดเร็วในการดำเนินงาน</div>
+                </li>
+                <li class="flex items-start gap-4">
+                    <span class="text-green-500 mt-1 text-lg"><i class="fa-solid fa-chart-pie"></i></span>
+                    <div><strong class="text-[#0F172A] font-medium">Business Intelligence (BI) & Dashboards:</strong> พัฒนา Dashboard บน Looker Studio สำหรับติดตาม KPI, Operational Performance และข้อมูลเชิงบริหาร (Executive Dashboard) แบบ Real-time</div>
+                </li>
+                <li class="flex items-start gap-4">
+                    <span class="text-red-500 mt-1 text-lg"><i class="fa-solid fa-vial-circle-check"></i></span>
+                    <div><strong class="text-[#0F172A] font-medium">UAT & Stakeholder Management:</strong> ดำเนินการทดสอบระบบ (User Acceptance Test), ดักจับและแก้ไขปัญหา Error ในระบบ (Debugging) ด้วยตัวเอง เพื่อตรวจสอบความถูกต้องของข้อมูลก่อนนำระบบขึ้นใช้งานจริงบน Production</div>
+                </li>
+            </ul>
 
-                document.getElementById('customer_name').value = job.customer_name || ''; 
-                document.getElementById('phone_number').value = job.phone_number || '';
-                document.getElementById('car_brand').value = job.car_brand || 'Tesla';
-                await updateCarModels(job.car_brand || 'Tesla');
-                
-                setTimeout(async () => {
-                    document.getElementById('customer_type').value = job.customer_type || ''; 
-                    document.getElementById('car_model').value = job.car_model || ''; 
-                    document.getElementById('payment_type').value = job.payment_type || '';
-                }, 800);
+            <!-- ATS KEYWORDS TAG CLOUD -->
+            <div class="mt-8 pt-6 border-t border-gray-100">
+                <h4 class="text-xs font-bold text-gray-400 tracking-widest uppercase mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-tags"></i> Core Competencies & Keywords
+                </h4>
+                <div class="flex flex-wrap gap-2">
+                    <span class="px-2.5 py-1 bg-[#0F172A] text-white rounded text-xs font-medium tracking-wide">System Analysis</span>
+                    <span class="px-2.5 py-1 bg-[#0F172A] text-white rounded text-xs font-medium tracking-wide">Business Process Improvement</span>
+                    <span class="px-2.5 py-1 bg-[#0F172A] text-white rounded text-xs font-medium tracking-wide">Data Modeling</span>
+                    <span class="px-2.5 py-1 bg-[#0F172A] text-white rounded text-xs font-medium tracking-wide">REST API</span>
+                    <span class="px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded text-xs font-medium">Requirements Gathering</span>
+                    <span class="px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded text-xs font-medium">Workflow Design</span>
+                    <span class="px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded text-xs font-medium">SQL</span>
+                    <span class="px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded text-xs font-medium">PostgreSQL</span>
+                    <span class="px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded text-xs font-medium">Normalization</span>
+                    <span class="px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded text-xs font-medium">ETL & CRUD</span>
+                    <span class="px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded text-xs font-medium">System Integration</span>
+                    <span class="px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded text-xs font-medium">Cloud Deployment</span>
+                    <span class="px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded text-xs font-medium">CI/CD & Git</span>
+                    <span class="px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded text-xs font-medium">Node.js / Express</span>
+                    <span class="px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded text-xs font-medium">UAT</span>
+                </div>
+            </div>
+        </div>
+    </header>
 
-                document.getElementById('car_plate').value = job.car_plate || ''; 
-                document.getElementById('vin_no').value = job.vin_no || '';
-                
-                document.getElementById('docs_body').innerHTML = '';
-                let qtArr = [], soArr = [];
-                if (job.qt_no) job.qt_no.split(',').forEach(v => { let val = v.trim(); if(val) { qtArr.push(val); addDocRow('QT', val); }});
-                if (job.so_no) job.so_no.split(',').forEach(v => { let val = v.trim(); if(val) { soArr.push(val); addDocRow('SO', val); }});
-                if (job.bl_no) job.bl_no.split(',').forEach(v => { if(v.trim()) addDocRow('BL', v.trim()); });
-                
-                const resPO = await fetch(`${API_BASE_URL}/api/part-orders`);
-                if(resPO.ok) {
-                    const poData = await resPO.json();
-                    const myPOs = poData.filter(p => p.car_plate === job.car_plate);
-                    myPOs.forEach(po => {
-                        if(po.qt_no) po.qt_no.split(',').forEach(v => { let val = v.trim(); if(val && !qtArr.includes(val)) { qtArr.push(val); addDocRow('QT', val); }});
-                        if(po.so_no) po.so_no.split(',').forEach(v => { let val = v.trim(); if(val && !soArr.includes(val)) { soArr.push(val); addDocRow('SO', val); }});
-                    });
-                }
-
-                if (document.getElementById('docs_body').children.length === 0) addDocRow();
-                
-                selectDamage(job.damage_level || 'เบา');
-                
-                selectedBodyParts.main = job.main_part_name ? job.main_part_name.split(',').map(s => s.trim()).filter(Boolean) : [];
-                selectedBodyParts.sub = job.sub_part_name ? job.sub_part_name.split(',').map(s => s.trim()).filter(Boolean) : [];
-                renderBodyPartsUI();
-                
-                setTimeout(() => {
-                    if(job.job_status) {
-                        document.getElementById('job_status').value = job.job_status;
-                        if (job.department_routing) document.getElementById('department_routing').value = job.department_routing;
-                        else autoMapRouting();
-
-                        document.getElementById('notes').value = job.notes || '';
-                        if (job.is_parked) document.getElementById('park_status').value = job.is_parked;
-                        else autoMapRouting(); 
-                    }
-                }, 800);
-                
-                document.getElementById('contact_date').value = job.contact_date ? job.contact_date.split('T')[0] : '';
-                document.getElementById('arrived_date').value = job.arrived_date ? job.arrived_date.split('T')[0] : '';
-                document.getElementById('target_finish_date').value = job.target_finish_date ? job.target_finish_date.split('T')[0] : '';
-                document.getElementById('repair_finish_date').value = job.repair_finish_date ? job.repair_finish_date.split('T')[0] : '';
-                document.getElementById('delivery_date').value = job.delivery_date ? job.delivery_date.split('T')[0] : '';
-                
-                loadPartsTrackingTable(job.car_plate);
-
-            } catch(e) { console.error(e); }
-        }
-
-        function cancelEditMode() {
-            sessionStorage.removeItem('edit_job_id'); document.getElementById('saForm').reset(); document.getElementById('sa_report_id').value = '';
-            document.getElementById('edit_mode_badge').classList.add('hidden');
-            document.getElementById('btn_submit_sa').innerHTML = '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ';
+    <!-- TECHNOLOGY STACK SECTION -->
+    <section id="techstack" class="bg-white border-y border-gray-100">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-[#0F172A] mb-4">Technology Stack</h2>
+                <div class="w-12 h-1 bg-blue-600 mx-auto mb-6"></div>
+                <p class="text-gray-500 font-light">เครื่องมือและเทคโนโลยีที่ใช้ในการออกแบบ พัฒนา และดูแลรักษาระบบ</p>
+            </div>
             
-            document.getElementById('docs_body').innerHTML = ''; addDocRow();
-            document.getElementById('order_parts_body').innerHTML = ''; addPartRow();
-            document.getElementById('track_parts_body').innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400 text-xs font-bold bg-white">กรุณาบันทึกใบงานเพื่อติดตามสถานะอะไหล่</td></tr>`;
-            
-            selectedBodyParts.main = [];
-            selectedBodyParts.sub = [];
-            renderBodyPartsUI();
-
-            selectDamage('เบา');
-            document.getElementById('department_routing').value = 'รอดำเนินการ';
-            document.getElementById('park_status').value = 'ไม่จอดซ่อม';
-            
-            // รีเซ็ต SA ให้กลับไปเป็นชื่อคนล็อกอิน
-            document.getElementById('sa_owner_input').value = sessionStorage.getItem('emp_name') || '';
-            
-            updateStationProgress(null);
-        }
-
-        async function submitSaForm(event) {
-            event.preventDefault(); 
-            
-            const requiredFields = [
-                { id: 'sa_owner_input', name: 'SA ผู้รับผิดชอบ' },
-                { id: 'customer_name', name: 'ชื่อลูกค้า' },
-                { id: 'car_plate', name: 'ทะเบียนรถ' },
-                { id: 'job_status', name: 'สถานะใบงาน' }
-            ];
-            
-            let missingFields = [];
-            requiredFields.forEach(field => {
-                const el = document.getElementById(field.id);
-                if (!el || !el.value.trim()) missingFields.push(field.name);
-            });
-
-            if (missingFields.length > 0) { alert('⚠️ กรุณากรอกข้อมูลบังคับให้ครบถ้วน:\n\n- ' + missingFields.join('\n- ')); return; }
-
-            const editId = document.getElementById('sa_report_id').value;
-            
-            let qtArr = [], soArr = [], blArr = [];
-            document.querySelectorAll('#docs_body tr').forEach(tr => {
-                const type = tr.querySelector('.doc-type').value; const val = tr.querySelector('.doc-no').value.trim();
-                if(val) { if(type === 'QT') qtArr.push(val); if(type === 'SO') soArr.push(val); if(type === 'BL') blArr.push(val); }
-            });
-
-            const routingDept = document.getElementById('department_routing').value || 'รอดำเนินการ';
-            
-            const formData = {
-                sa_owner: document.getElementById('sa_owner_input').value.trim(), 
-                branch_name: sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่',
-                customer_name: document.getElementById('customer_name').value, 
-                phone_number: document.getElementById('phone_number').value,
-                customer_type: document.getElementById('customer_type').value, 
-                car_brand: document.getElementById('car_brand').value,
-                car_model: document.getElementById('car_model').value, 
-                vin_no: document.getElementById('vin_no').value,
-                qt_no: qtArr.join(', '), 
-                so_no: soArr.join(', '), 
-                bl_no: blArr.join(', '),
-                payment_type: document.getElementById('payment_type').value, 
-                damage_level: document.getElementById('damage_level').value,
-                contact_date: document.getElementById('contact_date').value || null, 
-                arrived_date: document.getElementById('arrived_date').value || null,
-                target_finish_date: document.getElementById('target_finish_date').value || null, 
-                repair_finish_date: document.getElementById('repair_finish_date').value || null,
-                delivery_date: document.getElementById('delivery_date').value || null, 
-                notes: document.getElementById('notes').value, 
-                is_parked: document.getElementById('park_status').value, 
-                job_status: document.getElementById('job_status').value, 
-                car_plate: document.getElementById('car_plate').value,
-                department_routing: routingDept,
-                main_part_qty: selectedBodyParts.main.length,
-                sub_part_qty: selectedBodyParts.sub.length,
-                main_part_name: selectedBodyParts.main.join(' , '), 
-                sub_part_name: selectedBodyParts.sub.join(' , '),
-                appointment_date: null,
-                customer_phone: null,
-                expected_finish_date: null,
-                cost_labor: 0,
-                cost_part: 0,
-                cost_external: 0,
-                quotation_no: null,
-                job_order_no: null,
-                ivn_no: null
-            };
-            
-            const url = editId ? `${API_BASE_URL}/api/report/${editId}` : `${API_BASE_URL}/api/report`;
-            const method = editId ? 'PUT' : 'POST';
-            
-            try {
-                const btnSubmit = document.getElementById('btn_submit_sa');
-                const oldBtnText = btnSubmit.innerHTML;
-                btnSubmit.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> กำลังบันทึก...';
-                btnSubmit.disabled = true;
-
-                const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
-                if (!response.ok) {
-                    const errData = await response.json();
-                    alert('❌ บันทึกล้มเหลว (อาจเกินโควต้า):\n\n' + (errData.error || 'โปรดตรวจสอบอีกครั้ง'));
-                    btnSubmit.innerHTML = oldBtnText; btnSubmit.disabled = false; return;
-                }
-
-                // 🌟 อ่านคำตอบและดึง job_id เพื่อนำไปสั่งอะไหล่
-                const resJson = await response.json();
-                const savedJobId = editId || resJson?.insertedId || null;
-
-                if (routingDept.includes('อะไหล่') || formData.job_status.includes('06.สั่งอะไหล่')) {
-                    const partRows = document.querySelectorAll('#order_parts_body tr');
-                    for (let tr of partRows) {
-                        const pNo = tr.querySelector('.part-no-input')?.value; 
-                        const pMain = tr.querySelector('.part-main-input')?.value;
-                        const pName = tr.querySelector('.part-name-input')?.value; 
-                        const pType = tr.querySelector('.part-type-input')?.value || 'อะไหล่หลัก';
-                        const pQty = tr.querySelector('.part-qty-input')?.value || '1';
-                        
-                        if (pNo && pName) {
-                            // 1. บันทึกคำสั่งซื้อ
-                            await fetch(`${API_BASE_URL}/api/part-orders`, {
-                                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ 
-                                    job_id: savedJobId,
-                                    qt_no: qtArr.join(', '), so_no: soArr.join(', '), epc_no: null,
-                                    order_date: new Date().toISOString().split('T')[0], car_plate: formData.car_plate, vin_no: formData.vin_no, car_model: formData.car_model, 
-                                    part_no: pNo, part_main_no: pMain, part_name: pName, qty_ordered: pQty, part_type: pType, branch_name: formData.branch_name, order_status: 'รอสั่งซื้อ' 
-                                })
-                            });
-
-                            // 2. บันทึกจองอะไหล่ (Outbound) ให้ด้วยทันที
-                            await fetch(`${API_BASE_URL}/api/part-outbound`, {
-                                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    job_id: savedJobId,
-                                    issue_date: new Date().toISOString().split('T')[0],
-                                    part_no: pNo, part_main_no: pMain || null, part_name: pName, qty: pQty,
-                                    car_plate: formData.car_plate, qt_no: qtArr.join(',') || null, so_no: soArr.join(',') || null,
-                                    unit_price: 0, car_model: formData.car_model || null,
-                                    job_status: 'รอเข้าซ่อม', part_type: pType,
-                                    branch_name: formData.branch_name
-                                })
-                            }).catch(e => console.warn(e));
-                        }
-                    }
-                }
-                
-                if (editId) { alert(`🎉 อัปเดตใบงานเรียบร้อย!`); loadPartsTrackingTable(formData.car_plate); btnSubmit.innerHTML = '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม'; btnSubmit.disabled = false; } 
-                else { alert(`🎉 เปิดบิลเรียบร้อย!`); cancelEditMode(); }
-                
-            } catch (e) { 
-                console.error(e);
-                alert('❌ เครือข่ายขัดข้อง'); 
-                const btnSubmit = document.getElementById('btn_submit_sa');
-                btnSubmit.innerHTML = '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ'; 
-                btnSubmit.disabled = false;
-            }
-        }
-
-        function updateStationProgress(job) {
-            const stations = [
-                { id: 'badge_st_kho', val: job?.station_kho }, { id: 'badge_st_pou', val: job?.station_pou }, { id: 'badge_st_puan', val: job?.station_puan },
-                { id: 'badge_st_pon', val: job?.station_pon }, { id: 'badge_st_prak', val: job?.station_prak }, { id: 'badge_st_kat', val: job?.station_kat },
-                { id: 'badge_st_qc', val: job?.station_qc }, { id: 'badge_st_mag', val: job?.station_mag }, { id: 'badge_st_kraj', val: job?.station_kraj },
-                { id: 'badge_st_film', val: job?.station_film }, { id: 'badge_st_pak', val: job?.station_pak }, { id: 'badge_st_ready', val: job?.station_ready }
-            ];
-
-            stations.forEach(st => {
-                const el = document.getElementById(st.id); if (!el) return;
-                el.className = 'px-3 py-1.5 rounded-lg text-[11px] font-bold shadow-sm transition-all border';
-                el.innerHTML = el.innerHTML.replace('<i class="fa-solid fa-circle-check mr-1"></i> ', ''); 
-                
-                const isCompleted = st.val === true || String(st.val).toLowerCase() === 'true';
-
-                if (isCompleted) { 
-                    el.classList.add('bg-emerald-100', 'text-emerald-700', 'border-emerald-300'); 
-                    el.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> ' + el.innerHTML; 
-                } 
-                else { 
-                    el.classList.add('bg-white', 'text-slate-400', 'border-slate-200'); 
-                }
-            });
-
-            const noteContainer = document.getElementById('repair_note_display');
-            if (job && job.repair_notes && job.repair_notes.trim() !== "") { document.getElementById('repair_note_text').innerText = job.repair_notes; noteContainer.classList.remove('hidden'); } 
-            else { noteContainer.classList.add('hidden'); }
-        }
-
-        let currentSchedMonth = new Date().getMonth();
-        let currentSchedYear = new Date().getFullYear();
-        let allSchedJobs = [];
-        let allSchedQuotas = [];
-
-        async function openScheduleCalendar() {
-            document.getElementById('scheduleCalendarModal').classList.remove('hidden');
-            try {
-                const b = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
-                const [resJobs, resQuotas] = await Promise.all([
-                    fetch(`${API_BASE_URL}/api/reports`),
-                    fetch(`${API_BASE_URL}/api/quotas`)
-                ]);
-                const rawJobs = await resJobs.json();
-                allSchedJobs = rawJobs.filter(j => j.branch_name === b);
-                
-                const rawQuotas = await resQuotas.json();
-                allSchedQuotas = rawQuotas.filter(q => q.branch_name === b);
-                
-                renderSchedCalendar();
-            } catch (e) { console.error('โหลดข้อมูลปฏิทินล้มเหลว', e); }
-        }
-
-        function changeSchedMonth(direction) {
-            currentSchedMonth += direction;
-            if (currentSchedMonth > 11) { currentSchedMonth = 0; currentSchedYear++; }
-            if (currentSchedMonth < 0) { currentSchedMonth = 11; currentSchedYear--; }
-            renderSchedCalendar();
-        }
-
-        function renderSchedCalendar() {
-            const grid = document.getElementById('sched_calendar_grid'); grid.innerHTML = '';
-            const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
-            document.getElementById('sched_month_title').innerText = `${monthNames[currentSchedMonth]} ${currentSchedYear}`;
-
-            const firstDay = new Date(currentSchedYear, currentSchedMonth, 1).getDay();
-            const totalDays = new Date(currentSchedYear, currentSchedMonth + 1, 0).getDate();
-
-            for(let i = 0; i < firstDay; i++) { grid.innerHTML += `<div class="bg-transparent rounded-xl"></div>`; }
-
-            for(let day = 1; day <= totalDays; day++) {
-                const dateStr = `${currentSchedYear}-${String(currentSchedMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-                
-                const arrCount = allSchedJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length;
-                const tarCount = allSchedJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).length;
-                const delCount = allSchedJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
-
-                const mainPartsSum = allSchedJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).reduce((sum, j) => sum + (parseInt(j.main_part_qty)||0), 0);
-                const subPartsSum = allSchedJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).reduce((sum, j) => sum + (parseInt(j.sub_part_qty)||0), 0);
-
-                const specialQuota = allSchedQuotas.find(q => q.quota_type === 'special' && q.quota_date && q.quota_date.split('T')[0] === dateStr);
-                const defaultQuota = allSchedQuotas.find(q => q.quota_type === 'default');
-                
-                const maxMain = specialQuota ? (parseInt(specialQuota.quota_main_parts)||0) : (defaultQuota ? (parseInt(defaultQuota.quota_main_parts)||0) : 0);
-                const maxSub = specialQuota ? (parseInt(specialQuota.quota_sub_parts)||0) : (defaultQuota ? (parseInt(defaultQuota.quota_sub_parts)||0) : 0);
-
-                let badgeHTML = '';
-                if(arrCount > 0) badgeHTML += `<div class="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5 w-full flex justify-between items-center"><i class="fa-solid fa-car-side"></i> <span>${arrCount} คัน</span></div>`;
-                if(tarCount > 0) badgeHTML += `<div class="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 w-full flex justify-between items-center"><i class="fa-solid fa-hammer"></i> <span>${tarCount} คัน</span></div>`;
-                if(delCount > 0) badgeHTML += `<div class="text-[9px] font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5 w-full flex justify-between items-center"><i class="fa-solid fa-flag-checkered"></i> <span>${delCount} คัน</span></div>`;
-
-                let quotaHTML = '';
-                if (maxMain > 0 || maxSub > 0) {
-                    quotaHTML += `<div class="mt-auto w-full pt-1 flex flex-col gap-1.5">`;
-                    
-                    if (maxMain > 0) {
-                        let pct = Math.min((mainPartsSum / maxMain) * 100, 100);
-                        let color = pct >= 100 ? 'bg-rose-600' : (pct >= 80 ? 'bg-amber-500' : 'bg-blue-500');
-                        quotaHTML += `
-                        <div>
-                            <div class="flex justify-between text-[8px] font-black text-slate-500 mb-0.5"><span>ชิ้นหลัก</span><span class="${pct>=100?'text-rose-600':''}">${mainPartsSum}/${maxMain}</span></div>
-                            <div class="quota-bar"><div class="quota-fill ${color}" style="width: ${pct}%"></div></div>
-                        </div>`;
-                    }
-                    if (maxSub > 0) {
-                        let pct = Math.min((subPartsSum / maxSub) * 100, 100);
-                        let color = pct >= 100 ? 'bg-rose-600' : (pct >= 80 ? 'bg-amber-500' : 'bg-amber-400');
-                        quotaHTML += `
-                        <div>
-                            <div class="flex justify-between text-[8px] font-black text-slate-500 mb-0.5"><span>ชิ้นรอง</span><span class="${pct>=100?'text-rose-600':''}">${subPartsSum}/${maxSub}</span></div>
-                            <div class="quota-bar"><div class="quota-fill ${color}" style="width: ${pct}%"></div></div>
-                        </div>`;
-                    }
-                    quotaHTML += `</div>`;
-                } else {
-                    quotaHTML = `<div class="mt-auto w-full pt-2 text-[8px] font-bold text-slate-400 text-center">ไม่จำกัดโควต้าสี</div>`;
-                }
-
-                grid.innerHTML += `
-                    <div class="sched-cell hover:bg-blue-50/30" onclick="selectDateFromCalendar('${dateStr}')">
-                        <span class="text-xs font-black text-slate-400 font-mono mb-1.5">${day}</span>
-                        <div class="flex flex-col gap-1 w-full flex-1">${badgeHTML}</div>
-                        ${quotaHTML}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                <!-- Frontend -->
+                <div class="p-6 rounded-2xl border border-gray-100 hover:border-blue-300 transition-all bg-[#F8FAFC]">
+                    <div class="flex items-center gap-3 mb-4">
+                        <i class="fa-brands fa-html5 text-3xl text-orange-500"></i>
+                        <h3 class="font-bold text-[#0F172A] text-lg">Frontend</h3>
                     </div>
-                `;
-            }
-        }
+                    <div class="flex flex-wrap gap-2">
+                        <span class="px-3 py-1 bg-white border border-gray-200 rounded text-sm text-gray-700">HTML5</span>
+                        <span class="px-3 py-1 bg-white border border-gray-200 rounded text-sm text-gray-700">CSS3</span>
+                        <span class="px-3 py-1 bg-white border border-gray-200 rounded text-sm text-gray-700">JavaScript (ES6)</span>
+                        <span class="px-3 py-1 bg-white border border-gray-200 rounded text-sm text-gray-700">Tailwind CSS</span>
+                    </div>
+                </div>
+                
+                <!-- Backend -->
+                <div class="p-6 rounded-2xl border border-gray-100 hover:border-green-300 transition-all bg-[#F8FAFC]">
+                    <div class="flex items-center gap-3 mb-4">
+                        <i class="fa-brands fa-node-js text-3xl text-green-600"></i>
+                        <h3 class="font-bold text-[#0F172A] text-lg">Backend & API</h3>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="px-3 py-1 bg-white border border-gray-200 rounded text-sm text-gray-700">Node.js</span>
+                        <span class="px-3 py-1 bg-white border border-gray-200 rounded text-sm text-gray-700">Express.js</span>
+                        <span class="px-3 py-1 bg-white border border-gray-200 rounded text-sm text-gray-700">RESTful API</span>
+                        <span class="px-3 py-1 bg-white border border-gray-200 rounded text-sm text-gray-700">JSON</span>
+                    </div>
+                </div>
 
-        function selectDateFromCalendar(dateStr) {
-            document.getElementById('arrived_date').value = dateStr;
-            closeModal('scheduleCalendarModal');
+                <!-- Database -->
+                <div class="p-6 rounded-2xl border border-gray-100 hover:border-blue-400 transition-all bg-[#F8FAFC]">
+                    <div class="flex items-center gap-3 mb-4">
+                        <i class="fa-solid fa-database text-3xl text-blue-500"></i>
+                        <h3 class="font-bold text-[#0F172A] text-lg">Database</h3>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="px-3 py-1 bg-white border border-gray-200 rounded text-sm text-gray-700">SQL</span>
+                        <span class="px-3 py-1 bg-white border border-gray-200 rounded text-sm text-gray-700">PostgreSQL</span>
+                        <span class="px-3 py-1 bg-white border border-gray-200 rounded text-sm text-gray-700">Neon (Cloud DB)</span>
+                        <span class="px-3 py-1 bg-white border border-gray-200 rounded text-sm text-gray-700">Data Modeling</span>
+                    </div>
+                </div>
+
+                <!-- Deployment / DevOps -->
+                <div class="p-6 rounded-2xl border border-gray-100 hover:border-gray-400 transition-all bg-[#F8FAFC]">
+                    <div class="flex items-center gap-3 mb-4">
+                        <i class="fa-brands fa-github text-3xl text-gray-800"></i>
+                        <h3 class="font-bold text-[#0F172A] text-lg">DevOps & Cloud</h3>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="px-3 py-1 bg-white border border-gray-200 rounded text-sm text-gray-700">Git / GitHub</span>
+                        <span class="px-3 py-1 bg-white border border-gray-200 rounded text-sm text-gray-700">Vercel (Serverless)</span>
+                        <span class="px-3 py-1 bg-white border border-gray-200 rounded text-sm text-gray-700">Render</span>
+                        <span class="px-3 py-1 bg-white border border-gray-200 rounded text-sm text-gray-700">CI/CD Pipeline</span>
+                    </div>
+                </div>
+
+                <!-- Automation & BI -->
+                <div class="p-6 rounded-2xl border border-gray-100 hover:border-yellow-400 transition-all bg-[#F8FAFC] md:col-span-2 lg:col-span-2">
+                    <div class="flex items-center gap-3 mb-4">
+                        <i class="fa-solid fa-wand-magic-sparkles text-3xl text-yellow-500"></i>
+                        <h3 class="font-bold text-[#0F172A] text-lg">BI, Analytics & Low-Code</h3>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="px-3 py-1 bg-white border border-gray-200 rounded text-sm text-gray-700">Looker Studio</span>
+                        <span class="px-3 py-1 bg-white border border-gray-200 rounded text-sm text-gray-700">Google Apps Script</span>
+                        <span class="px-3 py-1 bg-white border border-gray-200 rounded text-sm text-gray-700">AppSheet</span>
+                        <span class="px-3 py-1 bg-white border border-gray-200 rounded text-sm text-gray-700">Advanced Excel/Sheets Formulas</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Methodology / SDLC Section -->
+    <section id="sdlc" class="bg-white-section border-b border-gray-100 overflow-hidden">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl font-bold text-[#0F172A] mb-4">SDLC & Implementation Methodology</h2>
+                <div class="w-12 h-1 bg-[#0F172A] mx-auto mb-6"></div>
+                <p class="text-gray-500 max-w-2xl mx-auto font-light">กระบวนการพัฒนาระบบแบบ End-to-End ตั้งแต่การเก็บ Requirement จนถึงขึ้น Production</p>
+            </div>
             
-            const arrivedInput = document.getElementById('arrived_date');
-            arrivedInput.classList.add('ring-4', 'ring-emerald-500/30', 'border-emerald-500');
-            setTimeout(() => { arrivedInput.classList.remove('ring-4', 'ring-emerald-500/30', 'border-emerald-500'); }, 1500);
-        }
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-6 relative">
+                <div class="hidden md:block absolute top-1/2 left-10 right-10 h-0.5 bg-gray-200 -z-10 transform -translate-y-1/2"></div>
+                <div class="bg-white p-6 rounded-2xl border border-gray-200 text-center shadow-sm relative"><div class="w-10 h-10 mx-auto bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold mb-3 border-4 border-white">1</div><h4 class="font-semibold text-sm">Requirement<br>Gathering</h4></div>
+                <div class="bg-white p-6 rounded-2xl border border-gray-200 text-center shadow-sm relative"><div class="w-10 h-10 mx-auto bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center font-bold mb-3 border-4 border-white">2</div><h4 class="font-semibold text-sm">System Design<br>(ERD / UI / API)</h4></div>
+                <div class="bg-[#0F172A] p-6 rounded-2xl text-center text-white transform md:scale-110 shadow-lg relative"><div class="w-10 h-10 mx-auto bg-white/20 rounded-full flex items-center justify-center font-bold mb-3 border-4 border-[#0F172A]">3</div><h4 class="font-semibold text-sm">Development<br>& Build</h4></div>
+                <div class="bg-white p-6 rounded-2xl border border-gray-200 text-center shadow-sm relative"><div class="w-10 h-10 mx-auto bg-green-100 text-green-600 rounded-full flex items-center justify-center font-bold mb-3 border-4 border-white">4</div><h4 class="font-semibold text-sm">UAT & QA<br>Testing</h4></div>
+                <div class="bg-white p-6 rounded-2xl border border-gray-200 text-center shadow-sm relative"><div class="w-10 h-10 mx-auto bg-purple-100 text-purple-600 rounded-full flex items-center justify-center font-bold mb-3 border-4 border-white">5</div><h4 class="font-semibold text-sm">Deployment<br>(CI/CD)</h4></div>
+            </div>
+        </div>
+    </section>
 
-        function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
-    </script>
+    <!-- 🌟 RIZENIC PROJECT SECTION (Digital Transformation Showcase) 🌟 -->
+    <section id="rizenic" class="bg-slate-50 border-y border-gray-200 py-20 relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-green-500/5 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="max-w-7xl mx-auto px-6 relative z-10">
+            
+            <div class="text-center mb-16">
+                <div class="text-xs font-bold text-green-600 tracking-widest uppercase mb-2">The Digital Transformation Journey</div>
+                <h2 class="text-4xl md:text-5xl font-extrabold text-[#0F172A] mb-4">RIZENIC ERP & Operations Platform</h2>
+                <div class="w-16 h-1.5 bg-[#003220] mx-auto mb-6"></div>
+                <p class="text-gray-600 max-w-4xl mx-auto font-light text-lg leading-relaxed">
+                    ผลงานการพัฒนาระบบบริหารจัดการศูนย์บริการยานยนต์แบบครบวงจร แสดงให้เห็นถึงวิวัฒนาการในการออกแบบระบบ (System Scalability)<br>
+                    จาก <strong>Phase 1: AppSheet (Low-Code)</strong> ต่อยอดสู่ <strong>Phase 2: Custom Enterprise Web Application</strong>
+                </p>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- PHASE 2: ARCHITECTURE & API (SHOWCASE FOR SA) -->
+            <!-- ========================================== -->
+            <div class="mb-20 pt-10 border-t border-gray-200">
+                <div class="flex flex-col md:flex-row items-start md:items-center gap-4 mb-8">
+                    <span class="px-3 py-1 bg-green-100 text-green-800 text-sm font-bold tracking-widest uppercase rounded-md shadow-sm">Current Phase</span>
+                    <h3 class="text-3xl font-bold text-[#0F172A]">Web Application & API Design (Full-Stack)</h3>
+                </div>
+
+                <!-- 1. System Architecture Diagram -->
+                <div class="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm mb-8">
+                    <h4 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><i class="fa-solid fa-network-wired text-blue-500"></i> High-Level System Design & Data Flow</h4>
+                    
+                    <div class="flex flex-col lg:flex-row items-center justify-between gap-4 bg-slate-50 p-6 rounded-xl border border-slate-100 overflow-x-auto">
+                        <!-- Client -->
+                        <div class="flex flex-col items-center min-w-[120px]">
+                            <div class="w-16 h-16 bg-white border-2 border-slate-300 rounded-2xl flex items-center justify-center shadow-sm mb-3">
+                                <i class="fa-solid fa-users text-2xl text-slate-600"></i>
+                            </div>
+                            <span class="font-bold text-sm text-slate-800">Users</span>
+                            <span class="text-[10px] text-slate-500 text-center">Browser / Mobile</span>
+                        </div>
+                        
+                        <div class="hidden lg:block text-slate-300"><i class="fa-solid fa-arrow-right-long text-xl"></i></div>
+                        <div class="lg:hidden text-slate-300"><i class="fa-solid fa-arrow-down-long text-xl"></i></div>
+
+                        <!-- Frontend -->
+                        <div class="flex flex-col items-center min-w-[120px]">
+                            <div class="w-16 h-16 bg-blue-50 border-2 border-blue-400 rounded-2xl flex items-center justify-center shadow-sm mb-3 relative">
+                                <i class="fa-brands fa-html5 text-2xl text-blue-600"></i>
+                                <div class="absolute -top-2 -right-2 bg-black text-white text-[8px] font-bold px-1.5 py-0.5 rounded">Vercel</div>
+                            </div>
+                            <span class="font-bold text-sm text-blue-800">Frontend UI</span>
+                            <span class="text-[10px] text-blue-600 text-center">HTML/Tailwind/JS</span>
+                        </div>
+
+                        <div class="hidden lg:block text-slate-300 flex-col items-center">
+                            <span class="text-[10px] text-slate-400 mb-1 block text-center">HTTP / JSON</span>
+                            <i class="fa-solid fa-arrow-right-arrow-left text-xl"></i>
+                        </div>
+                        <div class="lg:hidden text-slate-300"><i class="fa-solid fa-arrow-down-arrow-up text-xl"></i></div>
+
+                        <!-- Backend API -->
+                        <div class="flex flex-col items-center min-w-[120px]">
+                            <div class="w-16 h-16 bg-green-50 border-2 border-green-400 rounded-2xl flex items-center justify-center shadow-sm mb-3 relative">
+                                <i class="fa-brands fa-node-js text-2xl text-green-600"></i>
+                                <div class="absolute -top-2 -right-2 bg-black text-white text-[8px] font-bold px-1.5 py-0.5 rounded">Vercel</div>
+                            </div>
+                            <span class="font-bold text-sm text-green-800">REST API</span>
+                            <span class="text-[10px] text-green-600 text-center">Node.js + Express</span>
+                        </div>
+
+                        <div class="hidden lg:block text-slate-300 flex-col items-center">
+                            <span class="text-[10px] text-slate-400 mb-1 block text-center">SQL Query</span>
+                            <i class="fa-solid fa-arrow-right-arrow-left text-xl"></i>
+                        </div>
+                        <div class="lg:hidden text-slate-300"><i class="fa-solid fa-arrow-down-arrow-up text-xl"></i></div>
+
+                        <!-- Database -->
+                        <div class="flex flex-col items-center min-w-[120px]">
+                            <div class="w-16 h-16 bg-purple-50 border-2 border-purple-400 rounded-2xl flex items-center justify-center shadow-sm mb-3 relative">
+                                <i class="fa-solid fa-database text-2xl text-purple-600"></i>
+                                <div class="absolute -top-2 -right-2 bg-[#00e5ff] text-black text-[8px] font-bold px-1.5 py-0.5 rounded">Neon</div>
+                            </div>
+                            <span class="font-bold text-sm text-purple-800">Database</span>
+                            <span class="text-[10px] text-purple-600 text-center">PostgreSQL</span>
+                        </div>
+                        
+                        <div class="hidden lg:block text-slate-300"><i class="fa-solid fa-arrow-right-long text-xl"></i></div>
+                        
+                        <!-- BI -->
+                        <div class="flex flex-col items-center min-w-[120px]">
+                            <div class="w-16 h-16 bg-amber-50 border-2 border-amber-400 rounded-2xl flex items-center justify-center shadow-sm mb-3">
+                                <i class="fa-solid fa-chart-line text-2xl text-amber-600"></i>
+                            </div>
+                            <span class="font-bold text-sm text-amber-800">Dashboard</span>
+                            <span class="text-[10px] text-amber-600 text-center">Looker Studio</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
+                    <!-- 2. ER Diagram & SQL -->
+                    <div class="bg-[#0F172A] rounded-2xl p-8 border border-slate-700 shadow-2xl relative overflow-hidden flex flex-col">
+                        <div class="absolute top-0 right-0 w-40 h-40 bg-purple-500 opacity-10 rounded-bl-full blur-2xl"></div>
+                        <h4 class="text-lg font-bold text-white mb-2 flex items-center gap-2 relative z-10"><i class="fa-solid fa-project-diagram text-purple-400"></i> Entity Relationship & SQL Design</h4>
+                        <p class="text-sm text-slate-400 mb-6 font-light relative z-10">ออกแบบ Data Schema แบบ Relational (RDBMS) เพื่อลด Data Redundancy และรองรับ Foreign Keys</p>
+                        
+                        <!-- Mini ERD Visual -->
+                        <div class="bg-[#1E293B] p-4 rounded-xl border border-slate-600 mb-4 flex-grow flex flex-col justify-center relative z-10">
+                            <div class="flex justify-between items-center text-xs font-mono text-slate-300 mb-2">
+                                <div class="bg-blue-900/50 px-2 py-1 rounded border border-blue-500/30">Customers <span class="text-blue-300">(1)</span></div>
+                                <div class="text-slate-500">──&lt;</div>
+                                <div class="bg-emerald-900/50 px-2 py-1 rounded border border-emerald-500/30">Vehicles <span class="text-emerald-300">(1)</span></div>
+                                <div class="text-slate-500">──&lt;</div>
+                                <div class="bg-amber-900/50 px-2 py-1 rounded border border-amber-500/30 font-bold">Job_Orders <span class="text-amber-300">(M)</span></div>
+                            </div>
+                            <div class="flex justify-end items-center text-xs font-mono text-slate-300">
+                                <div class="text-slate-500 mr-2">v</div>
+                            </div>
+                            <div class="flex justify-end items-center text-xs font-mono text-slate-300">
+                                <div class="bg-purple-900/50 px-2 py-1 rounded border border-purple-500/30">Insurance_Master <span class="text-purple-300">(1)</span></div>
+                                <div class="text-slate-500 mx-2">──^</div>
+                            </div>
+                        </div>
+
+                        <!-- SQL snippet -->
+                        <div class="bg-black/50 p-3 rounded-lg border border-slate-700/50 text-[11px] font-mono text-emerald-400 relative z-10">
+                            <span class="text-purple-400">CREATE TABLE</span> job_orders (<br>
+                            &nbsp;&nbsp;order_id <span class="text-blue-300">SERIAL PRIMARY KEY</span>,<br>
+                            &nbsp;&nbsp;vehicle_id <span class="text-blue-300">INT REFERENCES</span> vehicles(id),<br>
+                            &nbsp;&nbsp;insurance_id <span class="text-blue-300">INT REFERENCES</span> insurance_master(id),<br>
+                            &nbsp;&nbsp;status_code <span class="text-blue-300">VARCHAR(10)</span><br>
+                            );
+                        </div>
+                    </div>
+
+                    <!-- 3. RESTful API Design -->
+                    <div class="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm flex flex-col">
+                        <h4 class="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2"><i class="fa-solid fa-server text-green-500"></i> RESTful API Documentation</h4>
+                        <p class="text-sm text-slate-500 mb-6 font-light">ออกแบบ Endpoint สำหรับการทำ CRUD Operations เชื่อมต่อ Frontend กับ Database</p>
+                        
+                        <div class="space-y-3 flex-grow flex flex-col justify-center">
+                            <!-- GET -->
+                            <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100 font-mono text-sm">
+                                <span class="api-get font-bold w-14">GET</span>
+                                <span class="text-slate-700">/api/master/car-models</span>
+                                <span class="text-xs text-slate-400 ml-auto bg-white px-2 py-1 rounded border">Fetch Dropdown</span>
+                            </div>
+                            <!-- POST -->
+                            <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100 font-mono text-sm">
+                                <span class="api-post font-bold w-14">POST</span>
+                                <span class="text-slate-700">/api/jobs/create</span>
+                                <span class="text-xs text-slate-400 ml-auto bg-white px-2 py-1 rounded border">Create SA Form</span>
+                            </div>
+                            <!-- PUT -->
+                            <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100 font-mono text-sm">
+                                <span class="api-put font-bold w-14">PUT</span>
+                                <span class="text-slate-700">/api/jobs/:id/status</span>
+                                <span class="text-xs text-slate-400 ml-auto bg-white px-2 py-1 rounded border">Update Progress</span>
+                            </div>
+                            <!-- DELETE -->
+                            <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100 font-mono text-sm">
+                                <span class="api-delete font-bold w-14">DELETE</span>
+                                <span class="text-slate-700">/api/admin/insurance/:id</span>
+                                <span class="text-xs text-slate-400 ml-auto bg-white px-2 py-1 rounded border">Remove Master</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ======================================================== -->
+            <!-- UI/UX SHOWCASE (Feature Gallery) -->
+            <!-- ======================================================== -->
+            <div class="mb-16 mt-16">
+                <div class="text-center mb-10">
+                    <div class="text-xs font-bold text-blue-600 tracking-widest uppercase mb-2">System Interfaces</div>
+                    <h3 class="text-3xl font-bold text-[#0F172A] mb-4">Intuitive User Interface & Experience</h3>
+                    <p class="text-slate-500 font-light max-w-2xl mx-auto">ออกแบบหน้าจอโดยยึดผู้ใช้งานเป็นศูนย์กลาง (User-Centric) เปลี่ยนกระบวนการทำงานที่ซับซ้อนให้กลายเป็น Web App ที่ใช้งานง่าย สบายตา และมีประสิทธิภาพสูงในทุกแผนก</p>
+                </div>
+
+                <div class="space-y-12 max-w-6xl mx-auto">
+                    
+                    <!-- UI 1: Executive Dashboard -->
+                    <div class="bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-slate-200 flex flex-col lg:flex-row gap-8 items-center group hover:border-blue-300 transition-colors">
+                        <div class="w-full lg:w-1/3 order-2 lg:order-1">
+                            <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center text-xl font-black mb-4"><i class="fa-solid fa-chart-pie"></i></div>
+                            <h4 class="text-xl font-bold text-[#0F172A] mb-2">Executive Dashboard</h4>
+                            <p class="text-sm text-slate-500 leading-relaxed mb-4">
+                                ศูนย์กลางข้อมูลสำหรับผู้บริหาร สรุปสถิติ KPIs การทำงาน การเงิน และภาพรวมองค์กรแบบ Real-time
+                            </p>
+                            <ul class="space-y-2 text-sm text-slate-600 font-medium">
+                                <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> ติดตามเป้าหมายรถเข้า-ออก และรายได้รายวัน/เดือน</li>
+                                <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> Data Visualization ที่ออกแบบมาให้อ่านค่าง่ายและตัดสินใจได้ทันที</li>
+                            </ul>
+                        </div>
+                        <div class="w-full lg:w-2/3 order-1 lg:order-2 rounded-xl overflow-hidden shadow-md border border-slate-100 bg-slate-50 p-2">
+                            <img src="ds1.jpg" alt="Executive Dashboard UI" class="w-full h-auto object-cover rounded shadow-sm transform group-hover:scale-[1.01] transition-transform duration-500">
+                        </div>
+                    </div>
+
+                    <!-- UI 2: SA Dashboard & Tracking -->
+                    <div class="bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-slate-200 flex flex-col lg:flex-row gap-8 items-center group hover:border-indigo-300 transition-colors">
+                        <div class="w-full lg:w-2/3 rounded-xl overflow-hidden shadow-md border border-slate-100 bg-slate-50 p-2">
+                            <img src="service2.jpg" alt="SA Dashboard UI" class="w-full h-auto object-cover rounded shadow-sm transform group-hover:scale-[1.01] transition-transform duration-500">
+                        </div>
+                        <div class="w-full lg:w-1/3">
+                            <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center text-xl font-black mb-4"><i class="fa-solid fa-users-viewfinder"></i></div>
+                            <h4 class="text-xl font-bold text-[#0F172A] mb-2">SA Operations Board</h4>
+                            <p class="text-sm text-slate-500 leading-relaxed mb-4">
+                                หน้าต่างสรุปงานสำหรับทีม Service Advisor (SA) เพื่อประเมินสถานการณ์รถในศูนย์บริการ และติดตามงานค้าง (Active Jobs)
+                            </p>
+                            <ul class="space-y-2 text-sm text-slate-600 font-medium">
+                                <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> สรุปงานค้างแยกตามสถานะ และยอดปิดบิลรายเดือน</li>
+                                <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> ตารางจัดการรถจอด สามารถปรับสถานะ ERP และส่งต่อแผนกได้รวดเร็ว</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- UI 3: SA Calendar -->
+                    <div class="bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-slate-200 flex flex-col lg:flex-row gap-8 items-center group hover:border-teal-300 transition-colors">
+                        <div class="w-full lg:w-1/3 order-2 lg:order-1">
+                            <div class="w-12 h-12 bg-teal-100 text-teal-600 rounded-xl flex items-center justify-center text-xl font-black mb-4"><i class="fa-regular fa-calendar-check"></i></div>
+                            <h4 class="text-xl font-bold text-[#0F172A] mb-2">Smart Appointment Calendar</h4>
+                            <p class="text-sm text-slate-500 leading-relaxed mb-4">
+                                ปฏิทินนัดหมายแบบภาพรวม ช่วยให้ทีม SA บริหารจัดการพื้นที่จอดรถในศูนย์ และลดปัญหาการรับงานเกินความจุ (Overcapacity)
+                            </p>
+                            <ul class="space-y-2 text-sm text-slate-600 font-medium">
+                                <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> แสดงยอดรถนัดเข้าจอด, เป้าซ่อมเสร็จ, และนัดส่งมอบรายวัน</li>
+                                <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> ดีไซน์สไตล์มินิมอล ช่วยให้อ่านค่าง่าย วางแผนรับคิวงานใหม่ได้แม่นยำ</li>
+                            </ul>
+                        </div>
+                        <div class="w-full lg:w-2/3 order-1 lg:order-2 rounded-xl overflow-hidden shadow-md border border-slate-100 bg-slate-50 p-2">
+                            <img src="service1.jpg" alt="SA Calendar UI" class="w-full h-auto object-cover rounded shadow-sm transform group-hover:scale-[1.01] transition-transform duration-500">
+                        </div>
+                    </div>
+
+                    <!-- UI 4: Repair Station -->
+                    <div class="bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-slate-200 flex flex-col lg:flex-row gap-8 items-center group hover:border-orange-300 transition-colors">
+                        <div class="w-full lg:w-2/3 rounded-xl overflow-hidden shadow-md border border-slate-100 bg-slate-50 p-2">
+                            <img src="re1.jpg" alt="Repair Station UI" class="w-full h-auto object-cover rounded shadow-sm transform group-hover:scale-[1.01] transition-transform duration-500">
+                        </div>
+                        <div class="w-full lg:w-1/3">
+                            <div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center text-xl font-black mb-4"><i class="fa-solid fa-wrench"></i></div>
+                            <h4 class="text-xl font-bold text-[#0F172A] mb-2">Repair Station Tracking</h4>
+                            <p class="text-sm text-slate-500 leading-relaxed mb-4">
+                                ระบบติดตามคิวงานซ่อมตามสถานี (WIP Tracking) ช่วยให้หัวหน้าช่างมองเห็นคอขวด (Bottleneck) ของงานได้ทันที
+                            </p>
+                            <ul class="space-y-2 text-sm text-slate-600 font-medium">
+                                <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> จัดกลุ่มสถานะงานทั้ง 12 สถานีด้วย Color-Coded</li>
+                                <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> แจ้งเตือนรถที่ซ่อมล่าช้า (Overdue) ป้องกันงานหลุด</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- UI 5: Finance & Billing -->
+                    <div class="bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-slate-200 flex flex-col lg:flex-row gap-8 items-center group hover:border-emerald-300 transition-colors">
+                        <div class="w-full lg:w-1/3 order-2 lg:order-1">
+                            <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center text-xl font-black mb-4"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+                            <h4 class="text-xl font-bold text-[#0F172A] mb-2">Finance & Billing Center</h4>
+                            <p class="text-sm text-slate-500 leading-relaxed mb-4">
+                                แดชบอร์ดสำหรับแผนกบัญชี เพื่อติดตามสถานะการวางบิล และประเมินตัวเลขทางการเงินแบบแยกหมวดหมู่
+                            </p>
+                            <ul class="space-y-2 text-sm text-slate-600 font-medium">
+                                <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> แยกตัวเลขงานที่รอจัดการ และงานที่ออกบิลแล้วชัดเจน</li>
+                                <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> อินเตอร์เฟซแบบมินิมอล ช่วยลดความเครียดในการจัดการตัวเลข</li>
+                            </ul>
+                        </div>
+                        <div class="w-full lg:w-2/3 order-1 lg:order-2 rounded-xl overflow-hidden shadow-md border border-slate-100 bg-slate-50 p-2">
+                            <img src="a1.jpg" alt="Finance Dashboard UI" class="w-full h-auto object-cover rounded shadow-sm transform group-hover:scale-[1.01] transition-transform duration-500">
+                        </div>
+                    </div>
+
+                    <!-- UI 6: Admin Panel -->
+                    <div class="bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-slate-200 flex flex-col lg:flex-row gap-8 items-center group hover:border-slate-800 transition-colors">
+                        <div class="w-full lg:w-2/3 rounded-xl overflow-hidden shadow-md border border-slate-100 bg-slate-50 p-2">
+                            <img src="admin.jpg" alt="Admin Panel UI" class="w-full h-auto object-cover rounded shadow-sm transform group-hover:scale-[1.01] transition-transform duration-500">
+                        </div>
+                        <div class="w-full lg:w-1/3">
+                            <div class="w-12 h-12 bg-slate-800 text-white rounded-xl flex items-center justify-center text-xl font-black mb-4"><i class="fa-solid fa-sliders"></i></div>
+                            <h4 class="text-xl font-bold text-[#0F172A] mb-2">Security & Admin Panel</h4>
+                            <p class="text-sm text-slate-500 leading-relaxed mb-4">
+                                ระบบบริหารจัดการสิทธิ์ผู้ใช้งาน (Access Control) และฐานข้อมูลตั้งต้น (Master Data) สำหรับผู้ดูแลระบบ
+                            </p>
+                            <ul class="space-y-2 text-sm text-slate-600 font-medium">
+                                <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> ควบคุมสิทธิ์การเข้าถึงเมนูต่างๆ แบบแยกรายบุคคล (Role-based)</li>
+                                <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> จัดการฐานข้อมูลพนักงาน สาขา และข้อมูลระบบจากจุดเดียว</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- ======================================================== -->
+            <!-- ERP MODULES & WORKFLOW (End-to-End Data Flow) -->
+            <!-- ======================================================== -->
+            <div class="bg-[#0F172A] rounded-3xl p-6 md:p-10 shadow-xl border border-slate-800 mb-12 relative overflow-hidden">
+                <!-- Background Effects -->
+                <div class="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute bottom-0 left-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                <div class="relative z-10">
+                    <div class="flex flex-col md:flex-row justify-between items-end mb-10 gap-6 border-b border-slate-700/50 pb-6">
+                        <div class="max-w-3xl">
+                            <div class="text-xs font-bold text-blue-400 tracking-widest uppercase mb-3 flex items-center gap-2">
+                                <span class="relative flex h-3 w-3"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span></span>
+                                End-to-End ERP Modules
+                            </div>
+                            <h3 class="text-3xl font-bold text-white mb-3">Seamless Data Flow & Department Integration</h3>
+                            <p class="text-slate-400 font-light text-sm leading-relaxed">
+                                ออกแบบระบบบริหารจัดการแบบรวมศูนย์ (Centralized ERP) ครอบคลุมทุกแผนกตั้งแต่ลูกค้านำรถเข้าศูนย์จนถึงการปิดงบบัญชี ขจัดปัญหาการคีย์ข้อมูลซ้ำซ้อน (Data Silos) ด้วยการใช้ Job ID เป็นแกนกลางในการเชื่อมโยงข้อมูลแบบ Real-time
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Workflow Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 relative">
+                        
+                        <!-- Connecting Line (Desktop only) -->
+                        <div class="hidden lg:block absolute top-12 left-10 right-10 h-0.5 bg-gradient-to-r from-blue-500 via-amber-500 to-emerald-500 z-0 opacity-30"></div>
+
+                        <!-- 1. Service Advisor -->
+                        <div class="bg-[#1E293B] rounded-2xl p-5 border border-slate-700 hover:border-blue-400 transition-all relative z-10 group">
+                            <div class="w-14 h-14 bg-blue-500/20 text-blue-400 rounded-xl flex items-center justify-center text-2xl mb-4 border border-blue-500/30 group-hover:scale-110 transition-transform">📝</div>
+                            <h4 class="text-white font-bold text-sm mb-2">1. Service Advisor (SA)</h4>
+                            <ul class="text-xs text-slate-400 font-light space-y-1.5 list-disc pl-4">
+                                <li>สร้างใบงาน (Job Order)</li>
+                                <li>ประเมินชิ้นงานทำสี (Main/Sub)</li>
+                                <li>ระบบตัดโควต้างานรายวันอัตโนมัติ</li>
+                                <li>Dynamic Routing ส่งต่อแผนก</li>
+                            </ul>
+                        </div>
+
+                        <!-- 2. Repair Station -->
+                        <div class="bg-[#1E293B] rounded-2xl p-5 border border-slate-700 hover:border-orange-400 transition-all relative z-10 group mt-0 lg:mt-8">
+                            <div class="w-14 h-14 bg-orange-500/20 text-orange-400 rounded-xl flex items-center justify-center text-2xl mb-4 border border-orange-500/30 group-hover:scale-110 transition-transform">🛠️</div>
+                            <h4 class="text-white font-bold text-sm mb-2">2. Repair Tracking</h4>
+                            <ul class="text-xs text-slate-400 font-light space-y-1.5 list-disc pl-4">
+                                <li>กระดานติดตามรถกำลังซ่อม</li>
+                                <li>อัปเดตสถานะ 12 สถานีช่าง</li>
+                                <li>เปรียบเทียบ Target vs Actual</li>
+                                <li>แจ้งเตือนงานล่าช้า (Overdue)</li>
+                            </ul>
+                        </div>
+
+                        <!-- 3. Parts & Inventory -->
+                        <div class="bg-[#1E293B] rounded-2xl p-5 border border-slate-700 hover:border-purple-400 transition-all relative z-10 group">
+                            <div class="w-14 h-14 bg-purple-500/20 text-purple-400 rounded-xl flex items-center justify-center text-2xl mb-4 border border-purple-500/30 group-hover:scale-110 transition-transform">📦</div>
+                            <h4 class="text-white font-bold text-sm mb-2">3. Parts & Inventory</h4>
+                            <ul class="text-xs text-slate-400 font-light space-y-1.5 list-disc pl-4">
+                                <li>ออกใบสั่งซื้ออะไหล่ (PO Tracking)</li>
+                                <li>เชื่อมสถานะกลับไปให้ SA Real-time</li>
+                                <li>ระบบรับเข้า (Inbound) / เบิกจ่าย</li>
+                                <li>เช็ค Safety Stock จาก Master Data</li>
+                            </ul>
+                        </div>
+
+                        <!-- 4. Finance & Accounting -->
+                        <div class="bg-[#1E293B] rounded-2xl p-5 border border-slate-700 hover:border-emerald-400 transition-all relative z-10 group mt-0 lg:mt-8">
+                            <div class="w-14 h-14 bg-emerald-500/20 text-emerald-400 rounded-xl flex items-center justify-center text-2xl mb-4 border border-emerald-500/30 group-hover:scale-110 transition-transform">💵</div>
+                            <h4 class="text-white font-bold text-sm mb-2">4. Finance & Billing</h4>
+                            <ul class="text-xs text-slate-400 font-light space-y-1.5 list-disc pl-4">
+                                <li>โต๊ะทำงานบัญชี (Excel Mode)</li>
+                                <li>คำนวณต้นทุน (ค่าแรง/อะไหล่/งานนอก)</li>
+                                <li>ติดตามสถานะวางบิลประกัน/เงินสด</li>
+                                <li>ระบบ Export Data สู่ Excel</li>
+                            </ul>
+                        </div>
+
+                        <!-- 5. Executive Dashboard -->
+                        <div class="bg-[#1E293B] rounded-2xl p-5 border border-slate-700 hover:border-amber-400 transition-all relative z-10 group">
+                            <div class="w-14 h-14 bg-amber-500/20 text-amber-400 rounded-xl flex items-center justify-center text-2xl mb-4 border border-amber-500/30 group-hover:scale-110 transition-transform">📊</div>
+                            <h4 class="text-white font-bold text-sm mb-2">5. Executive Dashboard</h4>
+                            <ul class="text-xs text-slate-400 font-light space-y-1.5 list-disc pl-4">
+                                <li>สรุปสถิติ KPI ประจำวัน/เดือน</li>
+                                <li>กราฟวิเคราะห์รายได้และ Workload</li>
+                                <li>ปฏิทินปฏิบัติงาน (Calendar View)</li>
+                                <li>Push Notification ส่งเข้า LINE กลุ่ม</li>
+                            </ul>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- ======================================================== -->
+            <!-- PHASE 1: APPSHEET & LOOKER STUDIO (วิวัฒนาการเดิม) -->
+            <!-- ======================================================== -->
+            <div class="mb-10 pt-16 border-t border-gray-200">
+                <div class="flex items-center gap-3 mb-8">
+                    <span class="px-3 py-1 bg-slate-200 text-slate-700 text-sm font-bold tracking-widest uppercase rounded-md">Phase 1</span>
+                    <h3 class="text-2xl font-bold text-[#0F172A]">Low-Code MVP & Executive BI</h3>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+                    <!-- Workflow & Impact -->
+                    <div class="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-center">
+                        <h4 class="text-lg font-bold text-[#0F172A] mb-4"><i class="fa-solid fa-gears text-indigo-600"></i> Workflow & Impact</h4>
+                        <ul class="space-y-4 text-sm text-slate-600">
+                            <li class="flex items-start gap-3">
+                                <span class="bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded text-xs mt-0.5">Metrics</span>
+                                <div>รองรับและจัดการข้อมูลกว่า <strong>30,000+ Records</strong> อย่างมีเสถียรภาพ</div>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded text-xs mt-0.5">Process</span>
+                                <div>จัดการ Workflow การซ่อมรถที่ซับซ้อนมากกว่า <strong>20 ขั้นตอน (10 Station)</strong></div>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded text-xs mt-0.5">Value</span>
+                                <div>ลดเวลาคีย์ข้อมูลซ้ำซ้อนและการตามงาน Manual ลงได้ถึง <strong>70%</strong></div>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- BI -->
+                    <div class="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm">
+                        <h4 class="text-lg font-bold text-[#0F172A] mb-4"><i class="fa-solid fa-chart-pie text-green-600"></i> Executive Dashboards</h4>
+                        <p class="text-sm text-gray-600 font-light mb-4">
+                            เชื่อมต่อ Data Pipeline อัตโนมัติไปแสดงผลบน Looker Studio แบบ Real-Time สำหรับผู้บริหาร (ใช้งานมากกว่า 20+ Users)
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-2.5 py-1 bg-slate-50 border border-slate-200 text-xs rounded-md text-slate-600">Status Monitoring</span>
+                            <span class="px-2.5 py-1 bg-slate-50 border border-slate-200 text-xs rounded-md text-slate-600">WIP Tracking</span>
+                            <span class="px-2.5 py-1 bg-slate-50 border border-slate-200 text-xs rounded-md text-slate-600">Lead Time Analysis</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Old Dashboard Images -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
+                        <img src="rizenicm.jpg" alt="SA Dashboard" class="w-full h-auto rounded" onerror="this.src='https://placehold.co/600x400/e6f2eb/1a4d2e?text=AppSheet'">
+                    </div>
+                    <div class="bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
+                        <img src="RIZENICDD.png" alt="Summary View" class="w-full h-auto rounded" onerror="this.src='https://placehold.co/600x400/e6f2eb/1a4d2e?text=BI+Summary'">
+                    </div>
+                    <div class="bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
+                        <img src="RIZENICD.png" alt="Analytics View" class="w-full h-auto rounded" onerror="this.src='https://placehold.co/600x400/e6f2eb/1a4d2e?text=Analytics'">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 🌟 PROJECT: XPEL SYSTEM 🌟 -->
+    <section id="xpel" class="bg-white border-t border-gray-100">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="mb-12">
+                <div class="text-xs font-bold text-blue-600 tracking-widest uppercase mb-2">Internal Operations Platform</div>
+                <h2 class="text-3xl md:text-4xl font-bold text-[#0F172A] mb-4">XPEL Service Management System</h2>
+                <div class="w-12 h-1 bg-[#0F172A] mb-6"></div>
+                <p class="text-gray-600 max-w-3xl font-light text-lg mb-8">
+                    เป้าหมายหลัก: พัฒนาระบบ Digital Infrastructure และ Data Automation เพื่อเปลี่ยนผ่านระบบงานแบบเดิม (Manual/Paper-based) สู่ระบบฐานข้อมูลดิจิทัลเต็มรูปแบบ ช่วยลดต้นทุน ลดความผิดพลาด เพิ่มความรวดเร็ว และรองรับการขยายตัวของธุรกิจ
+                </p>
+            </div>
+
+            <!-- Management Hub -->
+            <div class="bg-[#1E293B] rounded-3xl p-6 md:p-10 mb-16 shadow-2xl relative overflow-hidden flex flex-col xl:flex-row items-center gap-8">
+                <div class="w-full xl:w-1/3 relative z-10 text-white">
+                    <div class="inline-block px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-xs font-semibold tracking-wider mb-4 border border-blue-500/30">
+                        WEB PORTAL ARCHITECTURE
+                    </div>
+                    <h3 class="text-2xl font-bold mb-4">System Management Hub</h3>
+                    <p class="text-slate-300 font-light text-sm mb-6 leading-relaxed">
+                        พัฒนาระบบ <strong>Custom Landing Page</strong> ด้วย Google Apps Script และ HTML/CSS เพื่อเป็นศูนย์กลางการทำงาน (Single Gateway) รวบรวมเมนูการเข้าถึงระบบย่อยทั้งหมด ลดความซับซ้อนให้ทีม Operation
+                    </p>
+                    <ul class="space-y-3 text-sm text-slate-400 font-light">
+                        <li class="flex items-start gap-3"><span class="text-blue-400 mt-1">✔️</span> <span>ออกแบบ UI/UX ให้ใช้งานง่าย พนักงานเข้าถึงระบบรวดเร็ว</span></li>
+                        <li class="flex items-start gap-3"><span class="text-blue-400 mt-1">✔️</span> <span>รวมลิงก์ (Consolidate Links) ลดความสับสนของทีม</span></li>
+                        <li class="flex items-start gap-3"><span class="text-blue-400 mt-1">✔️</span> <span>แยกสิทธิ์การเข้าถึงข้อมูลระหว่างเซลล์และแอดมินชัดเจน</span></li>
+                    </ul>
+                </div>
+                <div class="w-full xl:w-2/3 relative z-10 flex justify-center overflow-hidden rounded-xl">
+                    <img src="xpelm.jpg" alt="XPEL System Hub" class="w-full max-w-full h-auto max-h-[500px] object-contain shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-slate-700 transform transition hover:scale-[1.02] duration-500 bg-black" onerror="this.src='https://placehold.co/1200x700/111/333?text=XPEL+Hub+Interface'">
+                </div>
+                <div class="absolute -right-20 -bottom-20 w-96 h-96 bg-blue-600 opacity-20 rounded-full blur-[100px] pointer-events-none"></div>
+            </div>
+
+            <!-- XPEL Screenshots (Uncropped Layout) -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16 items-stretch">
+                <!-- Order Form Image -->
+                <div class="bg-[#F8FAFC] p-4 md:p-6 rounded-2xl border border-gray-200 minimal-shadow flex flex-col justify-between h-full">
+                    <div class="mb-4">
+                        <h4 class="text-[#0F172A] font-bold text-lg">1. Order Management Form</h4>
+                        <p class="text-sm text-gray-500 mt-2 font-light">ฟอร์มบันทึกข้อมูลลูกค้าและตัวรถ พร้อม <strong class="text-gray-700">Validation Logic</strong> เพื่อป้องกันความผิดพลาด (Human Error) ตั้งแต่ขั้นตอนการรับข้อมูล</p>
+                    </div>
+                    <div class="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 flex-grow flex items-center justify-center p-2">
+                        <img src="xpelmain1.jpg" alt="XPEL Order Form" class="w-full max-w-full h-auto max-h-[400px] object-contain" onerror="this.src='https://placehold.co/800x600/F1F5F9/0F172A?text=Order+Form'">
+                    </div>
+                </div>
+
+                <!-- Admin & Inventory Dashboard Image -->
+                <div class="bg-[#F8FAFC] p-4 md:p-6 rounded-2xl border border-gray-200 minimal-shadow flex flex-col justify-between h-full">
+                    <div class="mb-4">
+                        <h4 class="text-[#0F172A] font-bold text-lg">2. Administration & Inventory Portal</h4>
+                        <p class="text-sm text-gray-500 mt-2 font-light">ระบบบริหารจัดการหลังบ้านสำหรับผู้ดูแลระบบ รองรับการปิดงาน ตัดสต๊อกฟิล์ม ควบคุมข้อมูล และติดตามสถานะงานจากศูนย์กลางแบบ <strong class="text-gray-700">Real-Time</strong></p>
+                    </div>
+                    <div class="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 flex-grow flex flex-col gap-4 p-4">
+                        <img src="xpel05.jpg" alt="XPEL Inventory" class="w-full max-w-full h-auto max-h-[250px] object-contain rounded border border-gray-100" onerror="this.src='https://placehold.co/800x400/F1F5F9/0F172A?text=Inventory+System'">
+                        <img src="XPEL.png" alt="XPEL Dashboard" class="w-full max-w-full h-auto max-h-[250px] object-contain rounded border border-gray-100" onerror="this.src='https://placehold.co/800x400/F1F5F9/0F172A?text=Data+Dashboard'">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 🌟 NEW ADDED: PRICE CALCULATOR 🌟 -->
+            <div class="mb-12">
+                <h4 class="text-2xl font-bold text-[#0F172A] mb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-calculator text-blue-600"></i> XPEL Price Calculator
+                </h4>
+                <p class="text-sm text-gray-600 mb-6 font-light">ระบบค้นหาและประมวลผลราคาขาย ช่วยให้ทีมเซลส์ประเมินราคาและส่วนลดได้อย่างรวดเร็ว แม่นยำ</p>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
+                    <div class="bg-[#F8FAFC] p-4 md:p-6 rounded-2xl border border-gray-200 minimal-shadow flex flex-col justify-between">
+                        <div class="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 flex-grow flex items-center justify-center p-2">
+                            <img src="Searchforprices.png" alt="ระบบค้นหาและประมวลผลราคาขาย" class="w-full max-w-full h-auto object-contain" onerror="this.src='https://placehold.co/800x600/F1F5F9/0F172A?text=Search+Price'">
+                        </div>
+                    </div>
+                    <div class="bg-[#F8FAFC] p-4 md:p-6 rounded-2xl border border-gray-200 minimal-shadow flex flex-col justify-between">
+                        <div class="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 flex-grow flex items-center justify-center p-2">
+                            <img src="Pricecalculationprogram.png" alt="โปรแกรมคำนวณราคา" class="w-full max-w-full h-auto object-contain" onerror="this.src='https://placehold.co/800x600/F1F5F9/0F172A?text=Calculate+Price'">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 🌟 NEW ADDED: SCHEDULE SYSTEM 🌟 -->
+            <div class="mb-16">
+                <h4 class="text-2xl font-bold text-[#0F172A] mb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-calendar-check text-orange-500"></i> ระบบตารางงานติดตั้ง
+                </h4>
+                <p class="text-sm text-gray-600 mb-6 font-light">ตรวจสอบคิวงานแบบเต็มจอ พร้อมระบบค้นหาและกรองหลายรายการพร้อมกัน (Multi-filter Calendar View)</p>
+                <div class="bg-[#F8FAFC] p-4 md:p-6 rounded-2xl border border-gray-200 minimal-shadow">
+                    <div class="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 p-2">
+                        <img src="installation-schedule.jpg" alt="ระบบตารางงานติดตั้ง" class="w-full h-auto object-contain" onerror="this.src='https://placehold.co/1200x600/F1F5F9/0F172A?text=Installation+Schedule'">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Features Grid (6 specific areas) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
+                <!-- 1. Inventory -->
+                <div class="bg-white p-6 rounded-2xl border border-gray-100 minimal-shadow hover:border-[#0F172A] transition-colors group">
+                    <div class="w-10 h-10 bg-slate-50 text-xl rounded-xl flex items-center justify-center mb-3">📦</div>
+                    <h3 class="font-semibold text-[#0F172A] mb-2 text-sm">1. Inventory & Material</h3>
+                    <ul class="text-sm text-gray-500 font-light space-y-1.5 list-disc pl-4">
+                        <li><strong class="text-gray-700">Scrap Tracking:</strong> คำนวณพื้นที่การตัดฟิล์ม (Sq.Ft.) ลดการสูญเสีย</li>
+                        <li><strong class="text-gray-700">Hard Value Freeze:</strong> ลอจิกปิดม้วนฟิล์ม แปลงสูตรเป็นค่าคงที่</li>
+                    </ul>
+                </div>
+                <!-- 2. Archive -->
+                <div class="bg-white p-6 rounded-2xl border border-gray-100 minimal-shadow hover:border-[#0F172A] transition-colors group">
+                    <div class="w-10 h-10 bg-slate-50 text-xl rounded-xl flex items-center justify-center mb-3">⚡</div>
+                    <h3 class="font-semibold text-[#0F172A] mb-2 text-sm">2. High-Performance Archive</h3>
+                    <ul class="text-sm text-gray-500 font-light space-y-1.5 list-disc pl-4">
+                        <li><strong class="text-gray-700">Data Consolidation:</strong> ผสานข้อมูลกว่า 30 ไฟล์สู่ง Master Dashboard เดียว</li>
+                        <li><strong class="text-gray-700">High-Speed Query:</strong> ค้นหาบิลย้อนหลังนับหมื่นรายการลื่นไหลใน 3 วินาที</li>
+                    </ul>
+                </div>
+                <!-- 3. Warranty -->
+                <div class="bg-white p-6 rounded-2xl border border-gray-100 minimal-shadow hover:border-[#0F172A] transition-colors group">
+                    <div class="w-10 h-10 bg-slate-50 text-xl rounded-xl flex items-center justify-center mb-3">📄</div>
+                    <h3 class="font-semibold text-[#0F172A] mb-2 text-sm">3. Automated Warranty</h3>
+                    <ul class="text-sm text-gray-500 font-light space-y-1.5 list-disc pl-4">
+                        <li><strong class="text-gray-700">Dynamic Column Mapping:</strong> หยอดข้อมูลรุ่นฟิล์มลงคอลัมน์เป้าหมายแม้นยำ</li>
+                        <li><strong class="text-gray-700">Smart Expiry Calculation:</strong> คำนวณอายุรับประกันบวกเพิ่มอัตโนมัติ (+7 ปี PPF)</li>
+                    </ul>
+                </div>
+                <!-- 4. Workflow -->
+                <div class="bg-white p-6 rounded-2xl border border-gray-100 minimal-shadow hover:border-[#0F172A] transition-colors group">
+                    <div class="w-10 h-10 bg-slate-50 text-xl rounded-xl flex items-center justify-center mb-3">🔄</div>
+                    <h3 class="font-semibold text-[#0F172A] mb-2 text-sm">4. Workflow Automation</h3>
+                    <ul class="text-sm text-gray-500 font-light space-y-1.5 list-disc pl-4">
+                        <li><strong class="text-gray-700">Workflow Management:</strong> ออกแบบลำดับขั้นตอนการดำเนินงานให้เป็นมาตรฐาน</li>
+                        <li><strong class="text-gray-700">Business Rule Validation:</strong> ตรวจสอบเงื่อนไขก่อนเปลี่ยนสถานะอัตโนมัติ</li>
+                    </ul>
+                </div>
+                <!-- 5. Infra -->
+                <div class="bg-white p-6 rounded-2xl border border-gray-100 minimal-shadow hover:border-[#0F172A] transition-colors group">
+                    <div class="w-10 h-10 bg-slate-50 text-xl rounded-xl flex items-center justify-center mb-3">🌐</div>
+                    <h3 class="font-semibold text-[#0F172A] mb-2 text-sm">5. Web Infra & No-Code</h3>
+                    <ul class="text-sm text-gray-500 font-light space-y-1.5 list-disc pl-4">
+                        <li><strong class="text-gray-700">Custom Link Dashboard:</strong> Landing Page รวมทางลัด Internal Tools</li>
+                        <li><strong class="text-gray-700">No-Code Architecture:</strong> วาง Schema และ Key Constraints บน AppSheet</li>
+                    </ul>
+                </div>
+                <!-- 6. Admin Control -->
+                <div class="bg-white p-6 rounded-2xl border border-gray-100 minimal-shadow hover:border-[#0F172A] transition-colors group">
+                    <div class="w-10 h-10 bg-slate-50 text-xl rounded-xl flex items-center justify-center mb-3">🏢</div>
+                    <h3 class="font-semibold text-[#0F172A] mb-2 text-sm">6. Admin Control</h3>
+                    <ul class="text-sm text-gray-500 font-light space-y-1.5 list-disc pl-4">
+                        <li><strong class="text-gray-700">Job Closure Management:</strong> บริหารการปิดงานพร้อมจัดเก็บประวัติ</li>
+                        <li><strong class="text-gray-700">Master Data Admin:</strong> จัดการข้อมูลลูกค้า รถยนต์ จากส่วนกลาง</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Technical Highlight (Formula Showcase) -->
+            <div class="bg-[#0F172A] rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row">
+                <div class="p-8 md:w-2/5 flex flex-col justify-center">
+                    <div class="text-xs font-bold text-yellow-400 tracking-widest uppercase mb-2">Technical Highlight</div>
+                    <h3 class="text-2xl font-bold text-white mb-4">Advanced Data Engineering Logic</h3>
+                    <p class="text-slate-300 font-light text-sm mb-4 leading-relaxed">
+                        พัฒนา <strong>Data Processing Engine</strong> ด้วยฟังก์ชันระดับสูง (Advanced Array Formula) เพื่อจัดการข้อมูลหลายมิติแบบ Real-time ทำหน้าที่คล้ายกระบวนการ ETL
+                    </p>
+                    <ul class="text-xs text-slate-400 font-light space-y-2 mb-6">
+                        <li class="flex items-start gap-2"><span class="text-yellow-400">⚡</span> <strong>VSTACK & CHOOSECOLS:</strong> ผสานและดึงข้อมูลเฉพาะคอลัมน์เป้าหมายจากฐานข้อมูลหลักนับพันบรรทัด</li>
+                        <li class="flex items-start gap-2"><span class="text-yellow-400">⚡</span> <strong>Dynamic LET Variables:</strong> ประกาศตัวแปรคำนวณพื้นที่ (Sq.Ft.) และจับคู่โครงสร้างราคา (VLOOKUP) ภายในสูตรเดียว</li>
+                        <li class="flex items-start gap-2"><span class="text-yellow-400">⚡</span> <strong>Array Computing:</strong> คืนค่าผลลัพธ์เป็นตารางข้อมูล (Table Array) อัตโนมัติ โดยไม่ต้องพึ่งพา Script หน่วงระบบ</li>
+                    </ul>
+                </div>
+                <div class="bg-[#1E293B] md:w-3/5 p-6 border-l border-slate-700 relative">
+                    <div class="absolute top-4 right-4 flex gap-2">
+                        <div class="w-3 h-3 rounded-full bg-slate-600"></div><div class="w-3 h-3 rounded-full bg-slate-600"></div><div class="w-3 h-3 rounded-full bg-slate-600"></div>
+                    </div>
+                    <pre class="code-scroll overflow-x-auto text-[10px] sm:text-xs text-emerald-400 font-mono h-64 md:h-full mt-4 leading-relaxed"><code>=ARRAYFORMULA(LET(
+  raw, VSTACK(FILTER('ฐานข้อมูล'!A1:DH1000, 'ฐานข้อมูล'!A1:A1000<>""), ...),
+  row_idx, SEQUENCE(ROWS(raw)),
+  is_h, row_idx=1,
+
+  colA, CHOOSECOLS(raw,1), colD, CHOOSECOLS(raw,4), ...
+
+  <span class="text-slate-400">// คำนวณพื้นที่ (Square Footage) แบบ Dynamic</span>
+  sq_front_val, IF(colAE="", 0, (colAG*colAH*colAI)/144),
+  sq_rear_val, IF(colAM="", 0, (colAO*colAP*colAQ)/144),
+  ...
+  <span class="text-slate-400">// Mapping ชื่อคอลัมน์อัตโนมัติ</span>
+  sq_front, IF(is_h, "ตร.ฟ.หน้า", IF(colAE="", "", sq_front_val)),
+  ...
+  <span class="text-slate-400">// คำนวณต้นทุน Real-time ด้วย Array VLOOKUP</span>
+  c_front, IF(is_h, "ต้นทุนหน้า", IF(colAE="", 0, IFERROR(VLOOKUP(colAE, 'ราคาฟิล์ม'!A:D, 4, 0) * sq_front_val, 0))),
+  ...
+  <span class="text-slate-400">// สร้าง Table Result สุดท้าย</span>
+  table, {
+    colA, colD, colF, colG, ...
+    colAE, sq_front, colAK, colAL, c_front,
+    colAM, sq_rear, colAS, colAT, c_rear,
+    ...
+    colDH, c_total
+  },
+
+  condition, IFERROR((MONTH(colD) = MONTH(A3)) * (YEAR(colD) = YEAR(A3)), 0) + is_h,
+  FILTER(table, condition)
+))</code></pre>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Project 1.5: Customer Warranty Portal -->
+    <section id="customer-portal" class="bg-[#0F172A] text-white border-y border-[#1E293B]">
+        <div class="max-w-7xl mx-auto px-6 py-16">
+            <div class="text-center mb-12">
+                <div class="text-xs font-bold text-yellow-400 tracking-widest uppercase mb-3 inline-block border border-yellow-400/50 rounded-full px-3 py-1 bg-yellow-400/10">Full-Stack Serverless Web App</div>
+                <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">Online Warranty Check Portal</h2>
+                <div class="w-12 h-1 bg-yellow-400 mx-auto mb-6"></div>
+                <p class="text-slate-300 font-light text-lg max-w-3xl mx-auto leading-relaxed">
+                    ยกระดับ Customer Experience โดยพัฒนาระบบตรวจสอบใบรับประกันออนไลน์ เชื่อมโยงประสบการณ์แบบ <strong>O2O (Offline to Online)</strong>
+                </p>
+            </div>
+
+            <!-- Digital Warranty Highlight Banner -->
+            <div class="bg-gradient-to-br from-indigo-900 to-[#0F172A] p-8 rounded-3xl border border-white/10 text-center text-white mb-16 shadow-2xl relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-64 h-64 bg-yellow-400 opacity-5 rounded-bl-full"></div>
+                <div class="absolute bottom-0 left-0 w-40 h-40 bg-blue-500 opacity-10 rounded-tr-full"></div>
+                
+                <h3 class="text-2xl md:text-3xl font-bold mb-8 relative z-10 text-yellow-400">Digital Warranty Passport</h3>
+                <div class="flex flex-col md:flex-row items-center justify-center gap-8 lg:gap-12 relative z-10">
+                    <div class="bg-white p-3 rounded-2xl shadow-[0_0_30px_rgba(250,204,21,0.15)] transform transition hover:scale-105 duration-300 w-full max-w-[240px] mx-auto md:mx-0 flex-shrink-0">
+                        <img src="การ์ดรับประกันXPEL QR_FINAL-02.jpg" alt="Scan Warranty QR" class="w-full h-auto aspect-square object-contain bg-white rounded-xl border border-gray-100" onerror="this.src='https://placehold.co/400x400/f5f5f5/333?text=QR+Code'">
+                    </div>
+                    <div class="text-left max-w-lg">
+                        <p class="text-slate-300 font-light mb-6 text-lg leading-relaxed">
+                            เปลี่ยนรูปแบบการรับประกันแบบเดิมสู่ <strong class="text-white font-medium border-b border-yellow-400/50 pb-1">ระบบออนไลน์ 100%</strong> ลืมบัตรแข็งหรือเอกสารที่อาจสูญหายได้เลย! เพียงสแกน QR Code ประจำตัวรถ ระบบจะดึงข้อมูลการรับประกันทั้งหมดขึ้นมาแสดงทันที
+                        </p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm font-medium">
+                            <span class="flex items-center gap-3 text-green-400 bg-white/5 py-2.5 px-4 rounded-xl border border-white/10"><span class="text-lg">📱</span> Scan & Check</span>
+                            <span class="flex items-center gap-3 text-green-400 bg-white/5 py-2.5 px-4 rounded-xl border border-white/10"><span class="text-lg">🌿</span> Paperless</span>
+                            <span class="flex items-center gap-3 text-yellow-400 bg-white/5 py-2.5 px-4 rounded-xl border border-white/10"><span class="text-lg">⚡</span> Real-Time Status</span>
+                            <span class="flex items-center gap-3 text-blue-400 bg-white/5 py-2.5 px-4 rounded-xl border border-white/10"><span class="text-lg">☁️ </span> Cloud Warranty System</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Warranty Flow Display -->
+            <div class="flex flex-col lg:flex-row gap-8 items-stretch justify-center max-w-5xl mx-auto mb-12">
+                <!-- Flow Step 1: Login -->
+                <div class="w-full lg:w-1/2 flex flex-col">
+                    <div class="bg-white/5 p-6 rounded-t-2xl border-x border-t border-white/10 text-center">
+                        <div class="inline-block w-8 h-8 bg-yellow-400 text-[#0F172A] font-bold rounded-full mb-3 flex items-center justify-center mx-auto">1</div>
+                        <h4 class="text-yellow-400 font-semibold mb-2">QR Scan & Authentication</h4>
+                        <p class="text-sm text-slate-400 font-light">ลูกค้าสแกน QR Code และระบุป้ายทะเบียน</p>
+                    </div>
+                    <div class="mockup-browser w-full flex-grow border-white/10 rounded-t-none">
+                        <div class="mockup-header bg-[#1E293B] border-white/10">
+                            <div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div>
+                        </div>
+                        <div class="mockup-content bg-[#f5f5f5] p-0 flex justify-center items-start pt-4">
+                            <img src="Warrantylogin.png" alt="Warranty Login Screen" class="w-full max-w-[85%] h-auto max-h-[500px] object-contain shadow-md rounded mb-4" onerror="this.src='https://placehold.co/400x600/f5f5f5/333?text=Login'">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Flow Step 2: Result -->
+                <div class="w-full lg:w-1/2 flex flex-col">
+                    <div class="bg-white/5 p-6 rounded-t-2xl border-x border-t border-white/10 text-center">
+                        <div class="inline-block w-8 h-8 bg-yellow-400 text-[#0F172A] font-bold rounded-full mb-3 flex items-center justify-center mx-auto">2</div>
+                        <h4 class="text-yellow-400 font-semibold mb-2">Real-time Warranty Status</h4>
+                        <p class="text-sm text-slate-400 font-light">ระบบแสดงอายุประกันและรายละเอียดทันที</p>
+                    </div>
+                    <div class="mockup-browser w-full flex-grow border-white/10 rounded-t-none">
+                        <div class="mockup-header bg-[#1E293B] border-white/10">
+                            <div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div>
+                        </div>
+                        <div class="mockup-content bg-[#f5f5f5] p-0 flex justify-center items-start pt-4">
+                            <img src="Warranty.png" alt="Warranty Result Screen" class="w-full max-w-[85%] h-auto max-h-[500px] object-contain shadow-md rounded mb-4" onerror="this.src='https://placehold.co/400x600/f5f5f5/333?text=Result'">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tech details below -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                <div class="bg-[#0F172A] p-5 rounded-xl border border-slate-700 text-left">
+                    <div class="text-sm font-bold text-yellow-400 mb-2 flex items-center gap-2"><span>⚙️</span> Backend (GAS)</div>
+                    <p class="text-sm text-slate-300 font-light leading-relaxed">พัฒนา API ค้นหาความเร็วสูงด้วยโครงสร้าง <strong class="text-white">Hash Map (O(1))</strong> ดึงข้อมูลจาก Google Sheets (Data Lake) ทำให้สืบค้นข้อมูลนับหมื่นรายการได้ในระดับมิลลิวินาที</p>
+                </div>
+                <div class="bg-[#0F172A] p-5 rounded-xl border border-slate-700 text-left">
+                    <div class="text-sm font-bold text-yellow-400 mb-2 flex items-center gap-2"><span>💻</span> Frontend (HTML/JS)</div>
+                    <p class="text-sm text-slate-300 font-light leading-relaxed">พัฒนาระบบ <strong class="text-white">Dynamic DOM</strong> สร้างหน้าต่างแสดงผลตามจำนวนรถอัตโนมัติ พร้อมลอจิกแปลงวันที่ (Date Parsing) เพื่อเปลี่ยนสีสถานะ แดง/เขียว ทันที</p>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- 🌟 PROJECT 3: TERN LOGISTIC 🌟 -->
+    <section id="tms" class="bg-white border-y border-gray-100">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="flex flex-col lg:flex-row gap-16 items-center">
+                <div class="w-full lg:w-1/2">
+                    <div class="text-xs font-bold text-orange-600 tracking-widest uppercase mb-2">Operations Platform</div>
+                    
+                    <!-- NEW: In Development Badge -->
+                    <span class="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm mb-4 inline-flex items-center gap-2 border border-amber-200">
+                        <i class="fa-solid fa-person-digging"></i> Currently in Development
+                    </span>
+
+                    <h2 class="text-3xl md:text-4xl font-bold text-[#0F172A] mb-6">Operations Management System (Custom TMS)</h2>
+                    <p class="text-gray-600 font-light text-lg mb-8 leading-relaxed">
+                        ระบบศูนย์บัญชาการติดตามกองรถขนส่ง (TERN Logistic) ที่กำลังอยู่ระหว่างการพัฒนา เพื่อแก้ปัญหาการคีย์ข้อมูลซ้ำซ้อน และสร้างระบบแจ้งเตือนล่วงหน้า ป้องกันค่าปรับตกเรือ/คืนตู้ล่าช้า
+                    </p>
+                    <div class="space-y-6">
+                        <div class="border-l-4 border-blue-400 pl-4">
+                            <h4 class="font-semibold text-[#0F172A] text-lg">💡 Key Solution & UX Design</h4>
+                            <ul class="text-sm text-gray-500 font-light mt-2 space-y-3">
+                                <li><strong>User-Centric UX/UI:</strong> <span class="text-[#0F172A] font-medium">ออกแบบหน้าจอการคีย์งานให้คล้ายตาราง Excel ตาม Requirement ของผู้ใช้งาน</span> เพื่อให้พนักงานคุ้นเคย ลดระยะเวลาเรียนรู้ระบบใหม่ และสร้าง High User Adoption</li>
+                                <li><strong>Event-Driven Logic:</strong> ใช้ Checkbox เปลี่ยนสถานะ คำนวณ Next-Step อัตโนมัติ</li>
+                                <li><strong>Proactive Visual Alerts:</strong> ไฟกะพริบแจ้งเตือนก่อนถึง Deadline 3 ชม.</li>
+                                <li><strong>Live Dispatch Dashboard:</strong> แสดงผลสไตล์ Airport FIDS รีเฟรชอัตโนมัติเบื้องหลัง</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-full lg:w-1/2">
+                    <div class="bg-[#0F172A] rounded-2xl p-4 sm:p-8 minimal-shadow text-white relative overflow-hidden transform transition hover:-translate-y-2 flex justify-center items-center">
+                        <div class="absolute -right-20 -top-20 w-64 h-64 bg-blue-500 opacity-10 rounded-full blur-3xl"></div>
+                        <img src="resume พานิช ธิมายอม-02.jpg" alt="TERN Logistic" class="w-full max-w-full h-auto max-h-[450px] object-contain rounded-lg border border-white/10 relative z-10" onerror="this.src='https://placehold.co/600x400/1E293B/FFFFFF?text=Terminal+Command+Monitor'">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Roadmap Section -->
+    <section id="roadmap" class="bg-[#F8FAFC] border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-6 text-center">
+            <div class="text-xs font-bold text-blue-600 tracking-widest uppercase mb-2">Continuous Growth</div>
+            <h2 class="text-3xl font-bold text-[#0F172A] mb-4">Professional Growth & Technical Roadmap</h2>
+            <div class="w-12 h-1 bg-[#0F172A] mx-auto mb-10"></div>
+            <p class="text-gray-500 max-w-2xl mx-auto font-light mb-8">
+                แผนการพัฒนาทักษะ (Skill Roadmap) เพื่อยกระดับสถาปัตยกรรมข้อมูลให้รองรับ Scale ธุรกิจระดับ Enterprise
+            </p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                <div class="bg-white p-8 rounded-2xl border border-gray-100 minimal-shadow relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-blue-500 opacity-5 rounded-bl-full transition-transform group-hover:scale-110"></div>
+                    <div class="w-12 h-12 bg-slate-50 text-blue-600 rounded-lg flex items-center justify-center text-2xl mb-6 shadow-sm border border-slate-200">🗄️</div>
+                    <h3 class="text-lg font-bold text-[#0F172A] mb-4">Advanced Database<br>& Architecture</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="px-3 py-1 bg-slate-50 text-slate-700 text-xs font-semibold rounded border border-slate-200">Database Design</span>
+                        <span class="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded border border-blue-200">SQL</span>
+                        <span class="px-3 py-1 bg-slate-50 text-slate-700 text-xs font-semibold rounded border border-slate-200">PostgreSQL</span>
+                        <span class="px-3 py-1 bg-slate-50 text-slate-700 text-xs font-semibold rounded border border-slate-200">MySQL</span>
+                    </div>
+                </div>
+                <div class="bg-white p-8 rounded-2xl border border-gray-100 minimal-shadow relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-yellow-500 opacity-5 rounded-bl-full transition-transform group-hover:scale-110"></div>
+                    <div class="w-12 h-12 bg-slate-50 text-yellow-600 rounded-lg flex items-center justify-center text-2xl mb-6 shadow-sm border border-slate-200">🔌</div>
+                    <h3 class="text-lg font-bold text-[#0F172A] mb-4">System Architecture<br>& Backend Integration</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="px-3 py-1 bg-yellow-50 text-yellow-800 text-xs font-semibold rounded border border-yellow-200">System Architecture</span>
+                        <span class="px-3 py-1 bg-slate-50 text-slate-700 text-xs font-semibold rounded border border-slate-200">API</span>
+                        <span class="px-3 py-1 bg-slate-50 text-slate-700 text-xs font-semibold rounded border border-slate-200">JSON</span>
+                    </div>
+                </div>
+                <div class="bg-white p-8 rounded-2xl border border-gray-100 minimal-shadow relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-green-500 opacity-5 rounded-bl-full transition-transform group-hover:scale-110"></div>
+                    <div class="w-12 h-12 bg-slate-50 text-green-600 rounded-lg flex items-center justify-center text-2xl mb-6 shadow-sm border border-slate-200">📊</div>
+                    <h3 class="text-lg font-bold text-[#0F172A] mb-4">Advanced Analytics<br>& Business Intelligence</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="px-3 py-1 bg-green-50 text-green-800 text-xs font-semibold rounded border border-green-200">Python</span>
+                        <span class="px-3 py-1 bg-slate-50 text-slate-700 text-xs font-semibold rounded border border-slate-200">Power BI</span>
+                        <span class="px-3 py-1 bg-slate-50 text-slate-700 text-xs font-semibold rounded border border-slate-200">Looker Studio (Pro)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer with Links -->
+    <footer class="bg-[#0F172A] text-white py-16 border-t border-[#1E293B]">
+        <div class="max-w-5xl mx-auto px-6 text-center">
+            <h2 class="text-3xl font-bold mb-6">Ready to Drive Digital Transformation?</h2>
+            <p class="text-gray-400 font-light mb-10 max-w-2xl mx-auto">
+                พร้อมนำทักษะด้าน System Analysis, Database Design และ Web Development เข้ามายกระดับองค์กรของคุณ
+            </p>
+            
+            <div class="flex flex-wrap justify-center items-center gap-4 mb-12">
+                <a href="tel:0882683898" class="flex items-center gap-2 bg-white/10 hover:bg-white text-white hover:text-[#0F172A] px-6 py-3 rounded-full transition-all shadow-md font-medium border border-white/20">
+                    <i class="fa-solid fa-phone"></i> 088 268 3898
+                </a>
+                <a href="mailto:gm_panich@hotmail.com" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-full transition-all shadow-md font-medium">
+                    <i class="fa-solid fa-envelope"></i> gm_panich@hotmail.com
+                </a>
+            </div>
+
+            <!-- Social Links (GitHub, LinkedIn, Resume) -->
+            <div class="flex justify-center items-center gap-6 mb-12 border-t border-slate-700/50 pt-10">
+                <a href="#" class="text-slate-400 hover:text-white flex flex-col items-center gap-2 transition-colors">
+                    <div class="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-xl"><i class="fa-brands fa-github"></i></div>
+                    <span class="text-xs font-mono">GitHub</span>
+                </a>
+                <a href="#" class="text-slate-400 hover:text-white flex flex-col items-center gap-2 transition-colors">
+                    <div class="w-12 h-12 rounded-full bg-blue-900/50 flex items-center justify-center text-xl"><i class="fa-brands fa-linkedin-in text-blue-400"></i></div>
+                    <span class="text-xs font-mono">LinkedIn</span>
+                </a>
+                <a href="#" class="text-slate-400 hover:text-white flex flex-col items-center gap-2 transition-colors">
+                    <div class="w-12 h-12 rounded-full bg-rose-900/50 flex items-center justify-center text-xl"><i class="fa-solid fa-file-pdf text-rose-400"></i></div>
+                    <span class="text-xs font-mono">Resume PDF</span>
+                </a>
+            </div>
+
+            <div class="text-sm text-gray-500 font-light">
+                <p>&copy; 2024 Panich Thimayom. Designed & Built for Enterprise Innovation.</p>
+            </div>
+        </div>
+    </footer>
 </body>
 </html>
