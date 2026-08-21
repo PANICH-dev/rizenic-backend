@@ -262,6 +262,21 @@
         let activeFilters = {}; 
         let currentFilterKey = -1;
 
+        // 🌟 ฟังก์ชันหาค่าเริ่มต้นเดือนปัจจุบัน 🌟
+        function setCurrentMonthFilter() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            
+            // หาหน้าวันแรกของเดือน และวันสุดท้ายของเดือน
+            const firstDay = new Date(year, now.getMonth(), 1);
+            const lastDay = new Date(year, now.getMonth() + 1, 0);
+
+            // เซตค่าให้ Input วันที่
+            document.getElementById('date_start').value = firstDay.toISOString().split('T')[0];
+            document.getElementById('date_end').value = lastDay.toISOString().split('T')[0];
+        }
+
         function showToast(msg, type='success') {
             const toast = document.getElementById('toastMsg');
             const icon = type === 'error' ? 'fa-circle-xmark' : (type === 'info' ? 'fa-circle-info' : 'fa-circle-check');
@@ -289,6 +304,9 @@
             const today = new Date();
             const curMonth = String(today.getMonth() + 1).padStart(2, '0');
             document.getElementById('month_filter_select').value = curMonth;
+
+            // 🌟 เซตค่าเริ่มต้นเดือนปัจจุบันให้ช่องวันที่
+            setCurrentMonthFilter();
 
             initColumns();
             loadAccountingData();
@@ -377,7 +395,6 @@
                 const res = await fetch(`${API_BASE_URL}/api/reports`);
                 const data = await res.json();
                 
-                // 🌟 กรองข้อมูล: อยู่แผนกบัญชี "และ" ไม่ใช่สถานะ 'ปิดงาน' 🌟
                 allAccJobs = data.filter(d => d.department_routing === 'บัญชี' && d.job_status !== 'ปิดงาน');
                 
                 if (!['BA','Manager','Admin','แอดมิน'].includes(userRole)) {
@@ -533,7 +550,6 @@
                         allAccJobs[jobIndex][field] = valToSend;
                         if (field === 'insurance_pay_date') allAccJobs[jobIndex]['insurance_payment_date'] = valToSend;
                         
-                        // 🌟 หากอัปเดตสถานะเป็น "ปิดงาน" ให้เตะออกจากตารางอัตโนมัติ 🌟
                         if (field === 'job_status' && valToSend === 'ปิดงาน') {
                             allAccJobs.splice(jobIndex, 1);
                             showToast('สถานะปิดงาน ถูกเก็บลงประวัติย้อนหลังเรียบร้อย', 'info');
@@ -600,7 +616,7 @@
 
             let statusOpts = accStatuses.length > 0 ? [...accStatuses] : ['รอออกบิล', 'ออกบิลแล้ว', 'รับชำระแล้ว'];
             if (!statusOpts.includes('13.วางบิลประกัน')) statusOpts.push('13.วางบิลประกัน');
-            if (!statusOpts.includes('ปิดงาน')) statusOpts.push('ปิดงาน'); // ให้มีตัวเลือก "ปิดงาน" ใน Dropdown
+            if (!statusOpts.includes('ปิดงาน')) statusOpts.push('ปิดงาน'); 
             let optsHtml = statusOpts.map(s => `<option value="${s}">${s}</option>`).join('');
 
             tbody.innerHTML = data.map(job => {
@@ -635,7 +651,6 @@
             }).join('');
         }
 
-        // ================= 🌟 EXCEL EXPORT (โหลดไฟล์บัญชี) 🌟 =================
         function exportToExcel() {
             if (!currentFilteredData || currentFilteredData.length === 0) {
                 showToast('ไม่มีข้อมูลในตารางให้โหลดครับ!', 'error');
@@ -666,7 +681,6 @@
             showToast('ดาวน์โหลดไฟล์ Excel เรียบร้อยแล้ว!');
         }
 
-        // ================= 🌟 EXCEL FILTER (ป๊อปอัปเด้ง 100%) 🌟 =================
         function openExcelFilter(e, colIndex, title) {
             e.stopPropagation();
             currentFilterKey = colIndex;
@@ -757,8 +771,8 @@
             
             if (['Manager', 'Admin', 'BA', 'แอดมิน'].includes(userRole)) document.getElementById('branch_filter_select').value = 'ALL';
             
-            document.getElementById('date_start').value = '';
-            document.getElementById('date_end').value = '';
+            // 🌟 เมื่อกดล้างตัวกรอง ให้กลับไปค่าเริ่มต้นเดือนปัจจุบันแทนการล้างออกเป็นค่าว่าง 🌟
+            setCurrentMonthFilter();
             
             document.querySelectorAll('.filter-icon').forEach(icon => { icon.classList.remove('text-amber-400'); icon.classList.add('text-slate-400'); });
             applyFilters();
