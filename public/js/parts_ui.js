@@ -77,18 +77,16 @@ function renderSAAlerts() {
         const plate = job.car_plate || 'ไม่ระบุทะเบียน';
         const arrDate = (job.arrived_date || job.contact_date) ? String(job.arrived_date || job.contact_date).split('T')[0] : '-';
         const customerName = job.customer_name || '-';
+        const saOwner = job.sa_owner || 'ไม่ระบุ'; // 🌟 เพิ่มตัวแปร SA Owner
         
-        // ดึงรายการอะไหล่ทั้งหมดของรถคันนี้
+        // 🌟 ดึงอะไหล่ "ทั้งหมด" (ยกเลิกการซ่อนอะไหล่ที่มาครบแล้ว เพื่อให้โชว์ติ๊กถูก)
         const relatedParts = allPartOrders.filter(p => 
-            (String(p.report_id) === String(jobId) || (!p.report_id && p.car_plate === plate)) && 
-            (!p.order_status || !p.order_status.includes('ครบ'))
+            (String(p.report_id) === String(jobId) || (!p.report_id && p.car_plate === plate))
         );
 
-        // ดึงข้อมูล QT และ SO
         const qtDisplay = job.qt_no || job.quotation_no || (relatedParts.length > 0 ? (relatedParts[0].qt_no || '-') : '-');
         const soDisplay = job.so_no || job.job_order_no || (relatedParts.length > 0 ? (relatedParts[0].so_no || '-') : '-');
 
-        // ดึงวันที่ คาดการณ์ (ETA) และวันที่เข้าครบ (Received Date)
         let etaDisplay = '-';
         let rcvDisplay = '-';
 
@@ -102,12 +100,32 @@ function renderSAAlerts() {
 
         let itemsHtml = '';
         if (relatedParts.length === 0) {
-            itemsHtml = `<span class="text-[11px] font-bold text-rose-500 animate-pulse block truncate"><i class="fa-solid fa-caret-right"></i> ⚠️ ยังไม่มีรายการสั่งอะไหล่</span>`;
+            itemsHtml = `<span class="text-[11px] font-bold text-rose-500 animate-pulse block truncate"><i class="fa-solid fa-circle-exclamation"></i> ⚠️ ยังไม่มีรายการสั่งอะไหล่</span>`;
         } else {
+            // 🌟 ออกแบบการแสดงผลอะไหล่รายชิ้น (ดีไซน์ใหม่) 🌟
             itemsHtml = relatedParts.map(p => {
-                let color = (p.order_status === 'รอสั่งซื้อ' || p.order_status === 'รออัปเดต') ? 'text-red-600' : 'text-amber-600';
+                const isComplete = p.order_status && p.order_status.includes('ครบ');
+                const color = isComplete ? 'text-emerald-600' : ((p.order_status === 'รอสั่งซื้อ' || p.order_status === 'รออัปเดต') ? 'text-red-600' : 'text-amber-600');
+                const icon = isComplete ? '<i class="fa-solid fa-circle-check text-emerald-500 text-sm"></i>' : '<i class="fa-solid fa-clock text-amber-500 text-sm"></i>';
+                
                 let partNoDisplay = (p.part_no && p.part_no !== 'AUTO-PART') ? `<span class="text-blue-600 font-mono">[${p.part_no}]</span> ` : '';
-                return `<span class="text-[11px] font-bold ${color} block truncate" title="${p.part_name}"><i class="fa-solid fa-caret-right"></i> ${partNoDisplay}${p.part_name} <span class="text-slate-500">(${p.order_status || '-'})</span></span>`;
+                
+                let dateInfo = '';
+                if (isComplete && (p.received_date || p.part_received_all_date)) {
+                    dateInfo = `<span class="text-emerald-600 font-mono ml-1 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 shadow-sm"><i class="fa-solid fa-box-open mr-1"></i>เข้า: ${String(p.received_date || p.part_received_all_date).split('T')[0]}</span>`;
+                } else if (!isComplete && p.est_arrival_date) {
+                    dateInfo = `<span class="text-amber-600 font-mono ml-1 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shadow-sm"><i class="fa-solid fa-calendar-day mr-1"></i>ETA: ${String(p.est_arrival_date).split('T')[0]}</span>`;
+                }
+
+                return `
+                    <div class="text-[11px] font-bold ${color} mb-1.5 flex items-start gap-2 p-1.5 hover:bg-white rounded-lg transition border border-transparent hover:border-slate-200" title="${p.part_name}">
+                        <div class="mt-0.5 shrink-0">${icon}</div>
+                        <div class="leading-tight w-full flex flex-wrap items-center gap-1">
+                            <span>${partNoDisplay}${p.part_name}</span> 
+                            <span class="text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shadow-sm">${p.order_status || '-'}</span>
+                            ${dateInfo}
+                        </div>
+                    </div>`;
             }).join('');
         }
 
@@ -119,13 +137,18 @@ function renderSAAlerts() {
                 </td>
                 <td class="text-slate-500 font-mono font-bold text-center px-2 py-2 text-xs">${arrDate}</td>
                 <td class="font-bold text-slate-600 text-xs px-2 py-2">${job.car_model || '-'}</td>
-                <td class="font-bold text-slate-700 text-xs px-2 py-2 truncate max-w-[120px]" title="${customerName}">${customerName}</td>
+                
+                <!-- 🌟 เพิ่ม SA Owner ใต้ชื่อลูกค้า -->
+                <td class="font-bold text-slate-700 text-xs px-2 py-2 truncate max-w-[150px]" title="${customerName}">
+                    ${customerName}
+                    <div class="text-[10px] text-blue-600 mt-1 flex items-center gap-1 bg-blue-50 px-1.5 py-0.5 rounded-full inline-block border border-blue-100"><i class="fa-solid fa-user-tie"></i> ${saOwner}</div>
+                </td>
                 
                 <td class="font-mono text-xs font-bold text-slate-700 px-2 py-2">${qtDisplay}</td>
                 <td class="font-mono text-xs font-bold text-amber-700 px-2 py-2">${soDisplay}</td>
                 <td class="font-mono text-xs font-bold text-blue-600 px-2 py-2">${job.epc_no || '-'}</td>
                 
-                <td class="px-2 py-2 max-h-[80px] overflow-y-auto block custom-scrollbar bg-slate-50/50 rounded my-1 border border-slate-100">${itemsHtml}</td>
+                <td class="px-2 py-2 max-h-[120px] overflow-y-auto block custom-scrollbar bg-slate-50/50 rounded-xl my-1 border border-slate-200 shadow-inner">${itemsHtml}</td>
                 
                 <td class="font-mono text-xs font-bold text-center text-amber-600 px-2 py-2">${etaDisplay}</td>
                 <td class="font-mono text-xs font-bold text-center text-emerald-600 px-2 py-2">${rcvDisplay}</td>
@@ -148,9 +171,9 @@ function openAlertModal(jobId, plate, epcNo) {
     const defaultQt = mainJob ? (mainJob.qt_no || mainJob.quotation_no || '') : '';
     const defaultSo = mainJob ? (mainJob.so_no || mainJob.job_order_no || '') : '';
 
-    const uncompleted = allPartOrders.filter(p => 
-        (String(p.report_id) === String(jobId) || (!p.report_id && p.car_plate === plate)) && 
-        (!p.order_status || !p.order_status.includes('ครบ'))
+    // 🌟 ดึงอะไหล่มาโชว์ทั้งหมด ไม่กรองชิ้นที่ครบออกแล้ว
+    const jobParts = allPartOrders.filter(p => 
+        (String(p.report_id) === String(jobId) || (!p.report_id && p.car_plate === plate))
     );
     
     const container = document.getElementById('modal_dynamic_table_container');
@@ -195,7 +218,7 @@ function openAlertModal(jobId, plate, epcNo) {
     const safeStatusList = (allPartStatusesCache.length > 0) ? allPartStatusesCache : fallbackStatuses;
     const statusOptionsHtml = safeStatusList.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
 
-    uncompleted.forEach(p => {
+    jobParts.forEach(p => {
         let safeOpts = statusOptionsHtml;
         if (p.order_status && !safeOpts.includes(`value="${p.order_status}"`)) { safeOpts = `<option value="${p.order_status}">${p.order_status}</option>` + safeOpts; }
         safeOpts = safeOpts.replace(`value="${p.order_status || 'รอสั่งซื้อ'}"`, `value="${p.order_status || 'รอสั่งซื้อ'}" selected`);
@@ -326,7 +349,7 @@ function autoFillDynName(inputEl) {
 
 function closeAlertModal() { document.getElementById('alertModal').classList.add('hidden'); document.getElementById('alertModal').classList.remove('flex'); }
 
-// 🌟 ปรับปรุงการบันทึกข้อมูล: สั่งล้างแคชและโหลดข้อมูลใหม่ทันทีเพื่อไม่ให้จำค่าเดิม 🌟
+// 🌟 ปรับระบบบันทึกและสั่งดึงข้อมูลตารางใหม่ทันที 🌟
 async function saveSAAlertUpdate(e) {
     e.preventDefault();
     const rows = document.querySelectorAll('#modal_dynamic_table_container tbody tr');
@@ -400,11 +423,14 @@ async function saveSAAlertUpdate(e) {
         showToast('อัปเดตข้อมูลอะไหล่เรียบร้อย!', 'success');
         closeAlertModal();
         
-        // 🌟 บังคับดึงข้อมูลใหม่แบบ No-Cache ทันทีหลังกดเซฟ 🌟
+        // 🌟 บังคับรอ 0.5 วิ ให้ Database ทำงานเสร็จก่อนดึงข้อมูล 🌟
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // 🌟 เรียกโหลดข้อมูลใหม่แบบสมบูรณ์ 🌟
         if (typeof loadAllData === 'function') {
             await loadAllData();
-        } else if (typeof fetchJobList === 'function') {
-            await fetchJobList();
+        } else if (typeof fetchAllData === 'function') {
+            await fetchAllData();
         } else {
             window.location.reload();
         }
