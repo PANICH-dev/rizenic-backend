@@ -145,7 +145,11 @@ function openAlertModal(jobId, plate, epcNo) {
                         <th class="w-20 text-center px-2 py-2 relative"><span>จำนวน</span><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
                         <th class="w-48 px-2 py-2 relative"><div class="flex items-center justify-between"><span>ชื่อชิ้นส่วน</span></div><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
                         <th class="w-28 px-2 py-2 relative"><div class="flex items-center justify-between"><span>MAIN No</span></div><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
-                        <th class="w-32 text-center px-2 py-2 relative"><div class="flex items-center justify-center gap-2"><span>สถานะ</span><i class="fa-solid fa-filter filter-icon text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 5, 'สถานะ', 'sa_modal_table')"></i></div><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
+                        <!-- 🌟 เพิ่ม QT และ SO 🌟 -->
+                        <th class="w-28 px-2 py-2 relative"><div class="flex items-center justify-between"><span>QT</span><i class="fa-solid fa-filter filter-icon text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 5, 'QT', 'sa_modal_table')"></i></div><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
+                        <th class="w-28 px-2 py-2 relative"><div class="flex items-center justify-between"><span>SO</span><i class="fa-solid fa-filter filter-icon text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 6, 'SO', 'sa_modal_table')"></i></div><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
+                        <!--  -->
+                        <th class="w-32 text-center px-2 py-2 relative"><div class="flex items-center justify-center gap-2"><span>สถานะ</span><i class="fa-solid fa-filter filter-icon text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 7, 'สถานะ', 'sa_modal_table')"></i></div><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
                         <th class="w-28 text-center px-2 py-2 relative">คาดการณ์ (ETA)</th>
                         <th class="w-28 text-center px-2 py-2 relative">เข้าครบ</th>
                         <th class="w-40 px-2 py-2 relative">หมายเหตุ</th>
@@ -172,6 +176,11 @@ function openAlertModal(jobId, plate, epcNo) {
                 <td class="p-0 border border-slate-200"><input type="number" class="inline-edit-input dyn-qty text-center font-black text-amber-600 bg-amber-50" value="${p.qty_ordered || 1}" onpaste="handleModalGridPaste(event, this)"></td>
                 <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-name font-bold" value="${p.part_name || ''}"></td>
                 <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-main font-mono text-slate-500" value="${p.part_main_no || ''}"></td>
+                
+                <!-- 🌟 เพิ่มช่อง input สำหรับ QT และ SO 🌟 -->
+                <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-qt font-mono uppercase text-center" value="${p.qt_no || ''}"></td>
+                <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-so font-mono uppercase text-center" value="${p.so_no || ''}"></td>
+                
                 <td class="p-0 border border-slate-200"><select class="inline-edit-select dyn-status font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 cursor-pointer">${safeOpts}</select></td>
                 <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-eta font-mono text-center text-xs" value="${p.est_arrival_date ? String(p.est_arrival_date).split('T')[0] : ''}"></td>
                 <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-rcv font-mono text-center text-xs" value="${receivedDateVal ? String(receivedDateVal).split('T')[0] : ''}"></td>
@@ -218,6 +227,11 @@ window.addNewAlertRow = function(jobId, plate, epcNo) {
         <td class="p-0 border border-slate-200"><input type="number" class="inline-edit-input dyn-qty text-center font-black text-amber-600 bg-amber-50" value="1" min="1" onpaste="handleModalGridPaste(event, this)"></td>
         <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-name font-bold"></td>
         <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-main font-mono text-slate-500"></td>
+        
+        <!-- 🌟 เพิ่มช่อง input สำหรับ QT และ SO สำหรับแถวใหม่ 🌟 -->
+        <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-qt font-mono uppercase text-center"></td>
+        <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-so font-mono uppercase text-center"></td>
+        
         <td class="p-0 border border-slate-200"><select class="inline-edit-select dyn-status font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 cursor-pointer">${safeOpts}</select></td>
         <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-eta font-mono text-center text-xs"></td>
         <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-rcv font-mono text-center text-xs"></td>
@@ -311,6 +325,11 @@ async function saveSAAlertUpdate(e) {
             part_main_no: tr.querySelector('.dyn-main').value.trim() || null,
             part_name: partName || (isNew ? 'อะไหล่ทั่วไป' : null),
             qty_ordered: parseInt(tr.querySelector('.dyn-qty').value) || 1,
+            
+            // 🌟 เพิ่ม QT และ SO เข้ามาใน object updates 🌟
+            qt_no: tr.querySelector('.dyn-qt').value.trim() || null,
+            so_no: tr.querySelector('.dyn-so').value.trim() || null,
+            
             order_status: tr.querySelector('.dyn-status').value,
             est_arrival_date: tr.querySelector('.dyn-eta').value || null,
             part_received_all_date: tr.querySelector('.dyn-rcv').value || null,
@@ -339,6 +358,11 @@ async function saveSAAlertUpdate(e) {
                         part_main_no: u.part_main_no, 
                         part_name: u.part_name, 
                         qty_ordered: u.qty_ordered, 
+                        
+                        // 🌟 ส่งค่า QT และ SO สำหรับสร้าง PO ใหม่ 🌟
+                        qt_no: u.qt_no,
+                        so_no: u.so_no,
+                        
                         order_status: u.order_status, 
                         order_date: todayStr, 
                         epc_no: u.epc_no, 
@@ -348,7 +372,8 @@ async function saveSAAlertUpdate(e) {
                 });
             } else {
                 const promises = [];
-                ['epc_no', 'part_no', 'part_main_no', 'part_name', 'qty_ordered', 'order_status', 'est_arrival_date', 'part_received_all_date', 'notes'].forEach(field => {
+                // 🌟 เพิ่ม qt_no และ so_no ใน Array field ที่จะวนลูปอัปเดต 🌟
+                ['epc_no', 'part_no', 'part_main_no', 'part_name', 'qty_ordered', 'qt_no', 'so_no', 'order_status', 'est_arrival_date', 'part_received_all_date', 'notes'].forEach(field => {
                     promises.push(fetch(`${API_BASE_URL}/api/part-orders/${u.id}/fast`, {
                         method: 'PUT', headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({ field, value: u[field] })
@@ -367,4 +392,99 @@ async function saveSAAlertUpdate(e) {
         btn.innerHTML = originalBtnHtml || '<i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลส่งให้ SA';
         btn.disabled = false;
     }
+}
+
+// ------------------------------------------
+// 2. ข้อมูลมาสเตอร์ (Master Data)
+// ------------------------------------------
+function renderMasterTable() {
+    const tbody = document.getElementById('master_table_body'); if(!tbody) return;
+    if (allMasterPartsCache.length === 0) { tbody.innerHTML = `<tr><td colspan="8" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีข้อมูลมาสเตอร์อะไหล่</td></tr>`; return; }
+    
+    tbody.innerHTML = allMasterPartsCache.map(m => `
+        <tr class="hover:bg-slate-50 transition-colors border-b border-slate-100">
+            <td class="font-mono text-blue-700 font-bold px-4 py-2.5">${m.part_no}</td>
+            <td class="font-bold text-slate-800 px-4 py-2.5">${m.part_name}</td>
+            <td class="font-mono text-slate-500 px-4 py-2.5">${m.part_main_no || '-'}</td>
+            <td class="text-slate-600 text-xs font-bold px-4 py-2.5">${m.car_model || '-'}</td>
+            <td class="px-4 py-2.5"><span class="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded-lg text-[10px] font-bold shadow-sm">${m.part_category || 'อะไหล่ทั่วไป'}</span></td>
+            <td class="text-right font-mono font-bold text-slate-700 px-4 py-2.5">${parseFloat(m.unit_price || 0).toLocaleString('th-TH', {minimumFractionDigits:2})}</td>
+            <td class="text-center font-bold text-slate-600 px-4 py-2.5">${m.location || '-'}</td>
+            <td class="text-center px-4 py-2.5"><button onclick="editMaster('${m.part_no}')" class="text-blue-500 hover:text-blue-700 px-2 transition"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteMaster('${m.part_id}')" class="text-slate-300 hover:text-red-500 px-2 transition"><i class="fa-solid fa-trash"></i></button></td>
+        </tr>
+    `).join('');
+}
+
+function searchMasterTable() { filterTableByText('master_table_body', event.target.value); }
+
+function openMasterModal() {
+    document.getElementById('edit_master_id').value = ''; document.getElementById('master_part_no').value = '';
+    document.getElementById('master_part_name').value = ''; document.getElementById('master_part_main').value = '';
+    document.getElementById('master_category').value = 'อะไหล่หลัก'; document.getElementById('master_price').value = '0.00';
+    document.getElementById('master_location').value = ''; document.getElementById('master_safety').value = '0';
+    renderCarModelsCheckbox(''); document.getElementById('masterModal').classList.remove('hidden'); document.getElementById('masterModal').classList.add('flex');
+}
+
+function closeMasterModal() { document.getElementById('masterModal').classList.add('hidden'); document.getElementById('masterModal').classList.remove('flex'); }
+
+async function editMaster(partNo) {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/parts/check/${encodeURIComponent(partNo)}?branch=${encodeURIComponent(userBranch)}`);
+        if(res.ok) {
+            const data = await res.json(); const m = Array.isArray(data) ? data[0] : (data.data ? (Array.isArray(data.data) ? data.data[0] : data.data) : data);
+            if(m) {
+                document.getElementById('edit_master_id').value = m.part_id; document.getElementById('master_part_no').value = m.part_no;
+                document.getElementById('master_part_name').value = m.part_name; document.getElementById('master_part_main').value = m.part_main_no || '';
+                document.getElementById('master_category').value = m.part_category || 'อะไหล่หลัก'; document.getElementById('master_price').value = parseFloat(m.unit_price || 0).toFixed(2);
+                document.getElementById('master_location').value = m.location || ''; document.getElementById('master_safety').value = m.safety_stock || '0';
+                renderCarModelsCheckbox(m.car_model || '');
+                document.getElementById('masterModal').classList.remove('hidden'); document.getElementById('masterModal').classList.add('flex');
+            }
+        }
+    } catch(e) { showToast('ดึงข้อมูลผิดพลาด', 'error'); }
+}
+
+async function saveMasterPart() {
+    const id = document.getElementById('edit_master_id').value; const pNo = document.getElementById('master_part_no').value.trim().toUpperCase(); const pName = document.getElementById('master_part_name').value.trim();
+    if(!pNo || !pName) return alert('กรุณากรอกบาร์โค้ดและชื่อชิ้นส่วนให้ครบถ้วน');
+    const chks = document.querySelectorAll('.master-car-chk:checked'); const models = Array.from(chks).map(c => c.value).join(', ');
+
+    const payload = {
+        part_no: pNo, part_main_no: document.getElementById('master_part_main').value.trim().toUpperCase() || null,
+        part_name: pName, car_model: models || null, part_category: document.getElementById('master_category').value,
+        unit_price: parseFloat(document.getElementById('master_price').value) || 0, location: document.getElementById('master_location').value.trim() || null,
+        safety_stock: parseInt(document.getElementById('master_safety').value) || 0, branch_name: userBranch
+    };
+
+    try {
+        const url = id ? `${API_BASE_URL}/api/parts/${id}` : `${API_BASE_URL}/api/parts`;
+        const method = id ? 'PUT' : 'POST';
+        const res = await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+        if(res.ok) { showToast('บันทึกมาสเตอร์สำเร็จ!'); closeMasterModal(); loadAllData(); } else throw new Error();
+    } catch(e) { showToast('บันทึกล้มเหลว', 'error'); }
+}
+
+async function deleteMaster(id) {
+    if(!confirm('🚨 ยืนยันการลบข้อมูลมาสเตอร์นี้?')) return;
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/parts/${id}`, { method: 'DELETE' });
+        if(res.ok) { showToast('ลบมาสเตอร์สำเร็จ'); loadAllData(); } else throw new Error();
+    } catch(e) { showToast('ลบไม่สำเร็จ', 'error'); }
+}
+
+function renderCarModelsCheckbox(selectedStr) {
+    const container = document.getElementById('master_car_models_container'); if(!container) return;
+    const selectedArr = selectedStr.split(',').map(s => s.trim());
+    
+    fetch(`${API_BASE_URL}/api/car-models`).then(async r => {
+        if(r.ok) {
+            const data = await r.json();
+            container.innerHTML = data.map(c => `
+                <label class="flex items-center gap-2 cursor-pointer hover:bg-white p-2 rounded border border-transparent hover:border-slate-200 transition">
+                    <input type="checkbox" value="${c.car_model}" class="master-car-chk w-4 h-4 accent-blue-600 cursor-pointer" ${selectedArr.includes(c.car_model) ? 'checked' : ''}>
+                    <span class="text-sm font-bold text-slate-700 select-none">${c.car_brand} <span class="font-medium text-slate-500">${c.car_model}</span></span>
+                </label>
+            `).join('');
+        }
+    }).catch(()=>{});
 }
