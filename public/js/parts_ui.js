@@ -63,7 +63,7 @@ function renderSAAlerts() {
     }
     
     if (jobsToDisplay.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-10 text-slate-400 font-bold bg-white"><i class="fa-solid fa-check-circle text-3xl mb-3 text-emerald-300 block"></i> ไม่มีรายการใบงานที่ต้องจัดการครับ! 🎉</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" class="text-center py-10 text-slate-400 font-bold bg-white"><i class="fa-solid fa-check-circle text-3xl mb-3 text-emerald-300 block"></i> ไม่มีรายการใบงานที่ต้องจัดการครับ! 🎉</td></tr>`;
         if(badge) badge.classList.add('hidden');
         return;
     }
@@ -97,17 +97,16 @@ function renderSAAlerts() {
                 const icon = isComplete ? '<i class="fa-solid fa-circle-check text-emerald-500 text-sm"></i>' : '<i class="fa-solid fa-clock text-amber-500 text-sm"></i>';
                 
                 let partNoDisplay = (p.part_no && p.part_no !== 'AUTO-PART') ? `<span class="text-blue-600 font-mono">[${p.part_no}]</span> ` : '';
-                
-                // 🌟 เพิ่ม EPC ในแต่ละรายการ 🌟
                 let epcDisplay = p.epc_no ? `<span class="text-purple-600 font-mono ml-1 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 shadow-sm"><i class="fa-solid fa-barcode mr-1"></i>EPC: ${p.epc_no}</span>` : '';
                 
-                // 🌟 เพิ่ม วันที่คาดการณ์ (ETA) และ วันที่เข้าครบ (RCV) ในแต่ละรายการ 🌟
+                // 🌟 โชว์วันที่ ETA และ วันที่เข้าครบ (RCV) เสมอถ้ามีข้อมูลในระบบ (ไม่ต้องรอให้สถานะเป็นเข้าครบ) 🌟
                 let dateInfo = '';
+                if (p.est_arrival_date) {
+                    dateInfo += `<span class="text-amber-600 font-mono ml-1 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shadow-sm"><i class="fa-solid fa-calendar-day mr-1"></i>ETA: ${String(p.est_arrival_date).split('T')[0]}</span>`;
+                }
                 const rcvDate = p.received_date || p.part_received_all_date;
-                if (isComplete && rcvDate) {
-                    dateInfo = `<span class="text-emerald-600 font-mono ml-1 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 shadow-sm"><i class="fa-solid fa-box-open mr-1"></i>เข้าครบ: ${String(rcvDate).split('T')[0]}</span>`;
-                } else if (!isComplete && p.est_arrival_date) {
-                    dateInfo = `<span class="text-amber-600 font-mono ml-1 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shadow-sm"><i class="fa-solid fa-calendar-day mr-1"></i>ETA: ${String(p.est_arrival_date).split('T')[0]}</span>`;
+                if (rcvDate) {
+                    dateInfo += `<span class="text-emerald-600 font-mono ml-1 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 shadow-sm"><i class="fa-solid fa-box-open mr-1"></i>เข้าครบ: ${String(rcvDate).split('T')[0]}</span>`;
                 }
 
                 return `
@@ -166,6 +165,10 @@ function openAlertModal(jobId, plate) {
     
     const container = document.getElementById('modal_dynamic_table_container');
     
+    // ดึงค่าการค้นหาด่วนที่อาจจะพิมพ์ค้างไว้ มาใส่ใหม่
+    const epcInput = document.getElementById('mass_epc_update');
+    const existingEpc = epcInput ? epcInput.value : '';
+
     let html = `
         <div class="mb-4 bg-gradient-to-r from-emerald-50 to-white p-4 rounded-xl border border-emerald-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
@@ -179,7 +182,7 @@ function openAlertModal(jobId, plate) {
             </div>
             <div class="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200 shadow-sm">
                 <span class="text-[10px] font-bold text-slate-500 uppercase">ตั้งค่า EPC ด่วน:</span>
-                <input type="text" id="mass_epc_update" class="px-2 py-1 border-b-2 border-slate-300 font-mono text-xs w-28 outline-none focus:border-emerald-500 uppercase bg-slate-50" placeholder="พิมพ์แล้ว Enter..." onkeyup="if(event.key==='Enter') document.querySelectorAll('.dyn-epc').forEach(el=>el.value=this.value)">
+                <input type="text" id="mass_epc_update" class="px-2 py-1 border-b-2 border-slate-300 font-mono text-xs w-28 outline-none focus:border-emerald-500 uppercase bg-slate-50" placeholder="พิมพ์แล้ว Enter..." value="${existingEpc}" onkeyup="if(event.key==='Enter') document.querySelectorAll('.dyn-epc').forEach(el=>el.value=this.value)">
             </div>
         </div>
         <div class="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-200 custom-scrollbar">
@@ -259,13 +262,16 @@ window.addNewAlertRow = function(jobId, plate, epcNo, defaultQt = '', defaultSo 
     const statusOptionsHtml = safeStatusList.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
     let safeOpts = statusOptionsHtml.replace(`value="รอสั่งซื้อ"`, `value="รอสั่งซื้อ" selected`);
     
+    const epcInput = document.getElementById('mass_epc_update');
+    const currentEpc = epcNo || (epcInput ? epcInput.value : '');
+
     const tr = document.createElement('tr');
     tr.className = "hover:bg-amber-50/50 transition-colors";
     tr.setAttribute('data-id', 'new');
     tr.setAttribute('data-jobid', jobId);
     tr.setAttribute('data-plate', plate);
     tr.innerHTML = `
-        <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-epc font-mono uppercase text-center" value="${epcNo || ''}" onpaste="handleModalGridPaste(event, this)"></td>
+        <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-epc font-mono uppercase text-center" value="${currentEpc}" onpaste="handleModalGridPaste(event, this)"></td>
         <td class="p-0 border border-slate-200"><input type="text" list="master_parts_datalist" class="inline-edit-input dyn-partno font-mono uppercase text-center font-bold text-blue-700 bg-blue-50/30" onchange="autoFillDynName(this)" onpaste="handleModalGridPaste(event, this)"></td>
         <td class="p-0 border border-slate-200"><input type="number" class="inline-edit-input dyn-qty text-center font-black text-amber-600 bg-amber-50" value="1" min="1" onpaste="handleModalGridPaste(event, this)"></td>
         <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-name font-bold"></td>
@@ -337,11 +343,19 @@ function autoFillDynName(inputEl) {
 
 function closeAlertModal() { document.getElementById('alertModal').classList.add('hidden'); document.getElementById('alertModal').classList.remove('flex'); }
 
-// 🌟 ปรับระบบบันทึกและให้ตารางดึงข้อมูลมารีเฟรชในพื้นหลัง (ไม่โหลดหน้าจอใหม่) 🌟
+// 🌟 ปรับระบบบันทึก: โหลด Data ใหม่ แต่ให้โต๊ะคีย์ค้างไว้ 🌟
 async function saveSAAlertUpdate(e) {
     e.preventDefault();
     const rows = document.querySelectorAll('#modal_dynamic_table_container tbody tr');
     const updates = [];
+
+    // ดึงค่า jobId และ plate จากแถวแรก เพื่อใช้เปิด Modal ใหม่หลังเซฟเสร็จ
+    let currentJobId = '';
+    let currentPlate = '';
+    if (rows.length > 0) {
+        currentJobId = rows[0].getAttribute('data-jobid');
+        currentPlate = rows[0].getAttribute('data-plate');
+    }
 
     rows.forEach(tr => {
         if(tr.style.display === 'none') return;
@@ -410,14 +424,19 @@ async function saveSAAlertUpdate(e) {
 
         showToast('อัปเดตข้อมูลอะไหล่เรียบร้อย!', 'success');
         
-        // 🌟 ปิด Modal แต่ไม่โหลดหน้าใหม่
-        closeAlertModal();
-        
-        // 🌟 เรียกฟังก์ชันดึงข้อมูลของ parts_core.js โดยตรง เพื่อให้ตารางรีเฟรชค่าใหม่ทันที (Background Fetch) 🌟
-        if (typeof loadAllData === 'function') {
+        // 🌟 รอ Transaction บันทึกเข้า DB 🌟
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // 🌟 รีเฟรช Data หลักเบื้องหลัง 🌟
+        if (typeof fetchAllData === 'function') {
+            await fetchAllData(); 
+        } else if (typeof loadAllData === 'function') {
             await loadAllData();
-        } else if (typeof fetchAllData === 'function') {
-            await fetchAllData();
+        }
+
+        // 🌟 เปิด Modal ด้วยข้อมูลล่าสุดจาก Database โดยไม่ปิดหน้าต่าง 🌟
+        if (currentJobId && currentPlate) {
+            openAlertModal(currentJobId, currentPlate);
         }
 
     } catch(err) {
