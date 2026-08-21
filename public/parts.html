@@ -31,11 +31,12 @@
         
         .modern-table { @apply w-full text-left border-collapse whitespace-nowrap text-[12px] bg-white; table-layout: fixed; }
         .modern-table thead th { @apply relative px-2 py-2.5 bg-[#00320D] text-white border border-slate-500 font-bold sticky top-0 z-10 shadow-md align-middle select-none; }
-        .modern-table tbody td { @apply p-0 border border-slate-200 text-slate-700 align-middle overflow-hidden; }
+        .modern-table tbody td { @apply p-1 border border-slate-200 text-slate-700 align-middle overflow-hidden; }
         .modern-table tbody tr:hover td { @apply bg-green-50/40 transition-colors; }
         
         .inline-edit-input { @apply w-full h-full border-0 bg-transparent px-3 py-2 outline-none font-medium text-slate-900 transition-colors hover:bg-slate-50 focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-xs; }
         .inline-edit-select { @apply w-full h-full border-0 bg-transparent px-2 py-2 outline-none font-bold text-slate-800 transition-colors cursor-pointer hover:bg-slate-50 focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-[11px]; }
+        .filter-icon.active { color: #f59e0b !important; }
     </style>
 </head>
 <body class="text-slate-800 h-screen flex flex-col selection:bg-[#00320D] selection:text-white">
@@ -106,20 +107,39 @@
                         </div>
                     </div>
                     <div class="flex-1 overflow-auto custom-scrollbar">
-                       <table class="modern-table" id="saTable">
-    <thead class="bg-[#00320D] text-white sticky top-0 z-10 shadow-sm text-xs">
-        <tr>
-            <th class="w-28 px-2 py-3 text-left">ทะเบียนรถ</th>
-            <th class="w-24 px-2 py-3 text-center">วันที่รับงาน</th>
-            <th class="w-24 px-2 py-3 text-left">รุ่นรถ</th>
-            <th class="w-32 px-2 py-3 text-left">ชื่อลูกค้า</th>
-            <th class="w-24 px-2 py-3 text-left">EPC No</th>
-            <th class="w-64 px-2 py-3 text-left text-amber-300"><i class="fa-solid fa-list-check"></i> รายการสั่งซื้ออะไหล่ (PO)</th>
-            <th class="w-24 px-2 py-3 text-center">จัดการ</th>
-        </tr>
-    </thead>
-    <tbody id="sa_alerts_body"><tr><td colspan="7" class="text-center py-10 text-slate-400">กำลังดึงข้อมูล...</td></tr></tbody>
-</table>
+                        <!-- 🌟 อัปเดตหัวตาราง Excel ProMax มีคอลัมน์เพิ่มและใส่ Filter 🌟 -->
+                        <table class="modern-table" id="saTable">
+                            <thead class="bg-[#00320D] text-white sticky top-0 z-10 shadow-sm text-xs">
+                                <tr>
+                                    <th class="w-28 px-2 py-3 text-left">
+                                        <div class="flex items-center justify-between"><span>ทะเบียนรถ</span><i class="fa-solid fa-filter filter-icon cursor-pointer text-slate-400 hover:text-amber-400" onclick="openExcelFilter(event, 0, 'ทะเบียนรถ', 'saTable')"></i></div>
+                                    </th>
+                                    <th class="w-24 px-2 py-3 text-center">
+                                        <div class="flex items-center justify-between"><span>วันที่รับงาน</span><i class="fa-solid fa-filter filter-icon cursor-pointer text-slate-400 hover:text-amber-400" onclick="openExcelFilter(event, 1, 'วันที่รับงาน', 'saTable')"></i></div>
+                                    </th>
+                                    <th class="w-24 px-2 py-3 text-left">
+                                        <div class="flex items-center justify-between"><span>รุ่นรถ</span><i class="fa-solid fa-filter filter-icon cursor-pointer text-slate-400 hover:text-amber-400" onclick="openExcelFilter(event, 2, 'รุ่นรถ', 'saTable')"></i></div>
+                                    </th>
+                                    <th class="w-32 px-2 py-3 text-left">
+                                        <div class="flex items-center justify-between"><span>ชื่อลูกค้า</span><i class="fa-solid fa-filter filter-icon cursor-pointer text-slate-400 hover:text-amber-400" onclick="openExcelFilter(event, 3, 'ชื่อลูกค้า', 'saTable')"></i></div>
+                                    </th>
+                                    <th class="w-28 px-2 py-3 text-left">
+                                        <div class="flex items-center justify-between"><span>ใบเสนอราคา (QT)</span><i class="fa-solid fa-filter filter-icon cursor-pointer text-slate-400 hover:text-amber-400" onclick="openExcelFilter(event, 4, 'ใบเสนอราคา', 'saTable')"></i></div>
+                                    </th>
+                                    <th class="w-28 px-2 py-3 text-left">
+                                        <div class="flex items-center justify-between"><span>ใบสั่งซ่อม (SO)</span><i class="fa-solid fa-filter filter-icon cursor-pointer text-slate-400 hover:text-amber-400" onclick="openExcelFilter(event, 5, 'ใบสั่งซ่อม', 'saTable')"></i></div>
+                                    </th>
+                                    <th class="w-24 px-2 py-3 text-left">
+                                        <div class="flex items-center justify-between"><span>EPC No</span><i class="fa-solid fa-filter filter-icon cursor-pointer text-slate-400 hover:text-amber-400" onclick="openExcelFilter(event, 6, 'EPC No', 'saTable')"></i></div>
+                                    </th>
+                                    <th class="w-56 px-2 py-3 text-left text-amber-300"><i class="fa-solid fa-list-check"></i> รายการสั่งซื้ออะไหล่ (PO)</th>
+                                    <th class="w-28 px-2 py-3 text-center">คาดการณ์ (ETA)</th>
+                                    <th class="w-28 px-2 py-3 text-center">เข้าครบ</th>
+                                    <th class="w-20 px-2 py-3 text-center">จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sa_alerts_body"><tr><td colspan="11" class="text-center py-10 text-slate-400">กำลังดึงข้อมูล...</td></tr></tbody>
+                        </table>
                     </div>
                 </div>
             </section>

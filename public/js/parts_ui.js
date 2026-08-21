@@ -14,7 +14,7 @@ let allPartStatusesCache = [];
 async function fetchPartStatuses() {
     if(allPartStatusesCache.length > 0) return;
     try {
-        const res = await fetch(`${API_BASE_URL}/api/part-statuses`);
+        const res = await fetch(`${API_BASE_URL}/api/part-statuses?_t=` + new Date().getTime());
         if (res.ok) allPartStatusesCache = await res.json();
     } catch(e) {}
 }
@@ -40,7 +40,7 @@ document.addEventListener('input', function(e) {
 });
 
 // ------------------------------------------
-// 1. แจ้งเตือน SA (SA Alerts) 
+// 1. แจ้งเตือน SA (SA Alerts - ตารางหลัก)
 // ------------------------------------------
 function renderSAAlerts() {
     const tbody = document.getElementById('sa_alerts_body');
@@ -62,7 +62,7 @@ function renderSAAlerts() {
     }
     
     if (jobsToDisplay.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-400 font-bold bg-white"><i class="fa-solid fa-check-circle text-3xl mb-3 text-emerald-300 block"></i> ไม่มีรายการใบงานที่ต้องจัดการครับ! 🎉</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11" class="text-center py-10 text-slate-400 font-bold bg-white"><i class="fa-solid fa-check-circle text-3xl mb-3 text-emerald-300 block"></i> ไม่มีรายการใบงานที่ต้องจัดการครับ! 🎉</td></tr>`;
         if(badge) badge.classList.add('hidden');
         return;
     }
@@ -78,10 +78,27 @@ function renderSAAlerts() {
         const arrDate = (job.arrived_date || job.contact_date) ? String(job.arrived_date || job.contact_date).split('T')[0] : '-';
         const customerName = job.customer_name || '-';
         
+        // ดึงรายการอะไหล่ทั้งหมดของรถคันนี้
         const relatedParts = allPartOrders.filter(p => 
             (String(p.report_id) === String(jobId) || (!p.report_id && p.car_plate === plate)) && 
             (!p.order_status || !p.order_status.includes('ครบ'))
         );
+
+        // ดึงข้อมูล QT และ SO
+        const qtDisplay = job.qt_no || job.quotation_no || (relatedParts.length > 0 ? (relatedParts[0].qt_no || '-') : '-');
+        const soDisplay = job.so_no || job.job_order_no || (relatedParts.length > 0 ? (relatedParts[0].so_no || '-') : '-');
+
+        // ดึงวันที่ คาดการณ์ (ETA) และวันที่เข้าครบ (Received Date)
+        let etaDisplay = '-';
+        let rcvDisplay = '-';
+
+        if (relatedParts.length > 0) {
+            const etas = relatedParts.map(p => p.est_arrival_date ? String(p.est_arrival_date).split('T')[0] : null).filter(Boolean);
+            const rcvs = relatedParts.map(p => (p.received_date || p.part_received_all_date) ? String(p.received_date || p.part_received_all_date).split('T')[0] : null).filter(Boolean);
+            
+            if (etas.length > 0) etaDisplay = etas[0];
+            if (rcvs.length > 0) rcvDisplay = rcvs[0];
+        }
 
         let itemsHtml = '';
         if (relatedParts.length === 0) {
@@ -96,20 +113,26 @@ function renderSAAlerts() {
 
         return `
             <tr class="hover:bg-amber-50/50 transition border-b border-slate-100">
-                <td class="font-black text-amber-700 text-sm px-2 py-2">
-                    <span class="bg-amber-50 px-2 py-1 rounded shadow-sm border border-amber-200">${plate}</span>
+                <td class="font-black text-amber-700 text-xs px-2 py-2">
+                    <span class="bg-amber-50 px-2 py-1 rounded shadow-sm border border-amber-200 font-mono">${plate}</span>
                     <div class="text-[9px] text-slate-400 mt-1">ID: ${jobId}</div>
                 </td>
-                <td class="text-slate-500 font-mono font-bold text-center px-2 py-2">${arrDate}</td>
+                <td class="text-slate-500 font-mono font-bold text-center px-2 py-2 text-xs">${arrDate}</td>
                 <td class="font-bold text-slate-600 text-xs px-2 py-2">${job.car_model || '-'}</td>
-                <td class="font-bold text-slate-700 text-xs px-2 py-2 truncate max-w-[150px]" title="${customerName}">${customerName}</td>
+                <td class="font-bold text-slate-700 text-xs px-2 py-2 truncate max-w-[120px]" title="${customerName}">${customerName}</td>
+                
+                <td class="font-mono text-xs font-bold text-slate-700 px-2 py-2">${qtDisplay}</td>
+                <td class="font-mono text-xs font-bold text-amber-700 px-2 py-2">${soDisplay}</td>
                 <td class="font-mono text-xs font-bold text-blue-600 px-2 py-2">${job.epc_no || '-'}</td>
                 
                 <td class="px-2 py-2 max-h-[80px] overflow-y-auto block custom-scrollbar bg-slate-50/50 rounded my-1 border border-slate-100">${itemsHtml}</td>
                 
+                <td class="font-mono text-xs font-bold text-center text-amber-600 px-2 py-2">${etaDisplay}</td>
+                <td class="font-mono text-xs font-bold text-center text-emerald-600 px-2 py-2">${rcvDisplay}</td>
+
                 <td class="text-center px-2 py-2">
                     <button onclick="openAlertModal('${jobId}', '${plate}', '${job.epc_no || ''}')" class="bg-[#00320D] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-black transition shadow-sm w-full">
-                        <i class="fa-solid fa-table-cells"></i> โต๊ะคีย์ (ProMax)
+                        <i class="fa-solid fa-table-cells"></i> โต๊ะคีย์
                     </button>
                 </td>
             </tr>
@@ -303,6 +326,7 @@ function autoFillDynName(inputEl) {
 
 function closeAlertModal() { document.getElementById('alertModal').classList.add('hidden'); document.getElementById('alertModal').classList.remove('flex'); }
 
+// 🌟 ปรับปรุงการบันทึกข้อมูล: สั่งล้างแคชและโหลดข้อมูลใหม่ทันทีเพื่อไม่ให้จำค่าเดิม 🌟
 async function saveSAAlertUpdate(e) {
     e.preventDefault();
     const rows = document.querySelectorAll('#modal_dynamic_table_container tbody tr');
@@ -375,7 +399,16 @@ async function saveSAAlertUpdate(e) {
 
         showToast('อัปเดตข้อมูลอะไหล่เรียบร้อย!', 'success');
         closeAlertModal();
-        loadAllData();
+        
+        // 🌟 บังคับดึงข้อมูลใหม่แบบ No-Cache ทันทีหลังกดเซฟ 🌟
+        if (typeof loadAllData === 'function') {
+            await loadAllData();
+        } else if (typeof fetchJobList === 'function') {
+            await fetchJobList();
+        } else {
+            window.location.reload();
+        }
+
     } catch(err) {
         showToast('เกิดข้อผิดพลาดในการบันทึก กรุณาลองใหม่', 'error');
     } finally {
