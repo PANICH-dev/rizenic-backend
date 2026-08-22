@@ -154,7 +154,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name') || 'ช่างซ่อม';
     
-    // 🌟 ดึงสาขาจาก branch_name ของตาราง rizenicmployeemaster (เก็บผ่าน sessionStorage)
+// 🌟 ดึงสาขาจาก branch_name ของตารางพนักงาน (เก็บผ่าน sessionStorage)
     currentBranch = sessionStorage.getItem('branch_name') || sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
     document.getElementById('display_branch').innerText = currentBranch;
     
@@ -163,15 +163,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     const isManager = ['BA', 'Manager', 'Admin', 'แอดมิน'].includes(userRole);
     const branchSelectEl = document.getElementById('branchSelect');
 
+    // 🟢 ดึงข้อมูลสาขาทั้งหมดจากระบบหลังบ้านอัตโนมัติ (ดึงตามสาขาของพนักงานในระบบ)
     if (branchSelectEl) {
+        try {
+            const empRes = await fetch(`${API_BASE_URL}/api/employees`);
+            if (empRes.ok) {
+                const employees = await empRes.json();
+                // คัดกรองเอาเฉพาะชื่อสาขาที่ไม่ซ้ำกัน
+                const masterBranches = [...new Set(employees.map(e => e.branch_name).filter(Boolean))].sort();
+                
+                let optionsHtml = isManager ? `<option value="ALL">🏢 รวมทุกสาขา (ภาพรวม)</option>` : '';
+                masterBranches.forEach(b => {
+                    optionsHtml += `<option value="${b}">${b}</option>`;
+                });
+                branchSelectEl.innerHTML = optionsHtml;
+            }
+        } catch (e) {
+            console.error('โหลดข้อมูลสาขาไม่สำเร็จ', e);
+        }
+
+        // 🟢 กำหนดค่าเริ่มต้น และ ล็อกสาขาหากไม่ใช่ระดับผู้บริหาร
         if (isManager) {
             selectedBranchFilter = 'ALL';
             branchSelectEl.value = 'ALL';
             branchSelectEl.disabled = false;
         } else {
             selectedBranchFilter = currentBranch;
+            // เช็คเผื่อกรณีชื่อสาขาของพนักงานตกหล่นไปจาก Master ให้สร้างแทรกขึ้นมาทันที
+            if(!Array.from(branchSelectEl.options).some(opt => opt.value === currentBranch)) {
+                branchSelectEl.add(new Option(currentBranch, currentBranch));
+            }
             branchSelectEl.value = currentBranch;
-            branchSelectEl.disabled = true; // ล็อกสาขาตาม branch_name ของพนักงาน
+            branchSelectEl.disabled = true; // ล็อกไม่ให้เปลี่ยนสาขา
         }
     }
     

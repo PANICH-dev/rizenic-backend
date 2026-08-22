@@ -952,11 +952,24 @@
                 document.getElementById('car_brand').value = job.car_brand || 'Tesla';
                 await updateCarModels(job.car_brand || 'Tesla');
                 
-                setTimeout(async () => {
-                    document.getElementById('customer_type').value = job.customer_type || ''; 
-                    document.getElementById('car_model').value = job.car_model || ''; 
-                    document.getElementById('payment_type').value = job.payment_type || '';
-                }, 800);
+                setTimeout(() => {
+                    // 🟢 ฟังก์ชันตัวช่วย: ป้องกันข้อมูลเก่าหาย ถ้าระบบโหลดไม่ทัน หรือตัวเลือกถูกลบออกจากหลังบ้านไปแล้ว
+                    const safeSetSelect = (elementId, value) => {
+                        if (!value) return;
+                        const selectEl = document.getElementById(elementId);
+                        // เช็คว่าใน Dropdown มีคำนี้อยู่ไหม
+                        const optionExists = Array.from(selectEl.options).some(opt => opt.value === value);
+                        if (!optionExists) {
+                            // ถ้าไม่มี ให้สร้างออปชั่นใหม่แทรกเข้าไปเลย ข้อมูลจะได้ไม่แหว่ง
+                            selectEl.add(new Option(value, value)); 
+                        }
+                        selectEl.value = value;
+                    };
+
+                    safeSetSelect('customer_type', job.customer_type);
+                    safeSetSelect('car_model', job.car_model);
+                    safeSetSelect('payment_type', job.payment_type);
+                }, 1200); // 🟢 เพิ่มเวลาหน่วงรอ API ให้ชัวร์ขึ้นเป็น 1.2 วินาที
 
                 document.getElementById('car_plate').value = job.car_plate || ''; 
                 document.getElementById('vin_no').value = job.vin_no || '';
