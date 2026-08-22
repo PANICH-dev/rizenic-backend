@@ -487,7 +487,10 @@ async function fastUpdateStationDropdown(id, selectedLevel) {
     const job = originalRepairJobs.find(j => String(j.id) === String(id));
     if (!job) return;
     const selectedIdx = stationLevels.indexOf(selectedLevel);
+    
+    // 🟢 แก้ไข payload ตรงนี้ ให้จำข้อมูลเก่าทั้งหมด (...job)
     const payload = {
+        ...job, 
         station_kho: selectedIdx >= 1, station_pou: selectedIdx >= 2, station_puan: selectedIdx >= 3,
         station_pon: selectedIdx >= 4, station_prak: selectedIdx >= 5, station_kat: selectedIdx >= 6,
         station_qc: selectedIdx >= 7, station_mag: selectedIdx >= 8, station_kraj: selectedIdx >= 9,
@@ -496,6 +499,9 @@ async function fastUpdateStationDropdown(id, selectedLevel) {
         delivery_date: job.delivery_date || null, job_status: job.job_status,
         department_routing: job.department_routing, repair_notes: job.repair_notes
     };
+    
+    // 🟢 ป้องกัน Error ด้วยการลบ property ของหน้าเว็บทิ้งก่อนส่งให้ Database
+    delete payload.calculated_station; 
 
     try {
         const res = await fetch(`${API_BASE_URL}/api/report/${id}/station`, {
@@ -1240,7 +1246,7 @@ async function submitRepairStation() {
         main_part_qty: mainPartsList.length,
         sub_part_qty: subPartsList.length
     };
-
+delete fullPayload.calculated_station;
     try {
         const res = await fetch(`${API_BASE_URL}/api/report/${id}`, {
             method: 'PUT', 
