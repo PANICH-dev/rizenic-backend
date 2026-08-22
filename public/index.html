@@ -426,6 +426,7 @@
         const API_BASE_URL = window.location.origin;
         let globalCarData = [];
         let globalStatuses = [];
+        let currentEditingJob = null; // 🟢 เพิ่มบรรทัดนี้
 
         document.addEventListener('DOMContentLoaded', () => {
             if(sessionStorage.getItem('isLoggedIn') !== 'true') {
@@ -936,6 +937,7 @@
             try {
                 const res = await fetch(`${API_BASE_URL}/api/report/${idToEdit}`); if (!res.ok) return;
                 const job = await res.json();
+                currentEditingJob = job; // 🟢 เพิ่มบรรทัดนี้ เพื่อให้ระบบจำข้อมูลก้อนเก่าไว้ทั้งหมด
                 
                 document.getElementById('sa_report_id').value = job.id;
                 document.getElementById('current_editing_id').innerText = job.id;
@@ -1007,6 +1009,7 @@
         }
 
         function cancelEditMode() {
+            currentEditingJob = null; // 🟢 เพิ่มบรรทัดนี้เคลียร์ค่าทิ้ง
             sessionStorage.removeItem('edit_job_id'); document.getElementById('saForm').reset(); document.getElementById('sa_report_id').value = '';
             document.getElementById('edit_mode_badge').classList.add('hidden');
             document.getElementById('btn_submit_sa').innerHTML = '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ';
@@ -1069,45 +1072,54 @@
             const cleanMainParts = selectedBodyParts.main.filter(p => !p.includes('ไม่ชิ้นงาน'));
             const cleanSubParts = selectedBodyParts.sub.filter(p => !p.includes('ไม่ชิ้นงาน'));
 
-            const formData = {
-                sa_owner: document.getElementById('sa_owner_input').value.trim(), 
-                branch_name: sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่',
-                customer_name: document.getElementById('customer_name').value, 
-                phone_number: document.getElementById('phone_number').value,
-                customer_type: document.getElementById('customer_type').value, 
-                car_brand: document.getElementById('car_brand').value,
-                car_model: document.getElementById('car_model').value, 
-                vin_no: document.getElementById('vin_no').value,
-                qt_no: qtArr.join(', '), 
-                so_no: soArr.join(', '), 
-                bl_no: blArr.join(', '),
-                payment_type: document.getElementById('payment_type').value, 
-                damage_level: document.getElementById('damage_level').value,
-                contact_date: document.getElementById('contact_date').value || null, 
-                arrived_date: document.getElementById('arrived_date').value || null,
-                target_finish_date: document.getElementById('target_finish_date').value || null, 
-                repair_finish_date: document.getElementById('repair_finish_date').value || null,
-                delivery_date: document.getElementById('delivery_date').value || null, 
-                notes: document.getElementById('notes').value, 
-                is_parked: document.getElementById('park_status').value, 
-                job_status: document.getElementById('job_status').value, 
-                car_plate: document.getElementById('car_plate').value,
-                department_routing: routingDept,
-                main_part_qty: cleanMainParts.length,
-                sub_part_qty: cleanSubParts.length,
-                main_part_name: cleanMainParts.join(' , '), 
-                sub_part_name: cleanSubParts.join(' , '),
-                appointment_date: null,
-                customer_phone: null,
-                expected_finish_date: null,
-                cost_labor: 0,
-                cost_part: 0,
-                cost_external: 0,
-                quotation_no: null,
-                job_order_no: null,
-                ivn_no: null
-            };
-            
+            // 🟢 เปลี่ยนวิธีสร้างข้อมูลก่อนส่ง
+            let formData = {};
+
+            if (editId && currentEditingJob) {
+                // ถ้าเป็นการแก้ไข ให้โคลนข้อมูลเก่าทั้งหมดมากางไว้ก่อน (ป้องกันช่าง/บัญชีหาย)
+                formData = { ...currentEditingJob };
+            } else {
+                // ถ้าเป็นการสร้างบิลใหม่ (เปิดบิลครั้งแรก) ให้เซตค่าตั้งต้น
+                formData.appointment_date = null;
+                formData.customer_phone = null;
+                formData.expected_finish_date = null;
+                formData.cost_labor = 0;
+                formData.cost_part = 0;
+                formData.cost_external = 0;
+                formData.quotation_no = null;
+                formData.job_order_no = null;
+                formData.ivn_no = null;
+            }
+
+            // 🟢 เอาข้อมูลจากหน้าจอ SA อัปเดตทับลงไปเฉพาะส่วนที่ SA ดูแล
+            formData.sa_owner = document.getElementById('sa_owner_input').value.trim(); 
+            formData.branch_name = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+            formData.customer_name = document.getElementById('customer_name').value; 
+            formData.phone_number = document.getElementById('phone_number').value;
+            formData.customer_type = document.getElementById('customer_type').value; 
+            formData.car_brand = document.getElementById('car_brand').value;
+            formData.car_model = document.getElementById('car_model').value; 
+            formData.vin_no = document.getElementById('vin_no').value;
+            formData.qt_no = qtArr.join(', '); 
+            formData.so_no = soArr.join(', '); 
+            formData.bl_no = blArr.join(', ');
+            formData.payment_type = document.getElementById('payment_type').value; 
+            formData.damage_level = document.getElementById('damage_level').value;
+            formData.contact_date = document.getElementById('contact_date').value || null; 
+            formData.arrived_date = document.getElementById('arrived_date').value || null;
+            formData.target_finish_date = document.getElementById('target_finish_date').value || null; 
+            formData.repair_finish_date = document.getElementById('repair_finish_date').value || null;
+            formData.delivery_date = document.getElementById('delivery_date').value || null; 
+            formData.notes = document.getElementById('notes').value; 
+            formData.is_parked = document.getElementById('park_status').value; 
+            formData.job_status = document.getElementById('job_status').value; 
+            formData.car_plate = document.getElementById('car_plate').value;
+            formData.department_routing = routingDept;
+            formData.main_part_qty = cleanMainParts.length;
+            formData.sub_part_qty = cleanSubParts.length;
+            formData.main_part_name = cleanMainParts.join(' , '); 
+            formData.sub_part_name = cleanSubParts.join(' , ');
+
             const url = editId ? `${API_BASE_URL}/api/report/${editId}` : `${API_BASE_URL}/api/report`;
             const method = editId ? 'PUT' : 'POST';
             
