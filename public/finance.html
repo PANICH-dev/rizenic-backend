@@ -803,31 +803,34 @@
                 if (managedType === 'จัดการแล้ว' && !hasBillingDate) return false;
                 if (managedType === '13.วางบิลประกัน' && job.job_status !== '13.วางบิลประกัน') return false;
 
+                // 🌟 ระบบช่วงวันที่ (Start - End Date)
                 if (dateStart || dateEnd) {
-                    let targetDateStr = null;
-                    if (dateType === 'billing_date') {
-                        targetDateStr = job.billing_date;
-                    } else if (dateType === 'insurance_pay_date') {
-                        targetDateStr = job.insurance_pay_date || job.insurance_payment_date;
-                    }
+                    // 🟢 เพิ่มเงื่อนไข: ถ้าเลือกดู "รอจัดการ" ให้ข้ามการกรองวันที่ไปเลย เพราะงานกลุ่มนี้ยังไม่มีวันที่
+                    if (managedType !== 'รอจัดการ') {
+                        let targetDateStr = null;
+                        if (dateType === 'billing_date') {
+                            targetDateStr = job.billing_date;
+                        } else if (dateType === 'insurance_pay_date') {
+                            targetDateStr = job.insurance_pay_date || job.insurance_payment_date;
+                        }
 
-                    if (!targetDateStr) return false; 
-                    
-                    const d = new Date(targetDateStr);
-                    d.setHours(0,0,0,0);
+                        if (!targetDateStr) return false; 
+                        
+                        const d = new Date(targetDateStr);
+                        d.setHours(0,0,0,0);
 
-                    if (dateStart) {
-                        const s = new Date(dateStart);
-                        s.setHours(0,0,0,0);
-                        if (d < s) return false;
-                    }
-                    if (dateEnd) {
-                        const e = new Date(dateEnd);
-                        e.setHours(0,0,0,0);
-                        if (d > e) return false;
+                        if (dateStart) {
+                            const s = new Date(dateStart);
+                            s.setHours(0,0,0,0);
+                            if (d < s) return false;
+                        }
+                        if (dateEnd) {
+                            const e = new Date(dateEnd);
+                            e.setHours(0,0,0,0);
+                            if (d > e) return false;
+                        }
                     }
                 }
-                
                 for (let key in activeFilters) {
                     const colDef = columnsDef.find(c => Number(c.idx) === Number(key)); 
                     if (!colDef) continue; 
