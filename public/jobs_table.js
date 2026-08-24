@@ -42,10 +42,12 @@ const excludedStatuses = [
     '19.ออกบิลแล้ว', '20.จอดซ่อม TC', '21.พักซ่อม'
 ];
 
+// 🌟 เพิ่มคอลัมน์ arrived_date (วันที่รถเข้าจอดอู่) เข้าไปในตาราง 🌟
 let columnsDef = [
     { idx: 1, key: 'action', title: 'Action', width: 90 },
     { idx: 2, key: 'contact_date', title: 'เข้ามาติดต่อวันที่', width: 115 },
     { idx: 3, key: 'appointment_date', title: 'ลูกค้านัดหมาย', width: 115 },
+    { idx: 36, key: 'arrived_date', title: 'วันที่รถเข้าจอดอู่', width: 150 },
     { idx: 4, key: 'car_plate', title: 'ทะเบียนรถ', width: 110 },
     { idx: 5, key: 'customer_type', title: 'ประเภทลูกค้า', width: 120 },
     { idx: 6, key: 'car_brand', title: 'ยี่ห้อรถ', width: 120 },
@@ -81,8 +83,8 @@ let columnsDef = [
 ];
 
 const defaultVisibleKeys = [
-    'action', 'contact_date', 'car_plate', 'car_brand', 'car_model', 
-    'customer_name', 'damage_level', 'job_status', 'sa_owner'
+    'action', 'contact_date', 'arrived_date', 'car_plate', 'car_brand', 'car_model', 
+    'customer_name', 'damage_level', 'target_finish_date', 'delivery_date', 'job_status', 'sa_owner'
 ];
 
 let hiddenCols = new Set(columnsDef.filter(c => !defaultVisibleKeys.includes(c.key)).map(c => c.idx));
@@ -360,6 +362,7 @@ async function autoMapRouting(jobId, newStatus) {
     }
 }
 
+// 🌟 ระบบเช็กโควต้าสมบูรณ์แบบทั้ง 3 โหมด (รถเข้าจอด, เป้าซ่อมเสร็จ, ส่งมอบ) 🌟
 async function checkQuotaForInlineEdit(jobId, branch, dateVal, type, reqCount) {
     try {
         if (!dateVal) return true;
@@ -376,19 +379,32 @@ async function checkQuotaForInlineEdit(jobId, branch, dateVal, type, reqCount) {
         const specialQuota = branchQuotas.find(q => q.quota_type === 'special' && q.quota_date && q.quota_date.split('T')[0] === cleanDate);
         const defaultQuota = branchQuotas.find(q => q.quota_type === 'default');
 
+        const getQVal = (fieldArr) => {
+            for (let f of fieldArr) {
+                if (specialQuota && specialQuota[f] !== undefined && specialQuota[f] !== null && specialQuota[f] !== '') return parseInt(specialQuota[f]) || 0;
+                if (defaultQuota && defaultQuota[f] !== undefined && defaultQuota[f] !== null && defaultQuota[f] !== '') return parseInt(defaultQuota[f]) || 0;
+            }
+            return 0;
+        };
+
+        const maxArrived = getQVal(['quota_arrived', 'quota_cars']);
+        const maxTarget = getQVal(['quota_target', 'quota_cars']);
+        const maxDelivery = getQVal(['quota_delivery', 'quota_cars']);
+        const maxMain = getQVal(['quota_main_parts']);
+        const maxSub = getQVal(['quota_sub_parts']);
+
         if (type === 'arrived_date') {
-            const maxCars = specialQuota && specialQuota.quota_cars !== undefined ? parseInt(specialQuota.quota_cars||0) : (defaultQuota ? parseInt(defaultQuota.quota_cars||0) : 0);
-            if (maxCars > 0) {
+            if (maxArrived > 0) {
                 const jobsInDay = allJobs.filter(j => j.branch_name === branch && j.arrived_date && j.arrived_date.split('T')[0] === cleanDate && String(j.id) !== String(jobId));
-                if (jobsInDay.length + 1 > maxCars) {
-                    return `โควต้ารถเข้าจอดในวันที่ ${formatToThaiDate(cleanDate)} เต็มแล้ว! (รับได้สูงสุด ${maxCars} คัน)`;
+                if (jobsInDay.length + 1 > maxArrived) {
+                    return `โควต้ารถเข้าจอดในวันที่ ${formatToThaiDate(cleanDate)} เต็มแล้ว! (รับได้สูงสุด ${maxArrived} คัน)`;
                 }
             }
         } else if (type === 'target_finish_date') {
-            const maxMain = specialQuota ? parseInt(specialQuota.quota_main_parts||0) : (defaultQuota ? parseInt(defaultQuota.quota_main_parts||0) : 0);
-            const maxSub = specialQuota ? parseInt(specialQuota.quota_sub_parts||0) : (defaultQuota ? parseInt(defaultQuota.quota_sub_parts||0) : 0);
-            
             const jobsInDay = allJobs.filter(j => j.branch_name === branch && j.target_finish_date && j.target_finish_date.split('T')[0] === cleanDate && String(j.id) !== String(jobId));
+            if (maxTarget > 0 && jobsInDay.length + 1 > maxTarget) {
+                return `โควต้าเป้าหมายซ่อมเสร็จ (คัน) ในวันที่ ${formatToThaiDate(cleanDate)} เต็มแล้ว! (รับได้สูงสุด ${maxTarget} คัน)`;
+            }
             
             let usedMain = 0; let usedSub = 0;
             jobsInDay.forEach(j => {
@@ -401,6 +417,13 @@ async function checkQuotaForInlineEdit(jobId, branch, dateVal, type, reqCount) {
             }
             if (maxSub > 0 && (usedSub + reqCount.sub) > maxSub) {
                 return `กำลังการผลิตชิ้นส่วนรองในวันที่ ${formatToThaiDate(cleanDate)} เต็มแล้ว! (เหลือ ${Math.max(0, maxSub - usedSub)} ชิ้น)`;
+            }
+        } else if (type === 'delivery_date') {
+            if (maxDelivery > 0) {
+                const jobsInDay = allJobs.filter(j => j.branch_name === branch && j.delivery_date && j.delivery_date.split('T')[0] === cleanDate && String(j.id) !== String(jobId));
+                if (jobsInDay.length + 1 > maxDelivery) {
+                    return `โควต้าคิวส่งมอบรถในวันที่ ${formatToThaiDate(cleanDate)} เต็มแล้ว! (ส่งมอบได้สูงสุด ${maxDelivery} คัน)`;
+                }
             }
         }
         return true;
@@ -419,7 +442,7 @@ async function fastUpdateJob(jobId, field, value, silent = false) {
     const job = allJobsData.find(j => String(j.id) === String(jobId));
     if (!job) return;
 
-    if (formattedValue && (field === 'arrived_date' || field === 'target_finish_date')) {
+    if (formattedValue && (field === 'arrived_date' || field === 'target_finish_date' || field === 'delivery_date')) {
         const reqCount = { 
             main: parseInt(job.main_part_qty) || 0, 
             sub: parseInt(job.sub_part_qty) || 0 
@@ -739,7 +762,7 @@ function renderTable(data) {
                 case 'sub_part_qty': 
                     cellData = `<div class="text-center font-black text-amber-600 text-xs">${job.sub_part_qty || 0}</div>`; break;
 
-                case 'contact_date': case 'appointment_date': case 'target_finish_date': case 'repair_finish_date': case 'delivery_date': case 'order_part_date': case 'est_part_date': case 'part_received_all_date': case 'billing_date':
+                case 'contact_date': case 'appointment_date': case 'arrived_date': case 'target_finish_date': case 'repair_finish_date': case 'delivery_date': case 'order_part_date': case 'est_part_date': case 'part_received_all_date': case 'billing_date':
                     let colorClass = 'text-slate-700';
                     if (col.key === 'target_finish_date') colorClass = 'text-amber-600 font-bold';
                     if (col.key === 'repair_finish_date') colorClass = 'text-[#00320D] font-bold';
@@ -748,7 +771,7 @@ function renderTable(data) {
                     if (['arrived_date', 'target_finish_date', 'delivery_date'].includes(col.key)) {
                         cellData = `<div class="flex items-center justify-between w-full h-full bg-white">
                             <input type="date" id="date_${job.id}_${col.key}" value="${job[col.key] ? String(job[col.key]).split('T')[0] : ''}" onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input font-mono text-center ${colorClass}" style="width:calc(100% - 26px);">
-                            <button type="button" onclick="event.stopPropagation(); openScheduleCalendar('${job.id}', '${col.key}')" class="text-blue-500 hover:text-blue-700 flex items-center justify-center w-[26px] h-[26px] border-l border-slate-200 bg-slate-50 transition-colors cursor-pointer"><i class="fa-solid fa-calendar-check text-[11px]"></i></button>
+                            <button type="button" onclick="event.stopPropagation(); openScheduleCalendar('${job.id}', '${col.key}')" class="text-blue-500 hover:text-blue-700 flex items-center justify-center w-[26px] h-[26px] border-l border-slate-200 bg-slate-50 transition-colors cursor-pointer" title="ดูโควต้าปฏิทิน"><i class="fa-solid fa-calendar-check text-[11px]"></i></button>
                         </div>`;
                     } else {
                         cellData = `<input type="date" value="${job[col.key] ? String(job[col.key]).split('T')[0] : ''}" onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input font-mono text-center ${colorClass}">`; 
