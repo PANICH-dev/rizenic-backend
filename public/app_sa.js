@@ -716,20 +716,31 @@ async function checkQuotaBeforeSubmit(branch, arrivedDate, targetDate, deliveryD
         const editIdEl = document.getElementById('sa_report_id');
         const editId = editIdEl ? editIdEl.value : '';
 
+        // 🌟 แก้ไขแมพโควต้าจาก DB ฟิลด์: quota_arrived, quota_target, quota_delivery 🌟
         const getQ = (d) => {
             const sq = branchQuotas.find(q => q.quota_type === 'special' && q.quota_date && q.quota_date.split('T')[0] === d);
+            const getVal = (fArr) => {
+                for (let f of fArr) {
+                    if (sq && sq[f] !== undefined && sq[f] !== null && sq[f] !== '') return parseInt(sq[f]) || 0;
+                    if (defaultQuota && defaultQuota[f] !== undefined && defaultQuota[f] !== null && defaultQuota[f] !== '') return parseInt(defaultQuota[f]) || 0;
+                }
+                return 0;
+            };
+
             return {
-                maxCars: sq && sq.quota_cars !== undefined ? parseInt(sq.quota_cars) : (defaultQuota ? parseInt(defaultQuota.quota_cars) : 0),
-                maxMain: sq ? parseInt(sq.quota_main_parts||0) : (defaultQuota ? parseInt(defaultQuota.quota_main_parts||0) : 0),
-                maxSub: sq ? parseInt(sq.quota_sub_parts||0) : (defaultQuota ? parseInt(defaultQuota.quota_sub_parts||0) : 0)
+                maxArrived: getVal(['quota_arrived', 'quota_cars']),
+                maxTarget: getVal(['quota_target', 'quota_cars']),
+                maxDelivery: getVal(['quota_delivery', 'quota_cars']),
+                maxMain: getVal(['quota_main_parts']),
+                maxSub: getVal(['quota_sub_parts'])
             };
         };
 
         if (arrivedDate) {
             const q = getQ(arrivedDate);
-            if (q.maxCars > 0) {
+            if (q.maxArrived > 0) {
                 const count = allJobs.filter(j => j.branch_name === branch && j.arrived_date && j.arrived_date.split('T')[0] === arrivedDate && String(j.id) !== String(editId)).length;
-                if (count >= q.maxCars) return `โควต้ารถเข้าจอด (คัน) ในวันที่ ${formatToThaiDate(arrivedDate)} เต็มแล้ว!`;
+                if (count >= q.maxArrived) return `โควต้ารถเข้าจอด (คัน) ในวันที่ ${formatToThaiDate(arrivedDate)} เต็มแล้ว!`;
             }
         }
 
@@ -737,7 +748,7 @@ async function checkQuotaBeforeSubmit(branch, arrivedDate, targetDate, deliveryD
             const q = getQ(targetDate);
             const jobsInDay = allJobs.filter(j => j.branch_name === branch && j.target_finish_date && j.target_finish_date.split('T')[0] === targetDate && String(j.id) !== String(editId));
             
-            if (q.maxCars > 0 && jobsInDay.length >= q.maxCars) {
+            if (q.maxTarget > 0 && jobsInDay.length >= q.maxTarget) {
                 return `โควต้าเป้าหมายซ่อมเสร็จ (คัน) ในวันที่ ${formatToThaiDate(targetDate)} เต็มแล้ว!`;
             }
             
@@ -750,9 +761,9 @@ async function checkQuotaBeforeSubmit(branch, arrivedDate, targetDate, deliveryD
 
         if (deliveryDate) {
             const q = getQ(deliveryDate);
-            if (q.maxCars > 0) {
+            if (q.maxDelivery > 0) {
                 const count = allJobs.filter(j => j.branch_name === branch && j.delivery_date && j.delivery_date.split('T')[0] === deliveryDate && String(j.id) !== String(editId)).length;
-                if (count >= q.maxCars) return `โควต้าคิวส่งมอบรถในวันที่ ${formatToThaiDate(deliveryDate)} เต็มแล้ว!`;
+                if (count >= q.maxDelivery) return `โควต้าคิวส่งมอบรถในวันที่ ${formatToThaiDate(deliveryDate)} เต็มแล้ว!`;
             }
         }
         
@@ -928,7 +939,7 @@ async function submitSaForm(event) {
     }
 }
 
-// 🌟 1. ดึงข้อมูลปฏิทิน และโหลดเฉพาะฟิลด์เป้าหมาย 🌟
+// 🌟 1. ดึงข้อมูลปฏิทิน 🌟
 async function openScheduleCalendar(field) {
     currentTargetField = field;
     const modalEl = document.getElementById('scheduleCalendarModal');
@@ -945,7 +956,6 @@ async function openScheduleCalendar(field) {
         'all': 'ตารางตรวจสอบโควต้า (ภาพรวม)'
     };
     
-    // ป้องกัน Error หากหา ID หัวตารางไม่เจอใน HTML
     if (titleEl) {
         titleEl.innerText = titles[field] || 'ตารางโควต้า';
     }
@@ -982,7 +992,7 @@ function changeSchedMonth(direction) {
     renderSchedCalendar();
 }
 
-// 🌟 2. Render ปฏิทินและหลอด Progress Bar แบบ Pre-calculate เร็วแรง ลื่นไหล ไม่ค้าง 🌟
+// 🌟 2. Render ปฏิทิน แก้ไขฟิลด์โควต้าถูกต้อง (ไม่มี ∞) + เพิ่มเป้าซ่อมเสร็จคัน/วัน 🌟
 function renderSchedCalendar() {
     const grid = document.getElementById('sched_calendar_grid'); 
     if (!grid) return;
@@ -997,7 +1007,6 @@ function renderSchedCalendar() {
 
     const defaultQuota = allSchedQuotas.find(q => q.quota_type === 'default');
 
-    // สรุปข้อมูลล่วงหน้าก่อนเข้าลูป ป้องกันการค้าง
     const dailyData = {};
     const specialQuotasMap = {};
 
@@ -1031,6 +1040,15 @@ function renderSchedCalendar() {
     let htmlBuffer = '';
     for(let i = 0; i < firstDay; i++) { htmlBuffer += `<div class="bg-transparent rounded-xl"></div>`; }
 
+    // Helper ช่วยดึงค่าโควต้า ไม่ให้ติด undefined/NaN จนกลายเป็น ∞
+    const getQVal = (sq, fieldArr) => {
+        for (let f of fieldArr) {
+            if (sq && sq[f] !== undefined && sq[f] !== null && sq[f] !== '') return parseInt(sq[f]) || 0;
+            if (defaultQuota && defaultQuota[f] !== undefined && defaultQuota[f] !== null && defaultQuota[f] !== '') return parseInt(defaultQuota[f]) || 0;
+        }
+        return 0;
+    };
+
     for(let day = 1; day <= totalDays; day++) {
         const dateStr = `${currentSchedYear}-${String(currentSchedMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
         
@@ -1042,16 +1060,20 @@ function renderSchedCalendar() {
         const subPartsSum = dData.s;
 
         const specialQuota = specialQuotasMap[dateStr];
-        const maxCars = specialQuota && specialQuota.quota_cars !== undefined ? parseInt(specialQuota.quota_cars) : (defaultQuota ? parseInt(defaultQuota.quota_cars) : 0);
-        const maxMain = specialQuota ? parseInt(specialQuota.quota_main_parts||0) : (defaultQuota ? parseInt(defaultQuota.quota_main_parts||0) : 0);
-        const maxSub = specialQuota ? parseInt(specialQuota.quota_sub_parts||0) : (defaultQuota ? parseInt(defaultQuota.quota_sub_parts||0) : 0);
+        
+        // 🌟 อ่านคอลัมน์จริงจาก DB: quota_arrived, quota_target, quota_delivery, quota_main_parts, quota_sub_parts
+        const maxArrived = getQVal(specialQuota, ['quota_arrived', 'quota_cars']);
+        const maxTarget = getQVal(specialQuota, ['quota_target', 'quota_cars']);
+        const maxDelivery = getQVal(specialQuota, ['quota_delivery', 'quota_cars']);
+        const maxMain = getQVal(specialQuota, ['quota_main_parts']);
+        const maxSub = getQVal(specialQuota, ['quota_sub_parts']);
 
-        const isArriveFull = maxCars > 0 && arrCount >= maxCars;
+        const isArriveFull = maxArrived > 0 && arrCount >= maxArrived;
+        const isTargetCarFull = maxTarget > 0 && tarCount >= maxTarget;
         const isTargetMainFull = maxMain > 0 && mainPartsSum >= maxMain;
         const isTargetSubFull = maxSub > 0 && subPartsSum >= maxSub;
-        const isTargetFull = maxCars > 0 && tarCount >= maxCars; 
-        const isTargetOverallFull = isTargetFull || isTargetMainFull || isTargetSubFull;
-        const isDeliveryFull = maxCars > 0 && delCount >= maxCars;
+        const isTargetOverallFull = isTargetCarFull || isTargetMainFull || isTargetSubFull;
+        const isDeliveryFull = maxDelivery > 0 && delCount >= maxDelivery;
         const allFull = isArriveFull && isTargetOverallFull && isDeliveryFull;
 
         let quotaHTML = `<div class="mt-auto w-full pt-1 flex flex-col gap-1.5">`;
@@ -1062,30 +1084,38 @@ function renderSchedCalendar() {
 
         if (currentTargetField === 'arrived_date') {
             isCurrentFieldFull = isArriveFull;
-            let pct = maxCars > 0 ? Math.min((arrCount / maxCars) * 100, 100) : 0;
+            let pct = maxArrived > 0 ? Math.min((arrCount / maxArrived) * 100, 100) : 0;
             let color = pct >= 100 ? 'bg-rose-500' : 'bg-emerald-500';
             quotaHTML += `
                 <div class="flex justify-between text-[10px] font-black ${pct>=100?'text-rose-600':'text-emerald-700'} mb-1">
-                    <span>รถเข้าจอด</span> <span>${arrCount}/${maxCars||'∞'} คัน</span>
+                    <span>รถเข้าจอด</span> <span>${arrCount}/${maxArrived > 0 ? maxArrived : '∞'} คัน</span>
                 </div>
-                ${maxCars > 0 ? `<div class="h-1.5 bg-slate-200 rounded-full"><div class="h-full ${color} rounded-full" style="width:${pct}%"></div></div>` : ''}
+                ${maxArrived > 0 ? `<div class="h-1.5 bg-slate-200 rounded-full"><div class="h-full ${color} rounded-full" style="width:${pct}%"></div></div>` : ''}
             `;
         } 
         else if (currentTargetField === 'target_finish_date') {
             isCurrentFieldFull = isTargetOverallFull;
+            let pctT = maxTarget > 0 ? Math.min((tarCount / maxTarget) * 100, 100) : 0;
             let pctM = maxMain > 0 ? Math.min((mainPartsSum / maxMain) * 100, 100) : 0;
             let pctS = maxSub > 0 ? Math.min((subPartsSum / maxSub) * 100, 100) : 0;
             
             quotaHTML += `
+                <!-- 🌟 เพิ่มโควต้ารถคิวเป้าซ่อมเสร็จ (คัน/วัน) ตามที่ระบุ 🌟 -->
+                <div>
+                    <div class="flex justify-between text-[9px] font-black ${pctT>=100?'text-rose-600':'text-amber-800'} mb-0.5">
+                        <span>เป้าเสร็จ</span> <span>${tarCount}/${maxTarget > 0 ? maxTarget : '∞'} คัน</span>
+                    </div>
+                    ${maxTarget > 0 ? `<div class="h-1.5 bg-slate-200 rounded-full mb-1"><div class="h-full ${pctT>=100?'bg-rose-500':'bg-amber-500'} rounded-full" style="width:${pctT}%"></div></div>` : ''}
+                </div>
                 <div>
                     <div class="flex justify-between text-[9px] font-black ${pctM>=100?'text-rose-600':'text-blue-700'} mb-0.5">
-                        <span>ชิ้นหลัก</span> <span>${mainPartsSum}/${maxMain||'∞'} ชิ้น</span>
+                        <span>ชิ้นหลัก</span> <span>${mainPartsSum}/${maxMain > 0 ? maxMain : '∞'} ชิ้น</span>
                     </div>
-                    ${maxMain > 0 ? `<div class="h-1.5 bg-slate-200 rounded-full"><div class="h-full ${pctM>=100?'bg-rose-500':'bg-blue-500'} rounded-full" style="width:${pctM}%"></div></div>` : ''}
+                    ${maxMain > 0 ? `<div class="h-1.5 bg-slate-200 rounded-full mb-1"><div class="h-full ${pctM>=100?'bg-rose-500':'bg-blue-500'} rounded-full" style="width:${pctM}%"></div></div>` : ''}
                 </div>
-                <div class="mt-1">
+                <div>
                     <div class="flex justify-between text-[9px] font-black ${pctS>=100?'text-rose-600':'text-amber-700'} mb-0.5">
-                        <span>ชิ้นรอง</span> <span>${subPartsSum}/${maxSub||'∞'} ชิ้น</span>
+                        <span>ชิ้นรอง</span> <span>${subPartsSum}/${maxSub > 0 ? maxSub : '∞'} ชิ้น</span>
                     </div>
                     ${maxSub > 0 ? `<div class="h-1.5 bg-slate-200 rounded-full"><div class="h-full ${pctS>=100?'bg-rose-500':'bg-amber-500'} rounded-full" style="width:${pctS}%"></div></div>` : ''}
                 </div>
@@ -1093,22 +1123,23 @@ function renderSchedCalendar() {
         } 
         else if (currentTargetField === 'delivery_date') {
             isCurrentFieldFull = isDeliveryFull;
-            let pct = maxCars > 0 ? Math.min((delCount / maxCars) * 100, 100) : 0;
+            let pct = maxDelivery > 0 ? Math.min((delCount / maxDelivery) * 100, 100) : 0;
             let color = pct >= 100 ? 'bg-rose-500' : 'bg-indigo-500';
             quotaHTML += `
                 <div class="flex justify-between text-[10px] font-black ${pct>=100?'text-rose-600':'text-indigo-700'} mb-1">
-                    <span>ส่งมอบรถ</span> <span>${delCount}/${maxCars||'∞'} คัน</span>
+                    <span>ส่งมอบรถ</span> <span>${delCount}/${maxDelivery > 0 ? maxDelivery : '∞'} คัน</span>
                 </div>
-                ${maxCars > 0 ? `<div class="h-1.5 bg-slate-200 rounded-full"><div class="h-full ${color} rounded-full" style="width:${pct}%"></div></div>` : ''}
+                ${maxDelivery > 0 ? `<div class="h-1.5 bg-slate-200 rounded-full"><div class="h-full ${color} rounded-full" style="width:${pct}%"></div></div>` : ''}
             `;
         } 
         else {
             isCurrentFieldFull = allFull;
             quotaHTML += `
-                <div class="text-[9px] font-bold ${isArriveFull?'text-rose-600':'text-emerald-700'} flex justify-between"><span>เข้า</span><span>${arrCount}/${maxCars||'∞'}</span></div>
-                <div class="text-[9px] font-bold ${isTargetMainFull?'text-rose-600':'text-blue-700'} flex justify-between"><span>หลัก</span><span>${mainPartsSum}/${maxMain||'∞'}</span></div>
-                <div class="text-[9px] font-bold ${isTargetSubFull?'text-rose-600':'text-amber-700'} flex justify-between"><span>รอง</span><span>${subPartsSum}/${maxSub||'∞'}</span></div>
-                <div class="text-[9px] font-bold ${isDeliveryFull?'text-rose-600':'text-indigo-700'} flex justify-between"><span>ส่ง</span><span>${delCount}/${maxCars||'∞'}</span></div>
+                <div class="text-[9px] font-bold ${isArriveFull?'text-rose-600':'text-emerald-700'} flex justify-between"><span>เข้า</span><span>${arrCount}/${maxArrived > 0 ? maxArrived : '∞'}</span></div>
+                <div class="text-[9px] font-bold ${isTargetCarFull?'text-rose-600':'text-amber-700'} flex justify-between"><span>เป้า</span><span>${tarCount}/${maxTarget > 0 ? maxTarget : '∞'}</span></div>
+                <div class="text-[9px] font-bold ${isTargetMainFull?'text-rose-600':'text-blue-700'} flex justify-between"><span>หลัก</span><span>${mainPartsSum}/${maxMain > 0 ? maxMain : '∞'}</span></div>
+                <div class="text-[9px] font-bold ${isTargetSubFull?'text-rose-600':'text-amber-700'} flex justify-between"><span>รอง</span><span>${subPartsSum}/${maxSub > 0 ? maxSub : '∞'}</span></div>
+                <div class="text-[9px] font-bold ${isDeliveryFull?'text-rose-600':'text-indigo-700'} flex justify-between"><span>ส่ง</span><span>${delCount}/${maxDelivery > 0 ? maxDelivery : '∞'}</span></div>
             `;
         }
         quotaHTML += `</div>`;
@@ -1142,7 +1173,7 @@ function renderSchedCalendar() {
     grid.innerHTML = htmlBuffer;
 }
 
-// 🌟 4. ฟังก์ชันนำวันที่ไปใส่ในฟอร์มทันที (แก้ INP Delay) 🌟
+// 🌟 3. ฟังก์ชันนำวันที่ไปใส่ในฟอร์มทันที 🌟
 function applySelectedDateToFieldDirect(dateStr, fieldId) {
     const inputField = document.getElementById(fieldId);
     closeModal('scheduleCalendarModal');
