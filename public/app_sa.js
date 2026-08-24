@@ -30,6 +30,42 @@ function formatToThaiDate(isoStr) {
     return isoStr;
 }
 
+// 🌟 เพิ่มฟังก์ชันคำนวณและแจ้งเตือนวันซ่อมเสร็จอัจฉริยะ 🌟
+function updateTargetDateSuggestion() {
+    const suggestionEl = document.getElementById('target_date_suggestion');
+    if (!suggestionEl) return;
+
+    const damageLevel = document.getElementById('damage_level')?.value || 'เบา';
+    const cleanMainParts = selectedBodyParts.main.filter(p => !p.includes('ไม่ชิ้นงาน'));
+    const mainQty = cleanMainParts.length;
+    const hasGlass = cleanMainParts.some(p => p.includes('กระจก')) || selectedBodyParts.sub.some(p => p.includes('กระจก'));
+    
+    if (mainQty === 0) {
+        suggestionEl.innerHTML = '';
+        suggestionEl.classList.add('hidden');
+        return;
+    }
+
+    let days = 0;
+    if (mainQty === 1) days = 3;
+    else if (mainQty === 2) days = 5;
+    else if (mainQty >= 3) days = 5 + (mainQty - 2);
+
+    let msg = `💡 แนะนำ: ทำสีชิ้นหลัก ${mainQty} ชิ้น ควรใช้เวลาซ่อม <b>${days} วัน</b>`;
+    let colorClass = "text-blue-600";
+
+    if (damageLevel === 'หนัก') {
+        msg = `⚠️ แผลหนัก: กรุณาประเมินวันซ่อมตามหน้างานจริง`;
+        colorClass = "text-rose-600";
+    } else if (hasGlass) {
+        msg = `⚠️ มีงานกระจก: แนะนำ <b>${days} วัน</b> + ประเมินเวลาเผื่อกระจก`;
+        colorClass = "text-amber-600 border-amber-200 bg-amber-50";
+    }
+
+    suggestionEl.innerHTML = `<span class="${colorClass}">${msg}</span>`;
+    suggestionEl.classList.remove('hidden');
+}
+
 function selectDamage(level) {
     const dmgInput = document.getElementById('damage_level');
     if (dmgInput) dmgInput.value = level;
@@ -45,6 +81,8 @@ function selectDamage(level) {
     if(level === 'เบา' && b) b.className = 'dmg-btn bg-emerald-600 text-white border-emerald-700 shadow-md scale-[1.02]';
     if(level === 'กลาง' && m) m.className = 'dmg-btn bg-amber-500 text-slate-900 border-amber-600 shadow-md scale-[1.02]';
     if(level === 'หนัก' && h) h.className = 'dmg-btn bg-rose-600 text-white border-rose-700 shadow-md scale-[1.02]';
+    
+    updateTargetDateSuggestion(); // อัปเดตข้อความเตือนเมื่อเลือกความเสียหาย
 }
 
 async function handleLogin(e) {
@@ -212,6 +250,7 @@ function renderBodyPartsUI() {
     if (cSub) cSub.innerText = selectedBodyParts.sub.length;
 
     autoCalculateDamageLevel();
+    updateTargetDateSuggestion(); // อัปเดตข้อความเตือนเมื่อเลือกอะไหล่เสร็จ
 }
 
 function toggleBodyPart(category, partName) {
@@ -889,7 +928,7 @@ async function submitSaForm(event) {
         }
 
         const resJson = await response.json();
-        const savedJobId = editId || resJson?.insertedId || null;
+        const savedJobId = editId || resJson?.insertedId || resJson?.id || null;
 
         if (routingDept.includes('อะไหล่') || formData.job_status.includes('06.สั่งอะไหล่')) {
             const partRows = document.querySelectorAll('#order_parts_body tr');
@@ -927,8 +966,24 @@ async function submitSaForm(event) {
             }
         }
         
-        if (editId) { alert(`🎉 อัปเดตใบงานเรียบร้อย!`); cancelEditMode(); } 
-        else { alert(`🎉 เปิดบิลเรียบร้อย!`); cancelEditMode(); }
+        // 🌟 แก้ไข: บันทึกสำเร็จแล้วให้อยู่ในโหมดแก้ไขต่อ 🌟
+        if (editId) { 
+            alert(`🎉 อัปเดตใบงานเรียบร้อย!`); 
+            if(formData.car_plate) loadPartsTrackingTable(formData.car_plate);
+            if (btnSubmit) {
+                btnSubmit.innerHTML = '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม';
+                btnSubmit.disabled = false;
+            }
+        } 
+        else { 
+            alert(`🎉 เปิดบิลเรียบร้อย!`); 
+            if (savedJobId) {
+                sessionStorage.setItem('edit_job_id', savedJobId);
+                await checkCrossPageEditMode();
+            } else {
+                cancelEditMode();
+            }
+        }
         
     } catch (e) { 
         alert('❌ เครือข่ายขัดข้อง'); 
