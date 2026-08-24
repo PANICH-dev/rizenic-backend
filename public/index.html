@@ -288,7 +288,7 @@
                     <div class="card-container lg:col-span-5 flex flex-col gap-3 !mb-0">
                         <div class="section-header">
                             <h3 class="section-title"><i class="fa-regular fa-calendar-days section-icon"></i> 7. กำหนดการนัดหมาย</h3>
-                            <button type="button" onclick="openScheduleCalendar()" class="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl shadow-md hover:bg-blue-700 transition-all border border-blue-700 w-full sm:w-auto mt-2 sm:mt-0"><i class="fa-solid fa-calendar-check mr-1"></i> เช็คตารางคิว & โควต้า</button>
+                            <button type="button" onclick="openScheduleCalendar('all')" class="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl shadow-md hover:bg-blue-700 transition-all border border-blue-700 w-full sm:w-auto mt-2 sm:mt-0"><i class="fa-solid fa-calendar-check mr-1"></i> เช็คตารางภาพรวม</button>
                         </div>
                         <div class="timeline-row">
                             <span class="text-xs font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-phone text-blue-500 w-5 text-center text-sm"></i> 1. ติดต่อสอบถาม <span class="text-red-500">*</span></span>
@@ -296,11 +296,17 @@
                         </div>
                         <div class="timeline-row">
                             <span class="text-xs font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-truck-ramp-box text-emerald-600 w-5 text-center text-sm"></i> 2. รถเข้าจอดอู่</span>
-                            <input type="date" id="arrived_date" class="minimal-input sm:w-40 py-2 !bg-white focus:ring-emerald-500/30">
+                            <div class="flex gap-2">
+                                <input type="date" id="arrived_date" class="minimal-input sm:w-40 py-2 !bg-white focus:ring-emerald-500/30">
+                                <button type="button" onclick="openScheduleCalendar('arrived_date')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-300 px-3 rounded-xl shadow-sm transition" title="ดูโควต้ารถเข้าจอด"><i class="fa-solid fa-calendar-check"></i></button>
+                            </div>
                         </div>
                         <div class="timeline-row">
                             <span class="text-xs font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-car-tunnel text-amber-500 w-5 text-center text-sm"></i> 3. กำหนดซ่อมเสร็จ</span>
-                            <input type="date" id="target_finish_date" class="minimal-input sm:w-40 py-2 !bg-white">
+                            <div class="flex gap-2">
+                                <input type="date" id="target_finish_date" class="minimal-input sm:w-40 py-2 !bg-white">
+                                <button type="button" onclick="openScheduleCalendar('target_finish_date')" class="bg-amber-100 hover:bg-amber-200 text-amber-700 border border-amber-300 px-3 rounded-xl shadow-sm transition" title="ดูโควต้าคิวซ่อม"><i class="fa-solid fa-calendar-check"></i></button>
+                            </div>
                         </div>
                         <div class="timeline-row">
                             <span class="text-xs font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-screwdriver-wrench text-slate-500 w-5 text-center text-sm"></i> 4. ซ่อมเสร็จจริง</span>
@@ -308,7 +314,10 @@
                         </div>
                         <div class="timeline-row">
                             <span class="text-xs font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-key text-indigo-600 w-5 text-center text-sm"></i> 5. ส่งมอบรถลูกค้า</span>
-                            <input type="date" id="delivery_date" class="minimal-input sm:w-40 py-2 !bg-white">
+                            <div class="flex gap-2">
+                                <input type="date" id="delivery_date" class="minimal-input sm:w-40 py-2 !bg-white">
+                                <button type="button" onclick="openScheduleCalendar('delivery_date')" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 border border-indigo-300 px-3 rounded-xl shadow-sm transition" title="ดูโควต้าส่งมอบ"><i class="fa-solid fa-calendar-check"></i></button>
+                            </div>
                         </div>
                     </div>
 
@@ -365,6 +374,12 @@
             </div>
             
             <div class="flex-1 overflow-auto custom-scrollbar p-6 bg-slate-50 relative">
+                <!-- 🌟 Loading State -->
+                <div id="calendar_loading" class="absolute inset-0 bg-white/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center hidden">
+                    <i class="fa-solid fa-spinner fa-spin text-4xl text-[#00320D] mb-3"></i>
+                    <p class="font-bold text-slate-600">กำลังประมวลผลข้อมูลโควต้า...</p>
+                </div>
+                
                 <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                     <div class="flex flex-wrap items-center gap-3 text-[11px] font-bold bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm">
                         <span class="text-emerald-600 flex items-center"><i class="fa-solid fa-truck-ramp-box mr-1"></i> รถเข้าจอดอู่</span>
@@ -493,7 +508,7 @@
             } catch (err) { alert('❌ ระบบขัดข้อง'); }
         }
 
-        // 🌟 แก้ปัญหาโหลดข้อมูลไม่ขึ้น: สั่งให้โหลดและรอจนจบก่อนที่จะตั้งค่าต่างๆ 🌟
+        // 🌟 แก้ปัญหาโหลดข้อมูลไม่ขึ้น: รอให้ดึง Dropdown ครบ และทำ Sync รวดเดียว 🌟
         async function enterApp() {
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('main-app').classList.remove('hidden');
@@ -508,9 +523,8 @@
             // รอจนกว่าจะดึง Dropdown ครบ 100% ถึงจะไปฟังก์ชันถัดไป (แก้ปัญหา Race Condition)
             await loadInitialData(); 
             
-            addDocRow(); 
-            addPartRow(); 
-            checkCrossPageEditMode();
+            // ดึงข้อมูลกรณีเปิดจากหน้า บอร์ดใบงาน (Jobs / Jobs Table)
+            await checkCrossPageEditMode();
         }
 
         function logout() { sessionStorage.clear(); window.location.reload(); }
@@ -951,75 +965,96 @@
             }
         }
 
+        // 🌟 แก้ไข: เพิ่มการเซตค่า Dropdown อย่างสม่ำเสมอและดึงอะไหล่มาโชว์ 🌟
         async function checkCrossPageEditMode() {
-            const idToEdit = sessionStorage.getItem('edit_job_id'); if(!idToEdit) return;
+            const idToEdit = sessionStorage.getItem('edit_job_id'); 
+            if(!idToEdit) {
+                if(document.getElementById('docs_body').children.length === 0) addDocRow();
+                if(document.getElementById('order_parts_body').children.length === 0) addPartRow();
+                return;
+            }
+
             try {
-                const res = await fetch(`${API_BASE_URL}/api/report/${idToEdit}`); if (!res.ok) return;
+                const res = await fetch(`${API_BASE_URL}/api/report/${idToEdit}`); 
+                if (!res.ok) return;
                 const job = await res.json();
                 currentEditingJob = job; 
                 
-                document.getElementById('sa_report_id').value = job.id;
-                document.getElementById('current_editing_id').innerText = job.id;
+                document.getElementById('sa_report_id').value = job.id || idToEdit;
+                document.getElementById('current_editing_id').innerText = job.id || idToEdit;
                 document.getElementById('edit_mode_badge').classList.remove('hidden'); 
-                document.getElementById('btn_submit_sa').innerHTML = '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม';
+                document.getElementById('btn_submit_sa').innerHTML = '<i class="fa-solid fa-file-pen mr-2"></i> บันทึกอัปเดตใบงานซ่อม';
+                
                 updateStationProgress(job);
 
                 document.getElementById('sa_owner_input').value = job.sa_owner || sessionStorage.getItem('emp_name') || '';
-
                 document.getElementById('customer_name').value = job.customer_name || ''; 
                 document.getElementById('phone_number').value = job.phone_number || '';
                 document.getElementById('car_brand').value = job.car_brand || 'Tesla';
-                await updateCarModels(job.car_brand || 'Tesla');
                 
-                setTimeout(() => {
-                    const safeSetSelect = (elementId, value) => {
-                        if (!value) return;
-                        const selectEl = document.getElementById(elementId);
-                        const optionExists = Array.from(selectEl.options).some(opt => opt.value === value);
-                        if (!optionExists) { selectEl.add(new Option(value, value)); }
-                        selectEl.value = value;
-                    };
-                    safeSetSelect('customer_type', job.customer_type);
-                    safeSetSelect('car_model', job.car_model);
-                    safeSetSelect('payment_type', job.payment_type);
-                }, 800); 
+                await updateCarModels(job.car_brand || 'Tesla');
 
+                const safeSetSelect = (elementId, value) => {
+                    if (!value) return;
+                    const selectEl = document.getElementById(elementId);
+                    if (!selectEl) return;
+                    const optionExists = Array.from(selectEl.options).some(opt => opt.value === value);
+                    if (!optionExists) { selectEl.add(new Option(value, value)); }
+                    selectEl.value = value;
+                };
+
+                safeSetSelect('customer_type', job.customer_type);
+                safeSetSelect('car_model', job.car_model);
+                safeSetSelect('payment_type', job.payment_type);
+                safeSetSelect('job_status', job.job_status);
+
+                if (job.department_routing) safeSetSelect('department_routing', job.department_routing);
+                else autoMapRouting();
+
+                if (job.is_parked) safeSetSelect('park_status', job.is_parked);
+                else autoMapRouting(); 
+
+                document.getElementById('notes').value = job.notes || '';
                 document.getElementById('car_plate').value = job.car_plate || ''; 
                 document.getElementById('vin_no').value = job.vin_no || '';
-                
+
+                // เอกสารอ้างอิง
                 document.getElementById('docs_body').innerHTML = '';
                 let qtArr = [], soArr = [];
                 if (job.qt_no) job.qt_no.split(',').forEach(v => { let val = v.trim(); if(val) { qtArr.push(val); addDocRow('QT', val); }});
                 if (job.so_no) job.so_no.split(',').forEach(v => { let val = v.trim(); if(val) { soArr.push(val); addDocRow('SO', val); }});
-                if (job.bl_no) job.bl_no.split(',').forEach(v => { if(v.trim()) addDocRow('BL', v.trim()); });
-                
+                if (job.bl_no) job.bl_no.split(',').forEach(v => { let val = v.trim(); if(val) { addDocRow('BL', v.trim()); }});
                 if (document.getElementById('docs_body').children.length === 0) addDocRow();
                 
+                // สั่งซื้ออะไหล่
+                document.getElementById('order_parts_body').innerHTML = '';
+                addPartRow();
+
+                // ชิ้นส่วนทำสี & ความเสียหาย
                 selectDamage(job.damage_level || 'เบา');
-                
                 selectedBodyParts.main = job.main_part_name ? job.main_part_name.split(',').map(s => s.trim()).filter(Boolean) : [];
                 selectedBodyParts.sub = job.sub_part_name ? job.sub_part_name.split(',').map(s => s.trim()).filter(Boolean) : [];
                 renderBodyPartsUI();
                 
-                setTimeout(() => {
-                    if(job.job_status) {
-                        document.getElementById('job_status').value = job.job_status;
-                        if (job.department_routing) document.getElementById('department_routing').value = job.department_routing;
-                        else autoMapRouting();
+                // วันที่
+                const setDateVal = (elemId, isoVal) => {
+                    const el = document.getElementById(elemId);
+                    if (el) el.value = isoVal ? String(isoVal).split('T')[0] : '';
+                };
+                setDateVal('contact_date', job.contact_date);
+                setDateVal('arrived_date', job.arrived_date);
+                setDateVal('target_finish_date', job.target_finish_date);
+                setDateVal('repair_finish_date', job.repair_finish_date);
+                setDateVal('delivery_date', job.delivery_date);
 
-                        document.getElementById('notes').value = job.notes || '';
-                        if (job.is_parked) document.getElementById('park_status').value = job.is_parked;
-                        else autoMapRouting(); 
-                    }
-                }, 500);
-                
-                document.getElementById('contact_date').value = job.contact_date ? job.contact_date.split('T')[0] : '';
-                document.getElementById('arrived_date').value = job.arrived_date ? job.arrived_date.split('T')[0] : '';
-                document.getElementById('target_finish_date').value = job.target_finish_date ? job.target_finish_date.split('T')[0] : '';
-                document.getElementById('repair_finish_date').value = job.repair_finish_date ? job.repair_finish_date.split('T')[0] : '';
-                document.getElementById('delivery_date').value = job.delivery_date ? job.delivery_date.split('T')[0] : '';
-                
-            } catch(e) {}
+                // ตารางติดตามสถานะอะไหล่ PO
+                if (job.car_plate) {
+                    loadPartsTrackingTable(job.car_plate.trim());
+                }
+
+            } catch(e) {
+                console.error("Error loading job for edit:", e);
+            }
         }
 
         function cancelEditMode() {
@@ -1433,7 +1468,7 @@
             document.getElementById('dateSelectorModal').classList.remove('hidden');
         }
 
-        // แก้ปัญหา INP โดยให้ UI อัปเดตทันทีก่อนการประมวลผลหลัก
+        // แก้ปัญหา INP
         function applySelectedDateToField(fieldId) {
             const dateStr = document.getElementById('ds_temp_date_val').value;
             const inputField = document.getElementById(fieldId);
