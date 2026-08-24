@@ -42,11 +42,10 @@ const excludedStatuses = [
     '19.ออกบิลแล้ว', '20.จอดซ่อม TC', '21.พักซ่อม'
 ];
 
-// 🌟 เพิ่มคอลัมน์ arrived_date (วันที่รถเข้าจอดอู่) เข้าไปในตาราง 🌟
+// 🌟 กำหนดคอลัมน์ (เอา appointment_date ออกแล้ว) 🌟
 let columnsDef = [
     { idx: 1, key: 'action', title: 'Action', width: 90 },
     { idx: 2, key: 'contact_date', title: 'เข้ามาติดต่อวันที่', width: 115 },
-    { idx: 3, key: 'appointment_date', title: 'ลูกค้านัดหมาย', width: 115 },
     { idx: 36, key: 'arrived_date', title: 'วันที่รถเข้าจอดอู่', width: 150 },
     { idx: 4, key: 'car_plate', title: 'ทะเบียนรถ', width: 110 },
     { idx: 5, key: 'customer_type', title: 'ประเภทลูกค้า', width: 120 },
@@ -84,7 +83,7 @@ let columnsDef = [
 
 const defaultVisibleKeys = [
     'action', 'contact_date', 'arrived_date', 'car_plate', 'car_brand', 'car_model', 
-    'customer_name', 'damage_level', 'target_finish_date', 'delivery_date', 'job_status', 'sa_owner'
+    'customer_name', 'damage_level', 'target_finish_date', 'repair_finish_date', 'delivery_date', 'job_status', 'sa_owner'
 ];
 
 let hiddenCols = new Set(columnsDef.filter(c => !defaultVisibleKeys.includes(c.key)).map(c => c.idx));
@@ -362,7 +361,6 @@ async function autoMapRouting(jobId, newStatus) {
     }
 }
 
-// 🌟 ระบบเช็กโควต้าสมบูรณ์แบบทั้ง 3 โหมด (รถเข้าจอด, เป้าซ่อมเสร็จ, ส่งมอบ) 🌟
 async function checkQuotaForInlineEdit(jobId, branch, dateVal, type, reqCount) {
     try {
         if (!dateVal) return true;
@@ -434,7 +432,7 @@ async function checkQuotaForInlineEdit(jobId, branch, dateVal, type, reqCount) {
 
 async function fastUpdateJob(jobId, field, value, silent = false) {
     let formattedValue = value;
-    if (field.includes('date') || ['appointment_date', 'repair_finish_date', 'target_finish_date', 'delivery_date', 'contact_date', 'arrived_date'].includes(field)) {
+    if (field.includes('date') || ['repair_finish_date', 'target_finish_date', 'delivery_date', 'contact_date', 'arrived_date'].includes(field)) {
         if (value === '' || value === undefined || value === null) formattedValue = null;
         else formattedValue = String(value).split('T')[0];
     }
@@ -762,8 +760,9 @@ function renderTable(data) {
                 case 'sub_part_qty': 
                     cellData = `<div class="text-center font-black text-amber-600 text-xs">${job.sub_part_qty || 0}</div>`; break;
 
-                case 'contact_date': case 'appointment_date': case 'arrived_date': case 'target_finish_date': case 'repair_finish_date': case 'delivery_date': case 'order_part_date': case 'est_part_date': case 'part_received_all_date': case 'billing_date':
+                case 'contact_date': case 'arrived_date': case 'target_finish_date': case 'repair_finish_date': case 'delivery_date': case 'order_part_date': case 'est_part_date': case 'part_received_all_date': case 'billing_date':
                     let colorClass = 'text-slate-700';
+                    if (col.key === 'arrived_date') colorClass = 'text-emerald-700 font-bold';
                     if (col.key === 'target_finish_date') colorClass = 'text-amber-600 font-bold';
                     if (col.key === 'repair_finish_date') colorClass = 'text-[#00320D] font-bold';
                     if (col.key === 'delivery_date') colorClass = 'text-emerald-600 font-bold';
