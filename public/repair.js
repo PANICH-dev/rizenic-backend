@@ -5,7 +5,6 @@ let originalRepairJobs = [];
 let allQuotas = []; 
 let allPartOrders = []; 
 let allBodyPartsMaster = []; 
-let allPartStatusesCache = []; 
 
 let currentYear = new Date().getFullYear(); 
 let currentMonth = new Date().getMonth(); 
@@ -481,6 +480,501 @@ function openDayListForTarget(dateStr) {
     document.getElementById('dayListModal').classList.remove('hidden');
 }
 
+async function fetchJobList() {
+    try {
+        document.getElementById('repair_list_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-12 text-slate-400 font-mono text-sm"><i class="fa-solid fa-circle-notch fa-spin text-[#00320D] text-lg mr-2"></i> กำลังโหลดข้อมูล...</td></tr>`;
+        const nocache = `?_t=${new Date().getTime()}`;
+        
+        // 🌟 แก้ไข: ลบ API ตัว part-statuses ออกให้ตรงจำนวนที่ destructure เพื่อกันบั๊กโหลดค้าง 🌟
+        const [resReports, resQuotas, resParts, resBodyParts] = await Promise.all([
+            safeFetch(`${API_BASE_URL}/api/reports${nocache}`), 
+            safeFetch(`${API_BASE_URL}/api/quotas${nocache}`), 
+            safeFetch(`${API_BASE_URL}/api/part-orders${nocache}`),
+            safeFetch(`${API_BASE_URL}/api/body-parts${nocache}`)
+        ]);
+        
+        allQuotas = Array.isArray(resQuotas) ? resQuotas : (resQuotas.data || []); 
+        allPartOrders = Array.isArray(resParts) ? resParts : (resParts.data || []); 
+        allBodyPartsMaster = Array.isArray(resBodyParts) ? resBodyParts : (resBodyParts.data || []); 
+
+        const rawReports = Array.isArray(resReports) ? resReports : (resReports.data || []);
+
+        originalRepairJobs = rawReports.filter(j => {
+            const st = j.job_status || '';
+            const isNotCancelled = !st.includes('ยกเลิก');
+            const isNotDelivered = !st.includes('ส่งมอบแล้ว') && st !== '12.ส่งมอบ';
+            return isNotCancelled && isNotDelivered;
+        }).map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
+
+        updateKPIs();
+        renderCalendar(); 
+        runTableFilters();
+    } catch (err) { console.error("โหลดข้อมูลพัง:", err); }
+}
+
+async function fastUpdateField(id, field, value) {
+    const isDate = field.includes('date');
+    if (isDate) {
+        const today = getTodayString();
+        if (value && value < today && field === 'repair_finish_date') {
+            showToast('ไม่อนุญาตให้ใส่วันที่เสร็จจริงย้อนหลังครับ!', 'error'); runTableFilters(); return;
+        }
+    }
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/report/${id}/fast-date`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ field, value }) });
+        if(res.ok) {
+            const jobIndex = originalRepairJobs.findIndex(j => String(j.id) === String(id));
+            if(jobIndex > -1) { 
+                originalRepairJobs[jobIndex][field] = (isDate && value) ? value + 'T00:00:00.000Z' : value; 
+                showToast('บันทึกข้อมูลเรียบร้อย!'); 
+                if(isDate || field === 'job_status' || field === 'department_routing') updateKPIs(); 
+                runTableFilters(); 
+            }
+        } else throw new Error();
+    } catch(e) { showToast('อัปเดตไม่สำเร็จ', 'error'); }
+}
+
+async function fastUpdateStationDropdown(id, selectedLevel) {
+    const job = originalRepairJobs.find(j => String(j.id) === String(id));
+    if (!job) return;
+    const selectedIdx = stationLevels.indexOf(selectedLevel);
+    
+    const payload = {
+        ...job, 
+        station_kho: selectedIdx >= 1, station_pou: selectedIdx >= 2, station_puan: selectedIdx >= 3,
+        station_pon: selectedIdx >= 4, station_prak: selectedIdx >= 5, station_kat: selectedIdx >= 6,
+        station_qc: selectedIdx >= 7, station_mag: selectedIdx >= 8, station_kraj: selectedIdx >= 9,
+        station_film: selectedIdx >= 10, station_pak: selectedIdx >= 11, station_ready: selectedIdx >= 12,
+        target_finish_date: job.target_finish_date || null, repair_finish_date: job.repair_finish_date || null,
+        delivery_date: job.delivery_date || null, job_status: job.job_status,
+        department_routing: job.department_routing, repair_notes: job.repair_notes
+    };
+    
+    delete payload.calculated_station; 
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/report/${id}/station`, {
+            method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+        });
+        if(res.ok) {
+            showToast('อัปเดตความคืบหน้าสถานีเรียบร้อย!');
+            Object.assign(job, payload);
+            job.calculated_station = computeHighestStationIFS(job);
+            updateKPIs(); 
+            runTableFilters();
+        } else throw new Error();
+    } catch(e) { showToast('อัปเดตไม่สำเร็จ', 'error'); }
+}
+
+function renderAllTags(partsStr, bgClass, textClass, borderClass) {
+    if(!partsStr || !partsStr.trim()) return '<div class="px-3 py-2 text-[#94a3b8] text-[13px]">-</div>';
+    const parts = partsStr.split(',').map(s => s.trim()).filter(Boolean);
+    if(parts.length === 0) return '<div class="px-3 py-2 text-[#94a3b8] text-[13px]">-</div>';
+    let html = `<div class="flex flex-wrap gap-1 p-2 max-w-full">`;
+    parts.forEach(p => { html += `<span class="${bgClass} ${textClass} ${borderClass} px-2.5 py-1 rounded border text-[12px] font-bold shadow-sm inline-block leading-tight">${p}</span>`; });
+    html += `</div>`; return html;
+}
+
+function renderRepairListTable(data) {
+    const tbody = document.getElementById('repair_list_body');
+    if(!data || data.length === 0) { tbody.innerHTML = `<tr><td colspan="${columnsDef.length}" class="p-12 text-center text-slate-400 font-bold bg-white text-base">📭 ไม่พบข้อมูลรถที่ตรงตามเงื่อนไข</td></tr>`; return; }
+
+    let cArr = 0, cTar = 0, cRep = 0, cDel = 0, sumMain = 0, sumSub = 0;
+    let allRowsHtml = '';
+
+    data.forEach(j => {
+        const arrDateStr = j.arrived_date ? j.arrived_date.split('T')[0] : '';
+        const targetDateStr = j.target_finish_date ? j.target_finish_date.split('T')[0] : '';
+        const finishDateStr = j.repair_finish_date ? j.repair_finish_date.split('T')[0] : '';
+        const deliveryDateStr = j.delivery_date ? j.delivery_date.split('T')[0] : '';
+        const isOverdue = checkOverdue(j);
+        
+        if(arrDateStr) cArr++;
+        if(targetDateStr) cTar++;
+        if(finishDateStr) cRep++;
+        if(deliveryDateStr) cDel++;
+        let mQty = Number(j.main_part_qty) || (j.main_part_name ? j.main_part_name.split(',').filter(Boolean).length : 0);
+        let sQty = Number(j.sub_part_qty) || (j.sub_part_name ? j.sub_part_name.split(',').filter(Boolean).length : 0);
+        sumMain += mQty; sumSub += sQty;
+
+        let rowHtml = `<tr>`;
+        columnsDef.forEach(col => {
+            let cellData = ''; 
+            switch(col.key) {
+                case 'action': 
+                    cellData = `<div class="text-center px-1 py-1.5"><button onclick="openModal('${j.id}')" class="action-btn group"><i class="fa-solid fa-pen"></i><span class="action-btn-text hidden">อัปเดต</span></button></div>`; 
+                    break;
+                case 'car_plate': 
+                    cellData = `<div class="font-mono text-base font-black px-3 py-2 truncate ${isOverdue ? 'text-rose-600' : 'text-[#00320D]'}">${isOverdue ? '<i class="fa-solid fa-circle-exclamation mr-1 animate-pulse"></i>' : ''}${j.car_plate || '-'}</div>`; 
+                    break;
+                case 'sa_owner': 
+                    cellData = `<div class="px-3 py-2 font-bold text-slate-700 text-sm truncate" title="${j.sa_owner || ''}"><i class="fa-solid fa-user-tie text-amber-500 mr-1"></i> ${j.sa_owner || '-'}</div>`; 
+                    break;
+                case 'car_brand': 
+                    cellData = `<div class="font-bold text-[#00320D] truncate text-[14px] px-3 py-2" title="${j.car_brand || ''} ${j.car_model || ''}">${j.car_brand || '-'} <span class="text-slate-400 font-medium">${j.car_model || ''}</span></div>`; 
+                    break;
+                case 'car_color': 
+                    cellData = `<div class="px-2 py-1.5 w-full"><input type="text" value="${j.car_color || ''}" placeholder="-" onchange="fastUpdateField('${j.id}', 'car_color', this.value)" class="inline-edit-input text-left w-full text-base font-bold"></div>`; 
+                    break;
+                case 'arrived_date': 
+                    cellData = `<div class="text-slate-500 text-[14px] font-mono font-bold text-center px-2 py-2">${formatThaiDate(j.arrived_date)}</div>`; 
+                    break;
+                case 'target_finish_date': 
+                    cellData = `<div class="${isOverdue ? 'text-rose-600' : 'text-amber-600'} text-[14px] font-mono font-bold text-center px-2 py-2">${formatThaiDate(j.target_finish_date)}</div>`; 
+                    break;
+                case 'repair_finish_date': 
+                    let displayValue = finishDateStr ? formatThaiDate(finishDateStr) : '';
+                    cellData = `<div class="text-center px-2 py-1.5 relative group">
+                        <div class="absolute inset-0 flex items-center justify-center font-mono text-base text-[#00320D] font-bold bg-white z-10 pointer-events-none group-hover:hidden group-focus-within:hidden">${displayValue}</div>
+                        <input type="date" value="${finishDateStr}" onchange="fastUpdateField('${j.id}', 'repair_finish_date', this.value)" class="inline-edit-input w-full font-mono text-base text-[#00320D] font-bold relative z-0">
+                    </div>`; 
+                    break;
+                case 'delivery_date': 
+                    cellData = `<div class="text-emerald-600 text-[14px] font-mono font-bold text-center px-2 py-2">${formatThaiDate(j.delivery_date)}</div>`; 
+                    break;
+                case 'main_part_name': 
+                    cellData = `<div onclick="event.stopPropagation(); openModal('${j.id}')" class="w-full h-full text-left cursor-pointer group">${renderAllTags(j.main_part_name, 'bg-blue-50', 'text-blue-700', 'border-blue-200')}</div>`; 
+                    break;
+                case 'main_part_qty': 
+                    cellData = `<div class="text-center font-black text-lg text-blue-600 py-2">${mQty}</div>`; 
+                    break;
+                case 'sub_part_name': 
+                    cellData = `<div onclick="event.stopPropagation(); openModal('${j.id}')" class="w-full h-full text-left cursor-pointer group">${renderAllTags(j.sub_part_name, 'bg-amber-50', 'text-amber-700', 'border-amber-200')}</div>`; 
+                    break;
+                case 'sub_part_qty': 
+                    cellData = `<div class="text-center font-black text-lg text-amber-600 py-2">${sQty}</div>`; 
+                    break;
+                case 'calculated_station': 
+                    const stationOptionsHtml = stationLevels.map(st => `<option value="${st}" ${j.calculated_station === st ? 'selected' : ''}>${st}</option>`).join('');
+                    cellData = `<div class="px-2 py-1.5"><select onchange="fastUpdateStationDropdown('${j.id}', this.value)" class="inline-edit-select text-amber-700 font-bold bg-amber-50 hover:bg-amber-100 border-amber-300 text-sm">${stationOptionsHtml}</select></div>`; 
+                    break;
+                case 'job_status': 
+                    let safeOpts = statusOptions.map(st => `<option value="${st}" ${j.job_status === st ? 'selected' : ''}>${st}</option>`).join('');
+                    if(j.job_status && !statusOptions.includes(j.job_status)) {
+                        safeOpts = `<option value="${j.job_status}" selected>${j.job_status}</option>` + safeOpts;
+                    } else if (!j.job_status) {
+                        safeOpts = `<option value="" selected>- เลือกรหัสสถานะ -</option>` + safeOpts;
+                    }
+                    cellData = `<div class="px-2 py-1.5"><select onchange="fastUpdateField('${j.id}', 'job_status', this.value)" class="inline-edit-select text-[#00320D] font-bold text-sm">${safeOpts}</select></div>`; 
+                    break;
+                case 'department_routing': 
+                    const routingOptions = ['ซ่อม', 'บริการ', 'อะไหล่', 'บัญชี', 'รอดำเนินการ'];
+                    let routingHtml = routingOptions.map(r => `<option value="${r}" ${j.department_routing === r ? 'selected' : ''}>${r}</option>`).join('');
+                    cellData = `<div class="px-2 py-1.5"><select onchange="fastUpdateField('${j.id}', 'department_routing', this.value)" class="inline-edit-select text-indigo-700 font-bold bg-indigo-50 border-indigo-200 hover:bg-indigo-100 text-sm">${routingHtml}</select></div>`; 
+                    break;
+                case 'repair_notes': 
+                    cellData = `<div class="px-2 py-1.5 w-full"><input type="text" value="${j.repair_notes || ''}" placeholder="-" onchange="fastUpdateField('${j.id}', 'repair_notes', this.value)" class="inline-edit-input text-left w-full text-base"></div>`;
+                    break;
+            }
+            rowHtml += `<td>${cellData}</td>`;
+        });
+        rowHtml += '</tr>'; 
+        allRowsHtml += rowHtml;
+    });
+    tbody.innerHTML = allRowsHtml;
+    
+    document.getElementById('table_row_count').innerText = data.length;
+
+    if(document.getElementById('hdr_cnt_arrived_date')) document.getElementById('hdr_cnt_arrived_date').innerText = cArr;
+    if(document.getElementById('hdr_cnt_target_finish_date')) document.getElementById('hdr_cnt_target_finish_date').innerText = cTar;
+    if(document.getElementById('hdr_cnt_repair_finish_date')) document.getElementById('hdr_cnt_repair_finish_date').innerText = cRep;
+    if(document.getElementById('hdr_cnt_delivery_date')) document.getElementById('hdr_cnt_delivery_date').innerText = cDel;
+    if(document.getElementById('hdr_cnt_main_part_qty')) document.getElementById('hdr_cnt_main_part_qty').innerText = sumMain;
+    if(document.getElementById('hdr_cnt_sub_part_qty')) document.getElementById('hdr_cnt_sub_part_qty').innerText = sumSub;
+
+    if(savedSortCol !== null) { sortTableDirectly(savedSortCol, savedSortDir); }
+}
+
+function openExcelFilter(e, colIndex, title) {
+    e.stopPropagation(); currentFilterCol = colIndex; document.getElementById('ef_col_name').innerText = title; document.getElementById('ef_search').value = '';
+    const uniqueValues = new Set();
+    originalRepairJobs.forEach(job => {
+        if (selectedBranchFilter !== 'ALL' && job.branch_name !== selectedBranchFilter) return;
+
+        let val = ''; const key = columnsDef.find(c => c.idx === colIndex).key;
+        if(['arrived_date', 'target_finish_date', 'repair_finish_date', 'delivery_date'].includes(key)) { val = job[key] ? String(job[key]).split('T')[0] : ''; } 
+        else if (key === 'car_brand') { val = `${job.car_brand || ''} ${job.car_model || ''}`.trim(); } 
+        else if (key === 'main_part_qty') { val = String(Number(job.main_part_qty) || (job.main_part_name ? job.main_part_name.split(',').filter(Boolean).length : 0)); }
+        else if (key === 'sub_part_qty') { val = String(Number(job.sub_part_qty) || (job.sub_part_name ? job.sub_part_name.split(',').filter(Boolean).length : 0)); }
+        else { val = String(job[key] || '').trim(); }
+        uniqueValues.add(val);
+    });
+    const sortedValues = [...uniqueValues].sort(); const listDiv = document.getElementById('ef_checkbox_list'); listDiv.innerHTML = ''; const activeSet = activeFilters[colIndex];
+    sortedValues.forEach(val => {
+        const isChecked = activeSet ? activeSet.has(val) : true;
+        const displayVal = val.match(/^\d{4}-\d{2}-\d{2}$/) ? formatThaiDate(val) : (val === '' ? '(ว่าง)' : val);
+        listDiv.innerHTML += `<label class="flex items-start gap-2 hover:bg-slate-100 p-1.5 rounded cursor-pointer ef-item transition"><input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''} class="ef-check accent-[#00320D] mt-0.5 cursor-pointer w-4 h-4"><span class="text-slate-700 font-medium truncate w-full text-sm" title="${displayVal}">${displayVal}</span></label>`;
+    });
+    document.getElementById('ef_select_all').checked = Array.from(document.querySelectorAll('.ef-check')).every(cb => cb.checked);
+    const modal = document.getElementById('excelFilterModal'); const rect = e.target.closest('th').getBoundingClientRect();
+    modal.style.top = (rect.bottom + window.scrollY + 8) + 'px'; let leftPos = rect.left + window.scrollX;
+    if (leftPos + 260 > window.innerWidth) leftPos = window.innerWidth - 270; modal.style.left = leftPos + 'px';
+    modal.classList.remove('hidden'); modal.classList.add('flex');
+}
+
+function closeExcelFilter() { const modal = document.getElementById('excelFilterModal'); modal.classList.add('hidden'); modal.classList.remove('flex'); }
+function searchExcelFilter() { const txt = document.getElementById('ef_search').value.toLowerCase(); document.querySelectorAll('.ef-item').forEach(l => { l.style.display = l.querySelector('.ef-check').value.toLowerCase().includes(txt) ? 'flex' : 'none'; }); }
+function toggleAllExcelFilters(c) { document.querySelectorAll('.ef-item:not([style*="display: none"]) .ef-check').forEach(cb => cb.checked = c); }
+
+function applyExcelFilter() {
+    const checks = document.querySelectorAll('.ef-check'); const checkedVals = Array.from(checks).filter(cb => cb.checked).map(cb => cb.value);
+    const thIcon = document.getElementById(`th_${currentFilterCol}`)?.querySelector('.filter-icon');
+    if (checkedVals.length === checks.length || checkedVals.length === 0) { delete activeFilters[currentFilterCol]; if(thIcon) { thIcon.classList.remove('active'); } } 
+    else { activeFilters[currentFilterCol] = new Set(checkedVals); if(thIcon) { thIcon.classList.add('active'); } }
+    closeExcelFilter(); runTableFilters();
+}
+
+function clearSpecificExcelFilter() {
+    if(activeFilters[currentFilterCol]) delete activeFilters[currentFilterCol];
+    const thIcon = document.getElementById(`th_${currentFilterCol}`)?.querySelector('.filter-icon');
+    if(thIcon) { thIcon.classList.remove('active'); }
+    closeExcelFilter(); runTableFilters();
+}
+
+function sortTable(colIndex) {
+    const table = document.getElementById('repairTable');
+    let dir = table.getAttribute(`data-dir-${colIndex}`) || 'asc'; 
+    dir = dir === 'asc' ? 'desc' : 'asc';
+    table.setAttribute(`data-dir-${colIndex}`, dir);
+
+    savedSortCol = colIndex; savedSortDir = dir;
+    saveUserPreferences();
+    
+    sortTableDirectly(colIndex, dir);
+}
+
+function sortTableDirectly(colIndex, dir) {
+    const tbody = document.getElementById('repair_list_body'); const rows = Array.from(tbody.querySelectorAll('tr')); if (rows.length <= 1) return;
+    const table = document.getElementById('repairTable'); 
+    table.querySelectorAll('.fa-sort, .fa-sort-up, .fa-sort-down').forEach(icon => { icon.className = "fa-solid fa-sort sort-icon"; });
+    
+    const clickedTh = document.getElementById(`th_${colIndex}`);
+    if(clickedTh) {
+        const clickedIcon = clickedTh.querySelector('.sort-icon');
+        if(clickedIcon) clickedIcon.className = dir === 'asc' ? "fa-solid fa-sort-down ml-1 text-amber-400 opacity-100" : "fa-solid fa-sort-up ml-1 text-amber-400 opacity-100";
+    }
+    const thIndex = Array.from(table.querySelectorAll('th')).findIndex(th => th.id === `th_${colIndex}`);
+    rows.sort((a, b) => {
+        let valA = getCellValue(a.cells[thIndex]); let valB = getCellValue(b.cells[thIndex]);
+        let dateMatchA = valA.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        let dateMatchB = valB.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if(dateMatchA && dateMatchB) {
+            let dateA = new Date(dateMatchA[3], dateMatchA[2]-1, dateMatchA[1]);
+            let dateB = new Date(dateMatchB[3], dateMatchB[2]-1, dateMatchB[1]);
+            return dir === 'asc' ? dateA - dateB : dateB - dateA;
+        }
+        let isDateA = valA.match(/^\d{4}-\d{2}-\d{2}$/); let isDateB = valB.match(/^\d{4}-\d{2}-\d{2}$/);
+        if (isDateA && isDateB) { let dateA = new Date(valA); let dateB = new Date(valB); if (!isNaN(dateA) && !isNaN(dateB)) return dir === 'asc' ? dateA - dateB : dateB - dateA; }
+        let numA = parseFloat(valA.replace(/,/g, '')); let numB = parseFloat(valB.replace(/,/g, ''));
+        if (!isNaN(numA) && !isNaN(numB)) return dir === 'asc' ? numA - numB : numB - numA;
+        return dir === 'asc' ? valA.localeCompare(valB, 'th') : valB.localeCompare(valA, 'th');
+    });
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+function changeMonth(step) {
+    currentMonth += step;
+    if(currentMonth > 11) { currentMonth = 0; currentYear++; }
+    if(currentMonth < 0) { currentMonth = 11; currentYear--; }
+    renderCalendar();
+}
+
+function renderCalendar() {
+    const grid = document.getElementById('calendar_grid'); grid.innerHTML = '';
+    const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+    document.getElementById('calendar_month_title').innerText = `${monthNames[currentMonth]} ${currentYear}`;
+
+    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+    const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+    for(let i = 0; i < firstDay; i++) { grid.innerHTML += `<div class="bg-slate-50/50"></div>`; }
+
+    const jobsForCalendar = originalRepairJobs.filter(j => selectedBranchFilter === 'ALL' || j.branch_name === selectedBranchFilter);
+
+    let monthMaxQty = 1; 
+    for(let day = 1; day <= totalDays; day++) {
+        const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        const aQty = jobsForCalendar.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length;
+        const tQty = jobsForCalendar.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).length;
+        const dQty = jobsForCalendar.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
+        const maxInDay = Math.max(aQty, tQty, dQty);
+        if (maxInDay > monthMaxQty) monthMaxQty = maxInDay;
+    }
+
+    const branchQuota = allQuotas.find(q => q.branch_name === (selectedBranchFilter === 'ALL' ? currentBranch : selectedBranchFilter)) || { max_main_parts: 0, max_sub_parts: 0 };
+    const maxMain = branchQuota.max_main_parts || 0;
+    const maxSub = branchQuota.max_sub_parts || 0;
+
+    for(let day = 1; day <= totalDays; day++) {
+        const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        
+        const arrivedQty = jobsForCalendar.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length;
+        const targetJobsInDay = jobsForCalendar.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr);
+        const targetQty = targetJobsInDay.length;
+        
+        const doneQty = targetJobsInDay.filter(j => isJobDone(j.job_status)).length;
+        
+        const deliveryQty = jobsForCalendar.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
+
+        let sumMainDay = 0, sumSubDay = 0;
+        targetJobsInDay.forEach(j => {
+            sumMainDay += Number(j.main_part_qty) || (j.main_part_name ? j.main_part_name.split(',').filter(Boolean).length : 0);
+            sumSubDay += Number(j.sub_part_qty) || (j.sub_part_name ? j.sub_part_name.split(',').filter(Boolean).length : 0);
+        });
+
+        const overdueJobsInDay = jobsForCalendar.filter(j => (j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr) && checkOverdue(j));
+        const hasOverdue = overdueJobsInDay.length > 0;
+        
+        const overMain = maxMain > 0 && sumMainDay > maxMain;
+        const overSub = maxSub > 0 && sumSubDay > maxSub;
+
+        let partsInfoHtml = '';
+        if(sumMainDay > 0 || sumSubDay > 0) {
+            partsInfoHtml = `<div class="text-[11px] font-bold mb-1 leading-tight w-full space-y-1">
+                ${sumMainDay > 0 ? `<div class="flex justify-between items-center ${overMain ? 'bg-red-100 text-red-700' : 'bg-blue-50 text-blue-700'} px-2 py-0.5 rounded border ${overMain ? 'border-red-300' : 'border-blue-200'}" title="ชิ้นส่วนหลัก"><span>หลัก:</span> <span>${sumMainDay}${maxMain > 0 ? '/' + maxMain : ''}</span></div>` : ''}
+                ${sumSubDay > 0 ? `<div class="flex justify-between items-center ${overSub ? 'bg-red-100 text-red-700' : 'bg-amber-50 text-amber-700'} px-2 py-0.5 rounded border ${overSub ? 'border-red-300' : 'border-amber-200'}" title="ชิ้นส่วนรอง"><span>รอง:</span> <span>${sumSubDay}${maxSub > 0 ? '/' + maxSub : ''}</span></div>` : ''}
+            </div>`;
+        }
+
+        let barBlock = '';
+        if(arrivedQty > 0 || targetQty > 0 || deliveryQty > 0) {
+            barBlock = `<div class="flex items-end justify-center gap-1.5 w-full h-[65px] mt-auto pb-0.5">`;
+            
+            if(arrivedQty > 0) { 
+                const h = Math.max(25, (arrivedQty / monthMaxQty) * 100); 
+                barBlock += `<div class="flex flex-col items-center justify-end h-full w-[20px] cursor-pointer group-hover:scale-105 transition-transform" onclick="event.stopPropagation(); filterBoardByDate('${dateStr}', 'arrived')" title="รถเข้าจอด: ${arrivedQty} คัน">
+                    <span class="text-[10px] font-black text-white bg-blue-500 rounded-sm w-5 h-5 flex items-center justify-center mb-1 shadow-sm">${arrivedQty}</span>
+                    <div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-sm shadow-sm" style="height: ${h}%;"></div>
+                </div>`; 
+            }
+            
+            if(targetQty > 0) { 
+                const h = Math.max(25, (targetQty / monthMaxQty) * 100); 
+                const pctDone = (doneQty / targetQty) * 100;
+                const isAllDone = doneQty === targetQty;
+                
+                barBlock += `<div class="flex flex-col items-center justify-end h-full w-[26px] cursor-pointer group-hover:scale-105 transition-transform" onclick="event.stopPropagation(); openDayListForTarget('${dateStr}')" title="เป้าซ่อมเสร็จ: ${targetQty} คัน (เสร็จแล้ว ${doneQty} คัน)">
+                    <span class="text-[9px] font-black ${isAllDone ? 'text-emerald-700 bg-emerald-100 border-emerald-400' : 'text-amber-700 bg-amber-100 border-amber-400'} border rounded-sm w-full h-4 flex items-center justify-center mb-1 shadow-sm z-10">${doneQty}/${targetQty}</span>
+                    <div class="w-full bg-slate-200 rounded-sm shadow-inner relative overflow-hidden" style="height: ${h}%;">
+                        <div class="absolute bottom-0 left-0 w-full bg-gradient-to-t ${isAllDone ? 'from-emerald-500 to-emerald-400' : 'from-amber-500 to-amber-300'} transition-all duration-500 ease-in-out" style="height: ${pctDone}%;"></div>
+                    </div>
+                </div>`; 
+            }
+            
+            if(deliveryQty > 0) { 
+                const h = Math.max(25, (deliveryQty / monthMaxQty) * 100); 
+                barBlock += `<div class="flex flex-col items-center justify-end h-full w-[20px] cursor-pointer group-hover:scale-105 transition-transform" onclick="event.stopPropagation(); filterBoardByDate('${dateStr}', 'delivery')" title="นัดส่งมอบ: ${deliveryQty} คัน">
+                    <span class="text-[10px] font-black text-white bg-indigo-500 rounded-sm w-5 h-5 flex items-center justify-center mb-1 shadow-sm">${deliveryQty}</span>
+                    <div class="w-full bg-gradient-to-t from-indigo-500 to-indigo-400 rounded-sm shadow-sm" style="height: ${h}%;"></div>
+                </div>`; 
+            }
+            barBlock += `</div>`;
+        } else { 
+            barBlock = `<div class="flex items-center justify-center h-[65px] w-full mt-auto"><span class="text-xs text-slate-300">ว่าง</span></div>`; 
+        }
+
+        const todayStr = getTodayString();
+        const isToday = dateStr === todayStr;
+
+        grid.innerHTML += `
+            <div class="calendar-cell group ${hasOverdue ? 'bg-red-50/50' : ''} ${isToday ? 'today' : ''}" onclick="clickCalendarDate('${dateStr}')">
+                <div class="flex justify-between items-start z-10 w-full mb-1">
+                    <span class="calendar-day-label">${day}</span>
+                    ${hasOverdue ? `<i class="fa-solid fa-circle-exclamation text-red-500 animate-pulse text-sm" title="มีรถดีเลย์ ${overdueJobsInDay.length} คัน!"></i>` : ''}
+                </div>
+                ${partsInfoHtml}
+                <div class="w-full z-10 flex-1 flex flex-col justify-end">${barBlock}</div>
+            </div>`;
+    }
+}
+
+function filterBoardByDate(dateStr, type) {
+    switchTab('tab-board');
+    activeFilters = {}; 
+    activeKpiFilter = null;
+    isCalendarFilterActive = true; 
+    
+    let colIdx;
+    if (type === 'arrived') colIdx = columnsDef.find(c => c.key === 'arrived_date').idx;
+    if (type === 'target') colIdx = columnsDef.find(c => c.key === 'target_finish_date').idx;
+    if (type === 'delivery') colIdx = columnsDef.find(c => c.key === 'delivery_date').idx;
+    
+    activeFilters[colIdx] = new Set([dateStr]);
+    
+    document.querySelectorAll('.filter-icon').forEach(icon => icon.classList.remove('active'));
+    const thIcon = document.getElementById(`th_${colIdx}`)?.querySelector('.filter-icon');
+    if (thIcon) thIcon.classList.add('active');
+    
+    runTableFilters();
+}
+
+function clickCalendarDate(dateString) {
+    switchTab('tab-board');
+    activeFilters = {}; 
+    activeKpiFilter = null;
+    isCalendarFilterActive = true; 
+    document.getElementById('global_search_input').value = formatThaiDate(dateString);
+    runTableFilters();
+}
+
+function generateMiniCardHTML(j, type) {
+    const isOverdue = checkOverdue(j);
+    const station = computeHighestStationIFS(j);
+    const mainPartsStr = j.main_part_name && j.main_part_name.trim() !== '' ? j.main_part_name : '-';
+    const subPartsStr = j.sub_part_name && j.sub_part_name.trim() !== '' ? j.sub_part_name : '-';
+    
+    const carParts = allPartOrders.filter(po => {
+        if (po.order_status === 'ยกเลิก') return false;
+        if (po.job_id) return String(po.job_id) === String(j.id); 
+        if (po.car_plate !== j.car_plate) return false;
+        if (j.qt_no && po.qt_no && j.qt_no.includes(po.qt_no)) return true;
+        if (j.so_no && po.so_no && j.so_no.includes(po.so_no)) return true;
+        return (!po.qt_no && !po.so_no);
+    });
+    
+    let partsHTML = '';
+    if(carParts.length > 0) {
+        partsHTML = carParts.map(p => {
+            // 🌟 แก้บั๊กกันการพัง หากสถานะอะไหล่ว่างเปล่า 🌟
+            let isComplete = p.order_status && p.order_status.includes('ครบ'); 
+            let colorClass = isComplete ? 'text-emerald-600' : ((p.order_status && (p.order_status.includes('รอ') || p.order_status.includes('Back Order'))) ? 'text-rose-500' : 'text-amber-600');
+            return `<span class="${colorClass} text-xs block font-bold mb-0.5"><i class="fa-solid ${isComplete ? 'fa-check' : 'fa-clock'}"></i> ${p.part_name}</span>`;
+        }).join('');
+    } else { partsHTML = '<span class="text-slate-400 text-[11px] italic">- ไม่มีสั่งเบิก -</span>'; }
+
+    let dateLabel = '';
+    if(type === 'arrived') dateLabel = `<span class="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded border border-blue-200 font-bold"><i class="fa-solid fa-car"></i> รถเข้าจอด (รอซ่อม)</span>`;
+    else if(type === 'target') dateLabel = `<span class="bg-amber-100 text-amber-700 text-xs px-2 py-1 rounded border border-amber-200 font-bold"><i class="fa-solid fa-bullseye"></i> เป้าซ่อม</span>`;
+    else if(type === 'target_done') dateLabel = `<span class="bg-emerald-100 text-emerald-700 text-xs px-2 py-1 rounded border border-emerald-200 font-bold"><i class="fa-solid fa-check-double"></i> ซ่อมเสร็จแล้ว</span>`;
+    else if(type === 'delivery') dateLabel = `<span class="bg-indigo-100 text-indigo-700 text-xs px-2 py-1 rounded border border-indigo-200 font-bold"><i class="fa-solid fa-car-side"></i> นัดส่งมอบ</span>`;
+    else if(type === 'repairing') dateLabel = `<span class="bg-amber-100 text-amber-700 text-xs px-2 py-1 rounded border border-amber-200 font-bold"><i class="fa-solid fa-hammer"></i> กำลังดำเนินการซ่อม</span>`;
+    else if(type === 'done') dateLabel = `<span class="bg-emerald-100 text-emerald-700 text-xs px-2 py-1 rounded border border-emerald-200 font-bold"><i class="fa-solid fa-check-double"></i> ซ่อมเสร็จ</span>`;
+    else if(type === 'delayed') dateLabel = `<span class="bg-rose-100 text-rose-700 text-xs px-2 py-1 rounded border border-rose-200 font-bold"><i class="fa-solid fa-triangle-exclamation"></i> ล่าช้า (Overdue)</span>`;
+
+    return `
+        <div class="bg-white border ${isOverdue ? 'border-red-300 shadow-sm bg-red-50/20' : 'border-slate-200 hover:border-amber-400 shadow-sm'} rounded-xl p-4 mb-3 transition w-full">
+            <div class="flex justify-between items-start mb-3">
+                <div class="font-bold ${isOverdue ? 'text-red-600' : 'text-slate-800'} text-base">
+                    <span class="${isOverdue ? 'bg-red-500 text-white border-red-600' : 'text-[#00320D] bg-slate-100 border-slate-300'} px-2 py-1 rounded font-mono mr-1 border text-sm">${isOverdue ? '<i class="fa-solid fa-circle-exclamation mr-1"></i>' : ''}${j.car_plate || '-'}</span> 
+                    ${j.car_brand} <span class="text-slate-500 font-medium">${j.car_model || ''}</span>
+                </div>
+                <div class="text-right">${dateLabel}</div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200 mb-3">
+                <div><p class="text-[11px] font-black text-blue-600 mb-1">ชิ้นหลักทำสี:</p><p class="text-xs text-slate-700 font-medium leading-relaxed">${mainPartsStr}</p></div>
+                <div class="border-t sm:border-t-0 sm:border-l border-slate-200 pt-2 sm:pt-0 sm:pl-3"><p class="text-[11px] font-black text-amber-600 mb-1">ชิ้นรองทำสี:</p><p class="text-xs text-slate-700 font-medium leading-relaxed">${subPartsStr}</p></div>
+                <div class="border-t sm:border-t-0 sm:border-l border-slate-200 pt-2 sm:pt-0 sm:pl-3"><p class="text-[11px] font-black text-purple-600 mb-1">สถานะสั่งอะไหล่:</p><div>${partsHTML}</div></div>
+            </div>
+            <div class="flex justify-between items-center mt-1">
+                <div class="text-xs text-slate-600 font-bold">สถานีล่าสุด: <span class="text-amber-600 ml-1 text-sm">${station}</span></div>
+                <button onclick="closeDayListModal(); switchTab('tab-board'); document.getElementById('global_search_input').value='${j.car_plate}'; runTableFilters(); openModal('${j.id}');" class="px-4 py-1.5 bg-[#00320D] hover:bg-black text-white text-xs font-bold rounded-lg shadow-sm transition"><i class="fa-solid fa-sliders"></i> อัปเดต</button>
+            </div>
+        </div>
+    `;
+}
+
+function closeDayListModal() { document.getElementById('dayListModal').classList.add('hidden'); }
+
 function renderPieChartAndList() {
     const counters = { "เคาะ":0, "โป๊ว":0, "เตรียมพื้น":0, "พ่นสี":0, "ประกอบ":0, "ขัดสี":0, "QC":0, "แม็ก":0, "กระจก":0, "ฟิล์ม":0, "พักซ่อม":0, "รอส่งมอบ":0 };
     const stationJobs = {}; 
@@ -739,7 +1233,6 @@ async function openModal(jobId) {
             return (!po.qt_no && !po.so_no);
         });
 
-        // 🌟 2. เรนเดอร์ตารางอะไหล่ (Read-Only) เอาไว้ดูอย่างเดียว 🌟
         const partsListEl = document.getElementById('m_parts_list');
         if(partsListEl) {
             if(carParts.length > 0) {
