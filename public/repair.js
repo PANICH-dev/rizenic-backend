@@ -10,7 +10,7 @@ let currentYear = new Date().getFullYear();
 let currentMonth = new Date().getMonth(); 
 let chartInstance = null;
 let currentBranch = 'สำนักงานใหญ่';
-let selectedBranchFilter = 'ALL'; // 🌟 ตัวแปรเลือกสาขา (ค่าเริ่มต้นเป็น ALL สำหรับสิทธิ์สูง)
+let selectedBranchFilter = 'ALL'; 
 
 let activeFilters = {}; 
 let activeKpiFilter = null; 
@@ -154,22 +154,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name') || 'ช่างซ่อม';
     
-// 🌟 ดึงสาขาจาก branch_name ของตารางพนักงาน (เก็บผ่าน sessionStorage)
     currentBranch = sessionStorage.getItem('branch_name') || sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
     document.getElementById('display_branch').innerText = currentBranch;
     
-    // 🌟 ตรวจสอบสิทธิ์ระดับผู้ใช้ (BA / Manager / Admin)
     const userRole = sessionStorage.getItem('emp_role') || '';
     const isManager = ['BA', 'Manager', 'Admin', 'แอดมิน'].includes(userRole);
     const branchSelectEl = document.getElementById('branchSelect');
 
-    // 🟢 ดึงข้อมูลสาขาทั้งหมดจากระบบหลังบ้านอัตโนมัติ (ดึงตามสาขาของพนักงานในระบบ)
     if (branchSelectEl) {
         try {
             const empRes = await fetch(`${API_BASE_URL}/api/employees`);
             if (empRes.ok) {
                 const employees = await empRes.json();
-                // คัดกรองเอาเฉพาะชื่อสาขาที่ไม่ซ้ำกัน
                 const masterBranches = [...new Set(employees.map(e => e.branch_name).filter(Boolean))].sort();
                 
                 let optionsHtml = isManager ? `<option value="ALL">🏢 รวมทุกสาขา (ภาพรวม)</option>` : '';
@@ -182,19 +178,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error('โหลดข้อมูลสาขาไม่สำเร็จ', e);
         }
 
-        // 🟢 กำหนดค่าเริ่มต้น และ ล็อกสาขาหากไม่ใช่ระดับผู้บริหาร
         if (isManager) {
             selectedBranchFilter = 'ALL';
             branchSelectEl.value = 'ALL';
             branchSelectEl.disabled = false;
         } else {
             selectedBranchFilter = currentBranch;
-            // เช็คเผื่อกรณีชื่อสาขาของพนักงานตกหล่นไปจาก Master ให้สร้างแทรกขึ้นมาทันที
             if(!Array.from(branchSelectEl.options).some(opt => opt.value === currentBranch)) {
                 branchSelectEl.add(new Option(currentBranch, currentBranch));
             }
             branchSelectEl.value = currentBranch;
-            branchSelectEl.disabled = true; // ล็อกไม่ให้เปลี่ยนสาขา
+            branchSelectEl.disabled = true; 
         }
     }
     
@@ -205,7 +199,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderTimelineModal();
 });
 
-// 🌟 เมื่อมีการสลับสาขาผ่าน Dropdown
 function onBranchChange(newBranchVal) {
     selectedBranchFilter = newBranchVal;
     updateKPIs();
@@ -341,11 +334,17 @@ function checkOverdue(job) {
     targetDate.setHours(0,0,0,0); today.setHours(0,0,0,0); return targetDate < today; 
 }
 
+// 🌟 ฟังก์ชันเช็กว่า "รถซ่อมเสร็จแล้วหรือยัง?" จากสถานะ 11-21 🌟
+function isJobDone(status) {
+    if (!status) return false;
+    const prefixes = ['11', '12', '13', '14', '15', '16', '17', '19', '20', '21'];
+    return prefixes.some(p => status.startsWith(p));
+}
+
 function updateKPIs() {
     kpiData = { arrived: [], repairing: [], done: [], delayed: [] };
     
     originalRepairJobs.forEach(j => {
-        // 🌟 กรองสาขาตามที่เลือกใน Header
         if (selectedBranchFilter !== 'ALL' && j.branch_name !== selectedBranchFilter) return;
 
         const st = j.job_status || '';
@@ -376,13 +375,9 @@ function runTableFilters() {
     const searchTxt = (document.getElementById('global_search_input')?.value || '').toLowerCase();
     
     const filteredData = originalRepairJobs.filter(job => {
-        // 🌟 1. กรองตามสาขาที่เลือก 🌟
         if (selectedBranchFilter !== 'ALL' && job.branch_name !== selectedBranchFilter) return false;
-
-        // 🌟 2. อนุโลมให้เห็นรถทุกแผนก ถ้ากดมาจากปฏิทิน 🌟
         if (!isCalendarFilterActive && job.department_routing !== 'ซ่อม') return false;
 
-        // กรองตามป้าย KPI
         if (activeKpiFilter) {
             if (activeKpiFilter === 'repairing') {
                 if (job.calculated_station === '12.รอส่งมอบ') return false;
@@ -395,10 +390,8 @@ function runTableFilters() {
             }
         }
 
-        // กรอง Search Box
         if (searchTxt) { const rowContent = Object.values(job).join(' ').toLowerCase(); if (!rowContent.includes(searchTxt)) return false; }
         
-        // กรองตาม Excel Filter หัวตาราง
         for (let colIdx in activeFilters) {
             const colDef = columnsDef.find(c => c.idx == colIdx);
             if(!colDef) continue;
@@ -452,6 +445,44 @@ function openKpiModal(type) {
     document.getElementById('dayListModal').classList.remove('hidden');
 }
 
+// 🌟 Modal สำหรับแยกดูรายการรถแบบละเอียดตามวัน 🌟
+function openDayListForTarget(dateStr) {
+    const targetJobs = originalRepairJobs.filter(j => 
+        (selectedBranchFilter === 'ALL' || j.branch_name === selectedBranchFilter) &&
+        j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr
+    );
+    
+    // แบ่งกลุ่ม เสร็จ แล้ว กับ ยังไม่เสร็จ
+    const doneJobs = targetJobs.filter(j => isJobDone(j.job_status));
+    const pendingJobs = targetJobs.filter(j => !isJobDone(j.job_status));
+
+    const title = `เป้าซ่อมเสร็จ วันที่ ${formatThaiDate(dateStr)}`;
+    document.getElementById('dayListDateTitle').innerHTML = `<span class="text-amber-600"><i class="fa-solid fa-bullseye"></i> ${title} (เสร็จแล้ว ${doneJobs.length}/${targetJobs.length} คัน)</span>`;
+    
+    let html = '';
+    
+    if (pendingJobs.length > 0) {
+        html += `<h3 class="text-sm font-black text-amber-600 mb-2 border-b border-amber-200 pb-1"><i class="fa-solid fa-spinner fa-spin"></i> กำลังดำเนินการซ่อม (${pendingJobs.length} คัน)</h3>`;
+        html += `<div class="bg-amber-50 border border-amber-200 rounded-xl overflow-hidden mb-6 shadow-sm"><div class="p-4 space-y-3">`;
+        pendingJobs.forEach(j => html += generateMiniCardHTML(j, 'target'));
+        html += `</div></div>`;
+    }
+
+    if (doneJobs.length > 0) {
+        html += `<h3 class="text-sm font-black text-emerald-600 mb-2 border-b border-emerald-200 pb-1"><i class="fa-solid fa-check-double"></i> ซ่อมเสร็จแล้ว (${doneJobs.length} คัน)</h3>`;
+        html += `<div class="bg-emerald-50 border border-emerald-200 rounded-xl overflow-hidden mb-6 shadow-sm"><div class="p-4 space-y-3">`;
+        doneJobs.forEach(j => html += generateMiniCardHTML(j, 'target_done'));
+        html += `</div></div>`;
+    }
+
+    if (targetJobs.length === 0) {
+        html = `<div class="text-center py-10 text-slate-400 font-bold">ไม่มีเป้าซ่อมเสร็จในวันนี้</div>`;
+    }
+
+    document.getElementById('dayListContent').innerHTML = html;
+    document.getElementById('dayListModal').classList.remove('hidden');
+}
+
 async function fetchJobList() {
     try {
         document.getElementById('repair_list_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-12 text-slate-400 font-mono text-sm"><i class="fa-solid fa-circle-notch fa-spin text-[#00320D] text-lg mr-2"></i> กำลังโหลดข้อมูล...</td></tr>`;
@@ -470,7 +501,6 @@ async function fetchJobList() {
 
         const rawReports = Array.isArray(resReports) ? resReports : (resReports.data || []);
 
-        // 🌟 ดึงข้อมูลและเก็บต้นฉบับไว้ทั้งหมด
         originalRepairJobs = rawReports.filter(j => {
             const st = j.job_status || '';
             const isNotCancelled = !st.includes('ยกเลิก');
@@ -511,7 +541,6 @@ async function fastUpdateStationDropdown(id, selectedLevel) {
     if (!job) return;
     const selectedIdx = stationLevels.indexOf(selectedLevel);
     
-    // 🟢 แก้ไข payload ตรงนี้ ให้จำข้อมูลเก่าทั้งหมด (...job)
     const payload = {
         ...job, 
         station_kho: selectedIdx >= 1, station_pou: selectedIdx >= 2, station_puan: selectedIdx >= 3,
@@ -523,7 +552,6 @@ async function fastUpdateStationDropdown(id, selectedLevel) {
         department_routing: job.department_routing, repair_notes: job.repair_notes
     };
     
-    // 🟢 ป้องกัน Error ด้วยการลบ property ของหน้าเว็บทิ้งก่อนส่งให้ Database
     delete payload.calculated_station; 
 
     try {
@@ -753,6 +781,7 @@ function changeMonth(step) {
     renderCalendar();
 }
 
+// 🌟 สร้างหลอดพลัง Energy Bar ลงในปฏิทิน 🌟
 function renderCalendar() {
     const grid = document.getElementById('calendar_grid'); grid.innerHTML = '';
     const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
@@ -763,7 +792,6 @@ function renderCalendar() {
 
     for(let i = 0; i < firstDay; i++) { grid.innerHTML += `<div class="bg-slate-50/50"></div>`; }
 
-    // 🌟 กรองรถตามสาขาสำหรับโหมดปฏิทิน
     const jobsForCalendar = originalRepairJobs.filter(j => selectedBranchFilter === 'ALL' || j.branch_name === selectedBranchFilter);
 
     let monthMaxQty = 1; 
@@ -786,6 +814,10 @@ function renderCalendar() {
         const arrivedQty = jobsForCalendar.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length;
         const targetJobsInDay = jobsForCalendar.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr);
         const targetQty = targetJobsInDay.length;
+        
+        // 🌟 จำนวนรถที่ซ่อมเสร็จแล้วจริงๆ 🌟
+        const doneQty = targetJobsInDay.filter(j => isJobDone(j.job_status)).length;
+        
         const deliveryQty = jobsForCalendar.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
 
         let sumMainDay = 0, sumSubDay = 0;
@@ -811,11 +843,40 @@ function renderCalendar() {
         let barBlock = '';
         if(arrivedQty > 0 || targetQty > 0 || deliveryQty > 0) {
             barBlock = `<div class="flex items-end justify-center gap-1.5 w-full h-[65px] mt-auto pb-0.5">`;
-            if(arrivedQty > 0) { const h = Math.max(25, (arrivedQty / monthMaxQty) * 100); barBlock += `<div class="flex flex-col items-center justify-end h-full w-[20px] cursor-pointer" onclick="event.stopPropagation(); filterBoardByDate('${dateStr}', 'arrived')" title="รถเข้าจอด: ${arrivedQty} คัน"><span class="text-[10px] font-black text-white bg-blue-500 rounded-sm w-5 h-5 flex items-center justify-center mb-1 shadow-sm hover:scale-110 transition">${arrivedQty}</span><div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-sm shadow-sm" style="height: ${h}%;"></div></div>`; }
-            if(targetQty > 0) { const h = Math.max(25, (targetQty / monthMaxQty) * 100); barBlock += `<div class="flex flex-col items-center justify-end h-full w-[20px] cursor-pointer" onclick="event.stopPropagation(); filterBoardByDate('${dateStr}', 'target')" title="เป้าซ่อมเสร็จ: ${targetQty} คัน"><span class="text-[10px] font-black text-white bg-amber-500 rounded-sm w-5 h-5 flex items-center justify-center mb-1 shadow-sm hover:scale-110 transition">${targetQty}</span><div class="w-full bg-gradient-to-t from-amber-500 to-amber-300 rounded-sm shadow-sm" style="height: ${h}%;"></div></div>`; }
-            if(deliveryQty > 0) { const h = Math.max(25, (deliveryQty / monthMaxQty) * 100); barBlock += `<div class="flex flex-col items-center justify-end h-full w-[20px] cursor-pointer" onclick="event.stopPropagation(); filterBoardByDate('${dateStr}', 'delivery')" title="นัดส่งมอบ: ${deliveryQty} คัน"><span class="text-[10px] font-black text-white bg-emerald-500 rounded-sm w-5 h-5 flex items-center justify-center mb-1 shadow-sm hover:scale-110 transition">${deliveryQty}</span><div class="w-full bg-gradient-to-t from-emerald-500 to-emerald-400 rounded-sm shadow-sm" style="height: ${h}%;"></div></div>`; }
+            
+            if(arrivedQty > 0) { 
+                const h = Math.max(25, (arrivedQty / monthMaxQty) * 100); 
+                barBlock += `<div class="flex flex-col items-center justify-end h-full w-[20px] cursor-pointer group-hover:scale-105 transition-transform" onclick="event.stopPropagation(); filterBoardByDate('${dateStr}', 'arrived')" title="รถเข้าจอด: ${arrivedQty} คัน">
+                    <span class="text-[10px] font-black text-white bg-blue-500 rounded-sm w-5 h-5 flex items-center justify-center mb-1 shadow-sm">${arrivedQty}</span>
+                    <div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-sm shadow-sm" style="height: ${h}%;"></div>
+                </div>`; 
+            }
+            
+            // 🌟 หลอดพลังเป้าซ่อมเสร็จ (Energy Bar) 🌟
+            if(targetQty > 0) { 
+                const h = Math.max(25, (targetQty / monthMaxQty) * 100); 
+                const pctDone = (doneQty / targetQty) * 100;
+                const isAllDone = doneQty === targetQty;
+                
+                barBlock += `<div class="flex flex-col items-center justify-end h-full w-[26px] cursor-pointer group-hover:scale-105 transition-transform" onclick="event.stopPropagation(); openDayListForTarget('${dateStr}')" title="เป้าซ่อมเสร็จ: ${targetQty} คัน (เสร็จแล้ว ${doneQty} คัน)">
+                    <span class="text-[9px] font-black ${isAllDone ? 'text-emerald-700 bg-emerald-100 border-emerald-400' : 'text-amber-700 bg-amber-100 border-amber-400'} border rounded-sm w-full h-4 flex items-center justify-center mb-1 shadow-sm z-10">${doneQty}/${targetQty}</span>
+                    <div class="w-full bg-slate-200 rounded-sm shadow-inner relative overflow-hidden" style="height: ${h}%;">
+                        <div class="absolute bottom-0 left-0 w-full bg-gradient-to-t ${isAllDone ? 'from-emerald-500 to-emerald-400' : 'from-amber-500 to-amber-300'} transition-all duration-500 ease-in-out" style="height: ${pctDone}%;"></div>
+                    </div>
+                </div>`; 
+            }
+            
+            if(deliveryQty > 0) { 
+                const h = Math.max(25, (deliveryQty / monthMaxQty) * 100); 
+                barBlock += `<div class="flex flex-col items-center justify-end h-full w-[20px] cursor-pointer group-hover:scale-105 transition-transform" onclick="event.stopPropagation(); filterBoardByDate('${dateStr}', 'delivery')" title="นัดส่งมอบ: ${deliveryQty} คัน">
+                    <span class="text-[10px] font-black text-white bg-indigo-500 rounded-sm w-5 h-5 flex items-center justify-center mb-1 shadow-sm">${deliveryQty}</span>
+                    <div class="w-full bg-gradient-to-t from-indigo-500 to-indigo-400 rounded-sm shadow-sm" style="height: ${h}%;"></div>
+                </div>`; 
+            }
             barBlock += `</div>`;
-        } else { barBlock = `<div class="flex items-center justify-center h-[65px] w-full mt-auto"><span class="text-xs text-slate-300">ว่าง</span></div>`; }
+        } else { 
+            barBlock = `<div class="flex items-center justify-center h-[65px] w-full mt-auto"><span class="text-xs text-slate-300">ว่าง</span></div>`; 
+        }
 
         const todayStr = getTodayString();
         const isToday = dateStr === todayStr;
@@ -887,7 +948,8 @@ function generateMiniCardHTML(j, type) {
     let dateLabel = '';
     if(type === 'arrived') dateLabel = `<span class="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded border border-blue-200 font-bold"><i class="fa-solid fa-car"></i> รถเข้าจอด (รอซ่อม)</span>`;
     else if(type === 'target') dateLabel = `<span class="bg-amber-100 text-amber-700 text-xs px-2 py-1 rounded border border-amber-200 font-bold"><i class="fa-solid fa-bullseye"></i> เป้าซ่อม</span>`;
-    else if(type === 'delivery') dateLabel = `<span class="bg-emerald-100 text-emerald-700 text-xs px-2 py-1 rounded border border-emerald-200 font-bold"><i class="fa-solid fa-car-side"></i> นัดส่งมอบ</span>`;
+    else if(type === 'target_done') dateLabel = `<span class="bg-emerald-100 text-emerald-700 text-xs px-2 py-1 rounded border border-emerald-200 font-bold"><i class="fa-solid fa-check-double"></i> ซ่อมเสร็จแล้ว</span>`;
+    else if(type === 'delivery') dateLabel = `<span class="bg-indigo-100 text-indigo-700 text-xs px-2 py-1 rounded border border-indigo-200 font-bold"><i class="fa-solid fa-car-side"></i> นัดส่งมอบ</span>`;
     else if(type === 'repairing') dateLabel = `<span class="bg-amber-100 text-amber-700 text-xs px-2 py-1 rounded border border-amber-200 font-bold"><i class="fa-solid fa-hammer"></i> กำลังดำเนินการซ่อม</span>`;
     else if(type === 'done') dateLabel = `<span class="bg-emerald-100 text-emerald-700 text-xs px-2 py-1 rounded border border-emerald-200 font-bold"><i class="fa-solid fa-check-double"></i> ซ่อมเสร็จ</span>`;
     else if(type === 'delayed') dateLabel = `<span class="bg-rose-100 text-rose-700 text-xs px-2 py-1 rounded border border-rose-200 font-bold"><i class="fa-solid fa-triangle-exclamation"></i> ล่าช้า (Overdue)</span>`;
@@ -915,6 +977,43 @@ function generateMiniCardHTML(j, type) {
 }
 
 function closeDayListModal() { document.getElementById('dayListModal').classList.add('hidden'); }
+
+// 🌟 Modal แยกคิวเป้าหมายออกเป็น 2 กลุ่ม (เสร็จแล้ว vs ยังไม่เสร็จ) 🌟
+function openDayListForTarget(dateStr) {
+    const targetJobs = originalRepairJobs.filter(j => 
+        (selectedBranchFilter === 'ALL' || j.branch_name === selectedBranchFilter) &&
+        j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr
+    );
+    
+    const doneJobs = targetJobs.filter(j => isJobDone(j.job_status));
+    const pendingJobs = targetJobs.filter(j => !isJobDone(j.job_status));
+
+    const title = `เป้าซ่อมเสร็จ วันที่ ${formatThaiDate(dateStr)}`;
+    document.getElementById('dayListDateTitle').innerHTML = `<span class="text-[#00320D]"><i class="fa-solid fa-bullseye text-amber-500"></i> ${title} <span class="text-emerald-600 font-mono ml-2">(เสร็จแล้ว ${doneJobs.length}/${targetJobs.length} คัน)</span></span>`;
+    
+    let html = '';
+    
+    if (pendingJobs.length > 0) {
+        html += `<h3 class="text-sm font-black text-amber-600 mb-2 border-b border-amber-200 pb-2"><i class="fa-solid fa-spinner fa-spin"></i> กำลังดำเนินการซ่อม (${pendingJobs.length} คัน)</h3>`;
+        html += `<div class="bg-amber-50/50 border border-amber-200 rounded-xl overflow-hidden mb-6 shadow-sm"><div class="p-4 space-y-3">`;
+        pendingJobs.forEach(j => html += generateMiniCardHTML(j, 'target'));
+        html += `</div></div>`;
+    }
+
+    if (doneJobs.length > 0) {
+        html += `<h3 class="text-sm font-black text-emerald-600 mb-2 border-b border-emerald-200 pb-2"><i class="fa-solid fa-check-double"></i> ซ่อมเสร็จแล้ว (${doneJobs.length} คัน)</h3>`;
+        html += `<div class="bg-emerald-50/50 border border-emerald-200 rounded-xl overflow-hidden mb-6 shadow-sm"><div class="p-4 space-y-3">`;
+        doneJobs.forEach(j => html += generateMiniCardHTML(j, 'target_done'));
+        html += `</div></div>`;
+    }
+
+    if (targetJobs.length === 0) {
+        html = `<div class="text-center py-10 text-slate-400 font-bold">ไม่มีเป้าซ่อมเสร็จในวันนี้</div>`;
+    }
+
+    document.getElementById('dayListContent').innerHTML = html;
+    document.getElementById('dayListModal').classList.remove('hidden');
+}
 
 function renderPieChartAndList() {
     const counters = { "เคาะ":0, "โป๊ว":0, "เตรียมพื้น":0, "พ่นสี":0, "ประกอบ":0, "ขัดสี":0, "QC":0, "แม็ก":0, "กระจก":0, "ฟิล์ม":0, "พักซ่อม":0, "รอส่งมอบ":0 };
@@ -1269,7 +1368,8 @@ async function submitRepairStation() {
         main_part_qty: mainPartsList.length,
         sub_part_qty: subPartsList.length
     };
-delete fullPayload.calculated_station;
+    delete fullPayload.calculated_station;
+    
     try {
         const res = await fetch(`${API_BASE_URL}/api/report/${id}`, {
             method: 'PUT', 
