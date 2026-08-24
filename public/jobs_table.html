@@ -65,16 +65,13 @@
 </head>
 <body class="text-slate-800 h-screen flex flex-col">
 
-    <!-- 🌟 Datalists สำหรับ เพิ่มด่วน (PDI) 🌟 -->
     <datalist id="dl_car_brands"></datalist>
     <datalist id="dl_car_models"></datalist>
 
-    <!-- 🔔 Toast Notification -->
     <div id="toastMsg" class="fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-5 py-2.5 rounded shadow-2xl transform transition-all duration-300 translate-y-20 opacity-0 z-[200] flex items-center gap-2 border border-white/20 text-xs">
         <span id="toastContent"><i class="fa-solid fa-circle-check text-base"></i> บันทึกข้อมูลเรียบร้อย!</span>
     </div>
 
-    <!-- 🔍 Excel Filter Modal -->
     <div id="excelFilterModal" class="hidden fixed bg-white border border-slate-300 shadow-2xl rounded-lg w-64 z-[9999] flex-col overflow-hidden text-xs">
         <div class="bg-[#00320D] text-white border-b border-green-800 px-3 py-2 flex justify-between items-center">
             <span class="font-bold flex items-center gap-1.5"><i class="fa-solid fa-filter text-amber-400"></i> ตัวกรอง: <span id="ef_col_name" class="text-slate-300"></span></span>
@@ -118,7 +115,7 @@
         </div>
     </header>
 
-    <!-- 🌟 Tab Navigation -->
+    <!-- Tab Navigation -->
     <div class="bg-white border-b border-slate-200 z-40 shrink-0 shadow-2xs flex px-2 pt-1.5 gap-1 overflow-x-auto">
         <a href="jobs_table.html" class="px-5 py-2 text-xs font-bold border-b-2 border-[#00320D] text-[#00320D] bg-green-50/50 flex items-center gap-2 rounded-t-lg"><i class="fa-solid fa-file-excel text-emerald-600"></i> 1. ตารางใบงานทั้งหมด (Excel Mode)</a>
         <a href="jobs.html" class="px-5 py-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50 flex items-center gap-2 transition-all rounded-t-lg"><i class="fa-solid fa-users text-blue-600"></i> 2. ภาพรวมทีมบริการ (SA)</a>
@@ -144,7 +141,6 @@
         
         <div class="flex items-center justify-end gap-1.5 w-full lg:w-auto">
             <span class="font-bold text-slate-600 bg-white px-2.5 py-1 rounded border border-slate-200 mr-1 shadow-2xs">พบ: <span id="row_count" class="text-blue-700 font-black">0</span> คัน</span>
-            <!-- 🌟 เพิ่มปุ่มดาวน์โหลด Excel ตามตัวกรอง 🌟 -->
             <button onclick="exportToExcel()" class="px-3 py-1 bg-emerald-600 text-white font-bold rounded text-xs hover:bg-emerald-700 transition flex items-center gap-1"><i class="fa-solid fa-file-excel"></i> ดาวน์โหลด Excel</button>
             <button onclick="openBulkModal()" class="px-3 py-1 bg-amber-500 text-slate-900 font-bold rounded text-xs hover:bg-amber-600 transition"><i class="fa-solid fa-bolt mr-1"></i> เพิ่มด่วน (PDI)</button>
             <button onclick="toggleColManager()" class="px-2.5 py-1 bg-white text-slate-700 font-bold rounded text-xs border border-slate-300 hover:bg-slate-100 transition"><i class="fa-solid fa-sliders"></i> ตั้งค่าคอลัมน์</button>
@@ -158,7 +154,6 @@
         <div class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto custom-scrollbar pr-2" id="col_toggles_container"></div>
     </div>
 
-    <!-- 🌟 ตารางข้อมูลหลัก -->
     <main class="flex-1 overflow-hidden relative bg-slate-200 p-1 flex flex-col">
         <div class="flex-1 overflow-auto custom-scrollbar bg-white border border-slate-300 shadow-2xs relative" id="tableContainer">
             <table class="excel-table" id="jobsTable">
@@ -170,7 +165,7 @@
         </div>
     </main>
 
-    <!-- 🌟 Modal เลือกรายการอะไหล่หลายรายการ (Multi-Select Parts) 🌟 -->
+    <!-- Modal เลือกรายการอะไหล่หลายรายการ -->
     <div id="partsSelectModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh] border border-slate-200">
             <div class="bg-[#00320D] px-4 py-3 flex justify-between items-center text-white shrink-0">
@@ -195,7 +190,7 @@
         </div>
     </div>
 
-    <!-- 🌟 Modal เพิ่มข้อมูลด่วน (PDI) อัปเกรด 🌟 -->
+    <!-- Modal เพิ่มข้อมูลด่วน (PDI) -->
     <div id="bulkModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
         <div class="bg-white w-full max-w-[98%] h-[95vh] rounded-xl shadow-2xl flex flex-col overflow-hidden border border-slate-200">
             <div class="bg-[#00320D] px-5 py-3 flex justify-between items-center text-white shrink-0">
@@ -222,7 +217,7 @@
     <script>
         const API_BASE_URL = window.location.origin;
         let allJobsData = [];
-        let currentFilteredData = []; // 🌟 ตัวแปรเก็บข้อมูลที่ผ่านการกรองเพื่อดาวน์โหลด Excel
+        let currentFilteredData = [];
         let allPartOrders = [];
         let allMasterParts = [];
         
@@ -309,12 +304,20 @@
             }).map(e => e.employee_name).filter(Boolean))].sort();
         }
 
+        // 🌟 Helper Format วันที่เป็น dd/mm/yyyy สำหรับการแสดงผล 🌟
+        function formatToThaiDate(isoStr) {
+            if (!isoStr) return '';
+            const parts = String(isoStr).split('T')[0].split('-');
+            if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            return isoStr;
+        }
+
         function showToast(msg, type='success') {
             const toast = document.getElementById('toastMsg');
-            toast.className = `fixed bottom-5 right-5 font-bold px-5 py-2.5 rounded shadow-2xl transform transition-all duration-300 z-[200] flex items-center gap-2 border border-white/20 ${type === 'error' ? 'bg-red-600' : 'bg-emerald-600'} text-white text-xs`;
-            document.getElementById('toastContent').innerHTML = `<i class="fa-solid ${type==='error'?'fa-circle-xmark':'fa-circle-check'} text-base"></i> ${msg}`;
+            toast.className = `fixed bottom-5 right-5 font-bold px-5 py-2.5 rounded shadow-2xl transform transition-all duration-300 z-[200] flex items-center gap-2 border border-white/20 ${type === 'error' ? 'bg-red-600' : (type === 'info' ? 'bg-blue-600' : 'bg-emerald-600')} text-white text-xs`;
+            document.getElementById('toastContent').innerHTML = `<i class="fa-solid ${type==='error'?'fa-circle-xmark':(type==='info'?'fa-info-circle':'fa-circle-check')} text-base"></i> ${msg}`;
             toast.classList.remove('translate-y-20', 'opacity-0');
-            setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 2000);
+            setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 3000);
         }
 
         function getCellValue(cell) {
@@ -442,12 +445,16 @@
             });
         }
 
+        // 🌟 แก้ไข: แปลงรูปแบบการกรองหัวตารางเป็น dd/mm/yyyy 🌟
         function openExcelFilter(e, colIndex, title) {
             e.stopPropagation(); currentFilterKey = colIndex; document.getElementById('ef_col_name').innerText = title; document.getElementById('ef_search').value = '';
             const uniqueValues = new Set();
             allJobsData.forEach(job => {
                 const colDef = columnsDef.find(c => c.idx === colIndex); if(!colDef) return;
-                let val = job[colDef.key]; if(colDef.key.includes('date')) val = val ? String(val).split('T')[0] : ''; else val = String(val || '').trim();
+                let val = job[colDef.key]; 
+                if(colDef.key.includes('date') && val) {
+                    val = formatToThaiDate(val);
+                } else val = String(val || '').trim();
                 uniqueValues.add(val);
             });
             const listDiv = document.getElementById('ef_checkbox_list'); listDiv.innerHTML = '';
@@ -562,10 +569,78 @@
             }
         }
 
+        // 🌟 ฟังก์ชันอัจฉริยะ ตรวจสอบโควต้าก่อนแก้ไขบนตาราง 🌟
+        async function checkQuotaForInlineEdit(jobId, branch, dateVal, type, reqCount) {
+            try {
+                if (!dateVal) return true;
+                const [resJobs, resQuotas] = await Promise.all([
+                    fetch(`${API_BASE_URL}/api/reports`),
+                    fetch(`${API_BASE_URL}/api/quotas`)
+                ]);
+                const allJobs = await resJobs.json();
+                const allQuotas = await resQuotas.json();
+
+                const branchQuotas = allQuotas.filter(q => q.branch_name === branch);
+                const specialQuota = branchQuotas.find(q => q.quota_type === 'special' && q.quota_date && q.quota_date.split('T')[0] === dateVal);
+                const defaultQuota = branchQuotas.find(q => q.quota_type === 'default');
+
+                if (type === 'arrived_date') {
+                    const maxCars = specialQuota && specialQuota.quota_cars !== undefined ? parseInt(specialQuota.quota_cars||0) : (defaultQuota ? parseInt(defaultQuota.quota_cars||0) : 0);
+                    if (maxCars > 0) {
+                        const jobsInDay = allJobs.filter(j => j.branch_name === branch && j.arrived_date && j.arrived_date.split('T')[0] === dateVal && String(j.id) !== String(jobId));
+                        if (jobsInDay.length + 1 > maxCars) {
+                            return `โควต้ารถเข้าจอดในวันที่ ${formatToThaiDate(dateVal)} เต็มแล้ว! (รับได้สูงสุด ${maxCars} คัน)`;
+                        }
+                    }
+                } else if (type === 'target_finish_date') {
+                    const maxMain = specialQuota ? parseInt(specialQuota.quota_main_parts||0) : (defaultQuota ? parseInt(defaultQuota.quota_main_parts||0) : 0);
+                    const maxSub = specialQuota ? parseInt(specialQuota.quota_sub_parts||0) : (defaultQuota ? parseInt(defaultQuota.quota_sub_parts||0) : 0);
+                    
+                    const jobsInDay = allJobs.filter(j => j.branch_name === branch && j.target_finish_date && j.target_finish_date.split('T')[0] === dateVal && String(j.id) !== String(jobId));
+                    
+                    let usedMain = 0; let usedSub = 0;
+                    jobsInDay.forEach(j => {
+                        usedMain += parseInt(j.main_part_qty) || 0;
+                        usedSub += parseInt(j.sub_part_qty) || 0;
+                    });
+
+                    if (maxMain > 0 && (usedMain + reqCount.main) > maxMain) {
+                        return `กำลังการผลิตชิ้นส่วนหลักในวันที่ ${formatToThaiDate(dateVal)} เต็มแล้ว! (เหลือ ${Math.max(0, maxMain - usedMain)} ชิ้น)`;
+                    }
+                    if (maxSub > 0 && (usedSub + reqCount.sub) > maxSub) {
+                        return `กำลังการผลิตชิ้นส่วนรองในวันที่ ${formatToThaiDate(dateVal)} เต็มแล้ว! (เหลือ ${Math.max(0, maxSub - usedSub)} ชิ้น)`;
+                    }
+                }
+                return true;
+            } catch(e) {
+                return true;
+            }
+        }
+
         async function fastUpdateJob(jobId, field, value, silent = false) {
             let formattedValue = value;
             if (field.includes('date') || ['appointment_date', 'repair_finish_date', 'target_finish_date', 'delivery_date', 'contact_date', 'arrived_date'].includes(field)) {
                 if (value === '' || value === undefined || value === null) formattedValue = null;
+            }
+
+            const job = allJobsData.find(j => String(j.id) === String(jobId));
+            if (!job) return;
+
+            // 🌟 1. ดักจับการแก้ไขอินไลน์ เช็คโควต้าก่อนเซฟ 🌟
+            if (formattedValue && (field === 'arrived_date' || field === 'target_finish_date')) {
+                const reqCount = { 
+                    main: parseInt(job.main_part_qty) || 0, 
+                    sub: parseInt(job.sub_part_qty) || 0 
+                };
+                
+                if (!silent) showToast('กำลังตรวจสอบโควต้า...', 'info');
+                const quotaCheck = await checkQuotaForInlineEdit(jobId, job.branch_name, formattedValue, field, reqCount);
+                
+                if (quotaCheck !== true) {
+                    alert('❌ ไม่สามารถอัปเดตได้:\n\n' + quotaCheck);
+                    applyFilters(); // รีเฟรชกลับเป็นค่าเดิม
+                    return;
+                }
             }
 
             try {
@@ -578,11 +653,7 @@
                     if (jobIndex > -1) allJobsData[jobIndex][field] = formattedValue;
                     
                     if(!silent) showToast('บันทึกข้อมูลเรียบร้อย!');
-                    
-                    if(field === 'job_status') {
-                        await autoMapRouting(jobId, value);
-                    }
-                    
+                    if(field === 'job_status') await autoMapRouting(jobId, value);
                     if(!silent) applyFilters();
                 } else throw new Error('บันทึกไม่สำเร็จ');
             } catch (err) {
@@ -696,6 +767,7 @@
 
         function debounceSearch() { clearTimeout(searchTimeout); searchTimeout = setTimeout(applyFilters, 300); }
 
+        // 🌟 แก้ไขให้ Apply Filter อ่านวันที่แบบ dd/mm/yyyy 🌟
         function applyFilters() {
             const searchTxt = document.getElementById('search_input').value.toLowerCase();
             const saSelectedTxt = document.getElementById('sa_filter_select').value; 
@@ -707,22 +779,27 @@
                 if (searchTxt) { const matchStr = Object.values(job).join(' ').toLowerCase(); if(!matchStr.includes(searchTxt)) return false; }
                 if (saSelectedTxt && job.sa_owner !== saSelectedTxt) return false;
                 if (branchSelectedTxt && branchSelectedTxt !== 'ALL' && job.branch_name !== branchSelectedTxt) return false;
+                
                 for (let key in activeFilters) {
                     const colDef = columnsDef.find(c => c.idx === parseInt(key)); if(!colDef) continue;
-                    let rawVal = job[colDef.key] || ''; if (colDef.key.includes('date')) rawVal = rawVal ? String(rawVal).split('T')[0] : '';
-                    if (!activeFilters[key].has(String(rawVal).trim())) return false;
+                    let rawVal = job[colDef.key] || ''; 
+                    
+                    if (colDef.key.includes('date') && rawVal) {
+                        rawVal = formatToThaiDate(rawVal);
+                    } else {
+                        rawVal = String(rawVal).trim();
+                    }
+                    if (!activeFilters[key].has(rawVal)) return false;
                 }
                 return true;
             });
 
-            // 🌟 บันทึกข้อมูลรายการที่ผ่านการกรองไว้ดาวน์โหลดเป็นไฟล์ Excel
             currentFilteredData = filteredData;
-
             renderTable(filteredData); 
             document.getElementById('row_count').innerText = filteredData.length;
         }
 
-        // 🌟 2. ฟังก์ชันดาวน์โหลดข้อมูลในตารางเป็น Excel ตามตัวกรอง 🌟
+        // 🌟 แก้ไข: ดาวน์โหลด Excel ให้ออกมาเป็นวันที่ dd/mm/yyyy 🌟
         function exportToExcel() {
             if (!currentFilteredData || currentFilteredData.length === 0) {
                 showToast('ไม่มีข้อมูลในตารางให้โหลดครับ!', 'error');
@@ -730,27 +807,22 @@
             }
 
             const exportData = [];
-            
-            // ดึงเฉพาะคอลัมน์ที่ไม่ใช่ Action
             const exportCols = columnsDef.filter(c => c.key !== 'action');
             
-            // 1. หัวตาราง
             const headers = exportCols.map(col => col.title);
             exportData.push(headers);
             
-            // 2. ข้อมูลแต่ละแถว
             currentFilteredData.forEach(job => {
                 const row = exportCols.map(colDef => {
                     let val = job[colDef.key];
                     if (colDef.key.includes('date') && val) {
-                        val = String(val).split('T')[0];
+                        val = formatToThaiDate(val);
                     }
                     return val || '';
                 });
                 exportData.push(row);
             });
             
-            // สร้างไฟล์ Excel
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet(exportData);
             
@@ -1067,27 +1139,99 @@
             for(let i = 1; i < inputs.length; i++) { inputs[i].value = topValue; inputs[i].classList.add('bg-green-100', 'transition-colors'); setTimeout(() => inputs[i].classList.remove('bg-green-100'), 500); }
         }
 
+        // 🌟 3. อัปเดตเช็คโควต้าก่อน Save จากโหมดเพิ่มด่วน (Bulk Add) 🌟
         async function saveBulkData() {
             const rows = document.querySelectorAll('.bulk-row'); let promises = []; const pdiCols = columnsDef.filter(c => c.key !== 'action');
-            rows.forEach(row => {
-                const plateInput = row.querySelector('.bulk-input-car_plate'); if(!plateInput || !plateInput.value.trim()) return; 
-                let payload = {};
-                pdiCols.forEach(c => { const inp = row.querySelector(`.bulk-input-${c.key}`); if (inp && inp.value !== '') { payload[c.key] = inp.value; } });
-                
-                if (!payload.branch_name) payload.branch_name = userBranch;
-                if (!payload.job_status) payload.job_status = '09.จอดรอเข้าซ่อม'; 
-                if (!payload.damage_level) payload.damage_level = 'เบา'; 
-                
-                payload.main_part_qty = parseInt(payload.main_part_qty) || 0;
-                payload.sub_part_qty = parseInt(payload.sub_part_qty) || 0;
-
-                promises.push(fetch(`${API_BASE_URL}/api/report`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }));
-            });
             
-            if(promises.length === 0) return alert('⚠️ กรุณากรอกข้อมูลอย่างน้อย 1 คัน (ต้องระบุทะเบียนรถ)'); 
-            const btn = document.getElementById('btn_save_bulk'); btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึกข้อมูล...'; btn.disabled = true;
-            try { await Promise.all(promises); alert(`🎉 นำเข้าสำเร็จ ${promises.length} คัน!`); closeBulkModal(); loadJobsData(); } 
-            catch(e) { alert('❌ เกิดข้อผิดพลาด'); } finally { btn.innerHTML = '<i class="fa-solid fa-save"></i> บันทึกข้อมูลเข้าฐานข้อมูล'; btn.disabled = false; }
+            const btn = document.getElementById('btn_save_bulk'); 
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังตรวจสอบข้อมูล...'; 
+            btn.disabled = true;
+            
+            try {
+                const [resJobs, resQuotas] = await Promise.all([
+                    fetch(`${API_BASE_URL}/api/reports`),
+                    fetch(`${API_BASE_URL}/api/quotas`)
+                ]);
+                const allJobs = await resJobs.json();
+                const allQuotas = await resQuotas.json();
+
+                let hasError = false;
+
+                rows.forEach(row => {
+                    if (hasError) return;
+                    const plateInput = row.querySelector('.bulk-input-car_plate'); if(!plateInput || !plateInput.value.trim()) return; 
+                    let payload = {};
+                    pdiCols.forEach(c => { const inp = row.querySelector(`.bulk-input-${c.key}`); if (inp && inp.value !== '') { payload[c.key] = inp.value; } });
+                    
+                    if (!payload.branch_name) payload.branch_name = userBranch;
+                    if (!payload.job_status) payload.job_status = '09.จอดรอเข้าซ่อม'; 
+                    if (!payload.damage_level) payload.damage_level = 'เบา'; 
+                    
+                    payload.main_part_qty = parseInt(payload.main_part_qty) || 0;
+                    payload.sub_part_qty = parseInt(payload.sub_part_qty) || 0;
+
+                    // โควต้า 1: รถเข้าจอด (นับคัน)
+                    if (payload.arrived_date) {
+                        const dateVal = payload.arrived_date;
+                        const branchQuotas = allQuotas.filter(q => q.branch_name === payload.branch_name);
+                        const specialQ = branchQuotas.find(q => q.quota_type === 'special' && q.quota_date && q.quota_date.split('T')[0] === dateVal);
+                        const defaultQ = branchQuotas.find(q => q.quota_type === 'default');
+                        const maxCars = specialQ && specialQ.quota_cars !== undefined ? parseInt(specialQ.quota_cars) : (defaultQ ? parseInt(defaultQ.quota_cars) : 0);
+                        if (maxCars > 0) {
+                            const jobsInDay = allJobs.filter(j => j.branch_name === payload.branch_name && j.arrived_date && j.arrived_date.split('T')[0] === dateVal);
+                            if (jobsInDay.length + 1 > maxCars) {
+                                alert(`❌ ทะเบียน ${payload.car_plate}: โควต้ารถเข้าจอดในวันที่ ${formatToThaiDate(dateVal)} เต็มแล้ว!`);
+                                hasError = true; return;
+                            }
+                        }
+                    }
+                    
+                    // โควต้า 2: เป้าซ่อมเสร็จ (นับชิ้น)
+                    if (payload.target_finish_date) {
+                        const dateVal = payload.target_finish_date;
+                        const branchQuotas = allQuotas.filter(q => q.branch_name === payload.branch_name);
+                        const specialQ = branchQuotas.find(q => q.quota_type === 'special' && q.quota_date && q.quota_date.split('T')[0] === dateVal);
+                        const defaultQ = branchQuotas.find(q => q.quota_type === 'default');
+                        const maxMain = specialQ ? parseInt(specialQ.quota_main_parts||0) : (defaultQ ? parseInt(defaultQ.quota_main_parts||0) : 0);
+                        const maxSub = specialQ ? parseInt(specialQ.quota_sub_parts||0) : (defaultQ ? parseInt(defaultQ.quota_sub_parts||0) : 0);
+
+                        const jobsInDay = allJobs.filter(j => j.branch_name === payload.branch_name && j.target_finish_date && j.target_finish_date.split('T')[0] === dateVal);
+                        let usedMain = 0; let usedSub = 0;
+                        jobsInDay.forEach(j => { usedMain += parseInt(j.main_part_qty)||0; usedSub += parseInt(j.sub_part_qty)||0; });
+
+                        if (maxMain > 0 && (usedMain + payload.main_part_qty) > maxMain) {
+                            alert(`❌ ทะเบียน ${payload.car_plate}: กำลังผลิตชิ้นส่วนหลักวันที่ ${formatToThaiDate(dateVal)} เต็มแล้ว!`); hasError = true; return;
+                        }
+                        if (maxSub > 0 && (usedSub + payload.sub_part_qty) > maxSub) {
+                            alert(`❌ ทะเบียน ${payload.car_plate}: กำลังผลิตชิ้นส่วนรองวันที่ ${formatToThaiDate(dateVal)} เต็มแล้ว!`); hasError = true; return;
+                        }
+                    }
+
+                    promises.push(fetch(`${API_BASE_URL}/api/report`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }));
+                });
+                
+                if (hasError) {
+                    btn.innerHTML = '<i class="fa-solid fa-save"></i> บันทึกข้อมูลเข้าฐานข้อมูล'; btn.disabled = false;
+                    return;
+                }
+
+                if(promises.length === 0) {
+                    alert('⚠️ กรุณากรอกข้อมูลอย่างน้อย 1 คัน (ต้องระบุทะเบียนรถ)'); 
+                    btn.innerHTML = '<i class="fa-solid fa-save"></i> บันทึกข้อมูลเข้าฐานข้อมูล'; btn.disabled = false;
+                    return;
+                }
+                
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึกข้อมูล...';
+                await Promise.all(promises); 
+                alert(`🎉 นำเข้าสำเร็จ ${promises.length} คัน!`); 
+                closeBulkModal(); 
+                loadJobsData(); 
+            } catch(e) { 
+                alert('❌ เกิดข้อผิดพลาด'); 
+            } finally { 
+                btn.innerHTML = '<i class="fa-solid fa-save"></i> บันทึกข้อมูลเข้าฐานข้อมูล'; 
+                btn.disabled = false; 
+            }
         }
     </script>
 </body>

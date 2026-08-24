@@ -99,7 +99,6 @@ function renderSAAlerts() {
                 let partNoDisplay = (p.part_no && p.part_no !== 'AUTO-PART') ? `<span class="text-blue-600 font-mono">[${p.part_no}]</span> ` : '';
                 let epcDisplay = p.epc_no ? `<span class="text-purple-600 font-mono ml-1 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 shadow-sm"><i class="fa-solid fa-barcode mr-1"></i>EPC: ${p.epc_no}</span>` : '';
                 
-                // 🌟 โชว์วันที่ ETA และ วันที่เข้าครบ (RCV) เสมอถ้ามีข้อมูลในระบบ (ไม่ต้องรอให้สถานะเป็นเข้าครบ) 🌟
                 let dateInfo = '';
                 if (p.est_arrival_date) {
                     dateInfo += `<span class="text-amber-600 font-mono ml-1 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shadow-sm"><i class="fa-solid fa-calendar-day mr-1"></i>ETA: ${String(p.est_arrival_date).split('T')[0]}</span>`;
@@ -151,6 +150,38 @@ function renderSAAlerts() {
     }).join('');
 }
 
+// 🌟 เพิ่มฟังก์ชันยิงลบของจริงจาก Database 🌟
+window.deleteAlertPartRow = async function(btn, partId) {
+    if (partId === 'new') {
+        btn.closest('tr').remove();
+        return;
+    }
+    if(confirm('🚨 ยืนยันการลบรายการสั่งซื้อนี้ออกจากระบบฐานข้อมูล?')) {
+        try {
+            const originalIcon = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+
+            const res = await fetch(`${API_BASE_URL}/api/part-orders/${partId}`, { method: 'DELETE' });
+            if(!res.ok) throw new Error();
+            
+            if(typeof showToast === 'function') showToast('ลบข้อมูลออกจากระบบเรียบร้อยแล้ว!', 'success');
+            btn.closest('tr').remove();
+            
+            // สั่งอัปเดต Data หลังบ้านให้ตรงกัน
+            if (typeof fetchAllData === 'function') {
+                fetchAllData();
+            } else if (typeof loadAllData === 'function') {
+                loadAllData();
+            }
+        } catch(e) {
+            if(typeof showToast === 'function') showToast('ลบข้อมูลไม่สำเร็จ', 'error');
+            btn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+            btn.disabled = false;
+        }
+    }
+};
+
 // ------------------------------------------
 // โต๊ะคีย์ Modal (อัปเกรด ProMax: Paste & Filter)
 // ------------------------------------------
@@ -165,7 +196,6 @@ function openAlertModal(jobId, plate) {
     
     const container = document.getElementById('modal_dynamic_table_container');
     
-    // ดึงค่าการค้นหาด่วนที่อาจจะพิมพ์ค้างไว้ มาใส่ใหม่
     const epcInput = document.getElementById('mass_epc_update');
     const existingEpc = epcInput ? epcInput.value : '';
 
@@ -218,8 +248,9 @@ function openAlertModal(jobId, plate) {
         const qtVal = p.qt_no || defaultQt;
         const soVal = p.so_no || defaultSo;
 
+        // 🌟 อัปเดต: เปลี่ยนเป็นการเรียก deleteAlertPartRow() 🌟
         html += `
-            <tr class="hover:bg-amber-50/50 transition-colors" data-id="${p.order_id}" data-jobid="${jobId}" data-plate="${plate}">
+            <tr class="hover:bg-amber-50/50 transition-colors" data-id="${p.order_id || p.id}" data-jobid="${jobId}" data-plate="${plate}">
                 <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-epc font-mono uppercase text-center" value="${p.epc_no || ''}" onpaste="handleModalGridPaste(event, this)"></td>
                 <td class="p-0 border border-slate-200"><input type="text" list="master_parts_datalist" class="inline-edit-input dyn-partno font-mono uppercase text-center font-bold text-blue-700 bg-blue-50/30" value="${p.part_no || ''}" onchange="autoFillDynName(this)" onpaste="handleModalGridPaste(event, this)"></td>
                 <td class="p-0 border border-slate-200"><input type="number" class="inline-edit-input dyn-qty text-center font-black text-amber-600 bg-amber-50" value="${p.qty_ordered || 1}" onpaste="handleModalGridPaste(event, this)"></td>
@@ -233,7 +264,7 @@ function openAlertModal(jobId, plate) {
                 <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-eta font-mono text-center text-xs" value="${p.est_arrival_date ? String(p.est_arrival_date).split('T')[0] : ''}"></td>
                 <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-rcv font-mono text-center text-xs" value="${receivedDateVal ? String(receivedDateVal).split('T')[0] : ''}"></td>
                 <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-notes text-xs" value="${p.notes || ''}"></td>
-                <td class="p-0 border border-slate-200 text-center"><button type="button" onclick="this.closest('tr').remove()" class="text-slate-300 hover:text-red-500 py-1 transition"><i class="fa-solid fa-trash"></i></button></td>
+                <td class="p-0 border border-slate-200 text-center"><button type="button" onclick="deleteAlertPartRow(this, '${p.order_id || p.id}')" class="text-slate-300 hover:text-red-500 py-1 transition"><i class="fa-solid fa-trash"></i></button></td>
             </tr>
         `;
     });
@@ -270,6 +301,8 @@ window.addNewAlertRow = function(jobId, plate, epcNo, defaultQt = '', defaultSo 
     tr.setAttribute('data-id', 'new');
     tr.setAttribute('data-jobid', jobId);
     tr.setAttribute('data-plate', plate);
+    
+    // 🌟 อัปเดต: เปลี่ยนเป็นการเรียก deleteAlertPartRow() 🌟
     tr.innerHTML = `
         <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-epc font-mono uppercase text-center" value="${currentEpc}" onpaste="handleModalGridPaste(event, this)"></td>
         <td class="p-0 border border-slate-200"><input type="text" list="master_parts_datalist" class="inline-edit-input dyn-partno font-mono uppercase text-center font-bold text-blue-700 bg-blue-50/30" onchange="autoFillDynName(this)" onpaste="handleModalGridPaste(event, this)"></td>
@@ -284,7 +317,7 @@ window.addNewAlertRow = function(jobId, plate, epcNo, defaultQt = '', defaultSo 
         <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-eta font-mono text-center text-xs"></td>
         <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-rcv font-mono text-center text-xs"></td>
         <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-notes text-xs"></td>
-        <td class="p-0 border border-slate-200 text-center"><button type="button" onclick="this.closest('tr').remove()" class="text-slate-300 hover:text-red-500 py-1 transition"><i class="fa-solid fa-trash"></i></button></td>
+        <td class="p-0 border border-slate-200 text-center"><button type="button" onclick="deleteAlertPartRow(this, 'new')" class="text-slate-300 hover:text-red-500 py-1 transition"><i class="fa-solid fa-trash"></i></button></td>
     `;
     tbody.appendChild(tr);
 };
@@ -343,13 +376,11 @@ function autoFillDynName(inputEl) {
 
 function closeAlertModal() { document.getElementById('alertModal').classList.add('hidden'); document.getElementById('alertModal').classList.remove('flex'); }
 
-// 🌟 ปรับระบบบันทึก: โหลด Data ใหม่ แต่ให้โต๊ะคีย์ค้างไว้ 🌟
 async function saveSAAlertUpdate(e) {
     e.preventDefault();
     const rows = document.querySelectorAll('#modal_dynamic_table_container tbody tr');
     const updates = [];
 
-    // ดึงค่า jobId และ plate จากแถวแรก เพื่อใช้เปิด Modal ใหม่หลังเซฟเสร็จ
     let currentJobId = '';
     let currentPlate = '';
     if (rows.length > 0) {
@@ -405,8 +436,8 @@ async function saveSAAlertUpdate(e) {
                         report_id: u.report_id, car_plate: u.car_plate, part_no: u.part_no, 
                         part_main_no: u.part_main_no, part_name: u.part_name, qty_ordered: u.qty_ordered, 
                         qt_no: u.qt_no, so_no: u.so_no, order_status: u.order_status, 
-                        est_arrival_date: u.est_arrival_date, // 🌟 เพิ่มตรงนี้
-                        received_date: u.received_date,       // 🌟 เพิ่มตรงนี้
+                        est_arrival_date: u.est_arrival_date, 
+                        received_date: u.received_date,       
                         order_date: todayStr, epc_no: u.epc_no, notes: u.notes, branch_name: userBranch
                     })
                 });
@@ -424,25 +455,22 @@ async function saveSAAlertUpdate(e) {
             }
         }));
 
-        showToast('อัปเดตข้อมูลอะไหล่เรียบร้อย!', 'success');
+        if(typeof showToast === 'function') showToast('อัปเดตข้อมูลอะไหล่เรียบร้อย!', 'success');
         
-        // 🌟 รอ Transaction บันทึกเข้า DB 🌟
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        // 🌟 รีเฟรช Data หลักเบื้องหลัง 🌟
         if (typeof fetchAllData === 'function') {
             await fetchAllData(); 
         } else if (typeof loadAllData === 'function') {
             await loadAllData();
         }
 
-        // 🌟 เปิด Modal ด้วยข้อมูลล่าสุดจาก Database โดยไม่ปิดหน้าต่าง 🌟
         if (currentJobId && currentPlate) {
             openAlertModal(currentJobId, currentPlate);
         }
 
     } catch(err) {
-        showToast('เกิดข้อผิดพลาดในการบันทึก กรุณาลองใหม่', 'error');
+        if(typeof showToast === 'function') showToast('เกิดข้อผิดพลาดในการบันทึก กรุณาลองใหม่', 'error');
     } finally {
         btn.innerHTML = originalBtnHtml || '<i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูล';
         btn.disabled = false;
@@ -496,7 +524,7 @@ async function editMaster(partNo) {
                 document.getElementById('masterModal').classList.remove('hidden'); document.getElementById('masterModal').classList.add('flex');
             }
         }
-    } catch(e) { showToast('ดึงข้อมูลผิดพลาด', 'error'); }
+    } catch(e) { if(typeof showToast === 'function') showToast('ดึงข้อมูลผิดพลาด', 'error'); }
 }
 
 async function saveMasterPart() {
@@ -515,16 +543,16 @@ async function saveMasterPart() {
         const url = id ? `${API_BASE_URL}/api/parts/${id}` : `${API_BASE_URL}/api/parts`;
         const method = id ? 'PUT' : 'POST';
         const res = await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-        if(res.ok) { showToast('บันทึกมาสเตอร์สำเร็จ!'); closeMasterModal(); loadAllData(); } else throw new Error();
-    } catch(e) { showToast('บันทึกล้มเหลว', 'error'); }
+        if(res.ok) { if(typeof showToast === 'function') showToast('บันทึกมาสเตอร์สำเร็จ!'); closeMasterModal(); loadAllData(); } else throw new Error();
+    } catch(e) { if(typeof showToast === 'function') showToast('บันทึกล้มเหลว', 'error'); }
 }
 
 async function deleteMaster(id) {
     if(!confirm('🚨 ยืนยันการลบข้อมูลมาสเตอร์นี้?')) return;
     try {
         const res = await fetch(`${API_BASE_URL}/api/parts/${id}`, { method: 'DELETE' });
-        if(res.ok) { showToast('ลบมาสเตอร์สำเร็จ'); loadAllData(); } else throw new Error();
-    } catch(e) { showToast('ลบไม่สำเร็จ', 'error'); }
+        if(res.ok) { if(typeof showToast === 'function') showToast('ลบมาสเตอร์สำเร็จ'); loadAllData(); } else throw new Error();
+    } catch(e) { if(typeof showToast === 'function') showToast('ลบไม่สำเร็จ', 'error'); }
 }
 
 function renderCarModelsCheckbox(selectedStr) {
