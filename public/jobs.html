@@ -106,7 +106,6 @@
                     <button class="px-3 py-1.5 rounded-lg bg-white text-[#00320D] font-bold shadow-sm text-xs transition">บอร์ดใบงาน</button>
                     <a href="repair.html" class="px-3 py-1.5 rounded-lg text-green-200 hover:bg-white/10 font-bold text-xs transition">สถานีช่าง</a>
                     <a href="parts.html" class="px-3 py-1.5 rounded-lg text-green-200 hover:bg-white/10 font-bold text-xs transition">แผนกอะไหล่</a>
-                    <!-- 🌟 อัปเดตลิงก์ เช็คสถานะ TESLA ที่ถูกต้องตรงนี้ครับ -->
                     <a href="https://script.google.com/macros/s/AKfycbxJhrysJOthEIZ4WPRzLrQhT4oMv9RJbzsy-VfBtUhKIkpRdllRXZHgboJkVg64onal/exec" target="_blank" class="px-3 py-1.5 rounded-lg bg-blue-600/80 hover:bg-blue-600 text-white font-bold text-xs transition shadow-sm border border-blue-400 flex items-center gap-1.5"><i class="fa-solid fa-car-battery"></i> เช็คสถานะ TESLA</a>
                     
                     <button onclick="logout()" class="px-2 py-1.5 text-red-300 hover:bg-red-500/20 rounded-lg text-xs transition ml-1"><i class="fa-solid fa-power-off"></i></button>
@@ -156,7 +155,7 @@
                 <div class="flex flex-wrap gap-2 items-center bg-red-50 border border-red-200 p-2.5 rounded-xl shadow-xs">
                     <span class="text-xs font-black text-red-700 uppercase flex items-center gap-1.5"><i class="fa-solid fa-triangle-exclamation text-red-600 text-sm animate-pulse"></i> OVERDUE เตือนด่วน:</span>
                     <button id="btn_ov_app" onclick="openSAOverdueModal('appointment')" class="px-2.5 py-1 bg-white border border-red-300 rounded-lg text-xs font-bold text-red-700 transition flex items-center gap-1 shadow-2xs">
-                        <span>เลยวันนัดเข้า:</span> <span id="ov_app_count" class="bg-red-600 text-white px-1.5 py-0.2 rounded-full font-black text-[11px]">0</span>
+                        <span>เลยกำหนดรถเข้า:</span> <span id="ov_app_count" class="bg-red-600 text-white px-1.5 py-0.2 rounded-full font-black text-[11px]">0</span>
                     </button>
                     <button id="btn_ov_tgt" onclick="openSAOverdueModal('target')" class="px-2.5 py-1 bg-white border border-amber-300 rounded-lg text-xs font-bold text-amber-800 transition flex items-center gap-1 shadow-2xs">
                         <span>ช้ากว่าเป้าเสร็จ:</span> <span id="ov_tgt_count" class="bg-amber-600 text-white px-1.5 py-0.2 rounded-full font-black text-[11px]">0</span>
@@ -185,7 +184,7 @@
                 </div>
                 <div class="p-5">
                     <div class="flex flex-wrap gap-4 text-xs font-bold px-4 py-2 bg-slate-50 rounded-xl border border-slate-200 shadow-inner mb-4 w-fit">
-                        <div class="flex items-center gap-2"><div class="w-3.5 h-3.5 bg-gradient-to-t from-blue-600 to-blue-400 rounded-sm shadow-sm"></div> <span class="text-slate-600">นัดรถเข้า</span></div>
+                        <div class="flex items-center gap-2"><div class="w-3.5 h-3.5 bg-gradient-to-t from-blue-600 to-blue-400 rounded-sm shadow-sm"></div> <span class="text-slate-600">รถเข้าจอดอู่</span></div>
                         <div class="flex items-center gap-2"><div class="w-3.5 h-3.5 bg-gradient-to-t from-amber-500 to-amber-300 rounded-sm shadow-sm"></div> <span class="text-slate-600">เป้าซ่อมเสร็จ</span></div>
                         <div class="flex items-center gap-2"><div class="w-3.5 h-3.5 bg-gradient-to-t from-emerald-500 to-emerald-300 rounded-sm shadow-sm"></div> <span class="text-slate-600">นัดส่งมอบ</span></div>
                     </div>
@@ -406,7 +405,7 @@
                 // 🌟 จัดการระบบสาขา (Branch Filter)
                 if (results[3].status === 'fulfilled') {
                     const employees = results[3].value;
-                    const masterBranches = [...new Set(employees.map(e => e.branch_name).filter(Boolean))].sort();
+                    let masterBranches = [...new Set(employees.map(e => e.branch_name).filter(Boolean))].sort();
                     const branchSelect = document.getElementById('branch_filter');
                     const isManager = ['BA','Manager','Admin','แอดมิน'].includes(userRole);
                     
@@ -441,7 +440,6 @@
             }
         }
 
-        // 🌟 กรองข้อมูลเมื่อเปลี่ยนสาขา
         function onBranchChange() {
             selectedBranchFilter = document.getElementById('branch_filter').value;
             filterDataByBranch();
@@ -593,17 +591,22 @@
             renderSAStatuses(saJobs); 
         }
 
+        // 🌟 อัปเดตตรรกะแจ้งเตือน Overdue 🌟
         function calculateSAOverdues(jobs) {
             const todayStr = new Date().toISOString().split('T')[0];
             let ovApp = 0, ovTgt = 0, ovDel = 0;
+
+            const arrivedPrefixes = ['09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21'];
 
             jobs.forEach(j => {
                 const st = j.job_status || '';
                 const isProcessJob = activeProcessStatuses.some(status => st.includes(status) || st.startsWith(status.substring(0, 2)));
 
                 if (isProcessJob) {
-                    const appVal = getValidDateStr(j.appointment_date);
-                    if (appVal && appVal <= todayStr && j.is_parked !== 'จอดซ่อม' && !getValidDateStr(j.arrived_date)) ovApp++;
+                    // Overdue วันที่รถเข้าจอดอู่: ดูจาก arrived_date
+                    const appVal = getValidDateStr(j.arrived_date);
+                    const hasArrived = arrivedPrefixes.some(prefix => st.startsWith(prefix));
+                    if (appVal && appVal <= todayStr && !hasArrived) ovApp++;
 
                     const tgtVal = getValidDateStr(j.target_finish_date);
                     if (tgtVal && tgtVal < todayStr && !getValidDateStr(j.repair_finish_date)) ovTgt++;
@@ -635,14 +638,17 @@
             let jobsToShow = [];
             let title = '';
 
+            const arrivedPrefixes = ['09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21'];
+
             jobsToShow = saJobs.filter(j => {
                 const st = j.job_status || '';
                 const isProcessJob = activeProcessStatuses.some(status => st.includes(status) || st.startsWith(status.substring(0, 2)));
                 if (!isProcessJob) return false;
 
                 if (type === 'appointment') {
-                    const appVal = getValidDateStr(j.appointment_date);
-                    return appVal && appVal <= todayStr && j.is_parked !== 'จอดซ่อม' && !getValidDateStr(j.arrived_date);
+                    const appVal = getValidDateStr(j.arrived_date);
+                    const hasArrived = arrivedPrefixes.some(prefix => st.startsWith(prefix));
+                    return appVal && appVal <= todayStr && !hasArrived;
                 } else if (type === 'target') {
                     const tgtVal = getValidDateStr(j.target_finish_date);
                     return tgtVal && tgtVal < todayStr && !getValidDateStr(j.repair_finish_date);
@@ -653,7 +659,7 @@
                 return false;
             });
 
-            if (type === 'appointment') title = `🚨 OVERDUE: เลยกำหนดนัดหมายรถเข้า (SA: ${currentViewSA})`;
+            if (type === 'appointment') title = `🚨 OVERDUE: เลยกำหนดรถเข้าจอดอู่ (SA: ${currentViewSA})`;
             else if (type === 'target') title = `🚨 OVERDUE: เลยกำหนดเป้าซ่อมเสร็จ (SA: ${currentViewSA})`;
             else if (type === 'delivery') title = `🚨 OVERDUE: เลยกำหนดส่งมอบรถ (SA: ${currentViewSA})`;
 
@@ -678,7 +684,7 @@
 
             for(let day = 1; day <= totalDays; day++) {
                 const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-                const arrJobs = jobs.filter(j => getValidDateStr(j.appointment_date) === dateStr || getValidDateStr(j.arrived_date) === dateStr);
+                const arrJobs = jobs.filter(j => getValidDateStr(j.arrived_date) === dateStr);
                 const tgtJobs = jobs.filter(j => getValidDateStr(j.target_finish_date) === dateStr);
                 const delJobs = jobs.filter(j => getValidDateStr(j.delivery_date) === dateStr);
                 daysData.push({ day, dateStr, arrJobs, tgtJobs, delJobs });
@@ -693,7 +699,7 @@
 
                 if(arrCount > 0 || tarCount > 0 || delCount > 0) {
                     barBlock = `<div class="flex flex-col gap-1 w-full mt-auto">`;
-                    if(arrCount > 0) barBlock += `<div onclick="openSAJobListModalCalendar('${d.dateStr}', 'arrived')" class="flex justify-between items-center px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded text-[10px] font-bold text-blue-700 cursor-pointer hover:bg-blue-100 transition shadow-sm" title="คลิกเพื่อดูรายการนัด/รถเข้า"><span>🚗 เข้า</span> <span class="bg-blue-200 px-1.5 rounded-sm">${arrCount}</span></div>`;
+                    if(arrCount > 0) barBlock += `<div onclick="openSAJobListModalCalendar('${d.dateStr}', 'arrived')" class="flex justify-between items-center px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded text-[10px] font-bold text-blue-700 cursor-pointer hover:bg-blue-100 transition shadow-sm" title="คลิกเพื่อดูรายการรถเข้า"><span>🚗 เข้า</span> <span class="bg-blue-200 px-1.5 rounded-sm">${arrCount}</span></div>`;
                     if(tarCount > 0) barBlock += `<div onclick="openSAJobListModalCalendar('${d.dateStr}', 'target')" class="flex justify-between items-center px-1.5 py-0.5 bg-amber-50 border border-amber-200 rounded text-[10px] font-bold text-amber-700 cursor-pointer hover:bg-amber-100 transition shadow-sm" title="คลิกเพื่อดูเป้าซ่อมเสร็จ"><span>🛠️ เป้า</span> <span class="bg-amber-200 px-1.5 rounded-sm">${tarCount}</span></div>`;
                     if(delCount > 0) barBlock += `<div onclick="openSAJobListModalCalendar('${d.dateStr}', 'delivery')" class="flex justify-between items-center px-1.5 py-0.5 bg-emerald-50 border border-emerald-200 rounded text-[10px] font-bold text-emerald-700 cursor-pointer hover:bg-emerald-100 transition shadow-sm" title="คลิกเพื่อดูนัดส่งมอบ"><span>🤝 ส่ง</span> <span class="bg-emerald-200 px-1.5 rounded-sm">${delCount}</span></div>`;
                     barBlock += `</div>`;
@@ -710,8 +716,8 @@
             const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
 
             if(type === 'arrived') { 
-                typeLabel = "นัดเข้า / รถเข้า"; 
-                jobsToShow = saJobs.filter(j => getValidDateStr(j.appointment_date) === dateStr || getValidDateStr(j.arrived_date) === dateStr);
+                typeLabel = "รถเข้าจอดอู่"; 
+                jobsToShow = saJobs.filter(j => getValidDateStr(j.arrived_date) === dateStr);
             }
             else if(type === 'target') { 
                 typeLabel = "เป้าซ่อมเสร็จ"; 
@@ -990,7 +996,8 @@
             if (viewType === 'finance') {
                 thead.innerHTML = `<th class="px-4 py-2 font-bold text-left">ทะเบียนรถ</th><th class="px-4 py-2 font-bold text-left">ลูกค้า / ยี่ห้อรถ</th><th class="px-4 py-2 font-bold text-center">จำนวนชิ้น(หลัก/รอง)</th><th class="px-4 py-2 font-bold text-right">ค่าแรง</th><th class="px-4 py-2 font-bold text-right">ค่าอะไหล่</th><th class="px-4 py-2 font-bold text-right">งานนอก</th><th class="px-4 py-2 font-bold text-center">จัดการ</th>`;
             } else if (viewType === 'overdue') {
-                thead.innerHTML = `<th class="px-4 py-2 font-bold text-left">ทะเบียนรถ</th><th class="px-4 py-2 font-bold text-left">ลูกค้า / SA</th><th class="px-4 py-2 font-bold text-left">วันที่นัดหมาย/เข้า</th><th class="px-4 py-2 font-bold text-left">เป้าซ่อมเสร็จ</th><th class="px-4 py-2 font-bold text-left">กำหนดส่งมอบ</th><th class="px-4 py-2 font-bold text-center">จัดการ</th>`;
+                // 🌟 อัปเดตส่วนหัวตารางจากการนำลูกค้านัดหมายออก 🌟
+                thead.innerHTML = `<th class="px-4 py-2 font-bold text-left">ทะเบียนรถ</th><th class="px-4 py-2 font-bold text-left">ลูกค้า / SA</th><th class="px-4 py-2 font-bold text-left">วันที่รถเข้าจอดอู่</th><th class="px-4 py-2 font-bold text-left">เป้าซ่อมเสร็จ</th><th class="px-4 py-2 font-bold text-left">กำหนดส่งมอบ</th><th class="px-4 py-2 font-bold text-center">จัดการ</th>`;
             } else {
                 thead.innerHTML = `<th class="px-4 py-2 font-bold text-left">ทะเบียนรถ</th><th class="px-4 py-2 font-bold text-left">ยี่ห้อ/รุ่น</th><th class="px-4 py-2 font-bold text-left">ลูกค้า / SA</th><th class="px-4 py-2 font-bold text-left">ความเสียหาย</th><th class="px-4 py-2 font-bold text-left">อัปเดตสถานะ (ERP)</th><th class="px-4 py-2 font-bold text-center">จัดการ</th>`;
             }
@@ -1021,7 +1028,7 @@
                     return `<tr class="hover:bg-red-50 transition cursor-pointer border-b border-slate-100" onclick="goToEditJob('${j.id}')">
                         <td class="px-4 py-3 font-bold text-[#00320D]"><span class="bg-red-100 border border-red-300 text-red-700 px-2.5 py-1 rounded font-mono text-xs shadow-inner whitespace-nowrap">${j.car_plate || '-'}</span></td>
                         <td class="px-4 py-3 text-[11px] leading-tight"><div class="font-bold text-slate-700">${j.customer_name || '-'}</div><div class="text-amber-600 font-bold mt-0.5">${j.sa_owner || '-'}</div></td>
-                        <td class="px-4 py-3 text-xs font-mono font-bold text-blue-600">${formatDt(j.appointment_date || j.arrived_date)}</td>
+                        <td class="px-4 py-3 text-xs font-mono font-bold text-blue-600">${formatDt(j.arrived_date)}</td>
                         <td class="px-4 py-3 text-xs font-mono font-bold text-amber-600">${formatDt(j.target_finish_date)}</td>
                         <td class="px-4 py-3 text-xs font-mono font-bold text-purple-600">${formatDt(j.delivery_date)}</td>
                         <td class="px-4 py-3 text-center"><button onclick="event.stopPropagation(); goToEditJob('${j.id}')" class="bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-700 transition shadow-md w-full whitespace-nowrap"><i class="fa-solid fa-triangle-exclamation"></i> เคลียร์ด่วน</button></td>
@@ -1050,7 +1057,7 @@
 
         async function fastUpdateJob(jobId, field, value, silent = false) {
             let formattedValue = value;
-            if (field.includes('date') || ['appointment_date', 'repair_finish_date', 'target_finish_date', 'delivery_date', 'contact_date', 'arrived_date'].includes(field)) {
+            if (field.includes('date') || ['repair_finish_date', 'target_finish_date', 'delivery_date', 'contact_date', 'arrived_date'].includes(field)) {
                 if (value === '' || value === undefined || value === null) formattedValue = null;
             }
 
