@@ -59,8 +59,7 @@ async function handleLogin(e) {
             const accessiblePages = data.employee.accessible_pages || '';
             sessionStorage.setItem('accessible_pages', accessiblePages);
             
-            // 🌟 แก้ปัญหาล็อกอินค้าง: เรียกใช้ฟังก์ชันเข้าแอปทันที ไม่ต้อง Reload 🌟
-            enterApp(); 
+            window.location.reload(); 
         } else alert('❌ ' + data.error);
     } catch (err) { alert('❌ ระบบขัดข้อง'); }
 }
@@ -824,7 +823,7 @@ async function submitSaForm(event) {
                             issue_date: new Date().toISOString().split('T')[0],
                             part_no: pNo, part_main_no: pMain || null, part_name: pName, qty: pQty,
                             car_plate: formData.car_plate, qt_no: qtArr.join(',') || null, so_no: soArr.join(',') || null,
-                            unit_price: 0, car_model: formData.car_model || null,
+                            unit_price: 0, car_model: document.getElementById('car_model')?.value || null,
                             job_status: 'รอเข้าซ่อม', part_type: pType,
                             branch_name: formData.branch_name
                         })
@@ -889,26 +888,78 @@ function changeSchedMonth(direction) {
     renderSchedCalendar();
 }
 
-// 🌟 2. Render ปฏิทินและหลอด Progress Bar แบบ Context-Aware 🌟
+// 🌟 2. เรนเดอร์ปฏิทินแบบ Pre-calculate เพื่อแก้ปัญหาเบราว์เซอร์ค้าง (Fast Rendering) 🌟
 function renderSchedCalendar() {
-    const grid = document.getElementById('sched_calendar_grid'); grid.innerHTML = '';
+    const grid = document.getElementById('sched_calendar_grid'); 
+    grid.innerHTML = ''; // เคลียร์ตารางเดิมออกทันที
+    
     const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
     document.getElementById('sched_month_title').innerText = `${monthNames[currentSchedMonth]} ${currentSchedYear}`;
 
     const firstDay = new Date(currentSchedYear, currentSchedMonth, 1).getDay();
     const totalDays = new Date(currentSchedYear, currentSchedMonth + 1, 0).getDate();
 
-    for(let i = 0; i < firstDay; i++) { grid.innerHTML += `<div class="bg-transparent rounded-xl"></div>`; }
+    // ดึงโควต้าพื้นฐาน
+    const defaultQuota = allSchedQuotas.find(q => q.quota_type === 'default');
 
+    // 🌟 สรุปข้อมูลล่วงหน้าก่อนเข้าลูป ป้องกันการวนลูปเช็คข้อมูลซ้ำๆ จนเครื่องค้าง 🌟
+    const dailyData = {};
+    const specialQuotasMap = {};
+
+    allSchedQuotas.forEach(q => {
+        if(q.quota_type === 'special' && q.quota_date) {
+            specialQuotasMap[q.quota_date.split('T')[0]] = q;
+        }
+    });
+
+    allSchedJobs.forEach(j => {
+        const arrD = j.arrived_date ? String(j.arrived_date).split('T')[0] : null;
+        const tgtD = j.target_finish_date ? String(j.target_finish_date).split('T')[0] : null;
+        const delD = j.delivery_date ? String(j.delivery_date).split('T')[0] : null;
+
+        if (arrD) { 
+            if(!dailyData[arrD]) dailyData[arrD] = {a:0, t:0, d:0, m:0, s:0}; 
+            dailyData[arrD].a++; 
+        }
+        if (tgtD) { 
+            if(!dailyData[tgtD]) dailyData[tgtD] = {a:0, t:0, d:0, m:0, s:0}; 
+            dailyData[tgtD].t++; 
+            dailyData[tgtD].m += parseInt(j.main_part_qty) || 0; 
+            dailyData[tgtD].s += parseInt(j.sub_part_qty) || 0; 
+        }
+        if (delD) { 
+            if(!dailyData[delD]) dailyData[delD] = {a:0, t:0, d:0, m:0, s:0}; 
+            dailyData[delD].d++; 
+        }
+    });
+
+    let htmlBuffer = '';
+    for(let i = 0; i < firstDay; i++) { htmlBuffer += `<div class="bg-transparent rounded-xl"></div>`; }
+
+    // วาดตารางอย่างรวดเร็ว
     for(let day = 1; day <= totalDays; day++) {
         const dateStr = `${currentSchedYear}-${String(currentSchedMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
         
-        const specialQuota = allSchedQuotas.find(q => q.quota_type === 'special' && q.quota_date && q.quota_date.split('T')[0] === dateStr);
-        const defaultQuota = allSchedQuotas.find(q => q.quota_type === 'default');
-        
+        // ดึงข้อมูลที่นับยอดไว้แล้ว
+        const dData = dailyData[dateStr] || {a:0, t:0, d:0, m:0, s:0};
+        const arrCount = dData.a;
+        const tarCount = dData.t;
+        const delCount = dData.d;
+        const mainPartsSum = dData.m;
+        const subPartsSum = dData.s;
+
+        const specialQuota = specialQuotasMap[dateStr];
         const maxCars = specialQuota && specialQuota.quota_cars !== undefined ? parseInt(specialQuota.quota_cars) : (defaultQuota ? parseInt(defaultQuota.quota_cars) : 0);
         const maxMain = specialQuota ? parseInt(specialQuota.quota_main_parts||0) : (defaultQuota ? parseInt(defaultQuota.quota_main_parts||0) : 0);
         const maxSub = specialQuota ? parseInt(specialQuota.quota_sub_parts||0) : (defaultQuota ? parseInt(defaultQuota.quota_sub_parts||0) : 0);
+
+        const isArriveFull = maxCars > 0 && arrCount >= maxCars;
+        const isTargetMainFull = maxMain > 0 && mainPartsSum >= maxMain;
+        const isTargetSubFull = maxSub > 0 && subPartsSum >= maxSub;
+        const isTargetFull = maxCars > 0 && tarCount >= maxCars; 
+        const isTargetOverallFull = isTargetFull || isTargetMainFull || isTargetSubFull;
+        const isDeliveryFull = maxCars > 0 && delCount >= maxCars;
+        const allFull = isArriveFull && isTargetOverallFull && isDeliveryFull;
 
         let quotaHTML = `<div class="mt-auto w-full pt-1 flex flex-col gap-1.5">`;
         let isCurrentFieldFull = false;
@@ -917,9 +968,7 @@ function renderSchedCalendar() {
         let lockIcon = '';
 
         if (currentTargetField === 'arrived_date') {
-            const arrCount = allSchedJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length;
-            isCurrentFieldFull = maxCars > 0 && arrCount >= maxCars;
-            
+            isCurrentFieldFull = isArriveFull;
             let pct = maxCars > 0 ? Math.min((arrCount / maxCars) * 100, 100) : 0;
             let color = pct >= 100 ? 'bg-rose-500' : 'bg-emerald-500';
             quotaHTML += `
@@ -930,11 +979,7 @@ function renderSchedCalendar() {
             `;
         } 
         else if (currentTargetField === 'target_finish_date') {
-            const mainPartsSum = allSchedJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).reduce((sum, j) => sum + (parseInt(j.main_part_qty)||0), 0);
-            const subPartsSum = allSchedJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).reduce((sum, j) => sum + (parseInt(j.sub_part_qty)||0), 0);
-            
-            isCurrentFieldFull = (maxMain > 0 && mainPartsSum >= maxMain) || (maxSub > 0 && subPartsSum >= maxSub);
-            
+            isCurrentFieldFull = isTargetOverallFull;
             let pctM = maxMain > 0 ? Math.min((mainPartsSum / maxMain) * 100, 100) : 0;
             let pctS = maxSub > 0 ? Math.min((subPartsSum / maxSub) * 100, 100) : 0;
             
@@ -954,9 +999,7 @@ function renderSchedCalendar() {
             `;
         } 
         else if (currentTargetField === 'delivery_date') {
-            const delCount = allSchedJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
-            isCurrentFieldFull = maxCars > 0 && delCount >= maxCars;
-            
+            isCurrentFieldFull = isDeliveryFull;
             let pct = maxCars > 0 ? Math.min((delCount / maxCars) * 100, 100) : 0;
             let color = pct >= 100 ? 'bg-rose-500' : 'bg-indigo-500';
             quotaHTML += `
@@ -967,19 +1010,7 @@ function renderSchedCalendar() {
             `;
         } 
         else {
-            const arrCount = allSchedJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length;
-            const tarCount = allSchedJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).length;
-            const delCount = allSchedJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
-            const mainPartsSum = allSchedJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).reduce((sum, j) => sum + (parseInt(j.main_part_qty)||0), 0);
-            const subPartsSum = allSchedJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).reduce((sum, j) => sum + (parseInt(j.sub_part_qty)||0), 0);
-
-            const isArriveFull = maxCars > 0 && arrCount >= maxCars;
-            const isTargetMainFull = maxMain > 0 && mainPartsSum >= maxMain;
-            const isTargetSubFull = maxSub > 0 && subPartsSum >= maxSub;
-            const isDeliveryFull = maxCars > 0 && delCount >= maxCars;
-
-            isCurrentFieldFull = isArriveFull && (isTargetMainFull || isTargetSubFull) && isDeliveryFull; 
-
+            isCurrentFieldFull = allFull;
             quotaHTML += `
                 <div class="text-[9px] font-bold ${isArriveFull?'text-rose-600':'text-emerald-700'} flex justify-between"><span>เข้า</span><span>${arrCount}/${maxCars||'∞'}</span></div>
                 <div class="text-[9px] font-bold ${isTargetMainFull?'text-rose-600':'text-blue-700'} flex justify-between"><span>หลัก</span><span>${mainPartsSum}/${maxMain||'∞'}</span></div>
@@ -991,6 +1022,7 @@ function renderSchedCalendar() {
 
         const thaiDateStr = `${String(day).padStart(2,'0')}/${String(currentSchedMonth+1).padStart(2,'0')}/${currentSchedYear}`;
 
+        // 🌟 3. ล็อกเฉพาะคิวที่เต็ม ตามปุ่มที่กดมา 🌟
         if (isCurrentFieldFull) {
             cellClass += 'bg-slate-50 border-rose-200 opacity-60 cursor-not-allowed grayscale';
             clickAction = `onclick="alert('❌ โควต้าของวันที่นี้เต็มแล้ว ไม่สามารถเลือกได้ครับ!')"`;
@@ -1000,11 +1032,11 @@ function renderSchedCalendar() {
             if (currentTargetField !== 'all') {
                 clickAction = `onclick="applySelectedDateToFieldDirect('${dateStr}', '${currentTargetField}')"`;
             } else {
-                clickAction = `onclick="openDateSelectorModal('${dateStr}', '${thaiDateStr}')"`;
+                clickAction = `onclick="openDateSelectorModal('${dateStr}', '${thaiDateStr}', ${isArriveFull}, ${isTargetOverallFull}, ${isDeliveryFull})"`;
             }
         }
 
-        grid.innerHTML += `
+        htmlBuffer += `
             <div class="${cellClass}" ${clickAction}>
                 <div class="flex justify-between items-center mb-1.5">
                     <span class="text-xs font-black ${isCurrentFieldFull ? 'text-rose-500' : 'text-slate-400'} font-mono">${day}</span>
@@ -1014,6 +1046,8 @@ function renderSchedCalendar() {
             </div>
         `;
     }
+
+    grid.innerHTML = htmlBuffer; // แปะ HTML ทีเดียวจบ เพื่อความเร็วสูงสุด
 }
 
 // 🌟 4. ฟังก์ชันนำวันที่ไปใส่ในฟอร์มทันที (แก้ INP Delay) 🌟
@@ -1031,27 +1065,9 @@ function applySelectedDateToFieldDirect(dateStr, fieldId) {
     });
 }
 
-function openDateSelectorModal(dateStr, thaiDateStr) {
+function openDateSelectorModal(dateStr, thaiDateStr, isArriveFull, isTargetFull, isDeliveryFull) {
     document.getElementById('ds_temp_date_val').value = dateStr;
     document.getElementById('ds_selected_date_text').innerText = thaiDateStr;
-
-    const b = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
-    
-    const arrCount = allSchedJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length;
-    const mainPartsSum = allSchedJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).reduce((sum, j) => sum + (parseInt(j.main_part_qty)||0), 0);
-    const subPartsSum = allSchedJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).reduce((sum, j) => sum + (parseInt(j.sub_part_qty)||0), 0);
-    const delCount = allSchedJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
-
-    const specialQuota = allSchedQuotas.find(q => q.quota_type === 'special' && q.quota_date && q.quota_date.split('T')[0] === dateStr);
-    const defaultQuota = allSchedQuotas.find(q => q.quota_type === 'default');
-    
-    const maxCars = specialQuota && specialQuota.quota_cars !== undefined ? parseInt(specialQuota.quota_cars) : (defaultQuota ? parseInt(defaultQuota.quota_cars) : 0);
-    const maxMain = specialQuota ? parseInt(specialQuota.quota_main_parts||0) : (defaultQuota ? parseInt(defaultQuota.quota_main_parts||0) : 0);
-    const maxSub = specialQuota ? parseInt(specialQuota.quota_sub_parts||0) : (defaultQuota ? parseInt(defaultQuota.quota_sub_parts||0) : 0);
-
-    const isArriveFull = maxCars > 0 && arrCount >= maxCars;
-    const isTargetFull = (maxMain > 0 && mainPartsSum >= maxMain) || (maxSub > 0 && subPartsSum >= maxSub);
-    const isDeliveryFull = maxCars > 0 && delCount >= maxCars;
 
     const btnArrived = document.getElementById('btn_apply_arrived');
     const btnTarget = document.getElementById('btn_apply_target');
