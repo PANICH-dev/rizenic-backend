@@ -965,7 +965,7 @@
             }
         }
 
-        // 🌟 แก้ไข: เพิ่มการเซตค่า Dropdown อย่างสม่ำเสมอและดึงอะไหล่มาโชว์ 🌟
+        // 🌟 แก้ไข: ไม่ใช้ setTimeout แล้ว เพื่อให้โหลดข้อมูลอัปเดตใบงานได้ทันที
         async function checkCrossPageEditMode() {
             const idToEdit = sessionStorage.getItem('edit_job_id'); 
             if(!idToEdit) {
@@ -1024,19 +1024,16 @@
                 if (job.qt_no) job.qt_no.split(',').forEach(v => { let val = v.trim(); if(val) { qtArr.push(val); addDocRow('QT', val); }});
                 if (job.so_no) job.so_no.split(',').forEach(v => { let val = v.trim(); if(val) { soArr.push(val); addDocRow('SO', val); }});
                 if (job.bl_no) job.bl_no.split(',').forEach(v => { let val = v.trim(); if(val) { addDocRow('BL', v.trim()); }});
+                
                 if (document.getElementById('docs_body').children.length === 0) addDocRow();
                 
-                // สั่งซื้ออะไหล่
-                document.getElementById('order_parts_body').innerHTML = '';
-                addPartRow();
-
                 // ชิ้นส่วนทำสี & ความเสียหาย
                 selectDamage(job.damage_level || 'เบา');
                 selectedBodyParts.main = job.main_part_name ? job.main_part_name.split(',').map(s => s.trim()).filter(Boolean) : [];
                 selectedBodyParts.sub = job.sub_part_name ? job.sub_part_name.split(',').map(s => s.trim()).filter(Boolean) : [];
                 renderBodyPartsUI();
                 
-                // วันที่
+                // วันที่ต่างๆ
                 const setDateVal = (elemId, isoVal) => {
                     const el = document.getElementById(elemId);
                     if (el) el.value = isoVal ? String(isoVal).split('T')[0] : '';
@@ -1046,8 +1043,8 @@
                 setDateVal('target_finish_date', job.target_finish_date);
                 setDateVal('repair_finish_date', job.repair_finish_date);
                 setDateVal('delivery_date', job.delivery_date);
-
-                // ตารางติดตามสถานะอะไหล่ PO
+                
+                // โหลดตารางสถานะอะไหล่ทันที
                 if (job.car_plate) {
                     loadPartsTrackingTable(job.car_plate.trim());
                 }
