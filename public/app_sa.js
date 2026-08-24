@@ -10,7 +10,7 @@ let currentSchedMonth = new Date().getMonth();
 let currentSchedYear = new Date().getFullYear();
 let allSchedJobs = [];
 let allSchedQuotas = [];
-let currentTargetField = ''; 
+let currentTargetField = 'all'; 
 
 document.addEventListener('DOMContentLoaded', () => {
     if(sessionStorage.getItem('isLoggedIn') !== 'true') {
@@ -75,7 +75,7 @@ async function enterApp() {
     document.getElementById('contact_date').value = new Date().toISOString().split('T')[0];
     selectDamage('เบา'); 
     
-    // โหลด Master Data ให้ครบ 100% ก่อนเริ่มเซตค่า
+    // โหลด Master Data ให้ครบ 100% ก่อนเริ่มเซตค่า เพื่อแก้ปัญหาข้อมูล Dropdown หาย
     await loadInitialData(); 
     await checkCrossPageEditMode();
 }
@@ -165,6 +165,9 @@ function updateCarModels(brandName) {
         select.innerHTML += `<option value="${car.car_model}">${car.car_model}</option>`; 
     });
 }
+
+let repairBodyPartsList = { main: [], sub: [] };
+let selectedBodyParts = { main: [], sub: [] };
 
 function renderBodyPartsUI() {
     const mainContainer = document.getElementById('body_parts_main'); 
@@ -522,7 +525,7 @@ async function deletePO(id, carPlate) {
     }
 }
 
-// 🌟 แก้ไขหลัก: ดึงข้อมูลข้ามหน้าแบบเสร็จสมบูรณ์ทันที (แก้ปัญหาข้อมูลไม่ขึ้น) 🌟
+// 🌟 ระบบตรวจสอบสถานะและแก้ไขข้อมูลเก่าให้แสดงผลสมบูรณ์ 🌟
 async function checkCrossPageEditMode() {
     const idToEdit = sessionStorage.getItem('edit_job_id'); 
     if(!idToEdit) {
@@ -844,21 +847,34 @@ async function submitSaForm(event) {
     } catch (e) { 
         alert('❌ เครือข่ายขัดข้อง'); 
         const btnSubmit = document.getElementById('btn_submit_sa');
-        btnSubmit.innerHTML = editId ? '<i class="fa-solid fa-file-pen"></i> บันทึกข้อมูลและดำเนินการ' : '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ'; 
+        btnSubmit.innerHTML = editId ? '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม' : '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ'; 
         btnSubmit.disabled = false;
     }
 }
 
-async function openScheduleCalendar(field = 'all') {
+// 🌟 1. ดึงข้อมูลปฏิทิน และโหลดเฉพาะฟิลด์เป้าหมาย 🌟
+async function openScheduleCalendar(field) {
     currentTargetField = field;
     document.getElementById('scheduleCalendarModal').classList.remove('hidden');
+    document.getElementById('calendar_loading').classList.remove('hidden');
+
+    const titles = {
+        'arrived_date': 'เช็คโควต้า: รถเข้าจอดอู่ (คัน)',
+        'target_finish_date': 'เช็คโควต้า: เป้าซ่อมเสร็จ & ชิ้นงานทำสี',
+        'delivery_date': 'เช็คโควต้า: ส่งมอบรถลูกค้า (คัน)',
+        'all': 'ตารางตรวจสอบโควต้า (ภาพรวม)'
+    };
+    document.getElementById('modal_dynamic_title').innerText = titles[field] || 'ตารางโควต้า';
+
     try {
         const b = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
         const editId = document.getElementById('sa_report_id').value;
+
         const [resJobs, resQuotas] = await Promise.all([
             fetch(`${API_BASE_URL}/api/reports`),
             fetch(`${API_BASE_URL}/api/quotas`)
         ]);
+        
         const rawJobs = await resJobs.json();
         allSchedJobs = rawJobs.filter(j => j.branch_name === b && String(j.id) !== String(editId));
         
@@ -866,7 +882,11 @@ async function openScheduleCalendar(field = 'all') {
         allSchedQuotas = rawQuotas.filter(q => q.branch_name === b);
         
         renderSchedCalendar();
-    } catch (e) { console.error('โหลดข้อมูลปฏิทินล้มเหลว', e); }
+    } catch (e) { 
+        console.error('โหลดข้อมูลปฏิทินล้มเหลว', e); 
+    } finally {
+        document.getElementById('calendar_loading').classList.add('hidden');
+    }
 }
 
 function changeSchedMonth(direction) {
@@ -876,6 +896,7 @@ function changeSchedMonth(direction) {
     renderSchedCalendar();
 }
 
+// 🌟 2. Render ปฏิทินและหลอด Progress Bar สุดล้ำ 🌟
 function renderSchedCalendar() {
     const grid = document.getElementById('sched_calendar_grid'); grid.innerHTML = '';
     const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
@@ -910,71 +931,120 @@ function renderSchedCalendar() {
         const isTargetFull = isTargetCarFull || isTargetPartFull;
         const allFull = isArriveFull && isTargetFull && isDeliveryFull;
 
-        let badgeHTML = '';
-        if(arrCount > 0) badgeHTML += `<div class="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5 w-full flex justify-between items-center"><i class="fa-solid fa-car-side"></i> <span>${arrCount} คัน</span></div>`;
-        if(tarCount > 0) badgeHTML += `<div class="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 w-full flex justify-between items-center"><i class="fa-solid fa-hammer"></i> <span>${tarCount} คัน</span></div>`;
-        if(delCount > 0) badgeHTML += `<div class="text-[9px] font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5 w-full flex justify-between items-center"><i class="fa-solid fa-flag-checkered"></i> <span>${delCount} คัน</span></div>`;
+        let quotaHTML = `<div class="mt-auto w-full pt-1 flex flex-col gap-1.5">`;
 
-        let quotaHTML = '';
-        if (maxMain > 0 || maxSub > 0 || maxCars > 0) {
-            quotaHTML += `<div class="mt-auto w-full pt-1 flex flex-col gap-0.5">`;
-            
-            if (maxCars > 0) {
-                quotaHTML += `
-                <div class="flex justify-between text-[8px] font-black text-slate-500 bg-slate-100 rounded px-1 mb-0.5">
-                    <span class="${isArriveFull?'text-rose-600':''}" title="คิวรถเข้า">เข้า:${arrCount}/${maxCars}</span>
-                    <span class="${isTargetCarFull?'text-rose-600':''}" title="คิวเป้าซ่อมเสร็จ">เสร็จ:${tarCount}/${maxCars}</span>
-                    <span class="${isDeliveryFull?'text-rose-600':''}" title="คิวส่งมอบ">ส่ง:${delCount}/${maxCars}</span>
-                </div>`;
-            }
+        // 🚗 หลอด: รถเข้าจอด
+        if (maxCars > 0) {
+            let pct = Math.min((arrCount / maxCars) * 100, 100);
+            let color = pct >= 100 ? 'bg-rose-500' : (pct >= 80 ? 'bg-emerald-500' : 'bg-emerald-400');
+            let txtColor = pct >= 100 ? 'text-rose-600' : 'text-slate-600';
+            quotaHTML += `
+            <div title="โควต้ารถเข้าจอด (รับได้สูงสุด ${maxCars} คัน)">
+                <div class="flex justify-between text-[9px] font-black ${txtColor} mb-0.5">
+                    <span class="flex items-center gap-1"><i class="fa-solid fa-truck-ramp-box text-emerald-600"></i> รถเข้า</span>
+                    <span>${arrCount}/${maxCars} คัน</span>
+                </div>
+                <div class="h-1.5 bg-slate-200 rounded-full overflow-hidden"><div class="h-full ${color} rounded-full" style="width: ${pct}%"></div></div>
+            </div>`;
+        } else if (arrCount > 0) {
+            quotaHTML += `<div class="flex justify-between text-[9px] font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200"><span class="flex items-center gap-1"><i class="fa-solid fa-truck-ramp-box"></i> รถเข้า</span><span>${arrCount} คัน</span></div>`;
+        }
 
-            if (maxMain > 0) {
-                let pct = Math.min((mainPartsSum / maxMain) * 100, 100);
-                let color = pct >= 100 ? 'bg-rose-600' : (pct >= 80 ? 'bg-amber-500' : 'bg-blue-500');
-                quotaHTML += `
-                <div title="กำลังผลิตทำสีชิ้นหลัก (ประเมินจากวันเป้าซ่อมเสร็จ)">
-                    <div class="flex justify-between text-[8px] font-black text-slate-500 mb-0.5"><span>ชิ้นหลัก(เสร็จ)</span><span class="${pct>=100?'text-rose-600':''}">${mainPartsSum}/${maxMain}</span></div>
-                    <div class="quota-bar"><div class="quota-fill ${color}" style="width: ${pct}%"></div></div>
-                </div>`;
-            }
-            if (maxSub > 0) {
-                let pct = Math.min((subPartsSum / maxSub) * 100, 100);
-                let color = pct >= 100 ? 'bg-rose-600' : (pct >= 80 ? 'bg-amber-500' : 'bg-amber-400');
-                quotaHTML += `
-                <div title="กำลังผลิตทำสีชิ้นรอง (ประเมินจากวันเป้าซ่อมเสร็จ)">
-                    <div class="flex justify-between text-[8px] font-black text-slate-500 mb-0.5"><span>ชิ้นรอง(เสร็จ)</span><span class="${pct>=100?'text-rose-600':''}">${subPartsSum}/${maxSub}</span></div>
-                    <div class="quota-bar"><div class="quota-fill ${color}" style="width: ${pct}%"></div></div>
-                </div>`;
-            }
-            quotaHTML += `</div>`;
+        // 🛠️ หลอด: ชิ้นหลัก
+        if (maxMain > 0) {
+            let pct = Math.min((mainPartsSum / maxMain) * 100, 100);
+            let color = pct >= 100 ? 'bg-rose-500' : (pct >= 80 ? 'bg-blue-600' : 'bg-blue-400');
+            let txtColor = pct >= 100 ? 'text-rose-600' : 'text-slate-600';
+            quotaHTML += `
+            <div title="โควต้าทำสีชิ้นหลัก (รับได้สูงสุด ${maxMain} ชิ้น)">
+                <div class="flex justify-between text-[9px] font-black ${txtColor} mb-0.5">
+                    <span class="flex items-center gap-1"><i class="fa-solid fa-layer-group text-blue-500"></i> ชิ้นหลัก</span>
+                    <span>${mainPartsSum}/${maxMain} ชิ้น</span>
+                </div>
+                <div class="h-1.5 bg-slate-200 rounded-full overflow-hidden"><div class="h-full ${color} rounded-full" style="width: ${pct}%"></div></div>
+            </div>`;
+        } else if (mainPartsSum > 0) {
+            quotaHTML += `<div class="flex justify-between text-[9px] font-black text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200"><span class="flex items-center gap-1"><i class="fa-solid fa-layer-group"></i> ชิ้นหลัก</span><span>${mainPartsSum} ชิ้น</span></div>`;
+        }
+
+        // 🧩 หลอด: ชิ้นรอง
+        if (maxSub > 0) {
+            let pct = Math.min((subPartsSum / maxSub) * 100, 100);
+            let color = pct >= 100 ? 'bg-rose-500' : (pct >= 80 ? 'bg-amber-500' : 'bg-amber-400');
+            let txtColor = pct >= 100 ? 'text-rose-600' : 'text-slate-600';
+            quotaHTML += `
+            <div title="โควต้าทำสีชิ้นรอง (รับได้สูงสุด ${maxSub} ชิ้น)">
+                <div class="flex justify-between text-[9px] font-black ${txtColor} mb-0.5">
+                    <span class="flex items-center gap-1"><i class="fa-solid fa-puzzle-piece text-amber-500"></i> ชิ้นรอง</span>
+                    <span>${subPartsSum}/${maxSub} ชิ้น</span>
+                </div>
+                <div class="h-1.5 bg-slate-200 rounded-full overflow-hidden"><div class="h-full ${color} rounded-full" style="width: ${pct}%"></div></div>
+            </div>`;
+        } else if (subPartsSum > 0) {
+            quotaHTML += `<div class="flex justify-between text-[9px] font-black text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200"><span class="flex items-center gap-1"><i class="fa-solid fa-puzzle-piece"></i> ชิ้นรอง</span><span>${subPartsSum} ชิ้น</span></div>`;
+        }
+
+        // 🔑 ส่งมอบรถ (ไม่มีโควต้าชิ้นงาน แต่ใช้โควต้าคัน)
+        if (delCount > 0 && maxCars === 0) {
+            quotaHTML += `<div class="flex justify-between text-[9px] font-black text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200"><span class="flex items-center gap-1"><i class="fa-solid fa-key"></i> ส่งมอบ</span><span>${delCount} คัน</span></div>`;
+        }
+
+        if (maxMain === 0 && maxSub === 0 && maxCars === 0 && arrCount === 0 && mainPartsSum === 0 && subPartsSum === 0 && delCount === 0) {
+            quotaHTML = `<div class="mt-auto w-full pt-2 text-[9px] font-bold text-slate-300 text-center">ว่าง</div>`;
         } else {
-            quotaHTML = `<div class="mt-auto w-full pt-2 text-[8px] font-bold text-slate-400 text-center">ไม่จำกัดโควต้า</div>`;
+            quotaHTML += `</div>`;
         }
 
         const thaiDateStr = `${String(day).padStart(2,'0')}/${String(currentSchedMonth+1).padStart(2,'0')}/${currentSchedYear}`;
 
         let cellClass = 'sched-cell transition-all ';
         let clickAction = '';
+        let lockIcon = '';
 
-        if (allFull) {
-            cellClass += 'bg-slate-100 border-slate-200 opacity-60 cursor-not-allowed grayscale';
-            clickAction = `onclick="alert('❌ วันที่ ${day} คิวเต็มทุกอย่างแล้วครับ ไม่สามารถเลือกได้!')"`;
+        // 🌟 3. ล็อกเฉพาะคิวที่เต็ม ตามปุ่มที่กดมา 🌟
+        let isCurrentFieldFull = false;
+        if (currentTargetField === 'arrived_date' && isArriveFull) isCurrentFieldFull = true;
+        if (currentTargetField === 'target_finish_date' && isTargetFull) isCurrentFieldFull = true;
+        if (currentTargetField === 'delivery_date' && isDeliveryFull) isCurrentFieldFull = true;
+
+        if ((currentTargetField !== 'all' && isCurrentFieldFull) || (currentTargetField === 'all' && allFull)) {
+            cellClass += 'bg-slate-50 border-rose-200 opacity-60 cursor-not-allowed grayscale';
+            clickAction = `onclick="alert('❌ โควต้าของวันที่นี้เต็มแล้ว ไม่สามารถเลือกได้ครับ!')"`;
+            lockIcon = '<i class="fa-solid fa-lock text-rose-500 text-[10px]" title="คิวเต็มแล้ว"></i>';
         } else {
-            cellClass += 'hover:border-blue-500 cursor-pointer hover:shadow-md';
-            clickAction = `onclick="openDateSelectorModal('${dateStr}', '${thaiDateStr}', ${isArriveFull}, ${isTargetFull}, ${isDeliveryFull})"`;
+            cellClass += 'hover:border-blue-500 cursor-pointer hover:shadow-md hover:-translate-y-1';
+            if (currentTargetField !== 'all') {
+                clickAction = `onclick="applySelectedDateToFieldDirect('${dateStr}', '${currentTargetField}')"`;
+            } else {
+                clickAction = `onclick="openDateSelectorModal('${dateStr}', '${thaiDateStr}', ${isArriveFull}, ${isTargetFull}, ${isDeliveryFull})"`;
+            }
         }
 
         grid.innerHTML += `
             <div class="${cellClass}" ${clickAction}>
                 <div class="flex justify-between items-center mb-1.5">
-                    <span class="text-xs font-black ${allFull ? 'text-rose-500' : 'text-slate-400'} font-mono">${day}</span>
-                    ${allFull ? '<i class="fa-solid fa-lock text-rose-500 text-[10px]"></i>' : ''}
+                    <span class="text-xs font-black ${isCurrentFieldFull || allFull ? 'text-rose-500' : 'text-slate-400'} font-mono">${day}</span>
+                    ${lockIcon}
                 </div>
-                <div class="flex flex-col gap-1 w-full flex-1">${badgeHTML}</div>
                 ${quotaHTML}
             </div>
         `;
     }
+}
+
+// 🌟 4. ฟังก์ชันนำวันที่ไปใส่ในฟอร์มทันที (แก้ INP Delay) 🌟
+function applySelectedDateToFieldDirect(dateStr, fieldId) {
+    const inputField = document.getElementById(fieldId);
+    closeModal('scheduleCalendarModal');
+    
+    requestAnimationFrame(() => {
+        inputField.value = dateStr;
+        inputField.dispatchEvent(new Event('change', { bubbles: true }));
+        inputField.classList.add('ring-4', 'ring-blue-500/30', 'border-blue-500');
+        setTimeout(() => { 
+            inputField.classList.remove('ring-4', 'ring-blue-500/30', 'border-blue-500'); 
+        }, 1000);
+    });
 }
 
 function openDateSelectorModal(dateStr, thaiDateStr, isArriveFull, isTargetFull, isDeliveryFull) {
@@ -1019,20 +1089,8 @@ function openDateSelectorModal(dateStr, thaiDateStr, isArriveFull, isTargetFull,
 }
 
 function applySelectedDateToField(fieldId) {
-    const dateStr = document.getElementById('ds_temp_date_val').value;
-    const inputField = document.getElementById(fieldId);
-    
+    applySelectedDateToFieldDirect(document.getElementById('ds_temp_date_val').value, fieldId);
     closeModal('dateSelectorModal');
-    closeModal('scheduleCalendarModal');
-    
-    requestAnimationFrame(() => {
-        inputField.value = dateStr;
-        inputField.dispatchEvent(new Event('change', { bubbles: true }));
-        inputField.classList.add('ring-4', 'ring-blue-500/30', 'border-blue-500');
-        setTimeout(() => { 
-            inputField.classList.remove('ring-4', 'ring-blue-500/30', 'border-blue-500'); 
-        }, 1000);
-    });
 }
 
 function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
