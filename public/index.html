@@ -66,7 +66,7 @@
         }
         .resizer-po:hover, .resizer-po.resizing { background-color: #f59e0b !important; }
         
-        .sched-cell { @apply bg-white border border-slate-200 rounded-xl p-2 min-h-[135px] flex flex-col justify-between hover:border-blue-500 transition-all cursor-pointer hover:shadow-md; }
+        .sched-cell { @apply bg-white border border-slate-200 rounded-xl p-2 min-h-[135px] flex flex-col justify-between hover:border-blue-500 transition-all; }
         .quota-bar { @apply h-1.5 rounded-full bg-slate-200 overflow-hidden mt-0.5; }
         .quota-fill { @apply h-full transition-all duration-500; }
         .modal-fade { animation: fadeIn 0.2s ease-in-out; }
@@ -296,14 +296,14 @@
                             <span class="text-xs font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-truck-ramp-box text-emerald-600 w-5 text-center text-sm"></i> 2. รถเข้าจอดอู่</span>
                             <div class="flex gap-2">
                                 <input type="date" id="arrived_date" class="minimal-input sm:w-40 py-2 !bg-white focus:ring-emerald-500/30">
-                                <button type="button" onclick="openScheduleCalendar()" class="bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-300 px-3 rounded-xl shadow-sm transition"><i class="fa-solid fa-calendar-plus"></i></button>
+                                <button type="button" onclick="openScheduleCalendar('arrived_date')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-300 px-3 rounded-xl shadow-sm transition" title="ดูโควต้ารถเข้าจอด"><i class="fa-solid fa-calendar-check"></i></button>
                             </div>
                         </div>
                         <div class="timeline-row">
                             <span class="text-xs font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-car-tunnel text-amber-500 w-5 text-center text-sm"></i> 3. กำหนดซ่อมเสร็จ</span>
                             <div class="flex gap-2">
                                 <input type="date" id="target_finish_date" class="minimal-input sm:w-40 py-2 !bg-white">
-                                <button type="button" onclick="openScheduleCalendar()" class="bg-amber-100 hover:bg-amber-200 text-amber-700 border border-amber-300 px-3 rounded-xl shadow-sm transition"><i class="fa-solid fa-calendar-plus"></i></button>
+                                <button type="button" onclick="openScheduleCalendar('target_finish_date')" class="bg-amber-100 hover:bg-amber-200 text-amber-700 border border-amber-300 px-3 rounded-xl shadow-sm transition" title="ดูโควต้าคิวซ่อม"><i class="fa-solid fa-calendar-check"></i></button>
                             </div>
                         </div>
                         <div class="timeline-row">
@@ -314,7 +314,7 @@
                             <span class="text-xs font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-key text-indigo-600 w-5 text-center text-sm"></i> 5. ส่งมอบรถลูกค้า</span>
                             <div class="flex gap-2">
                                 <input type="date" id="delivery_date" class="minimal-input sm:w-40 py-2 !bg-white">
-                                <button type="button" onclick="openScheduleCalendar()" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 border border-indigo-300 px-3 rounded-xl shadow-sm transition"><i class="fa-solid fa-calendar-plus"></i></button>
+                                <button type="button" onclick="openScheduleCalendar('delivery_date')" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 border border-indigo-300 px-3 rounded-xl shadow-sm transition" title="ดูโควต้าส่งมอบ"><i class="fa-solid fa-calendar-check"></i></button>
                             </div>
                         </div>
                     </div>
@@ -363,19 +363,24 @@
         </main>
     </div>
 
-    <!-- 🌟 Modal: ปฏิทินคิวรถ (อัปเดตลอจิกใหม่) 🌟 -->
+    <!-- 🌟 Modal: ปฏิทินคิวรถ แบบโชว์หน้าเดียว (Context-Aware) 🌟 -->
     <div id="scheduleCalendarModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[120] flex items-center justify-center hidden p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden modal-fade border-t-4 border-blue-600 flex flex-col max-h-[90vh]">
             <div class="bg-[#00320D] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md z-10 relative">
-                <h2 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-calendar-days text-blue-400"></i> ตารางคิวรถ และ โควต้าชิ้นงานทำสี</h2>
+                <h2 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-calendar-days text-blue-400"></i> <span id="modal_dynamic_title">ตารางโควต้า</span></h2>
                 <button type="button" onclick="closeModal('scheduleCalendarModal')" class="hover:text-red-400 transition text-2xl"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div class="flex-1 overflow-auto custom-scrollbar p-6 bg-slate-50">
+            
+            <div class="flex-1 overflow-auto custom-scrollbar p-6 bg-slate-50 relative">
+                <!-- 🌟 Loading State (แก้ปัญหาเว็บค้างตอนกด) 🌟 -->
+                <div id="calendar_loading" class="absolute inset-0 bg-white/90 backdrop-blur-sm z-20 flex flex-col items-center justify-center hidden">
+                    <i class="fa-solid fa-spinner fa-spin text-4xl text-[#00320D] mb-3"></i>
+                    <p class="font-bold text-slate-600">กำลังดึงข้อมูลคิวงาน...</p>
+                </div>
+                
                 <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                    <div class="flex flex-wrap items-center gap-3 text-[11px] font-bold bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm">
-                        <span class="text-emerald-600 flex items-center"><div class="w-3 h-3 rounded-full bg-emerald-500 mr-1.5"></div> รถเข้าจอด</span>
-                        <span class="text-amber-600 flex items-center"><div class="w-3 h-3 rounded-full bg-amber-500 mr-1.5"></div> นัดซ่อมเสร็จ</span>
-                        <span class="text-blue-600 flex items-center"><div class="w-3 h-3 rounded-full bg-blue-500 mr-1.5"></div> ส่งมอบ</span>
+                    <div id="calendar_legend" class="flex flex-wrap items-center gap-3 text-[11px] font-bold bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm">
+                        <!-- Dynamic Legend -->
                     </div>
                     <div class="flex items-center gap-4 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm">
                         <button type="button" onclick="changeSchedMonth(-1)" class="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold transition-colors"><i class="fa-solid fa-chevron-left"></i></button>
@@ -391,34 +396,31 @@
         </div>
     </div>
 
-    <!-- 🌟 Modal: เลือกวันที่ลงในช่อง (อัปเดตใหม่) 🌟 -->
-    <div id="dateSelectorModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[130] flex items-center justify-center hidden p-4">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden modal-fade border border-slate-200">
-            <div class="bg-blue-50 px-6 py-4 border-b border-blue-100 flex justify-between items-center">
-                <h3 class="font-bold text-[#00320D] flex items-center gap-2">
-                    <i class="fa-regular fa-calendar-check text-blue-500"></i> เลือกใช้วันที่ <span id="ds_selected_date_text" class="text-blue-600 bg-white px-2 py-0.5 border border-blue-200 rounded shadow-sm"></span>
-                </h3>
-                <button type="button" onclick="closeModal('dateSelectorModal')" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="p-6 space-y-3">
-                <p class="text-xs text-slate-500 font-bold mb-4">คุณต้องการนำวันที่ที่เลือก ไปใส่ในช่องไหน?</p>
-                <input type="hidden" id="ds_temp_date_val">
-                <button type="button" onclick="applySelectedDateToField('arrived_date')" class="w-full text-left px-4 py-3 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-bold rounded-xl shadow-sm transition flex items-center gap-3">
-                    <i class="fa-solid fa-truck-ramp-box w-5 text-center text-emerald-500"></i> นำไปใส่ช่อง "รถเข้าจอดอู่"
-                </button>
-                <button type="button" onclick="applySelectedDateToField('target_finish_date')" class="w-full text-left px-4 py-3 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 font-bold rounded-xl shadow-sm transition flex items-center gap-3">
-                    <i class="fa-solid fa-car-tunnel w-5 text-center text-amber-500"></i> นำไปใส่ช่อง "กำหนดซ่อมเสร็จ"
-                </button>
-                <button type="button" onclick="applySelectedDateToField('delivery_date')" class="w-full text-left px-4 py-3 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-800 font-bold rounded-xl shadow-sm transition flex items-center gap-3">
-                    <i class="fa-solid fa-key w-5 text-center text-indigo-500"></i> นำไปใส่ช่อง "ส่งมอบรถลูกค้า"
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- Modal PO -->
     <div id="editPOModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[150] flex items-center justify-center hidden p-4">
-        <!-- ... เนื้อหา PO Modal คงเดิม ... -->
+        <!-- เนื้อหา PO Modal -->
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden modal-fade border-t-4 border-[#00320D] flex flex-col">
+            <div class="bg-[#00320D] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md">
+                <h3 class="font-bold text-base flex items-center gap-2"><i class="fa-solid fa-pen-to-square text-amber-400"></i> แก้ไขรายการสั่งซื้ออะไหล่</h3>
+                <button type="button" onclick="closeEditPOModal()" class="text-slate-300 hover:text-red-400 transition text-2xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="editPOForm" onsubmit="submitEditPOModal(event)" class="p-6 space-y-4 bg-slate-50">
+                <input type="hidden" id="edit_po_modal_id">
+                <input type="hidden" id="edit_po_modal_car_plate">
+                <div>
+                    <label class="label-text text-slate-700 font-bold">จำนวนสั่งซื้อ (ชิ้น)</label>
+                    <input type="number" id="edit_po_modal_qty" required min="1" class="minimal-input font-black text-center text-xl text-amber-600 bg-white border-slate-300">
+                </div>
+                <div>
+                    <label class="label-text text-slate-700 font-bold">หมายเหตุเพิ่มเติม</label>
+                    <textarea id="edit_po_modal_notes" rows="4" class="minimal-input bg-white border-slate-300 resize-none text-xs font-medium" placeholder="พิมพ์รายละเอียดหมายเหตุที่นี่..."></textarea>
+                </div>
+                <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                    <button type="button" onclick="closeEditPOModal()" class="px-5 py-2.5 bg-white text-slate-600 text-xs font-bold rounded-xl border border-slate-300 hover:bg-slate-100 transition shadow-sm">ยกเลิก</button>
+                    <button type="submit" id="btn_submit_edit_po" class="px-6 py-2.5 bg-[#00320D] hover:bg-black text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-2 border border-green-800"><i class="fa-solid fa-floppy-disk text-amber-400"></i> บันทึกข้อมูล</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <script>
@@ -435,6 +437,14 @@
             }
             enterApp();
         });
+
+        // ฟังก์ชันช่วยแสดงวันที่แบบไทย dd/mm/yyyy
+        function formatToThaiDate(isoStr) {
+            if (!isoStr) return '';
+            const parts = String(isoStr).split('T')[0].split('-');
+            if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            return isoStr;
+        }
 
         function selectDamage(level) {
             document.getElementById('damage_level').value = level;
@@ -502,65 +512,72 @@
             document.getElementById('park_status').value = isParked ? 'จอดซ่อม' : 'ไม่จอดซ่อม';
         }
 
+        // 🌟 แก้ไข: โหลดข้อมูลแบบ Parallel (ดึงพร้อมกัน) เพื่อให้หน้าเว็บโหลดเร็วขึ้น 🌟
         async function loadInitialData() {
-            fetch(`${API_BASE_URL}/api/employees`).then(async r => {
-                if(r.ok) {
-                    const data = await r.json();
+            try {
+                const results = await Promise.allSettled([
+                    fetch(`${API_BASE_URL}/api/employees`).then(r => r.json()),
+                    fetch(`${API_BASE_URL}/api/statuses`).then(r => r.json()),
+                    fetch(`${API_BASE_URL}/api/customer-types`).then(r => r.json()),
+                    fetch(`${API_BASE_URL}/api/car-models`).then(r => r.json()),
+                    fetch(`${API_BASE_URL}/api/insurances`).then(r => r.json()),
+                    fetch(`${API_BASE_URL}/api/body-parts`).then(r => r.json())
+                ]);
+
+                // 1. Employees
+                if (results[0].status === 'fulfilled') {
+                    const data = results[0].value;
                     const saList = document.getElementById('sa_list');
                     saList.innerHTML = '';
-                    
                     const userBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
-                    
-                    const branchSAs = data.filter(e => {
-                        const isSameBranch = e.branch_name === userBranch;
-                        const role = (e.employee_role || '').toUpperCase();
-                        const isSA = role === 'SA' || role.includes('SERVICE ADVISOR') || role.includes('SERVICE');
-                        return isSameBranch && isSA;
-                    });
-
+                    const branchSAs = data.filter(e => e.branch_name === userBranch && (e.employee_role || '').toUpperCase().includes('SA'));
                     const uniqueSAs = [...new Set(branchSAs.map(e => e.employee_name).filter(Boolean))].sort();
-                    uniqueSAs.forEach(name => {
-                        saList.innerHTML += `<option value="${name}">`;
-                    });
+                    uniqueSAs.forEach(name => { saList.innerHTML += `<option value="${name}">`; });
                 }
-            }).catch(() => {});
 
-            fetch(`${API_BASE_URL}/api/statuses`).then(async r => {
-                if(!r.ok) throw new Error('API Error'); 
-                globalStatuses = await r.json();
-                const select = document.getElementById('job_status'); 
-                select.innerHTML = '<option value="">-- เลือกสถานะใบงาน --</option>';
-                globalStatuses.forEach(item => select.innerHTML += `<option value="${item.status_name}">${item.status_name}</option>`);
-            }).catch(() => {});
+                // 2. Statuses
+                if (results[1].status === 'fulfilled') {
+                    globalStatuses = results[1].value;
+                    const select = document.getElementById('job_status'); 
+                    select.innerHTML = '<option value="">-- เลือกสถานะใบงาน --</option>';
+                    globalStatuses.forEach(item => select.innerHTML += `<option value="${item.status_name}">${item.status_name}</option>`);
+                }
 
-            fetch(`${API_BASE_URL}/api/customer-types`).then(async r => {
-                if(!r.ok) throw new Error('API Error'); const data = await r.json();
-                const select = document.getElementById('customer_type'); select.innerHTML = '<option value="">-- เลือก --</option>';
-                data.forEach(item => select.innerHTML += `<option value="${item.type_name}">${item.type_name}</option>`);
-            }).catch(() => {});
+                // 3. Customer Types
+                if (results[2].status === 'fulfilled') {
+                    const select = document.getElementById('customer_type'); 
+                    select.innerHTML = '<option value="">-- เลือก --</option>';
+                    results[2].value.forEach(item => select.innerHTML += `<option value="${item.type_name}">${item.type_name}</option>`);
+                }
 
-            fetch(`${API_BASE_URL}/api/car-models`).then(async r => {
-                if(!r.ok) throw new Error('API Error'); const data = await r.json();
-                globalCarData = data; 
-                const uniqueBrands = [...new Set(data.map(car => car.car_brand))];
-                const brandList = document.getElementById('brand_list'); 
-                brandList.innerHTML = '';
-                uniqueBrands.forEach(brand => brandList.innerHTML += `<option value="${brand}">`);
-                updateCarModels('Tesla'); 
-            }).catch(() => {});
+                // 4. Car Models
+                if (results[3].status === 'fulfilled') {
+                    globalCarData = results[3].value; 
+                    const uniqueBrands = [...new Set(globalCarData.map(car => car.car_brand))];
+                    const brandList = document.getElementById('brand_list'); 
+                    brandList.innerHTML = '';
+                    uniqueBrands.forEach(brand => brandList.innerHTML += `<option value="${brand}">`);
+                    updateCarModels('Tesla'); 
+                }
 
-            fetch(`${API_BASE_URL}/api/insurances`).then(async r => {
-                if(!r.ok) throw new Error('API Error'); const data = await r.json();
-                const select = document.getElementById('payment_type'); select.innerHTML = '<option value="">-- เลือก --</option>';
-                data.forEach(item => select.innerHTML += `<option value="${item.insurance_name}">${item.insurance_name}</option>`);
-            }).catch(() => {});
-            
-            fetch(`${API_BASE_URL}/api/body-parts`).then(async r => {
-                if(!r.ok) throw new Error('API Error'); const data = await r.json();
-                repairBodyPartsList.main = data.filter(p => p.category === 'ชิ้นส่วนหลัก').map(p => p.part_name);
-                repairBodyPartsList.sub = data.filter(p => p.category === 'ชิ้นส่วนรอง').map(p => p.part_name);
-                renderBodyPartsUI();
-            }).catch(() => {});
+                // 5. Insurances
+                if (results[4].status === 'fulfilled') {
+                    const select = document.getElementById('payment_type'); 
+                    select.innerHTML = '<option value="">-- เลือก --</option>';
+                    results[4].value.forEach(item => select.innerHTML += `<option value="${item.insurance_name}">${item.insurance_name}</option>`);
+                }
+
+                // 6. Body Parts
+                if (results[5].status === 'fulfilled') {
+                    const data = results[5].value;
+                    repairBodyPartsList.main = data.filter(p => p.category === 'ชิ้นส่วนหลัก').map(p => p.part_name);
+                    repairBodyPartsList.sub = data.filter(p => p.category === 'ชิ้นส่วนรอง').map(p => p.part_name);
+                    renderBodyPartsUI();
+                }
+
+            } catch (err) {
+                console.error("Error loading initial data", err);
+            }
         }
 
         function updateCarModels(brandName) {
@@ -1016,40 +1033,57 @@
             updateStationProgress(null);
         }
 
-        // 🌟 1. ดึงข้อมูลก่อนเพื่อ Validate ก่อนส่ง 🌟
-        async function checkQuotaBeforeSubmit(branch, targetDate, reqMain, reqSub) {
+        // 🌟 เช็ค Quota ก่อนบันทึก 🌟
+        async function checkQuotaBeforeSubmit(branch, arrivedDate, targetDate, deliveryDate, reqMain, reqSub) {
             try {
-                // ถ้าไม่ใส่วันเป้าหมายซ่อมเสร็จ ปล่อยผ่าน
-                if (!targetDate) return true;
-
                 const [resJobs, resQuotas] = await Promise.all([
                     fetch(`${API_BASE_URL}/api/reports`),
                     fetch(`${API_BASE_URL}/api/quotas`)
                 ]);
                 const allJobs = await resJobs.json();
                 const allQuotas = await resQuotas.json();
-
-                // หางานในวันนั้นๆ เฉพาะสาขา
-                const jobsInTargetDay = allJobs.filter(j => j.branch_name === branch && j.target_finish_date && j.target_finish_date.split('T')[0] === targetDate && j.id != document.getElementById('sa_report_id').value);
-                
-                let usedMain = 0; let usedSub = 0;
-                jobsInTargetDay.forEach(j => {
-                    usedMain += parseInt(j.main_part_qty) || 0;
-                    usedSub += parseInt(j.sub_part_qty) || 0;
-                });
-
                 const branchQuotas = allQuotas.filter(q => q.branch_name === branch);
-                const specialQuota = branchQuotas.find(q => q.quota_type === 'special' && q.quota_date && q.quota_date.split('T')[0] === targetDate);
                 const defaultQuota = branchQuotas.find(q => q.quota_type === 'default');
+                const editId = document.getElementById('sa_report_id').value;
 
-                const maxMain = specialQuota ? parseInt(specialQuota.quota_main_parts||0) : (defaultQuota ? parseInt(defaultQuota.quota_main_parts||0) : 0);
-                const maxSub = specialQuota ? parseInt(specialQuota.quota_sub_parts||0) : (defaultQuota ? parseInt(defaultQuota.quota_sub_parts||0) : 0);
+                const getQ = (d) => {
+                    const sq = branchQuotas.find(q => q.quota_type === 'special' && q.quota_date && q.quota_date.split('T')[0] === d);
+                    return {
+                        maxCars: sq && sq.quota_cars !== undefined ? parseInt(sq.quota_cars) : (defaultQuota ? parseInt(defaultQuota.quota_cars) : 0),
+                        maxMain: sq ? parseInt(sq.quota_main_parts||0) : (defaultQuota ? parseInt(defaultQuota.quota_main_parts||0) : 0),
+                        maxSub: sq ? parseInt(sq.quota_sub_parts||0) : (defaultQuota ? parseInt(defaultQuota.quota_sub_parts||0) : 0)
+                    };
+                };
 
-                if (maxMain > 0 && (usedMain + reqMain) > maxMain) {
-                    return `กำลังการผลิตชิ้นส่วนหลักในวันที่ ${targetDate} เต็มแล้ว! (เหลือโควต้า ${Math.max(0, maxMain - usedMain)} ชิ้น)`;
+                if (arrivedDate) {
+                    const q = getQ(arrivedDate);
+                    if (q.maxCars > 0) {
+                        const count = allJobs.filter(j => j.branch_name === branch && j.arrived_date && j.arrived_date.split('T')[0] === arrivedDate && j.id != editId).length;
+                        if (count >= q.maxCars) return `โควต้ารถเข้าจอด (คัน) ในวันที่ ${formatToThaiDate(arrivedDate)} เต็มแล้ว!`;
+                    }
                 }
-                if (maxSub > 0 && (usedSub + reqSub) > maxSub) {
-                    return `กำลังการผลิตชิ้นส่วนรองในวันที่ ${targetDate} เต็มแล้ว! (เหลือโควต้า ${Math.max(0, maxSub - usedSub)} ชิ้น)`;
+
+                if (targetDate) {
+                    const q = getQ(targetDate);
+                    const jobsInDay = allJobs.filter(j => j.branch_name === branch && j.target_finish_date && j.target_finish_date.split('T')[0] === targetDate && j.id != editId);
+                    
+                    if (q.maxCars > 0 && jobsInDay.length >= q.maxCars) {
+                        return `โควต้าเป้าหมายซ่อมเสร็จ (คัน) ในวันที่ ${formatToThaiDate(targetDate)} เต็มแล้ว!`;
+                    }
+                    
+                    let usedMain = 0; let usedSub = 0;
+                    jobsInDay.forEach(j => { usedMain += parseInt(j.main_part_qty)||0; usedSub += parseInt(j.sub_part_qty)||0; });
+                    
+                    if (q.maxMain > 0 && (usedMain + reqMain) > q.maxMain) return `กำลังผลิตชิ้นส่วนหลักวันที่ ${formatToThaiDate(targetDate)} เต็มแล้ว!`;
+                    if (q.maxSub > 0 && (usedSub + reqSub) > q.maxSub) return `กำลังผลิตชิ้นส่วนรองวันที่ ${formatToThaiDate(targetDate)} เต็มแล้ว!`;
+                }
+
+                if (deliveryDate) {
+                    const q = getQ(deliveryDate);
+                    if (q.maxCars > 0) {
+                        const count = allJobs.filter(j => j.branch_name === branch && j.delivery_date && j.delivery_date.split('T')[0] === deliveryDate && j.id != editId).length;
+                        if (count >= q.maxCars) return `โควต้าคิวส่งมอบรถในวันที่ ${formatToThaiDate(deliveryDate)} เต็มแล้ว!`;
+                    }
                 }
                 
                 return true;
@@ -1085,18 +1119,29 @@
             }
 
             const branchName = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+            const arrivedDate = document.getElementById('arrived_date').value;
             const targetFinishDate = document.getElementById('target_finish_date').value;
+            const deliveryDate = document.getElementById('delivery_date').value;
+
             const cleanMainParts = selectedBodyParts.main.filter(p => !p.includes('ไม่ชิ้นงาน'));
             const cleanSubParts = selectedBodyParts.sub.filter(p => !p.includes('ไม่ชิ้นงาน'));
 
-            // 🌟 เช็ค Quota ทำสีก่อนส่ง 🌟
-            if (targetFinishDate) {
-                const quotaCheck = await checkQuotaBeforeSubmit(branchName, targetFinishDate, cleanMainParts.length, cleanSubParts.length);
+            if (arrivedDate || targetFinishDate || deliveryDate) {
+                const btnSubmit = document.getElementById('btn_submit_sa');
+                const oldBtnText = btnSubmit.innerHTML;
+                btnSubmit.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> กำลังตรวจสอบโควต้า...';
+                btnSubmit.disabled = true;
+
+                const quotaCheck = await checkQuotaBeforeSubmit(branchName, arrivedDate, targetFinishDate, deliveryDate, cleanMainParts.length, cleanSubParts.length);
+                
                 if (quotaCheck !== true) {
-                    alert('❌ ไม่สามารถบันทึกได้:\n\n' + quotaCheck + '\n\nกรุณาเลือกวัน "กำหนดซ่อมเสร็จ" ใหม่ครับ');
-                    document.getElementById('target_finish_date').focus();
+                    alert('❌ ไม่สามารถบันทึกได้:\n\n' + quotaCheck + '\n\nกรุณาเลือกวันที่ใหม่ครับ');
+                    btnSubmit.innerHTML = oldBtnText;
+                    btnSubmit.disabled = false;
                     return;
                 }
+                
+                btnSubmit.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> กำลังบันทึก...';
             }
 
             const editId = document.getElementById('sa_report_id').value;
@@ -1128,10 +1173,10 @@
             formData.payment_type = document.getElementById('payment_type').value; 
             formData.damage_level = document.getElementById('damage_level').value;
             formData.contact_date = document.getElementById('contact_date').value || null; 
-            formData.arrived_date = document.getElementById('arrived_date').value || null;
-            formData.target_finish_date = document.getElementById('target_finish_date').value || null; 
+            formData.arrived_date = arrivedDate || null;
+            formData.target_finish_date = targetFinishDate || null; 
             formData.repair_finish_date = document.getElementById('repair_finish_date').value || null;
-            formData.delivery_date = document.getElementById('delivery_date').value || null; 
+            formData.delivery_date = deliveryDate || null; 
             formData.notes = document.getElementById('notes').value; 
             formData.is_parked = document.getElementById('park_status').value; 
             formData.job_status = document.getElementById('job_status').value; 
@@ -1146,50 +1191,105 @@
             const method = editId ? 'PUT' : 'POST';
             
             try {
-                const btnSubmit = document.getElementById('btn_submit_sa');
-                const oldBtnText = btnSubmit.innerHTML;
-                btnSubmit.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> กำลังบันทึก...';
-                btnSubmit.disabled = true;
-
                 const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
                 if (!response.ok) {
                     const errData = await response.json();
                     alert('❌ บันทึกล้มเหลว:\n\n' + (errData.error || 'โปรดตรวจสอบอีกครั้ง'));
-                    btnSubmit.innerHTML = oldBtnText; btnSubmit.disabled = false; return;
+                    const btnSubmit = document.getElementById('btn_submit_sa');
+                    btnSubmit.innerHTML = editId ? '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม' : '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ';
+                    btnSubmit.disabled = false; return;
                 }
 
+                const resJson = await response.json();
+                const savedJobId = editId || resJson?.insertedId || null;
+
+                if (routingDept.includes('อะไหล่') || formData.job_status.includes('06.สั่งอะไหล่')) {
+                    const partRows = document.querySelectorAll('#order_parts_body tr');
+                    for (let tr of partRows) {
+                        const pNo = tr.querySelector('.part-no-input')?.value; 
+                        const pMain = tr.querySelector('.part-main-input')?.value;
+                        const pName = tr.querySelector('.part-name-input')?.value; 
+                        const pType = tr.querySelector('.part-type-input')?.value || 'อะไหล่หลัก';
+                        const pQty = tr.querySelector('.part-qty-input')?.value || '1';
+                        
+                        if (pNo && pName) {
+                            await fetch(`${API_BASE_URL}/api/part-orders`, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ 
+                                    job_id: savedJobId,
+                                    qt_no: qtArr.join(', '), so_no: soArr.join(', '), epc_no: null,
+                                    order_date: new Date().toISOString().split('T')[0], car_plate: formData.car_plate, vin_no: formData.vin_no, car_model: formData.car_model, 
+                                    part_no: pNo, part_main_no: pMain, part_name: pName, qty_ordered: pQty, part_type: pType, branch_name: formData.branch_name, order_status: 'รอสั่งซื้อ' 
+                                })
+                            });
+
+                            await fetch(`${API_BASE_URL}/api/part-outbound`, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    job_id: savedJobId,
+                                    issue_date: new Date().toISOString().split('T')[0],
+                                    part_no: pNo, part_main_no: pMain || null, part_name: pName, qty: pQty,
+                                    car_plate: formData.car_plate, qt_no: qtArr.join(',') || null, so_no: soArr.join(',') || null,
+                                    unit_price: 0, car_model: formData.car_model || null,
+                                    job_status: 'รอเข้าซ่อม', part_type: pType,
+                                    branch_name: formData.branch_name
+                                })
+                            }).catch(e => console.warn(e));
+                        }
+                    }
+                }
+                
                 if (editId) { alert(`🎉 อัปเดตใบงานเรียบร้อย!`); cancelEditMode(); } 
                 else { alert(`🎉 เปิดบิลเรียบร้อย!`); cancelEditMode(); }
                 
             } catch (e) { 
                 alert('❌ เครือข่ายขัดข้อง'); 
                 const btnSubmit = document.getElementById('btn_submit_sa');
-                btnSubmit.innerHTML = '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ'; 
+                btnSubmit.innerHTML = editId ? '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม' : '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ'; 
                 btnSubmit.disabled = false;
             }
         }
 
+        // 🌟 1. ดึงข้อมูลปฏิทิน และโหลดเฉพาะฟิลด์เป้าหมาย 🌟
         let currentSchedMonth = new Date().getMonth();
         let currentSchedYear = new Date().getFullYear();
         let allSchedJobs = [];
         let allSchedQuotas = [];
+        let currentTargetField = ''; // เก็บฟิลด์ที่กดปฏิทินมา (arrived_date, target_finish_date, delivery_date)
 
-        async function openScheduleCalendar() {
+        async function openScheduleCalendar(field) {
+            currentTargetField = field;
             document.getElementById('scheduleCalendarModal').classList.remove('hidden');
+            document.getElementById('calendar_loading').classList.remove('hidden');
+
+            const titles = {
+                'arrived_date': 'เช็คโควต้า: รถเข้าจอดอู่ (คัน)',
+                'target_finish_date': 'เช็คโควต้า: เป้าซ่อมเสร็จ & ชิ้นงานทำสี',
+                'delivery_date': 'เช็คโควต้า: ส่งมอบรถลูกค้า (คัน)'
+            };
+            document.getElementById('modal_dynamic_title').innerText = titles[field] || 'ตารางโควต้า';
+
             try {
                 const b = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+                const editId = document.getElementById('sa_report_id').value;
+
                 const [resJobs, resQuotas] = await Promise.all([
                     fetch(`${API_BASE_URL}/api/reports`),
                     fetch(`${API_BASE_URL}/api/quotas`)
                 ]);
+                
                 const rawJobs = await resJobs.json();
-                allSchedJobs = rawJobs.filter(j => j.branch_name === b);
+                allSchedJobs = rawJobs.filter(j => j.branch_name === b && String(j.id) !== String(editId));
                 
                 const rawQuotas = await resQuotas.json();
                 allSchedQuotas = rawQuotas.filter(q => q.branch_name === b);
                 
                 renderSchedCalendar();
-            } catch (e) { console.error('โหลดข้อมูลปฏิทินล้มเหลว', e); }
+            } catch (e) { 
+                console.error('โหลดข้อมูลปฏิทินล้มเหลว', e); 
+            } finally {
+                document.getElementById('calendar_loading').classList.add('hidden');
+            }
         }
 
         function changeSchedMonth(direction) {
@@ -1199,6 +1299,7 @@
             renderSchedCalendar();
         }
 
+        // 🌟 2. Render เฉพาะป้ายโควต้าที่เกี่ยวข้อง 🌟
         function renderSchedCalendar() {
             const grid = document.getElementById('sched_calendar_grid'); grid.innerHTML = '';
             const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
@@ -1212,105 +1313,105 @@
             for(let day = 1; day <= totalDays; day++) {
                 const dateStr = `${currentSchedYear}-${String(currentSchedMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
                 
-                const arrCount = allSchedJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length;
-                const tarCount = allSchedJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).length;
-                const delCount = allSchedJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
-
-                // 🌟 เปลี่ยนมานับชิ้นงาน (หลัก/รอง) ในวัน "เป้าซ่อมเสร็จ" (Target Finish) แทน
-                const mainPartsSum = allSchedJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).reduce((sum, j) => sum + (parseInt(j.main_part_qty)||0), 0);
-                const subPartsSum = allSchedJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).reduce((sum, j) => sum + (parseInt(j.sub_part_qty)||0), 0);
-
                 const specialQuota = allSchedQuotas.find(q => q.quota_type === 'special' && q.quota_date && q.quota_date.split('T')[0] === dateStr);
                 const defaultQuota = allSchedQuotas.find(q => q.quota_type === 'default');
                 
-                // 🌟 ดึงโควต้ารถเข้าจอด (Quota Cars)
-                const maxCars = specialQuota && specialQuota.quota_cars !== undefined ? (parseInt(specialQuota.quota_cars)||0) : (defaultQuota ? (parseInt(defaultQuota.quota_cars)||0) : 0);
-                const maxMain = specialQuota ? (parseInt(specialQuota.quota_main_parts)||0) : (defaultQuota ? (parseInt(defaultQuota.quota_main_parts)||0) : 0);
-                const maxSub = specialQuota ? (parseInt(specialQuota.quota_sub_parts)||0) : (defaultQuota ? (parseInt(defaultQuota.quota_sub_parts)||0) : 0);
+                const maxCars = specialQuota && specialQuota.quota_cars !== undefined ? parseInt(specialQuota.quota_cars) : (defaultQuota ? parseInt(defaultQuota.quota_cars) : 0);
+                const maxMain = specialQuota ? parseInt(specialQuota.quota_main_parts||0) : (defaultQuota ? parseInt(defaultQuota.quota_main_parts||0) : 0);
+                const maxSub = specialQuota ? parseInt(specialQuota.quota_sub_parts||0) : (defaultQuota ? parseInt(defaultQuota.quota_sub_parts||0) : 0);
 
+                let isFull = false;
                 let badgeHTML = '';
-                if(arrCount > 0) badgeHTML += `<div class="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5 w-full flex justify-between items-center"><i class="fa-solid fa-car-side"></i> <span>${arrCount} คัน</span></div>`;
-                if(tarCount > 0) badgeHTML += `<div class="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 w-full flex justify-between items-center"><i class="fa-solid fa-hammer"></i> <span>${tarCount} คัน</span></div>`;
-                if(delCount > 0) badgeHTML += `<div class="text-[9px] font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5 w-full flex justify-between items-center"><i class="fa-solid fa-flag-checkered"></i> <span>${delCount} คัน</span></div>`;
-
                 let quotaHTML = '';
-                if (maxMain > 0 || maxSub > 0 || maxCars > 0) {
-                    quotaHTML += `<div class="mt-auto w-full pt-1 flex flex-col gap-1">`;
-                    
-                    // 🌟 1. แถบโควต้ารถเข้าจอด (คัน)
-                    if (maxCars > 0) {
-                        let pctCar = Math.min((arrCount / maxCars) * 100, 100);
-                        let colorCar = pctCar >= 100 ? 'bg-rose-600' : (pctCar >= 80 ? 'bg-emerald-500' : 'bg-emerald-400');
-                        quotaHTML += `
-                        <div title="โควต้ารถเข้าจอดต่อวัน">
-                            <div class="flex justify-between text-[8px] font-black text-slate-500 mb-0.5"><span>คิวรถเข้า</span><span class="${pctCar>=100?'text-rose-600':''}">${arrCount}/${maxCars}</span></div>
-                            <div class="quota-bar"><div class="quota-fill ${colorCar}" style="width: ${pctCar}%"></div></div>
-                        </div>`;
-                    }
 
-                    // 🌟 2. แถบกำลังผลิตทำสีชิ้นหลัก (ประเมินจากวันเป้าซ่อมเสร็จ)
+                if (currentTargetField === 'arrived_date') {
+                    const arrCount = allSchedJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length;
+                    isFull = maxCars > 0 && arrCount >= maxCars;
+                    badgeHTML = `<div class="text-[10px] font-bold ${isFull ? 'text-rose-600 bg-rose-50' : 'text-emerald-700 bg-emerald-50'} rounded px-2 py-1 mb-1 border ${isFull?'border-rose-200':'border-emerald-200'}"><i class="fa-solid fa-truck-ramp-box"></i> รถเข้า: ${arrCount}/${maxCars||'∞'} คัน</div>`;
+                } 
+                else if (currentTargetField === 'target_finish_date') {
+                    const tarCount = allSchedJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).length;
+                    const mainPartsSum = allSchedJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).reduce((sum, j) => sum + (parseInt(j.main_part_qty)||0), 0);
+                    const subPartsSum = allSchedJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).reduce((sum, j) => sum + (parseInt(j.sub_part_qty)||0), 0);
+
+                    const isTargetCarFull = maxCars > 0 && tarCount >= maxCars;
+                    const isMainFull = maxMain > 0 && mainPartsSum >= maxMain;
+                    const isSubFull = maxSub > 0 && subPartsSum >= maxSub;
+                    isFull = isTargetCarFull || isMainFull || isSubFull;
+
+                    badgeHTML = `<div class="text-[10px] font-bold ${isTargetCarFull ? 'text-rose-600 bg-rose-50' : 'text-amber-700 bg-amber-50'} rounded px-2 py-1 mb-1 border border-amber-200"><i class="fa-solid fa-hammer"></i> เป้าเสร็จ: ${tarCount}/${maxCars||'∞'} คัน</div>`;
+                    
                     if (maxMain > 0) {
                         let pct = Math.min((mainPartsSum / maxMain) * 100, 100);
-                        let color = pct >= 100 ? 'bg-rose-600' : (pct >= 80 ? 'bg-amber-500' : 'bg-blue-500');
-                        quotaHTML += `
-                        <div title="กำลังผลิตทำสีชิ้นหลัก (ประเมินจากวันเป้าซ่อมเสร็จ)">
-                            <div class="flex justify-between text-[8px] font-black text-slate-500 mb-0.5"><span>ชิ้นหลัก(เสร็จ)</span><span class="${pct>=100?'text-rose-600':''}">${mainPartsSum}/${maxMain}</span></div>
-                            <div class="quota-bar"><div class="quota-fill ${color}" style="width: ${pct}%"></div></div>
-                        </div>`;
+                        let c = pct >= 100 ? 'bg-rose-500' : 'bg-blue-500';
+                        quotaHTML += `<div class="text-[9px] font-bold text-slate-500 mb-0.5 flex justify-between"><span>ชิ้นหลัก</span><span class="${pct>=100?'text-rose-600':''}">${mainPartsSum}/${maxMain}</span></div><div class="h-1.5 bg-slate-200 rounded mb-1"><div class="h-full ${c} rounded" style="width:${pct}%"></div></div>`;
                     }
-
-                    // 🌟 3. แถบกำลังผลิตทำสีชิ้นรอง (ประเมินจากวันเป้าซ่อมเสร็จ)
                     if (maxSub > 0) {
                         let pct = Math.min((subPartsSum / maxSub) * 100, 100);
-                        let color = pct >= 100 ? 'bg-rose-600' : (pct >= 80 ? 'bg-amber-500' : 'bg-amber-400');
-                        quotaHTML += `
-                        <div title="กำลังผลิตทำสีชิ้นรอง (ประเมินจากวันเป้าซ่อมเสร็จ)">
-                            <div class="flex justify-between text-[8px] font-black text-slate-500 mb-0.5"><span>ชิ้นรอง(เสร็จ)</span><span class="${pct>=100?'text-rose-600':''}">${subPartsSum}/${maxSub}</span></div>
-                            <div class="quota-bar"><div class="quota-fill ${color}" style="width: ${pct}%"></div></div>
-                        </div>`;
+                        let c = pct >= 100 ? 'bg-rose-500' : 'bg-amber-500';
+                        quotaHTML += `<div class="text-[9px] font-bold text-slate-500 mb-0.5 flex justify-between"><span>ชิ้นรอง</span><span class="${pct>=100?'text-rose-600':''}">${subPartsSum}/${maxSub}</span></div><div class="h-1.5 bg-slate-200 rounded mb-1"><div class="h-full ${c} rounded" style="width:${pct}%"></div></div>`;
                     }
-                    
-                    quotaHTML += `</div>`;
-                } else {
-                    quotaHTML = `<div class="mt-auto w-full pt-2 text-[8px] font-bold text-slate-400 text-center">ไม่จำกัดโควต้า</div>`;
+                } 
+                else if (currentTargetField === 'delivery_date') {
+                    const delCount = allSchedJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
+                    isFull = maxCars > 0 && delCount >= maxCars;
+                    badgeHTML = `<div class="text-[10px] font-bold ${isFull ? 'text-rose-600 bg-rose-50' : 'text-indigo-700 bg-indigo-50'} rounded px-2 py-1 mb-1 border ${isFull?'border-rose-200':'border-indigo-200'}"><i class="fa-solid fa-key"></i> ส่งมอบ: ${delCount}/${maxCars||'∞'} คัน</div>`;
                 }
 
-                // กำหนด Format ให้แสดงผลบนหน้าจอเป็น dd/mm/yyyy
-                const thaiDateStr = `${String(day).padStart(2,'0')}/${String(currentSchedMonth+1).padStart(2,'0')}/${currentSchedYear}`;
+                let cellClass = 'sched-cell hover:border-blue-500 cursor-pointer hover:shadow-md transition-all';
+                let clickAction = `onclick="selectDateFromCalendar('${dateStr}')"`;
+
+                if (isFull) {
+                    cellClass = 'sched-cell bg-slate-100 border-rose-200 opacity-60 cursor-not-allowed grayscale';
+                    clickAction = `onclick="alert('❌ โควต้าเต็มแล้ว ไม่สามารถเลือกวันที่นี้ได้ครับ!')"`;
+                }
 
                 grid.innerHTML += `
-                    <div class="sched-cell hover:bg-blue-50/30" onclick="openDateSelectorModal('${dateStr}', '${thaiDateStr}')">
-                        <span class="text-xs font-black text-slate-400 font-mono mb-1.5">${day}</span>
-                        <div class="flex flex-col gap-1 w-full flex-1">${badgeHTML}</div>
-                        ${quotaHTML}
+                    <div class="${cellClass}" ${clickAction}>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs font-black ${isFull ? 'text-rose-500' : 'text-slate-500'} font-mono">${day}</span>
+                            ${isFull ? '<i class="fa-solid fa-lock text-rose-500 text-[10px]" title="คิวเต็มแล้ว"></i>' : ''}
+                        </div>
+                        <div class="flex flex-col w-full flex-1">
+                            ${badgeHTML}
+                            ${quotaHTML}
+                        </div>
                     </div>
                 `;
             }
         }
 
-        function openDateSelectorModal(dateStr, thaiDateStr) {
-            document.getElementById('ds_temp_date_val').value = dateStr;
-            document.getElementById('ds_selected_date_text').innerText = thaiDateStr;
-            document.getElementById('dateSelectorModal').classList.remove('hidden');
-        }
-
-        function applySelectedDateToField(fieldId) {
-            const dateStr = document.getElementById('ds_temp_date_val').value;
-            const inputField = document.getElementById(fieldId);
-            
-            inputField.value = dateStr;
-            
-            closeModal('dateSelectorModal');
+        // 🌟 3. ลบ UI สองขั้นทิ้ง, เลือกเสร็จ ยัดลงช่องทันที (แก้ INP ด้วย) 🌟
+        function selectDateFromCalendar(dateStr) {
+            const inputField = document.getElementById(currentTargetField);
             closeModal('scheduleCalendarModal');
             
-            // Effect ไฮไลต์ให้ SA รู้ว่าช่องไหนถูกเติม
-            inputField.classList.add('ring-4', 'ring-blue-500/30', 'border-blue-500');
-            setTimeout(() => { 
-                inputField.classList.remove('ring-4', 'ring-blue-500/30', 'border-blue-500'); 
-            }, 1500);
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    inputField.value = dateStr;
+                    inputField.dispatchEvent(new Event('change', { bubbles: true }));
+                    inputField.classList.add('ring-4', 'ring-blue-500/30', 'border-blue-500');
+                    setTimeout(() => { 
+                        inputField.classList.remove('ring-4', 'ring-blue-500/30', 'border-blue-500'); 
+                    }, 1000);
+                }, 20); 
+            });
         }
 
         function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
+        
+        let dateInputTimer = null;
+        document.querySelectorAll('input[type="date"]').forEach(input => {
+            input.addEventListener('change', function(e) {
+                if (e.target.id === 'arrived_date' || e.target.id === 'target_finish_date' || e.target.id === 'delivery_date') {
+                    e.target.classList.add('opacity-50'); 
+                    clearTimeout(dateInputTimer);
+                    dateInputTimer = setTimeout(() => {
+                        e.target.classList.remove('opacity-50');
+                    }, 200);
+                }
+            });
+        });
     </script>
 </body>
 </html>
