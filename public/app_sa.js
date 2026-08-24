@@ -59,7 +59,8 @@ async function handleLogin(e) {
             const accessiblePages = data.employee.accessible_pages || '';
             sessionStorage.setItem('accessible_pages', accessiblePages);
             
-            window.location.href = 'dashboard.html';
+            // 🌟 แก้ไข: ให้รีเฟรชหน้าเดิมแทนที่จะเด้งไป Dashboard เพื่อให้เข้าหน้า SA ทันที 🌟
+            window.location.reload(); 
         } else alert('❌ ' + data.error);
     } catch (err) { alert('❌ ระบบขัดข้อง'); }
 }
@@ -165,9 +166,6 @@ function updateCarModels(brandName) {
         select.innerHTML += `<option value="${car.car_model}">${car.car_model}</option>`; 
     });
 }
-
-let repairBodyPartsList = { main: [], sub: [] };
-let selectedBodyParts = { main: [], sub: [] };
 
 function renderBodyPartsUI() {
     const mainContainer = document.getElementById('body_parts_main'); 
@@ -832,7 +830,7 @@ async function submitSaForm(event) {
                             issue_date: new Date().toISOString().split('T')[0],
                             part_no: pNo, part_main_no: pMain || null, part_name: pName, qty: pQty,
                             car_plate: formData.car_plate, qt_no: qtArr.join(',') || null, so_no: soArr.join(',') || null,
-                            unit_price: 0, car_model: formData.car_model || null,
+                            unit_price: 0, car_model: document.getElementById('car_model')?.value || null,
                             job_status: 'รอเข้าซ่อม', part_type: pType,
                             branch_name: formData.branch_name
                         })
