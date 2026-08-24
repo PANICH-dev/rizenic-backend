@@ -14,8 +14,10 @@ let currentTargetField = 'all';
 
 document.addEventListener('DOMContentLoaded', () => {
     if(sessionStorage.getItem('isLoggedIn') !== 'true') {
-        document.getElementById('login-screen').classList.remove('hidden');
-        document.getElementById('main-app').classList.add('hidden');
+        const loginScr = document.getElementById('login-screen');
+        const mainApp = document.getElementById('main-app');
+        if (loginScr) loginScr.classList.remove('hidden');
+        if (mainApp) mainApp.classList.add('hidden');
         return;
     }
     enterApp();
@@ -29,18 +31,20 @@ function formatToThaiDate(isoStr) {
 }
 
 function selectDamage(level) {
-    document.getElementById('damage_level').value = level;
+    const dmgInput = document.getElementById('damage_level');
+    if (dmgInput) dmgInput.value = level;
+    
     const b = document.getElementById('dmg_btn_เบา');
     const m = document.getElementById('dmg_btn_กลาง');
     const h = document.getElementById('dmg_btn_หนัก');
 
-    b.className = 'dmg-btn dmg-btn-light'; 
-    m.className = 'dmg-btn dmg-btn-medium'; 
-    h.className = 'dmg-btn dmg-btn-heavy';
+    if (b) b.className = 'dmg-btn dmg-btn-light'; 
+    if (m) m.className = 'dmg-btn dmg-btn-medium'; 
+    if (h) h.className = 'dmg-btn dmg-btn-heavy';
 
-    if(level === 'เบา') b.className = 'dmg-btn bg-emerald-600 text-white border-emerald-700 shadow-md scale-[1.02]';
-    if(level === 'กลาง') m.className = 'dmg-btn bg-amber-500 text-slate-900 border-amber-600 shadow-md scale-[1.02]';
-    if(level === 'หนัก') h.className = 'dmg-btn bg-rose-600 text-white border-rose-700 shadow-md scale-[1.02]';
+    if(level === 'เบา' && b) b.className = 'dmg-btn bg-emerald-600 text-white border-emerald-700 shadow-md scale-[1.02]';
+    if(level === 'กลาง' && m) m.className = 'dmg-btn bg-amber-500 text-slate-900 border-amber-600 shadow-md scale-[1.02]';
+    if(level === 'หนัก' && h) h.className = 'dmg-btn bg-rose-600 text-white border-rose-700 shadow-md scale-[1.02]';
 }
 
 async function handleLogin(e) {
@@ -59,22 +63,28 @@ async function handleLogin(e) {
             const accessiblePages = data.employee.accessible_pages || '';
             sessionStorage.setItem('accessible_pages', accessiblePages);
             
-            window.location.reload(); 
+            enterApp(); 
         } else alert('❌ ' + data.error);
     } catch (err) { alert('❌ ระบบขัดข้อง'); }
 }
 
 async function enterApp() {
-    document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('main-app').classList.remove('hidden');
+    const loginScr = document.getElementById('login-screen');
+    const mainApp = document.getElementById('main-app');
+    if (loginScr) loginScr.classList.add('hidden');
+    if (mainApp) mainApp.classList.remove('hidden');
     
-    document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name') || 'Admin Test';
-    document.getElementById('display_branch').innerText = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+    const empNameEl = document.getElementById('display_emp_name');
+    const branchEl = document.getElementById('display_branch');
+    const saOwnerInp = document.getElementById('sa_owner_input');
+    const contactDateInp = document.getElementById('contact_date');
+
+    if (empNameEl) empNameEl.innerText = sessionStorage.getItem('emp_name') || 'Admin Test';
+    if (branchEl) branchEl.innerText = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+    if (saOwnerInp) saOwnerInp.value = sessionStorage.getItem('emp_name') || '';
+    if (contactDateInp) contactDateInp.value = new Date().toISOString().split('T')[0];
     
-    document.getElementById('sa_owner_input').value = sessionStorage.getItem('emp_name') || '';
-    document.getElementById('contact_date').value = new Date().toISOString().split('T')[0];
     selectDamage('เบา'); 
-    
     await loadInitialData(); 
     await checkCrossPageEditMode();
 }
@@ -82,10 +92,12 @@ async function enterApp() {
 function logout() { sessionStorage.clear(); window.location.reload(); }
 
 function autoMapRouting() {
-    const selectedStatus = document.getElementById('job_status').value;
+    const jobStatusEl = document.getElementById('job_status');
+    if (!jobStatusEl) return;
+    const selectedStatus = jobStatusEl.value;
     const mapping = globalStatuses.find(s => s.status_name === selectedStatus);
     const routeSelect = document.getElementById('department_routing');
-    if(mapping && mapping.department) { routeSelect.value = mapping.department; }
+    if(mapping && mapping.department && routeSelect) { routeSelect.value = mapping.department; }
     
     const parkedStatuses = [
         "09.จอดรอเข้าซ่อม", "10.กำลังซ่อม", "11.รถซ่อมเสร็จรอส่งมอบ", 
@@ -94,7 +106,8 @@ function autoMapRouting() {
         "19.ออกบิลแล้ว", "20.จอดซ่อม TC", "21.พักซ่อม"
     ];
     const isParked = parkedStatuses.some(st => selectedStatus.includes(st) || st.includes(selectedStatus));
-    document.getElementById('park_status').value = isParked ? 'จอดซ่อม' : 'ไม่จอดซ่อม';
+    const parkStatusEl = document.getElementById('park_status');
+    if (parkStatusEl) parkStatusEl.value = isParked ? 'จอดซ่อม' : 'ไม่จอดซ่อม';
 }
 
 async function loadInitialData() {
@@ -111,39 +124,49 @@ async function loadInitialData() {
         if (results[0].status === 'fulfilled') {
             const data = results[0].value;
             const saList = document.getElementById('sa_list');
-            saList.innerHTML = '';
-            const userBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
-            const branchSAs = data.filter(e => e.branch_name === userBranch && (e.employee_role || '').toUpperCase().includes('SA'));
-            const uniqueSAs = [...new Set(branchSAs.map(e => e.employee_name).filter(Boolean))].sort();
-            uniqueSAs.forEach(name => { saList.innerHTML += `<option value="${name}">`; });
+            if (saList) {
+                saList.innerHTML = '';
+                const userBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+                const branchSAs = data.filter(e => e.branch_name === userBranch && (e.employee_role || '').toUpperCase().includes('SA'));
+                const uniqueSAs = [...new Set(branchSAs.map(e => e.employee_name).filter(Boolean))].sort();
+                uniqueSAs.forEach(name => { saList.innerHTML += `<option value="${name}">`; });
+            }
         }
 
         if (results[1].status === 'fulfilled') {
             globalStatuses = results[1].value;
             const select = document.getElementById('job_status'); 
-            select.innerHTML = '<option value="">-- เลือกสถานะใบงาน --</option>';
-            globalStatuses.forEach(item => select.innerHTML += `<option value="${item.status_name}">${item.status_name}</option>`);
+            if (select) {
+                select.innerHTML = '<option value="">-- เลือกสถานะใบงาน --</option>';
+                globalStatuses.forEach(item => select.innerHTML += `<option value="${item.status_name}">${item.status_name}</option>`);
+            }
         }
 
         if (results[2].status === 'fulfilled') {
             const select = document.getElementById('customer_type'); 
-            select.innerHTML = '<option value="">-- เลือก --</option>';
-            results[2].value.forEach(item => select.innerHTML += `<option value="${item.type_name}">${item.type_name}</option>`);
+            if (select) {
+                select.innerHTML = '<option value="">-- เลือก --</option>';
+                results[2].value.forEach(item => select.innerHTML += `<option value="${item.type_name}">${item.type_name}</option>`);
+            }
         }
 
         if (results[3].status === 'fulfilled') {
             globalCarData = results[3].value; 
             const uniqueBrands = [...new Set(globalCarData.map(car => car.car_brand))];
             const brandList = document.getElementById('brand_list'); 
-            brandList.innerHTML = '';
-            uniqueBrands.forEach(brand => brandList.innerHTML += `<option value="${brand}">`);
+            if (brandList) {
+                brandList.innerHTML = '';
+                uniqueBrands.forEach(brand => brandList.innerHTML += `<option value="${brand}">`);
+            }
             updateCarModels('Tesla'); 
         }
 
         if (results[4].status === 'fulfilled') {
             const select = document.getElementById('payment_type'); 
-            select.innerHTML = '<option value="">-- เลือก --</option>';
-            results[4].value.forEach(item => select.innerHTML += `<option value="${item.insurance_name}">${item.insurance_name}</option>`);
+            if (select) {
+                select.innerHTML = '<option value="">-- เลือก --</option>';
+                results[4].value.forEach(item => select.innerHTML += `<option value="${item.insurance_name}">${item.insurance_name}</option>`);
+            }
         }
 
         if (results[5].status === 'fulfilled') {
@@ -159,6 +182,7 @@ async function loadInitialData() {
 
 function updateCarModels(brandName) {
     const select = document.getElementById('car_model'); 
+    if (!select) return;
     select.innerHTML = '<option value="">-- เลือกรุ่นรถ --</option>';
     globalCarData.filter(car => car.car_brand === brandName).forEach(car => { 
         select.innerHTML += `<option value="${car.car_model}">${car.car_model}</option>`; 
@@ -168,6 +192,8 @@ function updateCarModels(brandName) {
 function renderBodyPartsUI() {
     const mainContainer = document.getElementById('body_parts_main'); 
     const subContainer = document.getElementById('body_parts_sub');
+    if (!mainContainer || !subContainer) return;
+
     mainContainer.innerHTML = ''; 
     subContainer.innerHTML = '';
     
@@ -179,8 +205,11 @@ function renderBodyPartsUI() {
         const isSelected = selectedBodyParts.sub.includes(part);
         subContainer.innerHTML += `<span onclick="toggleBodyPart('sub', '${part}')" class="part-badge ${isSelected ? 'selected-sub' : 'unselected'}">${part}</span>`;
     });
-    document.getElementById('count_main').innerText = selectedBodyParts.main.length;
-    document.getElementById('count_sub').innerText = selectedBodyParts.sub.length;
+
+    const cMain = document.getElementById('count_main');
+    const cSub = document.getElementById('count_sub');
+    if (cMain) cMain.innerText = selectedBodyParts.main.length;
+    if (cSub) cSub.innerText = selectedBodyParts.sub.length;
 
     autoCalculateDamageLevel();
 }
@@ -204,6 +233,7 @@ function autoCalculateDamageLevel() {
 
 function addDocRow(type = 'QT', val = '') {
     const tbody = document.getElementById('docs_body');
+    if (!tbody) return;
     const tr = document.createElement('tr');
     tr.innerHTML = `
         <td class="px-4 py-3"><select class="minimal-input doc-type font-bold !py-1.5"><option value="QT" ${type==='QT'?'selected':''}>ใบเสนอราคา (QT)</option><option value="SO" ${type==='SO'?'selected':''}>ใบสั่งซ่อม (SO)</option><option value="BL" ${type==='BL'?'selected':''}>ใบวางบิล (BL)</option></select></td>
@@ -263,7 +293,8 @@ async function checkMasterPart(inputElem) {
 }
 
 async function sendSinglePO(btnElem) {
-    const carPlate = document.getElementById('car_plate').value.trim();
+    const carPlateEl = document.getElementById('car_plate');
+    const carPlate = carPlateEl ? carPlateEl.value.trim() : '';
     if(!carPlate) { alert('⚠️ กรุณากรอก "ทะเบียนรถ" ด้านบนก่อนยิงออเดอร์ครับ!'); return; }
 
     const tr = btnElem.closest('tr');
@@ -311,7 +342,9 @@ async function sendSinglePO(btnElem) {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 job_id: currentJobId,
-                car_plate: carPlate, vin_no: document.getElementById('vin_no')?.value || null, car_model: document.getElementById('car_model')?.value || null, 
+                car_plate: carPlate, 
+                vin_no: document.getElementById('vin_no')?.value || null, 
+                car_model: document.getElementById('car_model')?.value || null, 
                 qt_no: qtArr.join(',') || null, so_no: soArr.join(',') || null, epc_no: null,
                 part_no: pNo, part_main_no: pMain || null, part_name: pName, qty_ordered: pQty, part_type: pType, 
                 branch_name: sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่', order_status: 'รอสั่งซื้อ', order_date: new Date().toISOString().split('T')[0]
@@ -336,7 +369,8 @@ async function sendSinglePO(btnElem) {
         }).catch(e => console.warn(e));
 
         tr.remove(); 
-        if (document.querySelectorAll('#order_parts_body tr').length === 0) {
+        const orderPartsBody = document.getElementById('order_parts_body');
+        if (orderPartsBody && orderPartsBody.children.length === 0) {
             addPartRow();
         }
 
@@ -360,6 +394,7 @@ async function sendSinglePO(btnElem) {
 
 async function loadPartsTrackingTable(carPlate) {
     const tbody = document.getElementById('track_parts_body');
+    if (!tbody) return;
     if (!carPlate || !carPlate.trim()) {
         tbody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400 text-xs font-bold bg-white">กรุณาระบุทะเบียนรถเพื่อติดตามสถานะอะไหล่</td></tr>`;
         return;
@@ -451,16 +486,23 @@ function initResizablePOColumns() {
 
 function openEditPOModal(id, qty, encodedNotes, carPlate) {
     const decodedNotes = decodeURIComponent(encodedNotes);
-    document.getElementById('edit_po_modal_id').value = id;
-    document.getElementById('edit_po_modal_car_plate').value = carPlate;
-    document.getElementById('edit_po_modal_qty').value = qty;
-    document.getElementById('edit_po_modal_notes').value = decodedNotes;
+    const poIdInp = document.getElementById('edit_po_modal_id');
+    const poPlateInp = document.getElementById('edit_po_modal_car_plate');
+    const poQtyInp = document.getElementById('edit_po_modal_qty');
+    const poNotesInp = document.getElementById('edit_po_modal_notes');
+    const poModal = document.getElementById('editPOModal');
+
+    if (poIdInp) poIdInp.value = id;
+    if (poPlateInp) poPlateInp.value = carPlate;
+    if (poQtyInp) poQtyInp.value = qty;
+    if (poNotesInp) poNotesInp.value = decodedNotes;
     
-    document.getElementById('editPOModal').classList.remove('hidden');
+    if (poModal) poModal.classList.remove('hidden');
 }
 
 function closeEditPOModal() {
-    document.getElementById('editPOModal').classList.add('hidden');
+    const poModal = document.getElementById('editPOModal');
+    if (poModal) poModal.classList.add('hidden');
 }
 
 async function submitEditPOModal(e) {
@@ -471,9 +513,11 @@ async function submitEditPOModal(e) {
     const notes = document.getElementById('edit_po_modal_notes').value;
 
     const btn = document.getElementById('btn_submit_edit_po');
-    const oldHtml = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
+    const oldHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
+    }
 
     try {
         const resMain = await fetch(`${API_BASE_URL}/api/part-orders/${id}`, {
@@ -503,8 +547,10 @@ async function submitEditPOModal(e) {
     } catch(err) {
         alert('❌ แก้ไขข้อมูลไม่สำเร็จ'); 
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = oldHtml;
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = oldHtml;
+        }
     }
 }
 
@@ -523,9 +569,12 @@ async function deletePO(id, carPlate) {
 
 async function checkCrossPageEditMode() {
     const idToEdit = sessionStorage.getItem('edit_job_id'); 
+    const docsBody = document.getElementById('docs_body');
+    const orderPartsBody = document.getElementById('order_parts_body');
+
     if(!idToEdit) {
-        if(document.getElementById('docs_body').children.length === 0) addDocRow();
-        if(document.getElementById('order_parts_body').children.length === 0) addPartRow();
+        if(docsBody && docsBody.children.length === 0) addDocRow();
+        if(orderPartsBody && orderPartsBody.children.length === 0) addPartRow();
         return;
     }
 
@@ -535,15 +584,25 @@ async function checkCrossPageEditMode() {
         const job = await res.json();
         currentEditingJob = job; 
         
-        document.getElementById('sa_report_id').value = job.id || idToEdit;
-        document.getElementById('current_editing_id').innerText = job.id || idToEdit;
-        document.getElementById('edit_mode_badge').classList.remove('hidden'); 
-        document.getElementById('btn_submit_sa').innerHTML = '<i class="fa-solid fa-file-pen mr-2"></i> บันทึกอัปเดตใบงานซ่อม';
+        const saRepId = document.getElementById('sa_report_id');
+        const curEditId = document.getElementById('current_editing_id');
+        const editBadge = document.getElementById('edit_mode_badge');
+        const btnSubSa = document.getElementById('btn_submit_sa');
 
-        document.getElementById('sa_owner_input').value = job.sa_owner || sessionStorage.getItem('emp_name') || '';
-        document.getElementById('customer_name').value = job.customer_name || ''; 
-        document.getElementById('phone_number').value = job.phone_number || '';
-        document.getElementById('car_brand').value = job.car_brand || 'Tesla';
+        if (saRepId) saRepId.value = job.id || idToEdit;
+        if (curEditId) curEditId.innerText = job.id || idToEdit;
+        if (editBadge) editBadge.classList.remove('hidden'); 
+        if (btnSubSa) btnSubSa.innerHTML = '<i class="fa-solid fa-file-pen mr-2"></i> บันทึกอัปเดตใบงานซ่อม';
+
+        const saOwnerInp = document.getElementById('sa_owner_input');
+        const custNameInp = document.getElementById('customer_name');
+        const phoneInp = document.getElementById('phone_number');
+        const carBrandInp = document.getElementById('car_brand');
+
+        if (saOwnerInp) saOwnerInp.value = job.sa_owner || sessionStorage.getItem('emp_name') || '';
+        if (custNameInp) custNameInp.value = job.customer_name || ''; 
+        if (phoneInp) phoneInp.value = job.phone_number || '';
+        if (carBrandInp) carBrandInp.value = job.car_brand || 'Tesla';
         
         await updateCarModels(job.car_brand || 'Tesla');
 
@@ -567,17 +626,21 @@ async function checkCrossPageEditMode() {
         if (job.is_parked) safeSetSelect('park_status', job.is_parked);
         else autoMapRouting(); 
 
-        document.getElementById('notes').value = job.notes || '';
-        document.getElementById('car_plate').value = job.car_plate || ''; 
-        document.getElementById('vin_no').value = job.vin_no || '';
+        const notesEl = document.getElementById('notes');
+        const carPlateEl = document.getElementById('car_plate');
+        const vinEl = document.getElementById('vin_no');
 
-        document.getElementById('docs_body').innerHTML = '';
+        if (notesEl) notesEl.value = job.notes || '';
+        if (carPlateEl) carPlateEl.value = job.car_plate || ''; 
+        if (vinEl) vinEl.value = job.vin_no || '';
+
+        if (docsBody) docsBody.innerHTML = '';
         if (job.qt_no) job.qt_no.split(',').forEach(v => { let val = v.trim(); if(val) addDocRow('QT', val); });
         if (job.so_no) job.so_no.split(',').forEach(v => { let val = v.trim(); if(val) addDocRow('SO', val); });
         if (job.bl_no) job.bl_no.split(',').forEach(v => { let val = v.trim(); if(val) addDocRow('BL', val); });
-        if (document.getElementById('docs_body').children.length === 0) addDocRow();
+        if (docsBody && docsBody.children.length === 0) addDocRow();
 
-        document.getElementById('order_parts_body').innerHTML = '';
+        if (orderPartsBody) orderPartsBody.innerHTML = '';
         addPartRow();
 
         selectDamage(job.damage_level || 'เบา');
@@ -607,24 +670,37 @@ async function checkCrossPageEditMode() {
 function cancelEditMode() {
     currentEditingJob = null;
     sessionStorage.removeItem('edit_job_id'); 
-    document.getElementById('saForm').reset(); 
-    document.getElementById('sa_report_id').value = '';
-    document.getElementById('edit_mode_badge').classList.add('hidden');
-    document.getElementById('btn_submit_sa').innerHTML = '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ';
     
-    document.getElementById('docs_body').innerHTML = ''; addDocRow();
-    document.getElementById('order_parts_body').innerHTML = ''; addPartRow();
-    document.getElementById('track_parts_body').innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400 text-xs font-bold bg-white">กรุณาบันทึกใบงานเพื่อติดตามสถานะอะไหล่</td></tr>`;
+    const saForm = document.getElementById('saForm');
+    const saRepId = document.getElementById('sa_report_id');
+    const editBadge = document.getElementById('edit_mode_badge');
+    const btnSubSa = document.getElementById('btn_submit_sa');
+    const docsBody = document.getElementById('docs_body');
+    const orderPartsBody = document.getElementById('order_parts_body');
+    const trackPartsBody = document.getElementById('track_parts_body');
+
+    if (saForm) saForm.reset(); 
+    if (saRepId) saRepId.value = '';
+    if (editBadge) editBadge.classList.add('hidden');
+    if (btnSubSa) btnSubSa.innerHTML = '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ';
+    
+    if (docsBody) { docsBody.innerHTML = ''; addDocRow(); }
+    if (orderPartsBody) { orderPartsBody.innerHTML = ''; addPartRow(); }
+    if (trackPartsBody) trackPartsBody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400 text-xs font-bold bg-white">กรุณาบันทึกใบงานเพื่อติดตามสถานะอะไหล่</td></tr>`;
     
     selectedBodyParts.main = [];
     selectedBodyParts.sub = [];
     renderBodyPartsUI();
 
     selectDamage('เบา');
-    document.getElementById('department_routing').value = 'รอดำเนินการ';
-    document.getElementById('park_status').value = 'ไม่จอดซ่อม';
     
-    document.getElementById('sa_owner_input').value = sessionStorage.getItem('emp_name') || '';
+    const deptRoute = document.getElementById('department_routing');
+    const parkStat = document.getElementById('park_status');
+    const saOwnerInp = document.getElementById('sa_owner_input');
+
+    if (deptRoute) deptRoute.value = 'รอดำเนินการ';
+    if (parkStat) parkStat.value = 'ไม่จอดซ่อม';
+    if (saOwnerInp) saOwnerInp.value = sessionStorage.getItem('emp_name') || '';
 }
 
 async function checkQuotaBeforeSubmit(branch, arrivedDate, targetDate, deliveryDate, reqMain, reqSub) {
@@ -637,7 +713,8 @@ async function checkQuotaBeforeSubmit(branch, arrivedDate, targetDate, deliveryD
         const allQuotas = await resQuotas.json();
         const branchQuotas = allQuotas.filter(q => q.branch_name === branch);
         const defaultQuota = branchQuotas.find(q => q.quota_type === 'default');
-        const editId = document.getElementById('sa_report_id').value;
+        const editIdEl = document.getElementById('sa_report_id');
+        const editId = editIdEl ? editIdEl.value : '';
 
         const getQ = (d) => {
             const sq = branchQuotas.find(q => q.quota_type === 'special' && q.quota_date && q.quota_date.split('T')[0] === d);
@@ -712,39 +789,44 @@ async function submitSaForm(event) {
     }
 
     const branchName = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
-    const arrivedDate = document.getElementById('arrived_date').value;
-    const targetFinishDate = document.getElementById('target_finish_date').value;
-    const deliveryDate = document.getElementById('delivery_date').value;
+    const arrivedDate = document.getElementById('arrived_date')?.value || '';
+    const targetFinishDate = document.getElementById('target_finish_date')?.value || '';
+    const deliveryDate = document.getElementById('delivery_date')?.value || '';
 
     const cleanMainParts = selectedBodyParts.main.filter(p => !p.includes('ไม่ชิ้นงาน'));
     const cleanSubParts = selectedBodyParts.sub.filter(p => !p.includes('ไม่ชิ้นงาน'));
 
+    const btnSubmit = document.getElementById('btn_submit_sa');
+    const oldBtnText = btnSubmit ? btnSubmit.innerHTML : '';
+
     if (arrivedDate || targetFinishDate || deliveryDate) {
-        const btnSubmit = document.getElementById('btn_submit_sa');
-        const oldBtnText = btnSubmit.innerHTML;
-        btnSubmit.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> กำลังตรวจสอบโควต้า...';
-        btnSubmit.disabled = true;
+        if (btnSubmit) {
+            btnSubmit.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> กำลังตรวจสอบโควต้า...';
+            btnSubmit.disabled = true;
+        }
 
         const quotaCheck = await checkQuotaBeforeSubmit(branchName, arrivedDate, targetFinishDate, deliveryDate, cleanMainParts.length, cleanSubParts.length);
         
         if (quotaCheck !== true) {
             alert('❌ ไม่สามารถบันทึกได้:\n\n' + quotaCheck + '\n\nกรุณาเลือกวันที่ใหม่ครับ');
-            btnSubmit.innerHTML = oldBtnText;
-            btnSubmit.disabled = false;
+            if (btnSubmit) {
+                btnSubmit.innerHTML = oldBtnText;
+                btnSubmit.disabled = false;
+            }
             return;
         }
         
-        btnSubmit.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> กำลังบันทึก...';
+        if (btnSubmit) btnSubmit.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> กำลังบันทึก...';
     }
 
-    const editId = document.getElementById('sa_report_id').value;
+    const editId = document.getElementById('sa_report_id')?.value || '';
     let qtArr = [], soArr = [], blArr = [];
     document.querySelectorAll('#docs_body tr').forEach(tr => {
-        const type = tr.querySelector('.doc-type').value; const val = tr.querySelector('.doc-no').value.trim();
+        const type = tr.querySelector('.doc-type')?.value; const val = tr.querySelector('.doc-no')?.value?.trim();
         if(val) { if(type === 'QT') qtArr.push(val); if(type === 'SO') soArr.push(val); if(type === 'BL') blArr.push(val); }
     });
 
-    const routingDept = document.getElementById('department_routing').value || 'รอดำเนินการ';
+    const routingDept = document.getElementById('department_routing')?.value || 'รอดำเนินการ';
     
     let formData = {};
     if (editId && currentEditingJob) { formData = { ...currentEditingJob }; } 
@@ -754,26 +836,26 @@ async function submitSaForm(event) {
         formData.job_order_no = null; formData.ivn_no = null;
     }
 
-    formData.sa_owner = document.getElementById('sa_owner_input').value.trim(); 
+    formData.sa_owner = document.getElementById('sa_owner_input')?.value?.trim() || ''; 
     formData.branch_name = branchName;
-    formData.customer_name = document.getElementById('customer_name').value; 
-    formData.phone_number = document.getElementById('phone_number').value;
-    formData.customer_type = document.getElementById('customer_type').value; 
-    formData.car_brand = document.getElementById('car_brand').value;
-    formData.car_model = document.getElementById('car_model').value; 
-    formData.vin_no = document.getElementById('vin_no').value;
+    formData.customer_name = document.getElementById('customer_name')?.value || ''; 
+    formData.phone_number = document.getElementById('phone_number')?.value || '';
+    formData.customer_type = document.getElementById('customer_type')?.value || ''; 
+    formData.car_brand = document.getElementById('car_brand')?.value || '';
+    formData.car_model = document.getElementById('car_model')?.value || ''; 
+    formData.vin_no = document.getElementById('vin_no')?.value || '';
     formData.qt_no = qtArr.join(', '); formData.so_no = soArr.join(', '); formData.bl_no = blArr.join(', ');
-    formData.payment_type = document.getElementById('payment_type').value; 
-    formData.damage_level = document.getElementById('damage_level').value;
-    formData.contact_date = document.getElementById('contact_date').value || null; 
+    formData.payment_type = document.getElementById('payment_type')?.value || ''; 
+    formData.damage_level = document.getElementById('damage_level')?.value || 'เบา';
+    formData.contact_date = document.getElementById('contact_date')?.value || null; 
     formData.arrived_date = arrivedDate || null;
     formData.target_finish_date = targetFinishDate || null; 
-    formData.repair_finish_date = document.getElementById('repair_finish_date').value || null;
+    formData.repair_finish_date = document.getElementById('repair_finish_date')?.value || null;
     formData.delivery_date = deliveryDate || null; 
-    formData.notes = document.getElementById('notes').value; 
-    formData.is_parked = document.getElementById('park_status').value; 
-    formData.job_status = document.getElementById('job_status').value; 
-    formData.car_plate = document.getElementById('car_plate').value;
+    formData.notes = document.getElementById('notes')?.value || ''; 
+    formData.is_parked = document.getElementById('park_status')?.value || 'ไม่จอดซ่อม'; 
+    formData.job_status = document.getElementById('job_status')?.value || ''; 
+    formData.car_plate = document.getElementById('car_plate')?.value || '';
     formData.department_routing = routingDept;
     formData.main_part_qty = cleanMainParts.length;
     formData.sub_part_qty = cleanSubParts.length;
@@ -788,9 +870,11 @@ async function submitSaForm(event) {
         if (!response.ok) {
             const errData = await response.json();
             alert('❌ บันทึกล้มเหลว:\n\n' + (errData.error || 'โปรดตรวจสอบอีกครั้ง'));
-            const btnSubmit = document.getElementById('btn_submit_sa');
-            btnSubmit.innerHTML = editId ? '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม' : '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ';
-            btnSubmit.disabled = false; return;
+            if (btnSubmit) {
+                btnSubmit.innerHTML = editId ? '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม' : '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ';
+                btnSubmit.disabled = false; 
+            }
+            return;
         }
 
         const resJson = await response.json();
@@ -823,7 +907,7 @@ async function submitSaForm(event) {
                             issue_date: new Date().toISOString().split('T')[0],
                             part_no: pNo, part_main_no: pMain || null, part_name: pName, qty: pQty,
                             car_plate: formData.car_plate, qt_no: qtArr.join(',') || null, so_no: soArr.join(',') || null,
-                            unit_price: 0, car_model: document.getElementById('car_model')?.value || null,
+                            unit_price: 0, car_model: formData.car_model || null,
                             job_status: 'รอเข้าซ่อม', part_type: pType,
                             branch_name: formData.branch_name
                         })
@@ -837,17 +921,22 @@ async function submitSaForm(event) {
         
     } catch (e) { 
         alert('❌ เครือข่ายขัดข้อง'); 
-        const btnSubmit = document.getElementById('btn_submit_sa');
-        btnSubmit.innerHTML = editId ? '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม' : '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ'; 
-        btnSubmit.disabled = false;
+        if (btnSubmit) {
+            btnSubmit.innerHTML = editId ? '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม' : '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ'; 
+            btnSubmit.disabled = false;
+        }
     }
 }
 
 // 🌟 1. ดึงข้อมูลปฏิทิน และโหลดเฉพาะฟิลด์เป้าหมาย 🌟
 async function openScheduleCalendar(field) {
     currentTargetField = field;
-    document.getElementById('scheduleCalendarModal').classList.remove('hidden');
-    document.getElementById('calendar_loading').classList.remove('hidden');
+    const modalEl = document.getElementById('scheduleCalendarModal');
+    const loadingEl = document.getElementById('calendar_loading');
+    const titleEl = document.getElementById('modal_dynamic_title');
+
+    if (modalEl) modalEl.classList.remove('hidden');
+    if (loadingEl) loadingEl.classList.remove('hidden');
 
     const titles = {
         'arrived_date': 'เช็คโควต้า: รถเข้าจอดอู่ (คัน)',
@@ -855,11 +944,16 @@ async function openScheduleCalendar(field) {
         'delivery_date': 'เช็คโควต้า: ส่งมอบรถลูกค้า (คัน)',
         'all': 'ตารางตรวจสอบโควต้า (ภาพรวม)'
     };
-    document.getElementById('modal_dynamic_title').innerText = titles[field] || 'ตารางโควต้า';
+    
+    // ป้องกัน Error หากหา ID หัวตารางไม่เจอใน HTML
+    if (titleEl) {
+        titleEl.innerText = titles[field] || 'ตารางโควต้า';
+    }
 
     try {
         const b = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
-        const editId = document.getElementById('sa_report_id').value;
+        const editIdEl = document.getElementById('sa_report_id');
+        const editId = editIdEl ? editIdEl.value : '';
 
         const [resJobs, resQuotas] = await Promise.all([
             fetch(`${API_BASE_URL}/api/reports`),
@@ -867,17 +961,17 @@ async function openScheduleCalendar(field) {
         ]);
         
         const rawJobs = await resJobs.json();
-        allSchedJobs = rawJobs.filter(j => j.branch_name === b && String(j.id) !== String(editId));
+        allSchedJobs = Array.isArray(rawJobs) ? rawJobs.filter(j => j.branch_name === b && String(j.id) !== String(editId)) : [];
         
         const rawQuotas = await resQuotas.json();
-        allSchedQuotas = rawQuotas.filter(q => q.branch_name === b);
+        allSchedQuotas = Array.isArray(rawQuotas) ? rawQuotas.filter(q => q.branch_name === b) : [];
         
         renderSchedCalendar();
     } catch (e) { 
         console.error('โหลดข้อมูลปฏิทินล้มเหลว', e); 
         alert('ไม่สามารถดึงข้อมูลตารางโควต้าได้ กรุณาลองใหม่อีกครั้ง');
     } finally {
-        document.getElementById('calendar_loading').classList.add('hidden');
+        if (loadingEl) loadingEl.classList.add('hidden');
     }
 }
 
@@ -888,21 +982,22 @@ function changeSchedMonth(direction) {
     renderSchedCalendar();
 }
 
-// 🌟 2. เรนเดอร์ปฏิทินแบบ Pre-calculate เพื่อแก้ปัญหาเบราว์เซอร์ค้าง (Fast Rendering) 🌟
+// 🌟 2. Render ปฏิทินและหลอด Progress Bar แบบ Pre-calculate เร็วแรง ลื่นไหล ไม่ค้าง 🌟
 function renderSchedCalendar() {
     const grid = document.getElementById('sched_calendar_grid'); 
-    grid.innerHTML = ''; // เคลียร์ตารางเดิมออกทันที
+    if (!grid) return;
+    grid.innerHTML = ''; 
     
     const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
-    document.getElementById('sched_month_title').innerText = `${monthNames[currentSchedMonth]} ${currentSchedYear}`;
+    const monthTitleEl = document.getElementById('sched_month_title');
+    if (monthTitleEl) monthTitleEl.innerText = `${monthNames[currentSchedMonth]} ${currentSchedYear}`;
 
     const firstDay = new Date(currentSchedYear, currentSchedMonth, 1).getDay();
     const totalDays = new Date(currentSchedYear, currentSchedMonth + 1, 0).getDate();
 
-    // ดึงโควต้าพื้นฐาน
     const defaultQuota = allSchedQuotas.find(q => q.quota_type === 'default');
 
-    // 🌟 สรุปข้อมูลล่วงหน้าก่อนเข้าลูป ป้องกันการวนลูปเช็คข้อมูลซ้ำๆ จนเครื่องค้าง 🌟
+    // สรุปข้อมูลล่วงหน้าก่อนเข้าลูป ป้องกันการค้าง
     const dailyData = {};
     const specialQuotasMap = {};
 
@@ -936,11 +1031,9 @@ function renderSchedCalendar() {
     let htmlBuffer = '';
     for(let i = 0; i < firstDay; i++) { htmlBuffer += `<div class="bg-transparent rounded-xl"></div>`; }
 
-    // วาดตารางอย่างรวดเร็ว
     for(let day = 1; day <= totalDays; day++) {
         const dateStr = `${currentSchedYear}-${String(currentSchedMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
         
-        // ดึงข้อมูลที่นับยอดไว้แล้ว
         const dData = dailyData[dateStr] || {a:0, t:0, d:0, m:0, s:0};
         const arrCount = dData.a;
         const tarCount = dData.t;
@@ -1022,7 +1115,6 @@ function renderSchedCalendar() {
 
         const thaiDateStr = `${String(day).padStart(2,'0')}/${String(currentSchedMonth+1).padStart(2,'0')}/${currentSchedYear}`;
 
-        // 🌟 3. ล็อกเฉพาะคิวที่เต็ม ตามปุ่มที่กดมา 🌟
         if (isCurrentFieldFull) {
             cellClass += 'bg-slate-50 border-rose-200 opacity-60 cursor-not-allowed grayscale';
             clickAction = `onclick="alert('❌ โควต้าของวันที่นี้เต็มแล้ว ไม่สามารถเลือกได้ครับ!')"`;
@@ -1047,7 +1139,7 @@ function renderSchedCalendar() {
         `;
     }
 
-    grid.innerHTML = htmlBuffer; // แปะ HTML ทีเดียวจบ เพื่อความเร็วสูงสุด
+    grid.innerHTML = htmlBuffer;
 }
 
 // 🌟 4. ฟังก์ชันนำวันที่ไปใส่ในฟอร์มทันที (แก้ INP Delay) 🌟
@@ -1055,63 +1147,81 @@ function applySelectedDateToFieldDirect(dateStr, fieldId) {
     const inputField = document.getElementById(fieldId);
     closeModal('scheduleCalendarModal');
     
-    requestAnimationFrame(() => {
-        inputField.value = dateStr;
-        inputField.dispatchEvent(new Event('change', { bubbles: true }));
-        inputField.classList.add('ring-4', 'ring-blue-500/30', 'border-blue-500');
-        setTimeout(() => { 
-            inputField.classList.remove('ring-4', 'ring-blue-500/30', 'border-blue-500'); 
-        }, 1000);
-    });
+    if (inputField) {
+        requestAnimationFrame(() => {
+            inputField.value = dateStr;
+            inputField.dispatchEvent(new Event('change', { bubbles: true }));
+            inputField.classList.add('ring-4', 'ring-blue-500/30', 'border-blue-500');
+            setTimeout(() => { 
+                inputField.classList.remove('ring-4', 'ring-blue-500/30', 'border-blue-500'); 
+            }, 1000);
+        });
+    }
 }
 
 function openDateSelectorModal(dateStr, thaiDateStr, isArriveFull, isTargetFull, isDeliveryFull) {
-    document.getElementById('ds_temp_date_val').value = dateStr;
-    document.getElementById('ds_selected_date_text').innerText = thaiDateStr;
+    const tempDateInp = document.getElementById('ds_temp_date_val');
+    const textEl = document.getElementById('ds_selected_date_text');
+
+    if (tempDateInp) tempDateInp.value = dateStr;
+    if (textEl) textEl.innerText = thaiDateStr;
 
     const btnArrived = document.getElementById('btn_apply_arrived');
     const btnTarget = document.getElementById('btn_apply_target');
     const btnDelivery = document.getElementById('btn_apply_delivery');
 
-    if (isArriveFull) {
-        btnArrived.disabled = true;
-        btnArrived.className = "w-full text-left px-4 py-3 bg-slate-100 border border-slate-200 text-slate-400 font-bold rounded-xl shadow-none cursor-not-allowed flex items-center gap-3";
-        btnArrived.innerHTML = `<i class="fa-solid fa-lock w-5 text-center text-rose-400"></i> คิว "รถเข้าจอดอู่" เต็มแล้ว`;
-    } else {
-        btnArrived.disabled = false;
-        btnArrived.className = "w-full text-left px-4 py-3 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-bold rounded-xl shadow-sm transition flex items-center gap-3";
-        btnArrived.innerHTML = `<i class="fa-solid fa-truck-ramp-box w-5 text-center text-emerald-500"></i> นำไปใส่ช่อง "รถเข้าจอดอู่"`;
+    if (btnArrived) {
+        if (isArriveFull) {
+            btnArrived.disabled = true;
+            btnArrived.className = "w-full text-left px-4 py-3 bg-slate-100 border border-slate-200 text-slate-400 font-bold rounded-xl shadow-none cursor-not-allowed flex items-center gap-3";
+            btnArrived.innerHTML = `<i class="fa-solid fa-lock w-5 text-center text-rose-400"></i> คิว "รถเข้าจอดอู่" เต็มแล้ว`;
+        } else {
+            btnArrived.disabled = false;
+            btnArrived.className = "w-full text-left px-4 py-3 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-bold rounded-xl shadow-sm transition flex items-center gap-3";
+            btnArrived.innerHTML = `<i class="fa-solid fa-truck-ramp-box w-5 text-center text-emerald-500"></i> นำไปใส่ช่อง "รถเข้าจอดอู่"`;
+        }
     }
 
-    if (isTargetFull) {
-        btnTarget.disabled = true;
-        btnTarget.className = "w-full text-left px-4 py-3 bg-slate-100 border border-slate-200 text-slate-400 font-bold rounded-xl shadow-none cursor-not-allowed flex items-center gap-3";
-        btnTarget.innerHTML = `<i class="fa-solid fa-lock w-5 text-center text-rose-400"></i> โควต้า "กำหนดซ่อมเสร็จ" เต็มแล้ว`;
-    } else {
-        btnTarget.disabled = false;
-        btnTarget.className = "w-full text-left px-4 py-3 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 font-bold rounded-xl shadow-sm transition flex items-center gap-3";
-        btnTarget.innerHTML = `<i class="fa-solid fa-car-tunnel w-5 text-center text-amber-500"></i> นำไปใส่ช่อง "กำหนดซ่อมเสร็จ"`;
+    if (btnTarget) {
+        if (isTargetFull) {
+            btnTarget.disabled = true;
+            btnTarget.className = "w-full text-left px-4 py-3 bg-slate-100 border border-slate-200 text-slate-400 font-bold rounded-xl shadow-none cursor-not-allowed flex items-center gap-3";
+            btnTarget.innerHTML = `<i class="fa-solid fa-lock w-5 text-center text-rose-400"></i> โควต้า "กำหนดซ่อมเสร็จ" เต็มแล้ว`;
+        } else {
+            btnTarget.disabled = false;
+            btnTarget.className = "w-full text-left px-4 py-3 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 font-bold rounded-xl shadow-sm transition flex items-center gap-3";
+            btnTarget.innerHTML = `<i class="fa-solid fa-car-tunnel w-5 text-center text-amber-500"></i> นำไปใส่ช่อง "กำหนดซ่อมเสร็จ"`;
+        }
     }
 
-    if (isDeliveryFull) {
-        btnDelivery.disabled = true;
-        btnDelivery.className = "w-full text-left px-4 py-3 bg-slate-100 border border-slate-200 text-slate-400 font-bold rounded-xl shadow-none cursor-not-allowed flex items-center gap-3";
-        btnDelivery.innerHTML = `<i class="fa-solid fa-lock w-5 text-center text-rose-400"></i> คิว "ส่งมอบรถลูกค้า" เต็มแล้ว`;
-    } else {
-        btnDelivery.disabled = false;
-        btnDelivery.className = "w-full text-left px-4 py-3 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-800 font-bold rounded-xl shadow-sm transition flex items-center gap-3";
-        btnDelivery.innerHTML = `<i class="fa-solid fa-key w-5 text-center text-indigo-500"></i> นำไปใส่ช่อง "ส่งมอบรถลูกค้า"`;
+    if (btnDelivery) {
+        if (isDeliveryFull) {
+            btnDelivery.disabled = true;
+            btnDelivery.className = "w-full text-left px-4 py-3 bg-slate-100 border border-slate-200 text-slate-400 font-bold rounded-xl shadow-none cursor-not-allowed flex items-center gap-3";
+            btnDelivery.innerHTML = `<i class="fa-solid fa-lock w-5 text-center text-rose-400"></i> คิว "ส่งมอบรถลูกค้า" เต็มแล้ว`;
+        } else {
+            btnDelivery.disabled = false;
+            btnDelivery.className = "w-full text-left px-4 py-3 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-800 font-bold rounded-xl shadow-sm transition flex items-center gap-3";
+            btnDelivery.innerHTML = `<i class="fa-solid fa-key w-5 text-center text-indigo-500"></i> นำไปใส่ช่อง "ส่งมอบรถลูกค้า"`;
+        }
     }
 
-    document.getElementById('dateSelectorModal').classList.remove('hidden');
+    const dsModal = document.getElementById('dateSelectorModal');
+    if (dsModal) dsModal.classList.remove('hidden');
 }
 
 function applySelectedDateToField(fieldId) {
-    applySelectedDateToFieldDirect(document.getElementById('ds_temp_date_val').value, fieldId);
+    const tempDateInp = document.getElementById('ds_temp_date_val');
+    if (tempDateInp) {
+        applySelectedDateToFieldDirect(tempDateInp.value, fieldId);
+    }
     closeModal('dateSelectorModal');
 }
 
-function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
+function closeModal(modalId) { 
+    const modal = document.getElementById(modalId);
+    if (modal) modal.classList.add('hidden'); 
+}
 
 let dateInputTimer = null;
 document.querySelectorAll('input[type="date"]').forEach(input => {
