@@ -101,45 +101,21 @@ async function handleLogin(e) {
             sessionStorage.setItem('emp_branch', emp.branch_name || 'สำนักงานใหญ่');
             sessionStorage.setItem('accessible_pages', emp.accessible_pages || '');
             
-            // เรียกสลับหน้าทันที
             enterApp(); 
         } else {
             alert('❌ ' + (data.error || 'เข้าสู่ระบบไม่สำเร็จ'));
         }
     } catch (err) { 
+        console.error("Login Error:", err);
         alert('❌ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'); 
     }
 }
 
 async function enterApp() {
-    // 🌟 ย้ายการสลับหน้ามาไว้ "บนสุด" 🌟
     const loginScr = document.getElementById('login-screen');
     const mainApp = document.getElementById('main-app');
     
-    if (loginScr) loginScr.classList.add('hidden');
-    if (mainApp) mainApp.classList.remove('hidden');
-    
-    // รีเซ็ตค่าการแสดงผล
-    document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name') || 'Admin';
-    document.getElementById('display_branch').innerText = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
-    if (document.getElementById('sa_owner_input')) document.getElementById('sa_owner_input').value = sessionStorage.getItem('emp_name') || '';
-    if (document.getElementById('contact_date')) document.getElementById('contact_date').value = new Date().toISOString().split('T')[0];
-    
-    // ห่อด้วย try-catch ป้องกันการทำงานพัง
-    try {
-        if (typeof selectDamage === 'function') selectDamage('เบา'); 
-        await loadInitialData(); 
-        if (typeof buildPartDatalist === 'function') buildPartDatalist();
-        if (typeof checkCrossPageEditMode === 'function') await checkCrossPageEditMode();
-    } catch (err) {
-        console.warn("⚠️ มีบางอย่างโหลดไม่สมบูรณ์ แต่หน้าหลักจะยังใช้งานได้:", err);
-    }
-}
-async function enterApp() {
-    const loginScr = document.getElementById('login-screen');
-    const mainApp = document.getElementById('main-app');
-    
-    // สลับหน้าจอทันที เพื่อไม่ให้ค้างหน้าล็อกอิน
+    // สลับหน้าจอทันที
     if (loginScr) loginScr.classList.add('hidden');
     if (mainApp) mainApp.classList.remove('hidden');
     
@@ -157,7 +133,7 @@ async function enterApp() {
         if (typeof selectDamage === 'function') selectDamage('เบา'); 
         await loadInitialData(); 
         if (typeof buildPartDatalist === 'function') buildPartDatalist();
-        await checkCrossPageEditMode();
+        if (typeof checkCrossPageEditMode === 'function') await checkCrossPageEditMode();
     } catch (err) {
         console.error("enterApp Processing Error:", err);
     }
@@ -384,7 +360,6 @@ async function checkCrossPageEditMode() {
         selectedBodyParts.sub = job.sub_part_name ? job.sub_part_name.split(',').map(s => s.trim()).filter(Boolean) : [];
         renderBodyPartsUI();
 
-        // 🌟 อัปเดตสีป้ายสถานะช่าง (บล็อก 6)
         const stations = ['kho', 'pou', 'puan', 'pon', 'prak', 'kat', 'qc', 'mag', 'kraj', 'film', 'pak', 'ready'];
         stations.forEach(st => {
             const badge = document.getElementById('badge_st_' + st);
@@ -397,7 +372,6 @@ async function checkCrossPageEditMode() {
             }
         });
 
-        // แสดงหมายเหตุจากช่าง
         const noteDisplay = document.getElementById('repair_note_display');
         const noteText = document.getElementById('repair_note_text');
         if (job.repair_notes && String(job.repair_notes).trim() !== '') {
@@ -454,7 +428,6 @@ function cancelEditMode() {
 
     selectDamage('เบา');
 
-    // 🌟 รีเซ็ตป้ายสถานะช่าง (บล็อก 6)
     const stations = ['kho', 'pou', 'puan', 'pon', 'prak', 'kat', 'qc', 'mag', 'kraj', 'film', 'pak', 'ready'];
     stations.forEach(st => {
         const badge = document.getElementById('badge_st_' + st);
