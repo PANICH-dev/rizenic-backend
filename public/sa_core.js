@@ -1,0 +1,634 @@
+const API_BASE_URL = window.location.origin;
+let globalCarData = [];
+let globalStatuses = [];
+let currentEditingJob = null; 
+
+let repairBodyPartsList = { main: [], sub: [] };
+let selectedBodyParts = { main: [], sub: [] };
+
+document.addEventListener('DOMContentLoaded', () => {
+    if(sessionStorage.getItem('isLoggedIn') !== 'true') {
+        const loginScr = document.getElementById('login-screen');
+        const mainApp = document.getElementById('main-app');
+        if (loginScr) loginScr.classList.remove('hidden');
+        if (mainApp) mainApp.classList.add('hidden');
+        return;
+    }
+    enterApp();
+});
+
+function formatToThaiDate(isoStr) {
+    if (!isoStr) return '';
+    const parts = String(isoStr).split('T')[0].split('-');
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return isoStr;
+}
+
+function updateTargetDateSuggestion() {
+    const suggestionEl = document.getElementById('target_date_suggestion');
+    if (!suggestionEl) return;
+
+    const damageLevel = document.getElementById('damage_level')?.value || 'เบา';
+    const cleanMainParts = selectedBodyParts.main.filter(p => !p.includes('ไม่ชิ้นงาน'));
+    const mainQty = cleanMainParts.length;
+    const hasGlass = cleanMainParts.some(p => p.includes('กระจก')) || selectedBodyParts.sub.some(p => p.includes('กระจก'));
+    
+    if (mainQty === 0) {
+        suggestionEl.innerHTML = '';
+        suggestionEl.classList.add('hidden');
+        return;
+    }
+
+    let days = 0;
+    if (mainQty === 1) days = 3;
+    else if (mainQty === 2) days = 5;
+    else if (mainQty >= 3) days = 5 + (mainQty - 2);
+
+    let msg = `💡 แนะนำ: ทำสีชิ้นหลัก ${mainQty} ชิ้น ควรใช้เวลาซ่อม <b>${days} วัน</b>`;
+    let colorClass = "text-blue-600";
+
+    if (damageLevel === 'หนัก') {
+        msg = `⚠️ แผลหนัก: กรุณาประเมินวันซ่อมตามหน้างานจริง`;
+        colorClass = "text-rose-600";
+    } else if (hasGlass) {
+        msg = `⚠️ มีงานกระจก: แนะนำ <b>${days} วัน</b> + ประเมินเวลาเผื่อกระจก`;
+        colorClass = "text-amber-600 border-amber-200 bg-amber-50";
+    }
+
+    suggestionEl.innerHTML = `<span class="${colorClass}">${msg}</span>`;
+    suggestionEl.classList.remove('hidden');
+}
+
+function selectDamage(level) {
+    const dmgInput = document.getElementById('damage_level');
+    if (dmgInput) dmgInput.value = level;
+    
+    const b = document.getElementById('dmg_btn_เบา');
+    const m = document.getElementById('dmg_btn_กลาง');
+    const h = document.getElementById('dmg_btn_หนัก');
+
+    if (b) b.className = 'dmg-btn dmg-btn-light'; 
+    if (m) m.className = 'dmg-btn dmg-btn-medium'; 
+    if (h) h.className = 'dmg-btn dmg-btn-heavy';
+
+    if(level === 'เบา' && b) b.className = 'dmg-btn bg-emerald-600 text-white border-emerald-700 shadow-md scale-[1.02]';
+    if(level === 'กลาง' && m) m.className = 'dmg-btn bg-amber-500 text-slate-900 border-amber-600 shadow-md scale-[1.02]';
+    if(level === 'หนัก' && h) h.className = 'dmg-btn bg-rose-600 text-white border-rose-700 shadow-md scale-[1.02]';
+    
+    updateTargetDateSuggestion(); 
+}
+
+async function handleLogin(e) {
+    e.preventDefault();
+    const user = document.getElementById('login_user').value; 
+    const pass = document.getElementById('login_pass').value;
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: user, password: pass }) });
+        const data = await res.json();
+        if (data.success) {
+            sessionStorage.setItem('isLoggedIn', 'true'); 
+            sessionStorage.setItem('emp_name', data.employee.employee_name);
+            sessionStorage.setItem('emp_role', data.employee.employee_role); 
+            sessionStorage.setItem('emp_branch', data.employee.branch_name || 'สำนักงานใหญ่');
+            
+            const accessiblePages = data.employee.accessible_pages || '';
+            sessionStorage.setItem('accessible_pages', accessiblePages);
+            
+            enterApp(); 
+        } else alert('❌ ' + data.error);
+    } catch (err) { alert('❌ ระบบขัดข้อง'); }
+}
+
+async function enterApp() {
+    const loginScr = document.getElementById('login-screen');
+    const mainApp = document.getElementById('main-app');
+    if (loginScr) loginScr.classList.add('hidden');
+    if (mainApp) mainApp.classList.remove('hidden');
+    
+    const empNameEl = document.getElementById('display_emp_name');
+    const branchEl = document.getElementById('display_branch');
+    const saOwnerInp = document.getElementById('sa_owner_input');
+    const contactDateInp = document.getElementById('contact_date');
+
+    if (empNameEl) empNameEl.innerText = sessionStorage.getItem('emp_name') || 'Admin Test';
+    if (branchEl) branchEl.innerText = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+    if (saOwnerInp) saOwnerInp.value = sessionStorage.getItem('emp_name') || '';
+    if (contactDateInp) contactDateInp.value = new Date().toISOString().split('T')[0];
+    
+    selectDamage('เบา'); 
+    await loadInitialData(); 
+    
+    // เรียกใช้ฟังก์ชัน Datalist (ถ้ามี)
+    if(typeof buildPartDatalist === 'function') { buildPartDatalist(); }
+    
+    await checkCrossPageEditMode();
+}
+
+function logout() { sessionStorage.clear(); window.location.reload(); }
+
+function autoMapRouting() {
+    const jobStatusEl = document.getElementById('job_status');
+    if (!jobStatusEl) return;
+    const selectedStatus = jobStatusEl.value;
+    const mapping = globalStatuses.find(s => s.status_name === selectedStatus);
+    const routeSelect = document.getElementById('department_routing');
+    if(mapping && mapping.department && routeSelect) { routeSelect.value = mapping.department; }
+    
+    const parkedStatuses = [
+        "09.จอดรอเข้าซ่อม", "10.กำลังซ่อม", "11.รถซ่อมเสร็จรอส่งมอบ", 
+        "12.ส่งมอบ", "13.วางบิลประกัน", "14.ชำระเงินสด", 
+        "15.วางบิล Tesla", "16.วางบิล EV ME", "17.รอออกบิล", 
+        "19.ออกบิลแล้ว", "20.จอดซ่อม TC", "21.พักซ่อม"
+    ];
+    const isParked = parkedStatuses.some(st => selectedStatus.includes(st) || st.includes(selectedStatus));
+    const parkStatusEl = document.getElementById('park_status');
+    if (parkStatusEl) parkStatusEl.value = isParked ? 'จอดซ่อม' : 'ไม่จอดซ่อม';
+}
+
+async function loadInitialData() {
+    try {
+        const results = await Promise.allSettled([
+            fetch(`${API_BASE_URL}/api/employees`).then(r => r.json()),
+            fetch(`${API_BASE_URL}/api/statuses`).then(r => r.json()),
+            fetch(`${API_BASE_URL}/api/customer-types`).then(r => r.json()),
+            fetch(`${API_BASE_URL}/api/car-models`).then(r => r.json()),
+            fetch(`${API_BASE_URL}/api/insurances`).then(r => r.json()),
+            fetch(`${API_BASE_URL}/api/body-parts`).then(r => r.json())
+        ]);
+
+        if (results[0].status === 'fulfilled') {
+            const data = results[0].value;
+            const saList = document.getElementById('sa_list');
+            if (saList) {
+                saList.innerHTML = '';
+                const userBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+                const branchSAs = data.filter(e => e.branch_name === userBranch && (e.employee_role || '').toUpperCase().includes('SA'));
+                const uniqueSAs = [...new Set(branchSAs.map(e => e.employee_name).filter(Boolean))].sort();
+                uniqueSAs.forEach(name => { saList.innerHTML += `<option value="${name}">`; });
+            }
+        }
+
+        if (results[1].status === 'fulfilled') {
+            globalStatuses = results[1].value;
+            const select = document.getElementById('job_status'); 
+            if (select) {
+                select.innerHTML = '<option value="">-- เลือกสถานะใบงาน --</option>';
+                globalStatuses.forEach(item => select.innerHTML += `<option value="${item.status_name}">${item.status_name}</option>`);
+            }
+        }
+
+        if (results[2].status === 'fulfilled') {
+            const select = document.getElementById('customer_type'); 
+            if (select) {
+                select.innerHTML = '<option value="">-- เลือก --</option>';
+                results[2].value.forEach(item => select.innerHTML += `<option value="${item.type_name}">${item.type_name}</option>`);
+            }
+        }
+
+        if (results[3].status === 'fulfilled') {
+            globalCarData = results[3].value; 
+            const uniqueBrands = [...new Set(globalCarData.map(car => car.car_brand))];
+            const brandList = document.getElementById('brand_list'); 
+            if (brandList) {
+                brandList.innerHTML = '';
+                uniqueBrands.forEach(brand => brandList.innerHTML += `<option value="${brand}">`);
+            }
+            updateCarModels('Tesla'); 
+        }
+
+        if (results[4].status === 'fulfilled') {
+            const select = document.getElementById('payment_type'); 
+            if (select) {
+                select.innerHTML = '<option value="">-- เลือก --</option>';
+                results[4].value.forEach(item => select.innerHTML += `<option value="${item.insurance_name}">${item.insurance_name}</option>`);
+            }
+        }
+
+        if (results[5].status === 'fulfilled') {
+            const data = results[5].value;
+            repairBodyPartsList.main = data.filter(p => p.category === 'ชิ้นส่วนหลัก').map(p => p.part_name);
+            repairBodyPartsList.sub = data.filter(p => p.category === 'ชิ้นส่วนรอง').map(p => p.part_name);
+            renderBodyPartsUI();
+        }
+    } catch (err) {
+        console.error("Error loading initial data", err);
+    }
+}
+
+function updateCarModels(brandName) {
+    const select = document.getElementById('car_model'); 
+    if (!select) return;
+    select.innerHTML = '<option value="">-- เลือกรุ่นรถ --</option>';
+    globalCarData.filter(car => car.car_brand === brandName).forEach(car => { 
+        select.innerHTML += `<option value="${car.car_model}">${car.car_model}</option>`; 
+    });
+}
+
+function renderBodyPartsUI() {
+    const mainContainer = document.getElementById('body_parts_main'); 
+    const subContainer = document.getElementById('body_parts_sub');
+    if (!mainContainer || !subContainer) return;
+
+    mainContainer.innerHTML = ''; 
+    subContainer.innerHTML = '';
+    
+    repairBodyPartsList.main.forEach(part => {
+        const isSelected = selectedBodyParts.main.includes(part);
+        mainContainer.innerHTML += `<span onclick="toggleBodyPart('main', '${part}')" class="part-badge ${isSelected ? 'selected-main' : 'unselected'}">${part}</span>`;
+    });
+    repairBodyPartsList.sub.forEach(part => {
+        const isSelected = selectedBodyParts.sub.includes(part);
+        subContainer.innerHTML += `<span onclick="toggleBodyPart('sub', '${part}')" class="part-badge ${isSelected ? 'selected-sub' : 'unselected'}">${part}</span>`;
+    });
+
+    const cMain = document.getElementById('count_main');
+    const cSub = document.getElementById('count_sub');
+    if (cMain) cMain.innerText = selectedBodyParts.main.length;
+    if (cSub) cSub.innerText = selectedBodyParts.sub.length;
+
+    autoCalculateDamageLevel();
+    updateTargetDateSuggestion(); 
+}
+
+function toggleBodyPart(category, partName) {
+    const index = selectedBodyParts[category].indexOf(partName);
+    if (index > -1) { selectedBodyParts[category].splice(index, 1); } 
+    else { selectedBodyParts[category].push(partName); }
+    renderBodyPartsUI();
+}
+
+function autoCalculateDamageLevel() {
+    const validMain = selectedBodyParts.main.filter(p => !p.includes('ไม่ชิ้นงาน'));
+    const validSub = selectedBodyParts.sub.filter(p => !p.includes('ไม่ชิ้นงาน'));
+    const totalParts = validMain.length + validSub.length;
+
+    if (totalParts >= 1 && totalParts <= 3) { selectDamage('เบา'); } 
+    else if (totalParts >= 4 && totalParts <= 7) { selectDamage('กลาง'); } 
+    else if (totalParts > 7) { selectDamage('หนัก'); }
+}
+
+function addDocRow(type = 'QT', val = '') {
+    const tbody = document.getElementById('docs_body');
+    if (!tbody) return;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td class="px-4 py-3"><select class="minimal-input doc-type font-bold !py-1.5"><option value="QT" ${type==='QT'?'selected':''}>ใบเสนอราคา (QT)</option><option value="SO" ${type==='SO'?'selected':''}>ใบสั่งซ่อม (SO)</option><option value="BL" ${type==='BL'?'selected':''}>ใบวางบิล (BL)</option></select></td>
+        <td class="px-4 py-3"><input type="text" class="minimal-input doc-no font-mono uppercase !py-1.5" placeholder="กรอกหมายเลขเอกสาร" value="${val}"></td>
+        <td class="px-4 py-3 text-center"><button type="button" onclick="this.closest('tr').remove()" class="text-slate-400 hover:text-red-600 transition bg-white p-2 rounded-lg border border-slate-200 shadow-sm"><i class="fa-solid fa-trash"></i></button></td>
+    `;
+    tbody.appendChild(tr);
+}
+
+async function checkCrossPageEditMode() {
+    const idToEdit = sessionStorage.getItem('edit_job_id'); 
+    const docsBody = document.getElementById('docs_body');
+    const orderPartsBody = document.getElementById('order_parts_body');
+
+    if(!idToEdit) {
+        if(docsBody && docsBody.children.length === 0) addDocRow();
+        if(orderPartsBody && orderPartsBody.children.length === 0 && typeof addPartRow === 'function') addPartRow();
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/report/${idToEdit}`); 
+        if (!res.ok) return;
+        const job = await res.json();
+        currentEditingJob = job; 
+        
+        const saRepId = document.getElementById('sa_report_id');
+        const curEditId = document.getElementById('current_editing_id');
+        const editBadge = document.getElementById('edit_mode_badge');
+        const btnSubSa = document.getElementById('btn_submit_sa');
+
+        if (saRepId) saRepId.value = job.id || idToEdit;
+        if (curEditId) curEditId.innerText = job.id || idToEdit;
+        if (editBadge) editBadge.classList.remove('hidden'); 
+        if (btnSubSa) btnSubSa.innerHTML = '<i class="fa-solid fa-file-pen mr-2"></i> บันทึกอัปเดตใบงานซ่อม';
+
+        const saOwnerInp = document.getElementById('sa_owner_input');
+        const custNameInp = document.getElementById('customer_name');
+        const phoneInp = document.getElementById('phone_number');
+        const carBrandInp = document.getElementById('car_brand');
+
+        if (saOwnerInp) saOwnerInp.value = job.sa_owner || sessionStorage.getItem('emp_name') || '';
+        if (custNameInp) custNameInp.value = job.customer_name || ''; 
+        if (phoneInp) phoneInp.value = job.phone_number || '';
+        if (carBrandInp) carBrandInp.value = job.car_brand || 'Tesla';
+        
+        await updateCarModels(job.car_brand || 'Tesla');
+
+        const safeSetSelect = (elementId, value) => {
+            if (!value) return;
+            const selectEl = document.getElementById(elementId);
+            if (!selectEl) return;
+            const optionExists = Array.from(selectEl.options).some(opt => opt.value === value);
+            if (!optionExists) { selectEl.add(new Option(value, value)); }
+            selectEl.value = value;
+        };
+
+        safeSetSelect('customer_type', job.customer_type);
+        safeSetSelect('car_model', job.car_model);
+        safeSetSelect('payment_type', job.payment_type);
+        safeSetSelect('job_status', job.job_status);
+
+        if (job.department_routing) safeSetSelect('department_routing', job.department_routing);
+        else autoMapRouting();
+
+        if (job.is_parked) safeSetSelect('park_status', job.is_parked);
+        else autoMapRouting(); 
+
+        const notesEl = document.getElementById('notes');
+        const carPlateEl = document.getElementById('car_plate');
+        const vinEl = document.getElementById('vin_no');
+
+        if (notesEl) notesEl.value = job.notes || '';
+        if (carPlateEl) carPlateEl.value = job.car_plate || ''; 
+        if (vinEl) vinEl.value = job.vin_no || '';
+
+        if (docsBody) docsBody.innerHTML = '';
+        if (job.qt_no) job.qt_no.split(',').forEach(v => { let val = v.trim(); if(val) addDocRow('QT', val); });
+        if (job.so_no) job.so_no.split(',').forEach(v => { let val = v.trim(); if(val) addDocRow('SO', val); });
+        if (job.bl_no) job.bl_no.split(',').forEach(v => { let val = v.trim(); if(val) addDocRow('BL', val); });
+        if (docsBody && docsBody.children.length === 0) addDocRow();
+
+        if (orderPartsBody) orderPartsBody.innerHTML = '';
+        if (typeof addPartRow === 'function') addPartRow();
+
+        selectDamage(job.damage_level || 'เบา');
+        selectedBodyParts.main = job.main_part_name ? job.main_part_name.split(',').map(s => s.trim()).filter(Boolean) : [];
+        selectedBodyParts.sub = job.sub_part_name ? job.sub_part_name.split(',').map(s => s.trim()).filter(Boolean) : [];
+        renderBodyPartsUI();
+
+        // 🌟 อัปเดตสีป้ายสถานะช่าง (บล็อก 6)
+        const stations = ['kho', 'pou', 'puan', 'pon', 'prak', 'kat', 'qc', 'mag', 'kraj', 'film', 'pak', 'ready'];
+        stations.forEach(st => {
+            const badge = document.getElementById('badge_st_' + st);
+            if (badge) {
+                if (job[`station_${st}`] === true || job[`station_${st}`] === 'true' || job[`station_${st}`] === 1) {
+                    badge.className = 'px-3 py-1.5 rounded-lg text-[11px] font-bold bg-[#00320D] text-amber-400 border border-[#00320D] shadow-md transition-all transform scale-105';
+                } else {
+                    badge.className = 'px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all';
+                }
+            }
+        });
+
+        // แสดงหมายเหตุจากช่าง
+        const noteDisplay = document.getElementById('repair_note_display');
+        const noteText = document.getElementById('repair_note_text');
+        if (job.repair_notes && String(job.repair_notes).trim() !== '') {
+            if (noteText) noteText.innerText = job.repair_notes;
+            if (noteDisplay) noteDisplay.classList.remove('hidden');
+        } else {
+            if (noteDisplay) noteDisplay.classList.add('hidden');
+            if (noteText) noteText.innerText = '';
+        }
+        
+        const setDateVal = (elemId, isoVal) => {
+            const el = document.getElementById(elemId);
+            if (el) el.value = isoVal ? String(isoVal).split('T')[0] : '';
+        };
+        setDateVal('contact_date', job.contact_date);
+        setDateVal('arrived_date', job.arrived_date);
+        setDateVal('target_finish_date', job.target_finish_date);
+        setDateVal('repair_finish_date', job.repair_finish_date);
+        setDateVal('delivery_date', job.delivery_date);
+
+        if (job.car_plate && typeof loadPartsTrackingTable === 'function') {
+            loadPartsTrackingTable(job.car_plate.trim());
+        }
+
+    } catch(e) {
+        console.error("Error loading job for edit:", e);
+    }
+}
+
+function cancelEditMode() {
+    currentEditingJob = null;
+    sessionStorage.removeItem('edit_job_id'); 
+    
+    const saForm = document.getElementById('saForm');
+    const saRepId = document.getElementById('sa_report_id');
+    const editBadge = document.getElementById('edit_mode_badge');
+    const btnSubSa = document.getElementById('btn_submit_sa');
+    const docsBody = document.getElementById('docs_body');
+    const orderPartsBody = document.getElementById('order_parts_body');
+    const trackPartsBody = document.getElementById('track_parts_body');
+
+    if (saForm) saForm.reset(); 
+    if (saRepId) saRepId.value = '';
+    if (editBadge) editBadge.classList.add('hidden');
+    if (btnSubSa) btnSubSa.innerHTML = '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ';
+    
+    if (docsBody) { docsBody.innerHTML = ''; addDocRow(); }
+    if (orderPartsBody) { orderPartsBody.innerHTML = ''; if(typeof addPartRow === 'function') addPartRow(); }
+    if (trackPartsBody) trackPartsBody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400 text-xs font-bold bg-white">กรุณาบันทึกใบงานเพื่อติดตามสถานะอะไหล่</td></tr>`;
+    
+    selectedBodyParts.main = [];
+    selectedBodyParts.sub = [];
+    renderBodyPartsUI();
+
+    selectDamage('เบา');
+
+    // 🌟 รีเซ็ตป้ายสถานะช่าง (บล็อก 6)
+    const stations = ['kho', 'pou', 'puan', 'pon', 'prak', 'kat', 'qc', 'mag', 'kraj', 'film', 'pak', 'ready'];
+    stations.forEach(st => {
+        const badge = document.getElementById('badge_st_' + st);
+        if (badge) {
+            badge.className = 'px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all';
+        }
+    });
+    const noteDisplay = document.getElementById('repair_note_display');
+    if (noteDisplay) noteDisplay.classList.add('hidden');
+    
+    const deptRoute = document.getElementById('department_routing');
+    const parkStat = document.getElementById('park_status');
+    const saOwnerInp = document.getElementById('sa_owner_input');
+
+    if (deptRoute) deptRoute.value = 'รอดำเนินการ';
+    if (parkStat) parkStat.value = 'ไม่จอดซ่อม';
+    if (saOwnerInp) saOwnerInp.value = sessionStorage.getItem('emp_name') || '';
+}
+
+async function submitSaForm(event) {
+    event.preventDefault(); 
+    
+    const requiredFields = [
+        { id: 'contact_date', name: '1. วันที่ติดต่อ' },
+        { id: 'sa_owner_input', name: 'SA ผู้รับผิดชอบ' },
+        { id: 'customer_name', name: '4. ชื่อลูกค้า' },
+        { id: 'customer_type', name: '5. ประเภทลูกค้า' },
+        { id: 'payment_type', name: '6. ประเภทการชำระเงิน/ประกัน' },
+        { id: 'car_plate', name: '2. ทะเบียนรถ' },
+        { id: 'car_brand', name: 'ยี่ห้อรถ' },
+        { id: 'vin_no', name: '3. หมายเลขตัวถัง (VIN)' },
+        { id: 'job_status', name: 'สถานะใบงาน' }
+    ];
+    
+    let missingFields = [];
+    requiredFields.forEach(field => {
+        const el = document.getElementById(field.id);
+        if (!el || !el.value.trim()) missingFields.push(field.name);
+    });
+
+    if (missingFields.length > 0) { 
+        alert('⚠️ กรุณากรอกข้อมูลบังคับให้ครบถ้วนก่อนบันทึกครับ:\n\n- ' + missingFields.join('\n- ')); 
+        return; 
+    }
+
+    const branchName = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+    const arrivedDate = document.getElementById('arrived_date')?.value || '';
+    const targetFinishDate = document.getElementById('target_finish_date')?.value || '';
+    const deliveryDate = document.getElementById('delivery_date')?.value || '';
+
+    const cleanMainParts = selectedBodyParts.main.filter(p => !p.includes('ไม่ชิ้นงาน'));
+    const cleanSubParts = selectedBodyParts.sub.filter(p => !p.includes('ไม่ชิ้นงาน'));
+
+    const btnSubmit = document.getElementById('btn_submit_sa');
+    const oldBtnText = btnSubmit ? btnSubmit.innerHTML : '';
+
+    if (arrivedDate || targetFinishDate || deliveryDate) {
+        if (btnSubmit) {
+            btnSubmit.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> กำลังตรวจสอบโควต้า...';
+            btnSubmit.disabled = true;
+        }
+
+        if(typeof checkQuotaBeforeSubmit === 'function') {
+            const quotaCheck = await checkQuotaBeforeSubmit(branchName, arrivedDate, targetFinishDate, deliveryDate, cleanMainParts.length, cleanSubParts.length);
+            
+            if (quotaCheck !== true) {
+                alert('❌ ไม่สามารถบันทึกได้:\n\n' + quotaCheck + '\n\nกรุณาเลือกวันที่ใหม่ครับ');
+                if (btnSubmit) {
+                    btnSubmit.innerHTML = oldBtnText;
+                    btnSubmit.disabled = false;
+                }
+                return;
+            }
+        }
+        
+        if (btnSubmit) btnSubmit.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> กำลังบันทึก...';
+    }
+
+    const editId = document.getElementById('sa_report_id')?.value || '';
+    let qtArr = [], soArr = [], blArr = [];
+    document.querySelectorAll('#docs_body tr').forEach(tr => {
+        const type = tr.querySelector('.doc-type')?.value; const val = tr.querySelector('.doc-no')?.value?.trim();
+        if(val) { if(type === 'QT') qtArr.push(val); if(type === 'SO') soArr.push(val); if(type === 'BL') blArr.push(val); }
+    });
+
+    const routingDept = document.getElementById('department_routing')?.value || 'รอดำเนินการ';
+    
+    let formData = {};
+    if (editId && currentEditingJob) { formData = { ...currentEditingJob }; } 
+    else {
+        formData.appointment_date = null; formData.customer_phone = null; formData.expected_finish_date = null;
+        formData.cost_labor = 0; formData.cost_part = 0; formData.cost_external = 0; formData.quotation_no = null;
+        formData.job_order_no = null; formData.ivn_no = null;
+    }
+
+    formData.sa_owner = document.getElementById('sa_owner_input')?.value?.trim() || ''; 
+    formData.branch_name = branchName;
+    formData.customer_name = document.getElementById('customer_name')?.value || ''; 
+    formData.phone_number = document.getElementById('phone_number')?.value || '';
+    formData.customer_type = document.getElementById('customer_type')?.value || ''; 
+    formData.car_brand = document.getElementById('car_brand')?.value || '';
+    formData.car_model = document.getElementById('car_model')?.value || ''; 
+    formData.vin_no = document.getElementById('vin_no')?.value || '';
+    formData.qt_no = qtArr.join(', '); formData.so_no = soArr.join(', '); formData.bl_no = blArr.join(', ');
+    formData.payment_type = document.getElementById('payment_type')?.value || ''; 
+    formData.damage_level = document.getElementById('damage_level')?.value || 'เบา';
+    formData.contact_date = document.getElementById('contact_date')?.value || null; 
+    formData.arrived_date = arrivedDate || null;
+    formData.target_finish_date = targetFinishDate || null; 
+    formData.repair_finish_date = document.getElementById('repair_finish_date')?.value || null;
+    formData.delivery_date = deliveryDate || null; 
+    formData.notes = document.getElementById('notes')?.value || ''; 
+    formData.is_parked = document.getElementById('park_status')?.value || 'ไม่จอดซ่อม'; 
+    formData.job_status = document.getElementById('job_status')?.value || ''; 
+    formData.car_plate = document.getElementById('car_plate')?.value || '';
+    formData.department_routing = routingDept;
+    formData.main_part_qty = cleanMainParts.length;
+    formData.sub_part_qty = cleanSubParts.length;
+    formData.main_part_name = cleanMainParts.join(' , '); 
+    formData.sub_part_name = cleanSubParts.join(' , ');
+
+    const url = editId ? `${API_BASE_URL}/api/report/${editId}` : `${API_BASE_URL}/api/report`;
+    const method = editId ? 'PUT' : 'POST';
+    
+    try {
+        const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
+        if (!response.ok) {
+            const errData = await response.json();
+            alert('❌ บันทึกล้มเหลว:\n\n' + (errData.error || 'โปรดตรวจสอบอีกครั้ง'));
+            if (btnSubmit) {
+                btnSubmit.innerHTML = editId ? '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม' : '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ';
+                btnSubmit.disabled = false; 
+            }
+            return;
+        }
+
+        const resJson = await response.json();
+        const savedJobId = editId || resJson?.insertedId || resJson?.id || null;
+
+        if (routingDept.includes('อะไหล่') || formData.job_status.includes('06.สั่งอะไหล่')) {
+            const partRows = document.querySelectorAll('#order_parts_body tr');
+            for (let tr of partRows) {
+                const pNo = tr.querySelector('.part-no-input')?.value; 
+                const pMain = tr.querySelector('.part-main-input')?.value;
+                const pName = tr.querySelector('.part-name-input')?.value; 
+                const pType = tr.querySelector('.part-type-input')?.value || 'อะไหล่หลัก';
+                const pQty = tr.querySelector('.part-qty-input')?.value || '1';
+                
+                if (pNo && pName) {
+                    await fetch(`${API_BASE_URL}/api/part-orders`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            job_id: savedJobId,
+                            qt_no: qtArr.join(', '), so_no: soArr.join(', '), epc_no: null,
+                            order_date: new Date().toISOString().split('T')[0], car_plate: formData.car_plate, vin_no: formData.vin_no, car_model: formData.car_model, 
+                            part_no: pNo, part_main_no: pMain, part_name: pName, qty_ordered: pQty, part_type: pType, branch_name: formData.branch_name, order_status: 'รอสั่งซื้อ' 
+                        })
+                    });
+
+                    await fetch(`${API_BASE_URL}/api/part-outbound`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            job_id: savedJobId,
+                            issue_date: new Date().toISOString().split('T')[0],
+                            part_no: pNo, part_main_no: pMain || null, part_name: pName, qty: pQty,
+                            car_plate: formData.car_plate, qt_no: qtArr.join(',') || null, so_no: soArr.join(',') || null,
+                            unit_price: 0, car_model: formData.car_model || null,
+                            job_status: 'รอเข้าซ่อม', part_type: pType,
+                            branch_name: formData.branch_name
+                        })
+                    }).catch(e => console.warn(e));
+                }
+            }
+        }
+        
+        if (editId) { 
+            alert(`🎉 อัปเดตใบงานเรียบร้อย!`); 
+            if(formData.car_plate && typeof loadPartsTrackingTable === 'function') loadPartsTrackingTable(formData.car_plate);
+            if (btnSubmit) {
+                btnSubmit.innerHTML = '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม';
+                btnSubmit.disabled = false;
+            }
+        } 
+        else { 
+            alert(`🎉 เปิดบิลเรียบร้อย!`); 
+            if (savedJobId) {
+                sessionStorage.setItem('edit_job_id', savedJobId);
+                await checkCrossPageEditMode();
+            } else {
+                cancelEditMode();
+            }
+        }
+        
+    } catch (e) { 
+        alert('❌ เครือข่ายขัดข้อง'); 
+        if (btnSubmit) {
+            btnSubmit.innerHTML = editId ? '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม' : '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ'; 
+            btnSubmit.disabled = false;
+        }
+    }
+}
