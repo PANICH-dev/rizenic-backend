@@ -80,28 +80,42 @@ function selectDamage(level) {
 
 async function handleLogin(e) {
     e.preventDefault();
-    const user = document.getElementById('login_user').value; 
-    const pass = document.getElementById('login_pass').value;
+    const userEl = document.getElementById('login_user');
+    const passEl = document.getElementById('login_pass');
+    
+    if (!userEl || !passEl) return alert('❌ ไม่พบช่องกรอกชื่อผู้ใช้/รหัสผ่าน');
+
     try {
-        const res = await fetch(`${API_BASE_URL}/api/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: user, password: pass }) });
+        const res = await fetch(`${API_BASE_URL}/api/login`, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ username: userEl.value, password: passEl.value }) 
+        });
         const data = await res.json();
+        
         if (data.success) {
+            const emp = data.employee || {};
             sessionStorage.setItem('isLoggedIn', 'true'); 
-            sessionStorage.setItem('emp_name', data.employee.employee_name);
-            sessionStorage.setItem('emp_role', data.employee.employee_role); 
-            sessionStorage.setItem('emp_branch', data.employee.branch_name || 'สำนักงานใหญ่');
-            
-            const accessiblePages = data.employee.accessible_pages || '';
-            sessionStorage.setItem('accessible_pages', accessiblePages);
+            sessionStorage.setItem('emp_name', emp.employee_name || userEl.value);
+            sessionStorage.setItem('emp_role', emp.employee_role || 'SA'); 
+            sessionStorage.setItem('emp_branch', emp.branch_name || 'สำนักงานใหญ่');
+            sessionStorage.setItem('accessible_pages', emp.accessible_pages || '');
             
             enterApp(); 
-        } else alert('❌ ' + data.error);
-    } catch (err) { alert('❌ ระบบขัดข้อง'); }
+        } else {
+            alert('❌ ' + (data.error || data.message || 'เข้าสู่ระบบไม่สำเร็จ'));
+        }
+    } catch (err) { 
+        console.error("Login Error:", err);
+        alert('❌ ระบบขัดข้อง ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'); 
+    }
 }
 
 async function enterApp() {
     const loginScr = document.getElementById('login-screen');
     const mainApp = document.getElementById('main-app');
+    
+    // สลับหน้าจอทันที เพื่อไม่ให้ค้างหน้าล็อกอิน
     if (loginScr) loginScr.classList.add('hidden');
     if (mainApp) mainApp.classList.remove('hidden');
     
@@ -115,34 +129,14 @@ async function enterApp() {
     if (saOwnerInp) saOwnerInp.value = sessionStorage.getItem('emp_name') || '';
     if (contactDateInp) contactDateInp.value = new Date().toISOString().split('T')[0];
     
-    selectDamage('เบา'); 
-    await loadInitialData(); 
-    
-    // เรียกใช้ฟังก์ชัน Datalist (ถ้ามี)
-    if(typeof buildPartDatalist === 'function') { buildPartDatalist(); }
-    
-    await checkCrossPageEditMode();
-}
-
-function logout() { sessionStorage.clear(); window.location.reload(); }
-
-function autoMapRouting() {
-    const jobStatusEl = document.getElementById('job_status');
-    if (!jobStatusEl) return;
-    const selectedStatus = jobStatusEl.value;
-    const mapping = globalStatuses.find(s => s.status_name === selectedStatus);
-    const routeSelect = document.getElementById('department_routing');
-    if(mapping && mapping.department && routeSelect) { routeSelect.value = mapping.department; }
-    
-    const parkedStatuses = [
-        "09.จอดรอเข้าซ่อม", "10.กำลังซ่อม", "11.รถซ่อมเสร็จรอส่งมอบ", 
-        "12.ส่งมอบ", "13.วางบิลประกัน", "14.ชำระเงินสด", 
-        "15.วางบิล Tesla", "16.วางบิล EV ME", "17.รอออกบิล", 
-        "19.ออกบิลแล้ว", "20.จอดซ่อม TC", "21.พักซ่อม"
-    ];
-    const isParked = parkedStatuses.some(st => selectedStatus.includes(st) || st.includes(selectedStatus));
-    const parkStatusEl = document.getElementById('park_status');
-    if (parkStatusEl) parkStatusEl.value = isParked ? 'จอดซ่อม' : 'ไม่จอดซ่อม';
+    try {
+        if (typeof selectDamage === 'function') selectDamage('เบา'); 
+        await loadInitialData(); 
+        if (typeof buildPartDatalist === 'function') buildPartDatalist();
+        await checkCrossPageEditMode();
+    } catch (err) {
+        console.error("enterApp Processing Error:", err);
+    }
 }
 
 async function loadInitialData() {
@@ -156,38 +150,42 @@ async function loadInitialData() {
             fetch(`${API_BASE_URL}/api/body-parts`).then(r => r.json())
         ]);
 
-        if (results[0].status === 'fulfilled') {
+        if (results[0].status === 'fulfilled' && Array.isArray(results[0].value)) {
             const data = results[0].value;
             const saList = document.getElementById('sa_list');
             if (saList) {
                 saList.innerHTML = '';
                 const userBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
-                const branchSAs = data.filter(e => e.branch_name === userBranch && (e.employee_role || '').toUpperCase().includes('SA'));
+                const branchSAs = data.filter(e => e && e.branch_name === userBranch && String(e.employee_role || '').toUpperCase().includes('SA'));
                 const uniqueSAs = [...new Set(branchSAs.map(e => e.employee_name).filter(Boolean))].sort();
                 uniqueSAs.forEach(name => { saList.innerHTML += `<option value="${name}">`; });
             }
         }
 
-        if (results[1].status === 'fulfilled') {
+        if (results[1].status === 'fulfilled' && Array.isArray(results[1].value)) {
             globalStatuses = results[1].value;
             const select = document.getElementById('job_status'); 
             if (select) {
                 select.innerHTML = '<option value="">-- เลือกสถานะใบงาน --</option>';
-                globalStatuses.forEach(item => select.innerHTML += `<option value="${item.status_name}">${item.status_name}</option>`);
+                globalStatuses.forEach(item => {
+                    if (item && item.status_name) select.innerHTML += `<option value="${item.status_name}">${item.status_name}</option>`;
+                });
             }
         }
 
-        if (results[2].status === 'fulfilled') {
+        if (results[2].status === 'fulfilled' && Array.isArray(results[2].value)) {
             const select = document.getElementById('customer_type'); 
             if (select) {
                 select.innerHTML = '<option value="">-- เลือก --</option>';
-                results[2].value.forEach(item => select.innerHTML += `<option value="${item.type_name}">${item.type_name}</option>`);
+                results[2].value.forEach(item => {
+                    if (item && item.type_name) select.innerHTML += `<option value="${item.type_name}">${item.type_name}</option>`;
+                });
             }
         }
 
-        if (results[3].status === 'fulfilled') {
+        if (results[3].status === 'fulfilled' && Array.isArray(results[3].value)) {
             globalCarData = results[3].value; 
-            const uniqueBrands = [...new Set(globalCarData.map(car => car.car_brand))];
+            const uniqueBrands = [...new Set(globalCarData.map(car => car.car_brand).filter(Boolean))];
             const brandList = document.getElementById('brand_list'); 
             if (brandList) {
                 brandList.innerHTML = '';
@@ -196,19 +194,21 @@ async function loadInitialData() {
             updateCarModels('Tesla'); 
         }
 
-        if (results[4].status === 'fulfilled') {
+        if (results[4].status === 'fulfilled' && Array.isArray(results[4].value)) {
             const select = document.getElementById('payment_type'); 
             if (select) {
                 select.innerHTML = '<option value="">-- เลือก --</option>';
-                results[4].value.forEach(item => select.innerHTML += `<option value="${item.insurance_name}">${item.insurance_name}</option>`);
+                results[4].value.forEach(item => {
+                    if (item && item.insurance_name) select.innerHTML += `<option value="${item.insurance_name}">${item.insurance_name}</option>`;
+                });
             }
         }
 
-        if (results[5].status === 'fulfilled') {
+        if (results[5].status === 'fulfilled' && Array.isArray(results[5].value)) {
             const data = results[5].value;
-            repairBodyPartsList.main = data.filter(p => p.category === 'ชิ้นส่วนหลัก').map(p => p.part_name);
-            repairBodyPartsList.sub = data.filter(p => p.category === 'ชิ้นส่วนรอง').map(p => p.part_name);
-            renderBodyPartsUI();
+            repairBodyPartsList.main = data.filter(p => p && p.category === 'ชิ้นส่วนหลัก').map(p => p.part_name);
+            repairBodyPartsList.sub = data.filter(p => p && p.category === 'ชิ้นส่วนรอง').map(p => p.part_name);
+            if (typeof renderBodyPartsUI === 'function') renderBodyPartsUI();
         }
     } catch (err) {
         console.error("Error loading initial data", err);
