@@ -40,8 +40,47 @@ document.addEventListener('input', function(e) {
     }
 });
 
+// 🌟 ฟังก์ชันเปิดระบบลากขยายคอลัมน์ตาราง (Column Resizer ProMax) 🌟
+window.initResizableColumns = function(tableId) {
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    const cols = table.querySelectorAll('th');
+    cols.forEach(col => {
+        const resizer = col.querySelector('.resizer, .resizer-po');
+        if (!resizer) return;
+        
+        let startX = 0;
+        let startWidth = 0;
+        
+        const onMouseDown = (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            startX = e.clientX;
+            startWidth = col.offsetWidth;
+            resizer.classList.add('resizing');
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        };
+        
+        const onMouseMove = (e) => {
+            const newWidth = Math.max(50, startWidth + (e.clientX - startX));
+            col.style.width = `${newWidth}px`;
+            col.style.minWidth = `${newWidth}px`;
+        };
+        
+        const onMouseUp = () => {
+            resizer.classList.remove('resizing');
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        };
+        
+        resizer.removeEventListener('mousedown', onMouseDown);
+        resizer.addEventListener('mousedown', onMouseDown);
+    });
+};
+
 // ------------------------------------------
-// 1. แจ้งเตือน SA (SA Alerts - ตารางหลักเพิ่มคอลัมน์หมายเลขเครื่อง)
+// 1. แจ้งเตือน SA (SA Alerts - ตารางหลัก)
 // ------------------------------------------
 function renderSAAlerts() {
     const tbody = document.getElementById('sa_alerts_body');
@@ -63,7 +102,7 @@ function renderSAAlerts() {
     }
     
     if (jobsToDisplay.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="11" class="text-center py-10 text-slate-400 font-bold bg-white"><i class="fa-solid fa-check-circle text-3xl mb-3 text-emerald-300 block"></i> ไม่มีรายการใบงานที่ต้องจัดการครับ! 🎉</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-slate-400 font-bold bg-white"><i class="fa-solid fa-check-circle text-3xl mb-3 text-emerald-300 block"></i> ไม่มีรายการใบงานที่ต้องจัดการครับ! 🎉</td></tr>`;
         if(badge) badge.classList.add('hidden');
         return;
     }
@@ -79,7 +118,7 @@ function renderSAAlerts() {
         const arrDate = (job.arrived_date || job.contact_date) ? String(job.arrived_date || job.contact_date).split('T')[0] : '-';
         const customerName = job.customer_name || '-';
         const saOwner = job.sa_owner || 'ไม่ระบุ';
-        const engineNoDisplay = job.engine_no || job.vin_no || '-'; // 🌟 หมายเลขเครื่อง / VIN
+        const engineNoDisplay = job.engine_no || job.vin_no || '-'; 
         
         const relatedParts = allPartOrders.filter(p => 
             (String(p.report_id) === String(jobId) || (!p.report_id && p.car_plate === plate))
@@ -132,20 +171,14 @@ function renderSAAlerts() {
                 </td>
                 <td class="text-slate-500 font-mono font-bold text-center px-2 py-2 text-xs">${arrDate}</td>
                 <td class="font-bold text-slate-600 text-xs px-2 py-2">${job.car_model || '-'}</td>
-                
-                <!-- 🌟 เพิ่มคอลัมน์ หมายเลขเครื่อง / VIN ในตารางหลัก 🌟 -->
                 <td class="font-mono text-xs font-bold text-purple-700 px-2 py-2 bg-purple-50/30 rounded border border-purple-100">${engineNoDisplay}</td>
-                
                 <td class="font-bold text-slate-700 text-xs px-2 py-2 truncate max-w-[150px]" title="${customerName}">
                     ${customerName}
                     <div class="text-[10px] text-blue-600 mt-1 flex items-center gap-1 bg-blue-50 px-1.5 py-0.5 rounded-full inline-block border border-blue-100"><i class="fa-solid fa-user-tie"></i> ${saOwner}</div>
                 </td>
-                
                 <td class="font-mono text-xs font-bold text-slate-700 px-2 py-2">${qtDisplay}</td>
                 <td class="font-mono text-xs font-bold text-amber-700 px-2 py-2">${soDisplay}</td>
-                
                 <td class="px-2 py-2 max-h-[120px] overflow-y-auto block custom-scrollbar bg-slate-50/50 rounded-xl my-1 border border-slate-200 shadow-inner">${itemsHtml}</td>
-                
                 <td class="text-center px-2 py-2">
                     <button onclick="openAlertModal('${jobId}', '${plate}')" class="bg-[#00320D] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-black transition shadow-sm w-full">
                         <i class="fa-solid fa-table-cells"></i> โต๊ะคีย์
@@ -154,6 +187,11 @@ function renderSAAlerts() {
             </tr>
         `;
     }).join('');
+
+    // 🌟 เปิดระบบยืดคอลัมน์ของ saTable ทันทีหลัง Render 🌟
+    setTimeout(() => {
+        initResizableColumns('saTable');
+    }, 150);
 }
 
 // 🌟 ยิงลบของจริงจาก Database 🌟
@@ -188,7 +226,7 @@ window.deleteAlertPartRow = async function(btn, partId) {
 };
 
 // ------------------------------------------
-// โต๊ะคีย์ Modal (เอาหมายเลขเครื่องออก ดึง part_category ใส่ part_type)
+// โต๊ะคีย์ Modal
 // ------------------------------------------
 function openAlertModal(jobId, plate) {
     const mainJob = (typeof allReports !== 'undefined') ? allReports.find(j => String(j.id) === String(jobId) || j.report_id === jobId) : null;
@@ -223,15 +261,15 @@ function openAlertModal(jobId, plate) {
             <table class="excel-table w-full modern-table" id="sa_modal_table">
                 <thead class="bg-[#00320D] text-white sticky top-0 z-10 text-[11px]">
                     <tr>
-                        <th class="w-28 px-2 py-2 relative"><div class="flex items-center justify-between"><span>EPC No</span><i class="fa-solid fa-filter filter-icon text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 0, 'EPC No', 'sa_modal_table')"></i></div><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
-                        <th class="w-36 px-2 py-2 relative"><div class="flex items-center justify-between"><span>หมายเลขอะไหล่</span><i class="fa-solid fa-filter filter-icon text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 1, 'หมายเลขอะไหล่', 'sa_modal_table')"></i></div><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
-                        <th class="w-20 text-center px-2 py-2 relative"><span>จำนวน</span><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
-                        <th class="w-48 px-2 py-2 relative"><div class="flex items-center justify-between"><span>ชื่อชิ้นส่วน</span></div><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
-                        <th class="w-28 px-2 py-2 relative"><div class="flex items-center justify-between"><span>MAIN No</span></div><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
-                        <th class="w-24 px-2 py-2 relative"><div class="flex items-center justify-between"><span>ประเภท</span><i class="fa-solid fa-filter filter-icon text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 5, 'ประเภท', 'sa_modal_table')"></i></div><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
-                        <th class="w-28 px-2 py-2 relative"><div class="flex items-center justify-between"><span>QT</span><i class="fa-solid fa-filter filter-icon text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 6, 'QT', 'sa_modal_table')"></i></div><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
-                        <th class="w-28 px-2 py-2 relative"><div class="flex items-center justify-between"><span>SO</span><i class="fa-solid fa-filter filter-icon text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 7, 'SO', 'sa_modal_table')"></i></div><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
-                        <th class="w-32 text-center px-2 py-2 relative"><div class="flex items-center justify-center gap-2"><span>สถานะ</span><i class="fa-solid fa-filter filter-icon text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 8, 'สถานะ', 'sa_modal_table')"></i></div><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
+                        <th class="w-28 px-2 py-2 relative"><div class="flex items-center justify-between"><span>EPC No</span><i class="fa-solid fa-filter filter-icon text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 0, 'EPC No', 'sa_modal_table')"></i></div><div class="resizer absolute right-0 top-0 w-2 h-full cursor-col-resize hover:bg-amber-400 z-20"></div></th>
+                        <th class="w-36 px-2 py-2 relative"><div class="flex items-center justify-between"><span>หมายเลขอะไหล่</span><i class="fa-solid fa-filter filter-icon text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 1, 'หมายเลขอะไหล่', 'sa_modal_table')"></i></div><div class="resizer absolute right-0 top-0 w-2 h-full cursor-col-resize hover:bg-amber-400 z-20"></div></th>
+                        <th class="w-20 text-center px-2 py-2 relative"><span>จำนวน</span><div class="resizer absolute right-0 top-0 w-2 h-full cursor-col-resize hover:bg-amber-400 z-20"></div></th>
+                        <th class="w-48 px-2 py-2 relative"><div class="flex items-center justify-between"><span>ชื่อชิ้นส่วน</span></div><div class="resizer absolute right-0 top-0 w-2 h-full cursor-col-resize hover:bg-amber-400 z-20"></div></th>
+                        <th class="w-28 px-2 py-2 relative"><div class="flex items-center justify-between"><span>MAIN No</span></div><div class="resizer absolute right-0 top-0 w-2 h-full cursor-col-resize hover:bg-amber-400 z-20"></div></th>
+                        <th class="w-24 px-2 py-2 relative"><div class="flex items-center justify-between"><span>ประเภท</span><i class="fa-solid fa-filter filter-icon text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 5, 'ประเภท', 'sa_modal_table')"></i></div><div class="resizer absolute right-0 top-0 w-2 h-full cursor-col-resize hover:bg-amber-400 z-20"></div></th>
+                        <th class="w-28 px-2 py-2 relative"><div class="flex items-center justify-between"><span>QT</span><i class="fa-solid fa-filter filter-icon text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 6, 'QT', 'sa_modal_table')"></i></div><div class="resizer absolute right-0 top-0 w-2 h-full cursor-col-resize hover:bg-amber-400 z-20"></div></th>
+                        <th class="w-28 px-2 py-2 relative"><div class="flex items-center justify-between"><span>SO</span><i class="fa-solid fa-filter filter-icon text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 7, 'SO', 'sa_modal_table')"></i></div><div class="resizer absolute right-0 top-0 w-2 h-full cursor-col-resize hover:bg-amber-400 z-20"></div></th>
+                        <th class="w-32 text-center px-2 py-2 relative"><div class="flex items-center justify-center gap-2"><span>สถานะ</span><i class="fa-solid fa-filter filter-icon text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 8, 'สถานะ', 'sa_modal_table')"></i></div><div class="resizer absolute right-0 top-0 w-2 h-full cursor-col-resize hover:bg-amber-400 z-20"></div></th>
                         <th class="w-28 text-center px-2 py-2 relative">คาดการณ์ (ETA)</th>
                         <th class="w-28 text-center px-2 py-2 relative">เข้าครบ</th>
                         <th class="w-40 px-2 py-2 relative">หมายเหตุ</th>
@@ -252,7 +290,7 @@ function openAlertModal(jobId, plate) {
         const receivedDateVal = p.received_date || p.part_received_all_date;
         const qtVal = p.qt_no || defaultQt;
         const soVal = p.so_no || defaultSo;
-        const partTypeVal = p.part_type || p.part_category || 'หลัก'; // 🌟 ดึง part_category ใส่ part_type
+        const partTypeVal = p.part_type || p.part_category || 'หลัก';
 
         html += `
             <tr class="hover:bg-amber-50/50 transition-colors" data-id="${p.order_id || p.id}" data-jobid="${jobId}" data-plate="${plate}">
@@ -261,13 +299,9 @@ function openAlertModal(jobId, plate) {
                 <td class="p-0 border border-slate-200"><input type="number" class="inline-edit-input dyn-qty text-center font-black text-amber-600 bg-amber-50" value="${p.qty_ordered || 1}" onpaste="handleModalGridPaste(event, this)"></td>
                 <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-name font-bold" value="${p.part_name || ''}"></td>
                 <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-main font-mono text-slate-500" value="${p.part_main_no || ''}"></td>
-                
-                <!-- 🌟 ดึงข้อมูล part_category มาใส่ช่องประเภท 🌟 -->
                 <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-type text-center font-bold text-blue-700 bg-blue-50/30" value="${partTypeVal}"></td>
-                
                 <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-qt font-mono uppercase text-center" value="${qtVal}"></td>
                 <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-so font-mono uppercase text-center" value="${soVal}"></td>
-                
                 <td class="p-0 border border-slate-200"><select class="inline-edit-select dyn-status font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 cursor-pointer">${safeOpts}</select></td>
                 <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-eta font-mono text-center text-xs" value="${p.est_arrival_date ? String(p.est_arrival_date).split('T')[0] : ''}"></td>
                 <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-rcv font-mono text-center text-xs" value="${receivedDateVal ? String(receivedDateVal).split('T')[0] : ''}"></td>
@@ -292,7 +326,9 @@ function openAlertModal(jobId, plate) {
     document.getElementById('alertModal').classList.remove('hidden');
     document.getElementById('alertModal').classList.add('flex');
 
-    if(typeof initResizableColumns === 'function') initResizableColumns('sa_modal_table');
+    setTimeout(() => {
+        initResizableColumns('sa_modal_table');
+    }, 100);
 }
 
 window.addNewAlertRow = function(jobId, plate, epcNo, defaultQt = '', defaultSo = '') {
@@ -316,12 +352,9 @@ window.addNewAlertRow = function(jobId, plate, epcNo, defaultQt = '', defaultSo 
         <td class="p-0 border border-slate-200"><input type="number" class="inline-edit-input dyn-qty text-center font-black text-amber-600 bg-amber-50" value="1" min="1" onpaste="handleModalGridPaste(event, this)"></td>
         <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-name font-bold"></td>
         <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-main font-mono text-slate-500"></td>
-        
         <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-type text-center font-bold text-blue-700 bg-blue-50/30" value="หลัก"></td>
-        
         <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-qt font-mono uppercase text-center" value="${defaultQt}"></td>
         <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-so font-mono uppercase text-center" value="${defaultSo}"></td>
-        
         <td class="p-0 border border-slate-200"><select class="inline-edit-select dyn-status font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 cursor-pointer">${safeOpts}</select></td>
         <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-eta font-mono text-center text-xs"></td>
         <td class="p-0 border border-slate-200"><input type="date" class="inline-edit-input dyn-rcv font-mono text-center text-xs"></td>
@@ -381,7 +414,7 @@ function autoFillDynName(inputEl) {
         tr.querySelector('.dyn-name').value = matched.part_name || '';
         tr.querySelector('.dyn-main').value = matched.part_main_no || '';
         const typeInp = tr.querySelector('.dyn-type');
-        if (typeInp) typeInp.value = matched.part_category || matched.part_type || 'หลัก'; // 🌟 ดึง part_category เป็นหลัก
+        if (typeInp) typeInp.value = matched.part_category || matched.part_type || 'หลัก';
     }
 }
 
@@ -503,7 +536,7 @@ function renderMasterTable() {
             <td class="font-bold text-slate-800 px-4 py-2.5">${m.part_name}</td>
             <td class="font-mono text-slate-500 px-4 py-2.5">${m.part_main_no || '-'}</td>
             <td class="text-slate-600 text-xs font-bold px-4 py-2.5">${m.car_model || '-'}</td>
-            <td class="px-4 py-2.5"><span class="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded-lg text-[10px] font-bold shadow-sm">${m.part_category || m.part_type || 'หลัก'}</span></td>
+            <td class="px-4 py-2.5"><span class="bg-slate-100 text-[#00320D] border border-slate-200 px-2 py-1 rounded-lg text-[10px] font-bold shadow-sm">${m.part_category || m.part_type || 'หลัก'}</span></td>
             <td class="text-right font-mono font-bold text-slate-700 px-4 py-2.5">${parseFloat(m.unit_price || 0).toLocaleString('th-TH', {minimumFractionDigits:2})}</td>
             <td class="text-center font-bold text-slate-600 px-4 py-2.5">${m.location || '-'}</td>
             <td class="text-center px-4 py-2.5"><button onclick="editMaster('${m.part_no}')" class="text-blue-500 hover:text-blue-700 px-2 transition"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteMaster('${m.part_id}')" class="text-slate-300 hover:text-red-500 px-2 transition"><i class="fa-solid fa-trash"></i></button></td>
