@@ -1,4 +1,8 @@
-// 🌟 ฟังก์ชันสร้าง Datalist อะไหล่สำหรับ Auto-complete 🌟
+// ==========================================
+// 📦 SA Parts Operations & Keying Table (sa_parts.js)
+// ==========================================
+
+// 🌟 1. ฟังก์ชันสร้าง Datalist อะไหล่สำหรับ Auto-complete 🌟
 async function buildPartDatalist() {
     try {
         const res = await fetch(`${API_BASE_URL}/api/parts`);
@@ -12,7 +16,6 @@ async function buildPartDatalist() {
             document.body.appendChild(datalist);
         }
         
-        // สร้าง option ให้ลิสต์เด้งลงมาเวลาพิมพ์รหัส
         datalist.innerHTML = parts.map(p => 
             `<option value="${p.part_no}">${p.part_name} (MAIN: ${p.part_main_no || '-'})</option>`
         ).join('');
@@ -21,33 +24,73 @@ async function buildPartDatalist() {
     }
 }
 
-// 🌟 สร้างแถวสำหรับสั่งอะไหล่ (ผูก Datalist เข้ากับช่องพิมพ์รหัส) 🌟
-function addPartRow(partNo = '', partMain = '', partName = '', model = '', type = 'อะไหล่หลัก', price = '0', loc = '', safe = '0') {
+// 🌟 2. เพิ่มแถวบนโต๊ะคีย์อะไหล่ SA (อัปเกรดรองรับการ Paste จาก Excel) 🌟
+window.addPartRow = function(partNo = '', partMain = '', partName = '', model = '', type = 'หลัก', price = '0', loc = '', safe = '0') {
     const tbody = document.getElementById('order_parts_body'); if(!tbody) return;
     const tr = document.createElement('tr');
     tr.innerHTML = `
-        <td class="px-2 py-2">
-            <input type="text" list="master_part_list" class="minimal-input px-2 py-1.5 part-no-input font-mono uppercase text-xs bg-white focus:ring-amber-500/30" placeholder="บาร์โค้ด" value="${partNo}" onchange="checkMasterPart(this)" onkeypress="if(event.key === 'Enter') { event.preventDefault(); checkMasterPart(this); }">
+        <td class="px-2 py-2 border-b border-slate-100">
+            <input type="text" list="master_part_list" class="minimal-input px-2 py-1.5 part-no-input font-mono uppercase text-xs font-bold text-blue-700 bg-blue-50/50 focus:ring-amber-500/30 text-center" placeholder="บาร์โค้ด" value="${partNo}" onchange="checkMasterPart(this)" onpaste="handleModalGridPaste(event, this)" onkeypress="if(event.key === 'Enter') { event.preventDefault(); checkMasterPart(this); }">
         </td>
-        <td class="px-2 py-2"><input type="text" class="minimal-input px-2 py-1.5 part-main-input font-mono text-xs" placeholder="MAIN No" value="${partMain}" readonly></td>
-        <td class="px-2 py-2"><input type="text" class="minimal-input px-2 py-1.5 part-name-input text-xs" placeholder="ชื่อชิ้นส่วน" value="${partName}"></td>
-        <td class="px-2 py-2"><input type="text" class="minimal-input px-2 py-1.5 part-model-input text-xs" placeholder="รุ่นรถ" value="${model}"></td>
-        <td class="px-2 py-2 min-w-[120px]">
-            <input type="text" class="minimal-input px-2 py-1.5 part-type-input text-xs font-bold" placeholder="ประเภท" value="${type}">
+        <td class="px-2 py-2 border-b border-slate-100"><input type="text" class="minimal-input px-2 py-1.5 part-main-input font-mono text-center text-xs text-slate-500" placeholder="MAIN No" value="${partMain}" readonly></td>
+        <td class="px-2 py-2 border-b border-slate-100"><input type="text" class="minimal-input px-2 py-1.5 part-name-input text-xs font-bold" placeholder="ชื่อชิ้นส่วน" value="${partName}" onpaste="handleModalGridPaste(event, this)"></td>
+        <td class="px-2 py-2 border-b border-slate-100"><input type="text" class="minimal-input px-2 py-1.5 part-model-input text-center text-xs" placeholder="รุ่นรถ" value="${model}" onpaste="handleModalGridPaste(event, this)"></td>
+        <td class="px-2 py-2 border-b border-slate-100 min-w-[100px]">
+            <input type="text" class="minimal-input px-2 py-1.5 part-type-input text-center text-xs font-bold text-blue-700 bg-blue-50/50" placeholder="ประเภท" value="${type}" onpaste="handleModalGridPaste(event, this)">
         </td>
-        <td class="px-2 py-2"><input type="number" class="minimal-input px-2 py-1.5 part-price-input text-xs text-right" placeholder="ราคา" value="${price}"></td>
-        <td class="px-2 py-2"><input type="text" class="minimal-input px-2 py-1.5 part-loc-input text-xs" placeholder="Location" value="${loc}"></td>
-        <td class="px-2 py-2 text-center"><input type="number" class="minimal-input px-2 py-1.5 part-safe-input text-xs text-center font-bold" value="${safe}"></td>
-        <td class="px-2 py-2"><input type="number" class="minimal-input px-2 py-1.5 part-qty-input text-center font-black text-xs text-amber-600 bg-amber-50 border-amber-300 focus:border-amber-500" value="1" min="1"></td>
-        <td class="px-2 py-2 text-center flex flex-col gap-1.5">
-            <button type="button" onclick="sendSinglePO(this)" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black px-3 py-1.5 rounded-lg shadow-sm transition-all whitespace-nowrap"><i class="fa-solid fa-paper-plane mr-1"></i> แอด</button>
-            <button type="button" onclick="this.closest('tr').remove()" class="text-slate-400 hover:text-red-500 transition text-[10px] font-bold"><i class="fa-solid fa-trash"></i> ทิ้ง</button>
+        <td class="px-2 py-2 border-b border-slate-100"><input type="number" class="minimal-input px-2 py-1.5 part-price-input text-xs text-right" placeholder="ราคา" value="${price}" onpaste="handleModalGridPaste(event, this)"></td>
+        <td class="px-2 py-2 border-b border-slate-100"><input type="text" class="minimal-input px-2 py-1.5 part-loc-input text-center text-xs" placeholder="Location" value="${loc}" onpaste="handleModalGridPaste(event, this)"></td>
+        <td class="px-2 py-2 border-b border-slate-100 text-center"><input type="number" class="minimal-input px-2 py-1.5 part-safe-input text-xs text-center font-bold" value="${safe}" onpaste="handleModalGridPaste(event, this)"></td>
+        <td class="px-2 py-2 border-b border-slate-100"><input type="number" class="minimal-input px-2 py-1.5 part-qty-input text-center font-black text-xs text-amber-600 bg-amber-50 border-amber-300 focus:border-amber-500" value="1" min="1" onpaste="handleModalGridPaste(event, this)"></td>
+        <td class="px-2 py-2 border-b border-slate-100 text-center flex flex-col gap-1.5 items-center justify-center">
+            <button type="button" onclick="sendSinglePO(this)" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black px-3 py-1.5 rounded-lg shadow-sm transition-all whitespace-nowrap w-full"><i class="fa-solid fa-paper-plane mr-1"></i> แอด</button>
+            <button type="button" onclick="this.closest('tr').remove()" class="text-slate-400 hover:text-red-500 transition text-[10px] font-bold"><i class="fa-solid fa-trash"></i> ลบ</button>
         </td>
     `;
     tbody.appendChild(tr);
-}
+};
 
-// 🌟 ฟังก์ชันดึงข้อมูล Master Part พร้อมระบบกระพริบ & ดึงข้อมูล Location สาขา 🌟
+// 🌟 3. ระบบ Copy & Paste จาก Excel (SA Keying Table) 🌟
+window.handleModalGridPaste = function(e, cellInput) {
+    e.preventDefault(); 
+    const clipboardData = e.clipboardData || window.clipboardData; 
+    const pastedText = clipboardData.getData('Text'); 
+    if (!pastedText) return;
+    
+    const rows = pastedText.split(/\r\n|\n|\r/).filter(row => row.trim() !== ''); 
+    const tbody = cellInput.closest('tbody'); 
+    let currentRow = cellInput.closest('tr');
+    
+    const allTds = Array.from(currentRow.children);
+    const startColIndex = allTds.indexOf(cellInput.closest('td'));
+
+    rows.forEach((rowStr) => {
+        const cols = rowStr.split('\t'); 
+        if (!currentRow) { 
+            addPartRow(); 
+            currentRow = tbody.lastElementChild; 
+        }
+        
+        const inputs = Array.from(currentRow.querySelectorAll('td')).map(td => td.querySelector('input, select'));
+        
+        cols.forEach((colVal, j) => { 
+            const targetInput = inputs[startColIndex + j];
+            if (targetInput && !targetInput.readOnly) { 
+                targetInput.value = colVal.trim(); 
+                targetInput.classList.add('bg-emerald-100', 'transition-colors'); 
+                setTimeout(() => targetInput.classList.remove('bg-emerald-100'), 800); 
+                
+                // ถ้ายิงรหัสอะไหล่มา ให้ดึงชื่อชิ้นส่วนจาก Master อัตโนมัติ
+                if (targetInput.classList.contains('part-no-input')) {
+                    checkMasterPart(targetInput);
+                }
+            } 
+        });
+        currentRow = currentRow.nextElementSibling;
+    });
+};
+
+// 🌟 4. ฟังก์ชันดึงข้อมูล Master Part พร้อมระบบกระพริบ 🌟
 async function checkMasterPart(inputElem) {
     const partNo = inputElem.value.trim(); if(!partNo) return;
     const tr = inputElem.closest('tr'); 
@@ -56,7 +99,6 @@ async function checkMasterPart(inputElem) {
     const l = tr.querySelector('.part-loc-input'); const s = tr.querySelector('.part-safe-input');
     const t = tr.querySelector('.part-type-input');
 
-    // โชว์ Effect กระพริบสีทองตอนกำลังดึงข้อมูล
     inputElem.classList.add('animate-pulse', 'text-amber-500', 'bg-amber-50');
 
     try {
@@ -70,7 +112,7 @@ async function checkMasterPart(inputElem) {
                 if(n) n.value = data.part_name || ''; 
                 if(m) m.value = data.part_main_no || '-'; 
                 if(mo) mo.value = data.car_model || '-';
-                if(t) t.value = data.part_category || 'อะไหล่หลัก'; 
+                if(t) t.value = data.part_category || data.part_type || 'หลัก'; // ดึง part_category อัตโนมัติ
                 if(p) p.value = data.unit_price || 0; 
                 if(l) l.value = data.location || '-'; 
                 if(s) s.value = data.safety_stock || 0;
@@ -79,12 +121,11 @@ async function checkMasterPart(inputElem) {
     } catch(e) {
         console.error("Fetch Master Part Error:", e);
     } finally {
-        // ปิดลูกเล่นกระพริบเมื่อโหลดเสร็จ
         inputElem.classList.remove('animate-pulse', 'text-amber-500', 'bg-amber-50');
     }
 }
 
-// 🌟 ส่งคำสั่งซื้อแยกรายชิ้น (PO) 🌟
+// 🌟 5. ส่งคำสั่งซื้อแยกรายชิ้น (PO) 🌟
 async function sendSinglePO(btnElem) {
     const carPlateEl = document.getElementById('car_plate');
     const carPlate = carPlateEl ? carPlateEl.value.trim() : '';
@@ -94,7 +135,7 @@ async function sendSinglePO(btnElem) {
     const pNo = tr.querySelector('.part-no-input')?.value?.trim() || ''; 
     const pMain = tr.querySelector('.part-main-input')?.value?.trim() || '';
     let pName = tr.querySelector('.part-name-input')?.value?.trim() || ''; 
-    const pType = tr.querySelector('.part-type-input')?.value?.trim() || 'อะไหล่หลัก';
+    const pType = tr.querySelector('.part-type-input')?.value?.trim() || 'หลัก';
     const pQty = parseInt(tr.querySelector('.part-qty-input')?.value) || 1;
     
     if(!pNo) { alert('⚠️ กรุณาระบุบาร์โค้ดอะไหล่ก่อนสั่งซื้อ'); return; }
@@ -183,7 +224,7 @@ async function sendSinglePO(btnElem) {
     }
 }
 
-// 🌟 ฟังก์ชันโหลดตารางติดตามสถานะอะไหล่ 🌟
+// 🌟 6. ฟังก์ชันโหลดตารางติดตามสถานะอะไหล่ 🌟
 async function loadPartsTrackingTable(carPlate) {
     const tbody = document.getElementById('track_parts_body');
     if (!tbody) return;
