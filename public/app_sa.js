@@ -478,7 +478,7 @@ async function loadPartsTrackingTable(carPlate) {
                 <td class="font-mono text-xs font-bold text-blue-700 text-center">${item.part_no || '-'}</td>
                 <td class="font-mono text-xs font-bold text-slate-600 text-center">${item.part_main_no || '-'}</td>
                 <td class="font-bold text-slate-800 whitespace-normal break-words">${item.part_name || '-'}</td>
-                <td class="text-center font-bold text-slate-600">${item.part_type || 'หลัก'}</td>
+                <td class="text-center font-bold text-blue-700 bg-blue-50/50">${item.part_type || '-'}</td>
                 <td class="text-center font-bold"><span class="text-amber-600">${item.qty_ordered || 0}</span> / <span class="text-emerald-600">${item.qty_received || 0}</span></td>
                 <td class="text-center"><span class="px-2 py-0.5 rounded border text-[10px] font-bold shadow-2xs bg-slate-100 text-slate-700">${item.order_status || 'รอสั่งซื้อ'}</span></td>
                 <td class="font-mono text-xs text-slate-500 text-center">${item.order_date ? String(item.order_date).split('T')[0] : '-'}</td>
@@ -686,6 +686,31 @@ async function checkCrossPageEditMode() {
         selectedBodyParts.main = job.main_part_name ? job.main_part_name.split(',').map(s => s.trim()).filter(Boolean) : [];
         selectedBodyParts.sub = job.sub_part_name ? job.sub_part_name.split(',').map(s => s.trim()).filter(Boolean) : [];
         renderBodyPartsUI();
+
+        // 🌟 เพิ่มโค้ดส่วนนี้: อัปเดตสีป้ายสถานะช่าง (บล็อก 6) 🌟
+        const stations = ['kho', 'pou', 'puan', 'pon', 'prak', 'kat', 'qc', 'mag', 'kraj', 'film', 'pak', 'ready'];
+        stations.forEach(st => {
+            const badge = document.getElementById('badge_st_' + st);
+            if (badge) {
+                // เช็กว่าช่างติ๊กผ่านสถานีนี้หรือยัง
+                if (job[`station_${st}`] === true || job[`station_${st}`] === 'true' || job[`station_${st}`] === 1) {
+                    badge.className = 'px-3 py-1.5 rounded-lg text-[11px] font-bold bg-[#00320D] text-amber-400 border border-[#00320D] shadow-md transition-all transform scale-105';
+                } else {
+                    badge.className = 'px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all';
+                }
+            }
+        });
+
+        // แสดงหมายเหตุจากช่าง (ถ้ามี)
+        const noteDisplay = document.getElementById('repair_note_display');
+        const noteText = document.getElementById('repair_note_text');
+        if (job.repair_notes && String(job.repair_notes).trim() !== '') {
+            if (noteText) noteText.innerText = job.repair_notes;
+            if (noteDisplay) noteDisplay.classList.remove('hidden');
+        } else {
+            if (noteDisplay) noteDisplay.classList.add('hidden');
+            if (noteText) noteText.innerText = '';
+        }
         
         const setDateVal = (elemId, isoVal) => {
             const el = document.getElementById(elemId);
@@ -732,6 +757,18 @@ function cancelEditMode() {
     renderBodyPartsUI();
 
     selectDamage('เบา');
+
+    // 🌟 เพิ่มโค้ดส่วนนี้: รีเซ็ตป้ายสถานะช่าง (บล็อก 6) 🌟
+    const stations = ['kho', 'pou', 'puan', 'pon', 'prak', 'kat', 'qc', 'mag', 'kraj', 'film', 'pak', 'ready'];
+    stations.forEach(st => {
+        const badge = document.getElementById('badge_st_' + st);
+        if (badge) {
+            badge.className = 'px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all';
+        }
+    });
+    const noteDisplay = document.getElementById('repair_note_display');
+    if (noteDisplay) noteDisplay.classList.add('hidden');
+    // 🌟 สิ้นสุดส่วนที่เพิ่ม 🌟
     
     const deptRoute = document.getElementById('department_routing');
     const parkStat = document.getElementById('park_status');
