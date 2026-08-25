@@ -83,7 +83,7 @@ async function handleLogin(e) {
     const userEl = document.getElementById('login_user');
     const passEl = document.getElementById('login_pass');
     
-    if (!userEl || !passEl) return alert('❌ ไม่พบช่องกรอกชื่อผู้ใช้/รหัสผ่าน');
+    if (!userEl || !passEl) return alert('❌ ไม่พบช่องกรอกข้อมูล');
 
     try {
         const res = await fetch(`${API_BASE_URL}/api/login`, { 
@@ -101,16 +101,40 @@ async function handleLogin(e) {
             sessionStorage.setItem('emp_branch', emp.branch_name || 'สำนักงานใหญ่');
             sessionStorage.setItem('accessible_pages', emp.accessible_pages || '');
             
+            // เรียกสลับหน้าทันที
             enterApp(); 
         } else {
-            alert('❌ ' + (data.error || data.message || 'เข้าสู่ระบบไม่สำเร็จ'));
+            alert('❌ ' + (data.error || 'เข้าสู่ระบบไม่สำเร็จ'));
         }
     } catch (err) { 
-        console.error("Login Error:", err);
-        alert('❌ ระบบขัดข้อง ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'); 
+        alert('❌ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'); 
     }
 }
 
+async function enterApp() {
+    // 🌟 ย้ายการสลับหน้ามาไว้ "บนสุด" 🌟
+    const loginScr = document.getElementById('login-screen');
+    const mainApp = document.getElementById('main-app');
+    
+    if (loginScr) loginScr.classList.add('hidden');
+    if (mainApp) mainApp.classList.remove('hidden');
+    
+    // รีเซ็ตค่าการแสดงผล
+    document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name') || 'Admin';
+    document.getElementById('display_branch').innerText = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+    if (document.getElementById('sa_owner_input')) document.getElementById('sa_owner_input').value = sessionStorage.getItem('emp_name') || '';
+    if (document.getElementById('contact_date')) document.getElementById('contact_date').value = new Date().toISOString().split('T')[0];
+    
+    // ห่อด้วย try-catch ป้องกันการทำงานพัง
+    try {
+        if (typeof selectDamage === 'function') selectDamage('เบา'); 
+        await loadInitialData(); 
+        if (typeof buildPartDatalist === 'function') buildPartDatalist();
+        if (typeof checkCrossPageEditMode === 'function') await checkCrossPageEditMode();
+    } catch (err) {
+        console.warn("⚠️ มีบางอย่างโหลดไม่สมบูรณ์ แต่หน้าหลักจะยังใช้งานได้:", err);
+    }
+}
 async function enterApp() {
     const loginScr = document.getElementById('login-screen');
     const mainApp = document.getElementById('main-app');
