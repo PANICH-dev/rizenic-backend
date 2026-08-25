@@ -98,7 +98,8 @@ function renderSAAlerts() {
                 
                 let partNoDisplay = (p.part_no && p.part_no !== 'AUTO-PART') ? `<span class="text-blue-600 font-mono">[${p.part_no}]</span> ` : '';
                 let epcDisplay = p.epc_no ? `<span class="text-purple-600 font-mono ml-1 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 shadow-sm"><i class="fa-solid fa-barcode mr-1"></i>EPC: ${p.epc_no}</span>` : '';
-                
+                let typeDisplay = `<span class="text-blue-700 font-bold ml-1 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 shadow-sm">${p.part_type || 'หลัก'}</span>`;
+
                 let dateInfo = '';
                 if (p.est_arrival_date) {
                     dateInfo += `<span class="text-amber-600 font-mono ml-1 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shadow-sm"><i class="fa-solid fa-calendar-day mr-1"></i>ETA: ${String(p.est_arrival_date).split('T')[0]}</span>`;
@@ -113,6 +114,7 @@ function renderSAAlerts() {
                         <div class="mt-0.5 shrink-0">${icon}</div>
                         <div class="leading-tight w-full flex flex-wrap items-center gap-1">
                             <span>${partNoDisplay}${p.part_name}</span> 
+                            ${typeDisplay}
                             <span class="text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shadow-sm">${p.order_status || '-'}</span>
                             ${epcDisplay}
                             ${dateInfo}
@@ -150,7 +152,7 @@ function renderSAAlerts() {
     }).join('');
 }
 
-// 🌟 เพิ่มฟังก์ชันยิงลบของจริงจาก Database 🌟
+// 🌟 ยิงลบของจริงจาก Database 🌟
 window.deleteAlertPartRow = async function(btn, partId) {
     if (partId === 'new') {
         btn.closest('tr').remove();
@@ -168,7 +170,6 @@ window.deleteAlertPartRow = async function(btn, partId) {
             if(typeof showToast === 'function') showToast('ลบข้อมูลออกจากระบบเรียบร้อยแล้ว!', 'success');
             btn.closest('tr').remove();
             
-            // สั่งอัปเดต Data หลังบ้านให้ตรงกัน
             if (typeof fetchAllData === 'function') {
                 fetchAllData();
             } else if (typeof loadAllData === 'function') {
@@ -183,19 +184,19 @@ window.deleteAlertPartRow = async function(btn, partId) {
 };
 
 // ------------------------------------------
-// โต๊ะคีย์ Modal (อัปเกรด ProMax: Paste & Filter)
+// โต๊ะคีย์ Modal (เพิ่ม part_type และ หมายเลขเครื่อง)
 // ------------------------------------------
 function openAlertModal(jobId, plate) {
     const mainJob = (typeof allReports !== 'undefined') ? allReports.find(j => String(j.id) === String(jobId) || j.report_id === jobId) : null;
     const defaultQt = mainJob ? (mainJob.qt_no || mainJob.quotation_no || '') : '';
     const defaultSo = mainJob ? (mainJob.so_no || mainJob.job_order_no || '') : '';
+    const defaultEngineNo = mainJob ? (mainJob.engine_no || mainJob.vin_no || '') : '';
 
     const jobParts = allPartOrders.filter(p => 
         (String(p.report_id) === String(jobId) || (!p.report_id && p.car_plate === plate))
     );
     
     const container = document.getElementById('modal_dynamic_table_container');
-    
     const epcInput = document.getElementById('mass_epc_update');
     const existingEpc = epcInput ? epcInput.value : '';
 
@@ -224,9 +225,11 @@ function openAlertModal(jobId, plate) {
                         <th class="w-20 text-center px-2 py-2 relative"><span>จำนวน</span><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
                         <th class="w-48 px-2 py-2 relative"><div class="flex items-center justify-between"><span>ชื่อชิ้นส่วน</span></div><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
                         <th class="w-28 px-2 py-2 relative"><div class="flex items-center justify-between"><span>MAIN No</span></div><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
-                        <th class="w-28 px-2 py-2 relative"><div class="flex items-center justify-between"><span>QT</span><i class="fa-solid fa-filter filter-icon text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 5, 'QT', 'sa_modal_table')"></i></div><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
-                        <th class="w-28 px-2 py-2 relative"><div class="flex items-center justify-between"><span>SO</span><i class="fa-solid fa-filter filter-icon text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 6, 'SO', 'sa_modal_table')"></i></div><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
-                        <th class="w-32 text-center px-2 py-2 relative"><div class="flex items-center justify-center gap-2"><span>สถานะ</span><i class="fa-solid fa-filter filter-icon text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 7, 'สถานะ', 'sa_modal_table')"></i></div><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
+                        <th class="w-24 px-2 py-2 relative"><div class="flex items-center justify-between"><span>ประเภท</span><i class="fa-solid fa-filter filter-icon text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 5, 'ประเภท', 'sa_modal_table')"></i></div><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
+                        <th class="w-32 px-2 py-2 relative"><div class="flex items-center justify-between"><span>หมายเลขเครื่อง/VIN</span></div><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
+                        <th class="w-28 px-2 py-2 relative"><div class="flex items-center justify-between"><span>QT</span><i class="fa-solid fa-filter filter-icon text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 7, 'QT', 'sa_modal_table')"></i></div><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
+                        <th class="w-28 px-2 py-2 relative"><div class="flex items-center justify-between"><span>SO</span><i class="fa-solid fa-filter filter-icon text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 8, 'SO', 'sa_modal_table')"></i></div><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
+                        <th class="w-32 text-center px-2 py-2 relative"><div class="flex items-center justify-center gap-2"><span>สถานะ</span><i class="fa-solid fa-filter filter-icon text-slate-400 hover:text-amber-400 cursor-pointer" onclick="openExcelFilter(event, 9, 'สถานะ', 'sa_modal_table')"></i></div><div class="resizer absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-amber-400"></div></th>
                         <th class="w-28 text-center px-2 py-2 relative">คาดการณ์ (ETA)</th>
                         <th class="w-28 text-center px-2 py-2 relative">เข้าครบ</th>
                         <th class="w-40 px-2 py-2 relative">หมายเหตุ</th>
@@ -247,8 +250,9 @@ function openAlertModal(jobId, plate) {
         const receivedDateVal = p.received_date || p.part_received_all_date;
         const qtVal = p.qt_no || defaultQt;
         const soVal = p.so_no || defaultSo;
+        const engineVal = p.engine_no || p.vin_no || defaultEngineNo;
+        const partTypeVal = p.part_type || 'หลัก';
 
-        // 🌟 อัปเดต: เปลี่ยนเป็นการเรียก deleteAlertPartRow() 🌟
         html += `
             <tr class="hover:bg-amber-50/50 transition-colors" data-id="${p.order_id || p.id}" data-jobid="${jobId}" data-plate="${plate}">
                 <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-epc font-mono uppercase text-center" value="${p.epc_no || ''}" onpaste="handleModalGridPaste(event, this)"></td>
@@ -256,6 +260,11 @@ function openAlertModal(jobId, plate) {
                 <td class="p-0 border border-slate-200"><input type="number" class="inline-edit-input dyn-qty text-center font-black text-amber-600 bg-amber-50" value="${p.qty_ordered || 1}" onpaste="handleModalGridPaste(event, this)"></td>
                 <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-name font-bold" value="${p.part_name || ''}"></td>
                 <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-main font-mono text-slate-500" value="${p.part_main_no || ''}"></td>
+                
+                <!-- 🌟 ดึงข้อมูล part_type 🌟 -->
+                <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-type text-center font-bold text-blue-700 bg-blue-50/30" value="${partTypeVal}"></td>
+                <!-- 🌟 เพิ่มช่องกรอก หมายเลขเครื่อง 🌟 -->
+                <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-engineno font-mono uppercase text-center" value="${engineVal}"></td>
                 
                 <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-qt font-mono uppercase text-center" value="${qtVal}"></td>
                 <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-so font-mono uppercase text-center" value="${soVal}"></td>
@@ -273,7 +282,7 @@ function openAlertModal(jobId, plate) {
     
     html += `
         <div class="mt-3 flex justify-between items-center">
-            <button type="button" onclick="addNewAlertRow('${jobId}', '${plate}', '', '${defaultQt}', '${defaultSo}')" class="px-5 py-2.5 bg-white border border-emerald-300 text-emerald-700 font-bold rounded-lg hover:bg-emerald-50 text-xs shadow-sm transition flex items-center gap-2">
+            <button type="button" onclick="addNewAlertRow('${jobId}', '${plate}', '', '${defaultQt}', '${defaultSo}', '${defaultEngineNo}')" class="px-5 py-2.5 bg-white border border-emerald-300 text-emerald-700 font-bold rounded-lg hover:bg-emerald-50 text-xs shadow-sm transition flex items-center gap-2">
                 <i class="fa-solid fa-plus"></i> กดเพิ่มแถว
             </button>
             <button type="button" onclick="clearSpecificExcelFilter()" class="text-xs font-bold text-slate-400 hover:text-red-500 transition"><i class="fa-solid fa-filter-circle-xmark"></i> ล้างตัวกรองทั้งหมด</button>
@@ -287,7 +296,7 @@ function openAlertModal(jobId, plate) {
     if(typeof initResizableColumns === 'function') initResizableColumns('sa_modal_table');
 }
 
-window.addNewAlertRow = function(jobId, plate, epcNo, defaultQt = '', defaultSo = '') {
+window.addNewAlertRow = function(jobId, plate, epcNo, defaultQt = '', defaultSo = '', defaultEngineNo = '') {
     const tbody = document.querySelector('#modal_dynamic_table_container tbody');
     const safeStatusList = (allPartStatusesCache.length > 0) ? allPartStatusesCache : fallbackStatuses;
     const statusOptionsHtml = safeStatusList.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
@@ -302,13 +311,15 @@ window.addNewAlertRow = function(jobId, plate, epcNo, defaultQt = '', defaultSo 
     tr.setAttribute('data-jobid', jobId);
     tr.setAttribute('data-plate', plate);
     
-    // 🌟 อัปเดต: เปลี่ยนเป็นการเรียก deleteAlertPartRow() 🌟
     tr.innerHTML = `
         <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-epc font-mono uppercase text-center" value="${currentEpc}" onpaste="handleModalGridPaste(event, this)"></td>
         <td class="p-0 border border-slate-200"><input type="text" list="master_parts_datalist" class="inline-edit-input dyn-partno font-mono uppercase text-center font-bold text-blue-700 bg-blue-50/30" onchange="autoFillDynName(this)" onpaste="handleModalGridPaste(event, this)"></td>
         <td class="p-0 border border-slate-200"><input type="number" class="inline-edit-input dyn-qty text-center font-black text-amber-600 bg-amber-50" value="1" min="1" onpaste="handleModalGridPaste(event, this)"></td>
         <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-name font-bold"></td>
         <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-main font-mono text-slate-500"></td>
+        
+        <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-type text-center font-bold text-blue-700 bg-blue-50/30" value="หลัก"></td>
+        <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-engineno font-mono uppercase text-center" value="${defaultEngineNo}"></td>
         
         <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-qt font-mono uppercase text-center" value="${defaultQt}"></td>
         <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-so font-mono uppercase text-center" value="${defaultSo}"></td>
@@ -371,6 +382,8 @@ function autoFillDynName(inputEl) {
     if(matched) {
         tr.querySelector('.dyn-name').value = matched.part_name || '';
         tr.querySelector('.dyn-main').value = matched.part_main_no || '';
+        const typeInp = tr.querySelector('.dyn-type');
+        if (typeInp) typeInp.value = matched.part_type || matched.part_category || 'หลัก';
     }
 }
 
@@ -408,6 +421,8 @@ async function saveSAAlertUpdate(e) {
             part_no: partNo || (isNew ? 'AUTO-PART' : null),
             part_main_no: tr.querySelector('.dyn-main').value.trim() || null,
             part_name: partName || (isNew ? 'อะไหล่ทั่วไป' : null),
+            part_type: tr.querySelector('.dyn-type').value.trim() || 'หลัก',
+            engine_no: tr.querySelector('.dyn-engineno').value.trim() || null,
             qty_ordered: parseInt(tr.querySelector('.dyn-qty').value) || 1,
             qt_no: tr.querySelector('.dyn-qt').value.trim() || null,
             so_no: tr.querySelector('.dyn-so').value.trim() || null,
@@ -434,7 +449,8 @@ async function saveSAAlertUpdate(e) {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ 
                         report_id: u.report_id, car_plate: u.car_plate, part_no: u.part_no, 
-                        part_main_no: u.part_main_no, part_name: u.part_name, qty_ordered: u.qty_ordered, 
+                        part_main_no: u.part_main_no, part_name: u.part_name, part_type: u.part_type,
+                        engine_no: u.engine_no, qty_ordered: u.qty_ordered, 
                         qt_no: u.qt_no, so_no: u.so_no, order_status: u.order_status, 
                         est_arrival_date: u.est_arrival_date, 
                         received_date: u.received_date,       
@@ -443,7 +459,7 @@ async function saveSAAlertUpdate(e) {
                 });
             } else {
                 const promises = [];
-                ['epc_no', 'part_no', 'part_main_no', 'part_name', 'qty_ordered', 'qt_no', 'so_no', 'order_status', 'est_arrival_date', 'received_date', 'notes'].forEach(field => {
+                ['epc_no', 'part_no', 'part_main_no', 'part_name', 'part_type', 'engine_no', 'qty_ordered', 'qt_no', 'so_no', 'order_status', 'est_arrival_date', 'received_date', 'notes'].forEach(field => {
                     let valToSend = u[field];
                     if(valToSend === '') valToSend = null;
                     promises.push(fetch(`${API_BASE_URL}/api/part-orders/${u.id}/fast`, {
@@ -490,7 +506,7 @@ function renderMasterTable() {
             <td class="font-bold text-slate-800 px-4 py-2.5">${m.part_name}</td>
             <td class="font-mono text-slate-500 px-4 py-2.5">${m.part_main_no || '-'}</td>
             <td class="text-slate-600 text-xs font-bold px-4 py-2.5">${m.car_model || '-'}</td>
-            <td class="px-4 py-2.5"><span class="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded-lg text-[10px] font-bold shadow-sm">${m.part_category || 'อะไหล่ทั่วไป'}</span></td>
+            <td class="px-4 py-2.5"><span class="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded-lg text-[10px] font-bold shadow-sm">${m.part_type || m.part_category || 'หลัก'}</span></td>
             <td class="text-right font-mono font-bold text-slate-700 px-4 py-2.5">${parseFloat(m.unit_price || 0).toLocaleString('th-TH', {minimumFractionDigits:2})}</td>
             <td class="text-center font-bold text-slate-600 px-4 py-2.5">${m.location || '-'}</td>
             <td class="text-center px-4 py-2.5"><button onclick="editMaster('${m.part_no}')" class="text-blue-500 hover:text-blue-700 px-2 transition"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteMaster('${m.part_id}')" class="text-slate-300 hover:text-red-500 px-2 transition"><i class="fa-solid fa-trash"></i></button></td>
@@ -503,7 +519,7 @@ function searchMasterTable() { filterTableByText('master_table_body', event.targ
 function openMasterModal() {
     document.getElementById('edit_master_id').value = ''; document.getElementById('master_part_no').value = '';
     document.getElementById('master_part_name').value = ''; document.getElementById('master_part_main').value = '';
-    document.getElementById('master_category').value = 'อะไหล่หลัก'; document.getElementById('master_price').value = '0.00';
+    document.getElementById('master_category').value = 'หลัก'; document.getElementById('master_price').value = '0.00';
     document.getElementById('master_location').value = ''; document.getElementById('master_safety').value = '0';
     renderCarModelsCheckbox(''); document.getElementById('masterModal').classList.remove('hidden'); document.getElementById('masterModal').classList.add('flex');
 }
@@ -518,7 +534,7 @@ async function editMaster(partNo) {
             if(m) {
                 document.getElementById('edit_master_id').value = m.part_id; document.getElementById('master_part_no').value = m.part_no;
                 document.getElementById('master_part_name').value = m.part_name; document.getElementById('master_part_main').value = m.part_main_no || '';
-                document.getElementById('master_category').value = m.part_category || 'อะไหล่หลัก'; document.getElementById('master_price').value = parseFloat(m.unit_price || 0).toFixed(2);
+                document.getElementById('master_category').value = m.part_type || m.part_category || 'หลัก'; document.getElementById('master_price').value = parseFloat(m.unit_price || 0).toFixed(2);
                 document.getElementById('master_location').value = m.location || ''; document.getElementById('master_safety').value = m.safety_stock || '0';
                 renderCarModelsCheckbox(m.car_model || '');
                 document.getElementById('masterModal').classList.remove('hidden'); document.getElementById('masterModal').classList.add('flex');
@@ -534,7 +550,7 @@ async function saveMasterPart() {
 
     const payload = {
         part_no: pNo, part_main_no: document.getElementById('master_part_main').value.trim().toUpperCase() || null,
-        part_name: pName, car_model: models || null, part_category: document.getElementById('master_category').value,
+        part_name: pName, car_model: models || null, part_type: document.getElementById('master_category').value,
         unit_price: parseFloat(document.getElementById('master_price').value) || 0, location: document.getElementById('master_location').value.trim() || null,
         safety_stock: parseInt(document.getElementById('master_safety').value) || 0, branch_name: userBranch
     };
