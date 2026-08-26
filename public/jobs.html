@@ -552,8 +552,12 @@
 
         function renderSAList() {
             const container = document.getElementById('sa_cards_container');
-            const saCounts = {};
+            const saStats = {}; // เก็บสถิติแยกตาม SA
             
+            // ดึงเดือน/ปีปัจจุบันที่กำลังแสดงผล เพื่อคำนวณยอดปิดบิล
+            const fMonth = document.getElementById('sa_cal_month')?.value || String(new Date().getMonth() + 1).padStart(2, '0');
+            const fYear = document.getElementById('sa_cal_year')?.value || String(new Date().getFullYear());
+
             const pendingStatuses = [
                 '01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ', 
                 '04.รอลูกค้าอนุมัติ (เงินสด)', '05.อนุมัติแล้ว', '06.สั่งอะไหล่', 
@@ -564,32 +568,87 @@
             allJobsData.forEach(job => { 
                 const sa = job.sa_owner || "ไม่ระบุ SA"; 
                 const st = job.job_status || "";
-                const isPendingJob = pendingStatuses.some(status => st.includes(status));
+                
+                // สร้าง object เตรียมเก็บค่าให้ SA แต่ละคนถ้ายังไม่มี
+                if (!saStats[sa]) {
+                    saStats[sa] = { pending: 0, waitBill: 0, billed: 0, mainParts: 0, subParts: 0 };
+                }
 
-                if (isPendingJob) {
-                    saCounts[sa] = (saCounts[sa] || 0) + 1; 
+                // 1. ยอดงานค้างในระบบ (ตามสถานะ Pending)
+                if (pendingStatuses.some(status => st.includes(status))) {
+                    saStats[sa].pending++; 
+                }
+
+                // 2. ยอดรอออกบิล
+                if (st.includes('รอออกบิล')) {
+                    saStats[sa].waitBill++;
+                }
+
+                // 3. ยอดปิดบิลแล้วประจำเดือน และ จำนวนอะไหล่ (หลัก/รอง)
+                const isBilledStatus = st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิลประกัน') || st.includes('วางบิล Tesla') || st.includes('วางบิล EV');
+                if (isBilledStatus && getValidDateStr(job.billing_date)) {
+                    const d = new Date(job.billing_date);
+                    if (String(d.getMonth() + 1).padStart(2, '0') === fMonth && String(d.getFullYear()) === fYear) {
+                        saStats[sa].billed++;
+                        
+                        const mQty = Number(job.main_part_qty) || (job.main_part_name ? job.main_part_name.split(',').filter(Boolean).length : 0);
+                        const sQty = Number(job.sub_part_qty) || (job.sub_part_name ? job.sub_part_name.split(',').filter(Boolean).length : 0);
+                        
+                        saStats[sa].mainParts += mQty;
+                        saStats[sa].subParts += sQty;
+                    }
                 }
             });
 
-            const sortedSAs = Object.keys(saCounts).sort((a, b) => saCounts[b] - saCounts[a]);
+            // เรียงลำดับ SA ตามยอดงานค้างเยอะสุดไปน้อยสุด
+            const sortedSAs = Object.keys(saStats).sort((a, b) => saStats[b].pending - saStats[a].pending);
             
             if(sortedSAs.length === 0) { 
                 container.innerHTML = `<div class="col-span-full text-center py-10 text-slate-400 font-bold bg-white rounded-xl border border-slate-200">ยังไม่มีงานค้างในระบบสำหรับ SA ท่านใดเลย 🎉</div>`; 
                 return; 
             }
 
-            container.innerHTML = sortedSAs.map(sa => `
-                <div onclick="openSADetail('${sa}')" class="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between cursor-pointer hover:border-amber-500 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden group">
+            container.innerHTML = sortedSAs.map(sa => {
+                const stats = saStats[sa];
+                return `
+                <div onclick="openSADetail('${sa}')" class="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between cursor-pointer hover:border-amber-500 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden group">
                     <div class="absolute -right-4 -bottom-4 text-slate-100 text-6xl opacity-30 rotate-12 transition-transform group-hover:scale-110"><i class="fa-solid fa-user-tie"></i></div>
-                    <div class="flex items-center gap-4 mb-4 relative z-10">
-                        <div class="w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-xl font-black shadow-md"><i class="fa-solid fa-user-tie"></i></div>
-                        <div><p class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-0.5">Service Advisor</p><h3 class="text-lg font-black text-[#00320D] leading-tight truncate max-w-[150px]" title="${sa}">${sa}</h3></div>
+                    
+                    <div class="flex items-center gap-4 mb-3 relative z-10">
+                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-xl font-black shadow-md shrink-0"><i class="fa-solid fa-user-tie"></i></div>
+                        <div class="truncate w-full">
+                            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Service Advisor</p>
+                            <h3 class="text-base font-black text-[#00320D] leading-tight truncate w-full" title="${sa}">${sa}</h3>
+                        </div>
                     </div>
-                    <div class="bg-slate-50 rounded-xl p-3 border border-slate-100 flex justify-between items-center relative z-10">
-                        <span class="text-xs font-bold text-slate-600">รวมงานค้างในระบบ</span><div class="text-right"><span class="text-2xl font-black text-blue-600 leading-none">${saCounts[sa]}</span> <span class="text-xs text-slate-500 font-bold">คัน</span></div>
+                    
+                    <div class="flex flex-col gap-1.5 relative z-10">
+                        <!-- บรรทัดบน: รวมงานค้าง -->
+                        <div class="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100 flex justify-between items-center">
+                            <span class="text-[11px] font-bold text-slate-600">งานค้างในระบบ</span>
+                            <div class="text-right"><span class="text-lg font-black text-blue-600 leading-none">${stats.pending}</span> <span class="text-[10px] text-slate-500 font-bold">คัน</span></div>
+                        </div>
+                        
+                        <!-- บรรทัดล่าง: สถิติ 3 ช่อง -->
+                        <div class="flex justify-between gap-1.5 mt-1">
+                            <div class="bg-amber-50/50 rounded-lg px-2 py-1.5 border border-amber-100 flex-1 text-center shadow-xs">
+                                <p class="text-[9px] font-bold text-amber-700 mb-0.5">รอออกบิล</p>
+                                <p class="text-sm font-black text-amber-600 leading-none">${stats.waitBill}</p>
+                            </div>
+                            <div class="bg-emerald-50/50 rounded-lg px-2 py-1.5 border border-emerald-100 flex-1 text-center shadow-xs">
+                                <p class="text-[9px] font-bold text-emerald-700 mb-0.5">ปิดบิลแล้ว</p>
+                                <p class="text-sm font-black text-emerald-600 leading-none">${stats.billed}</p>
+                            </div>
+                            <div class="bg-blue-50/50 rounded-lg px-2 py-1.5 border border-blue-100 flex-1 text-center shadow-xs" title="อะไหล่หลัก / อะไหล่รอง">
+                                <p class="text-[9px] font-bold text-blue-700 mb-0.5">อะไหล่ (M/S)</p>
+                                <p class="text-sm font-black leading-none">
+                                    <span class="text-blue-600">${stats.mainParts}</span><span class="text-slate-400 font-medium text-[10px] mx-0.5">/</span><span class="text-amber-600">${stats.subParts}</span>
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         }
 
         function backToSAList() { 
