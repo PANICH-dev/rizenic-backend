@@ -10,8 +10,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if(sessionStorage.getItem('isLoggedIn') !== 'true') {
         const loginScr = document.getElementById('login-screen');
         const mainApp = document.getElementById('main-app');
-        if (loginScr) loginScr.classList.remove('hidden');
-        if (mainApp) mainApp.classList.add('hidden');
+        if (loginScr) loginScr.classList.add('hidden');
+        if (mainApp) mainApp.classList.remove('hidden');
         return;
     }
     enterApp();
@@ -161,12 +161,13 @@ async function loadInitialData() {
             }
         }
 
-        // ✅ แก้ไข: ดึงข้อมูลสถานะใบงานกลับมาใส่แท็ก <select> เหมือนเดิม
+        // 🌟 ดึงข้อมูลสถานะจาก rizenicstatusmaster 🌟
         if (results[1].status === 'fulfilled' && Array.isArray(results[1].value)) {
             globalStatuses = results[1].value;
             const statusSelect = document.getElementById('job_status');
             if (statusSelect) {
-                statusSelect.innerHTML = globalStatuses.map(item => `<option value="${item.status_name}">${item.status_name}</option>`).join('');
+                statusSelect.innerHTML = '<option value="">-- เลือกสถานะใบงาน --</option>' + 
+                    globalStatuses.map(item => `<option value="${item.status_name}">${item.status_name}</option>`).join('');
             }
         }
 
@@ -329,15 +330,13 @@ async function checkCrossPageEditMode() {
         if (payTypeInp) payTypeInp.value = job.payment_type || '';
 
         safeSetSelect('car_model', job.car_model);
-        
-        // ✅ คืนค่าดึง job_status ผ่านฟังก์ชัน safeSetSelect เหมือนเดิม
         safeSetSelect('job_status', job.job_status);
 
         if (job.department_routing) safeSetSelect('department_routing', job.department_routing);
-        else if (typeof autoMapRouting === 'function') autoMapRouting();
+        else autoMapRouting();
 
         if (job.is_parked) safeSetSelect('park_status', job.is_parked);
-        else if (typeof autoMapRouting === 'function') autoMapRouting(); 
+        else autoMapRouting(); 
 
         const notesEl = document.getElementById('notes');
         const carPlateEl = document.getElementById('car_plate');
@@ -629,4 +628,33 @@ async function submitSaForm(event) {
             btnSubmit.disabled = false;
         }
     }
+}
+
+// 🌟 ฟังก์ชันสลับแผนกส่งต่อแบบอัตโนมัติ 🌟
+function autoMapRouting() {
+    const statusVal = document.getElementById('job_status')?.value || '';
+    const deptSelect = document.getElementById('department_routing');
+    
+    if (!statusVal || !deptSelect) return;
+
+    // ค้นหาวัตถุแผนกใน globalStatuses
+    const matchedStatus = globalStatuses.find(s => s.status_name === statusVal);
+    let targetDept = "รอดำเนินการ";
+
+    if (matchedStatus && matchedStatus.default_department) {
+        targetDept = matchedStatus.default_department;
+    } else {
+        // ลอจิกลำดับสำรอง
+        if (/^(01|02|03|04|05|07|08|12)/.test(statusVal)) {
+            targetDept = "บริการ";
+        } else if (/^(06)/.test(statusVal)) {
+            targetDept = "อะไหล่";
+        } else if (/^(09|10|11|20|21)/.test(statusVal)) {
+            targetDept = "ซ่อม";
+        } else if (/^(13|14|15|16|17|19)/.test(statusVal)) {
+            targetDept = "บัญชี";
+        }
+    }
+
+    deptSelect.value = targetDept;
 }
