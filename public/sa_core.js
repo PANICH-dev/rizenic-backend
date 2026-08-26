@@ -328,8 +328,11 @@ async function checkCrossPageEditMode() {
         const payTypeInp = document.getElementById('payment_type');
         if (payTypeInp) payTypeInp.value = job.payment_type || '';
 
+        // 🌟 เพิ่มการดึงค่า สถานะใบงาน (Job Status) ตรงนี้ เพื่อให้มันดึงข้อมูลขึ้นมาแสดง 🌟
+        const jobStatusInp = document.getElementById('job_status');
+        if (jobStatusInp) jobStatusInp.value = job.job_status || '';
+
         safeSetSelect('car_model', job.car_model);
-        safeSetSelect('job_status', job.job_status);
 
         if (job.department_routing) safeSetSelect('department_routing', job.department_routing);
         else if (typeof autoMapRouting === 'function') autoMapRouting();
