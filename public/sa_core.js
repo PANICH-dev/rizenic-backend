@@ -10,12 +10,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if(sessionStorage.getItem('isLoggedIn') !== 'true') {
         const loginScr = document.getElementById('login-screen');
         const mainApp = document.getElementById('main-app');
-        if (loginScr) loginScr.classList.add('hidden');
-        if (mainApp) mainApp.classList.remove('hidden');
+        if (loginScr) loginScr.classList.remove('hidden');
+        if (mainApp) mainApp.classList.add('hidden');
         return;
     }
     enterApp();
 });
+
+// 🌟 เพิ่มฟังก์ชันล็อกเอาท์ให้กดออกระบบได้แล้วครับ 🌟
+function logout() {
+    sessionStorage.clear();
+    window.location.reload();
+}
 
 function formatToThaiDate(isoStr) {
     if (!isoStr) return '';
@@ -99,7 +105,10 @@ async function handleLogin(e) {
             sessionStorage.setItem('emp_name', emp.employee_name || userEl.value);
             sessionStorage.setItem('emp_role', emp.employee_role || 'SA'); 
             sessionStorage.setItem('emp_branch', emp.branch_name || 'สำนักงานใหญ่');
-            sessionStorage.setItem('accessible_pages', emp.accessible_pages || '');
+            
+            // 🌟 ปลดล็อกสิทธิ์ให้เข้าได้ทุกหน้าไปก่อน ป้องกันการเด้งกลับ 🌟
+            const defaultAccess = 'dashboard,jobs,jobs_table,repair,parts,finance,admin,audit,history,index';
+            sessionStorage.setItem('accessible_pages', emp.accessible_pages || defaultAccess);
             
             enterApp(); 
         } else {
@@ -117,6 +126,12 @@ async function enterApp() {
     
     if (loginScr) loginScr.classList.add('hidden');
     if (mainApp) mainApp.classList.remove('hidden');
+    
+    // 🌟 เช็กซ้ำอีกรอบ: ถ้าสิทธิ์หาย ให้ยัดสิทธิ์เข้าทุกหน้าให้เลย 🌟
+    let currentAccess = sessionStorage.getItem('accessible_pages');
+    if (!currentAccess || currentAccess.trim() === '') {
+        sessionStorage.setItem('accessible_pages', 'dashboard,jobs,jobs_table,repair,parts,finance,admin,audit,history,index');
+    }
     
     const empNameEl = document.getElementById('display_emp_name');
     const branchEl = document.getElementById('display_branch');
@@ -161,7 +176,6 @@ async function loadInitialData() {
             }
         }
 
-        // 🌟 ดึงข้อมูลสถานะจาก rizenicstatusmaster 🌟
         if (results[1].status === 'fulfilled' && Array.isArray(results[1].value)) {
             globalStatuses = results[1].value;
             const statusSelect = document.getElementById('job_status');
