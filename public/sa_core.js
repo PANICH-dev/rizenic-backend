@@ -139,6 +139,7 @@ async function enterApp() {
     }
 }
 
+// เปลี่ยนจากการสร้าง <option> ใน <select> เป็นการสร้างเนื้อหาใน <datalist> ไว้ช่วยแนะนำ
 async function loadInitialData() {
     try {
         const results = await Promise.allSettled([
@@ -162,24 +163,20 @@ async function loadInitialData() {
             }
         }
 
+        // 🌟 1. ดึงสถานะใบงาน ใส่ Datalist
         if (results[1].status === 'fulfilled' && Array.isArray(results[1].value)) {
             globalStatuses = results[1].value;
-            const select = document.getElementById('job_status'); 
-            if (select) {
-                select.innerHTML = '<option value="">-- เลือกสถานะใบงาน --</option>';
-                globalStatuses.forEach(item => {
-                    if (item && item.status_name) select.innerHTML += `<option value="${item.status_name}">${item.status_name}</option>`;
-                });
+            let listEl = document.getElementById('job_status_list');
+            if (listEl) {
+                listEl.innerHTML = globalStatuses.map(item => `<option value="${item.status_name}">`).join('');
             }
         }
 
+        // 🌟 2. ดึงประเภทลูกค้า ใส่ Datalist
         if (results[2].status === 'fulfilled' && Array.isArray(results[2].value)) {
-            const select = document.getElementById('customer_type'); 
-            if (select) {
-                select.innerHTML = '<option value="">-- เลือก --</option>';
-                results[2].value.forEach(item => {
-                    if (item && item.type_name) select.innerHTML += `<option value="${item.type_name}">${item.type_name}</option>`;
-                });
+            let listEl = document.getElementById('customer_type_list');
+            if (listEl) {
+                listEl.innerHTML = results[2].value.map(item => `<option value="${item.type_name}">`).join('');
             }
         }
 
@@ -194,13 +191,11 @@ async function loadInitialData() {
             updateCarModels('Tesla'); 
         }
 
+        // 🌟 3. ดึงประกัน/การชำระเงิน ใส่ Datalist
         if (results[4].status === 'fulfilled' && Array.isArray(results[4].value)) {
-            const select = document.getElementById('payment_type'); 
-            if (select) {
-                select.innerHTML = '<option value="">-- เลือก --</option>';
-                results[4].value.forEach(item => {
-                    if (item && item.insurance_name) select.innerHTML += `<option value="${item.insurance_name}">${item.insurance_name}</option>`;
-                });
+            let listEl = document.getElementById('payment_type_list');
+            if (listEl) {
+                listEl.innerHTML = results[4].value.map(item => `<option value="${item.insurance_name}">`).join('');
             }
         }
 
