@@ -115,7 +115,6 @@ async function enterApp() {
     const loginScr = document.getElementById('login-screen');
     const mainApp = document.getElementById('main-app');
     
-    // สลับหน้าจอทันที
     if (loginScr) loginScr.classList.add('hidden');
     if (mainApp) mainApp.classList.remove('hidden');
     
@@ -139,7 +138,6 @@ async function enterApp() {
     }
 }
 
-// เปลี่ยนจากการสร้าง <option> ใน <select> เป็นการสร้างเนื้อหาใน <datalist> ไว้ช่วยแนะนำ
 async function loadInitialData() {
     try {
         const results = await Promise.allSettled([
@@ -163,7 +161,6 @@ async function loadInitialData() {
             }
         }
 
-        // 🌟 1. ดึงสถานะใบงาน ใส่ Datalist
         if (results[1].status === 'fulfilled' && Array.isArray(results[1].value)) {
             globalStatuses = results[1].value;
             let listEl = document.getElementById('job_status_list');
@@ -172,7 +169,6 @@ async function loadInitialData() {
             }
         }
 
-        // 🌟 2. ดึงประเภทลูกค้า ใส่ Datalist
         if (results[2].status === 'fulfilled' && Array.isArray(results[2].value)) {
             let listEl = document.getElementById('customer_type_list');
             if (listEl) {
@@ -191,7 +187,6 @@ async function loadInitialData() {
             updateCarModels('Tesla'); 
         }
 
-        // 🌟 3. ดึงประกัน/การชำระเงิน ใส่ Datalist
         if (results[4].status === 'fulfilled' && Array.isArray(results[4].value)) {
             let listEl = document.getElementById('payment_type_list');
             if (listEl) {
@@ -313,25 +308,34 @@ async function checkCrossPageEditMode() {
         
         await updateCarModels(job.car_brand || 'Tesla');
 
+        // 🌟 ปรับปรุง safeSetSelect ให้รองรับทั้ง <input> และ <select> ป้องกันสคริปต์ล่ม 🌟
         const safeSetSelect = (elementId, value) => {
             if (!value) return;
-            const selectEl = document.getElementById(elementId);
-            if (!selectEl) return;
-            const optionExists = Array.from(selectEl.options).some(opt => opt.value === value);
-            if (!optionExists) { selectEl.add(new Option(value, value)); }
-            selectEl.value = value;
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            if (!el.options) {
+                el.value = value;
+                return;
+            }
+            const optionExists = Array.from(el.options).some(opt => opt.value === value);
+            if (!optionExists) { el.add(new Option(value, value)); }
+            el.value = value;
         };
 
-        safeSetSelect('customer_type', job.customer_type);
+        const custTypeInp = document.getElementById('customer_type');
+        if (custTypeInp) custTypeInp.value = job.customer_type || '';
+
+        const payTypeInp = document.getElementById('payment_type');
+        if (payTypeInp) payTypeInp.value = job.payment_type || '';
+
         safeSetSelect('car_model', job.car_model);
-        safeSetSelect('payment_type', job.payment_type);
         safeSetSelect('job_status', job.job_status);
 
         if (job.department_routing) safeSetSelect('department_routing', job.department_routing);
-        else autoMapRouting();
+        else if (typeof autoMapRouting === 'function') autoMapRouting();
 
         if (job.is_parked) safeSetSelect('park_status', job.is_parked);
-        else autoMapRouting(); 
+        else if (typeof autoMapRouting === 'function') autoMapRouting(); 
 
         const notesEl = document.getElementById('notes');
         const carPlateEl = document.getElementById('car_plate');
