@@ -96,9 +96,23 @@
                 </div>
             </div>
             <nav class="flex flex-col sm:flex-row items-center gap-3">
+                <!-- 🌟 เพิ่มป้ายสรุปภาพรวมข้างชื่อพนักงาน 🌟 -->
                 <div class="text-right border-r border-green-700 pr-4 hidden sm:block">
-                    <p class="text-xs font-bold text-white" id="display_emp_name">Staff Name</p>
-                    <p class="text-[10px] text-green-300">สาขา: <span id="display_branch">Branch</span></p>
+                    <div class="flex items-center justify-end gap-2 mb-1">
+                        <p class="text-xs font-bold text-white" id="display_emp_name">Staff Name</p>
+                        <span class="text-[10px] text-green-300 font-bold bg-white/10 px-2 py-0.5 rounded-md border border-white/10">📍 <span id="display_branch">Branch</span></span>
+                    </div>
+                    <div class="flex items-center justify-end gap-1.5 text-[10px] font-bold">
+                        <span class="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-400/40 shadow-xs" title="รถรอออกบิล">
+                            📄 รอออกบิล: <span id="badge_wait_bill" class="font-black text-amber-300">0</span>
+                        </span>
+                        <span class="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-400/40 shadow-xs" title="ปิดบิลแล้วประจำเดือน">
+                            ✅ ปิดบิล: <span id="badge_billed" class="font-black text-emerald-300">0</span>
+                        </span>
+                        <span class="bg-blue-500/20 text-blue-200 px-2 py-0.5 rounded-full border border-blue-400/40 shadow-xs" title="ชิ้นส่วนอะไหล่ (หลัก / รอง)">
+                            📦 อะไหล่: <span id="badge_main_parts" class="font-black text-blue-300">0</span> / <span id="badge_sub_parts" class="font-black text-amber-300">0</span>
+                        </span>
+                    </div>
                 </div>
                 <div class="flex flex-wrap gap-1.5 items-center">
                     <a href="dashboard.html" class="px-3 py-1.5 rounded-lg text-green-200 hover:bg-white/10 font-bold text-xs transition">แดชบอร์ด</a>
@@ -303,7 +317,7 @@
         </div>
     </main>
 
-    <!-- 🌟 Modal: แสดงรายการรถแบบตาราง (เปลี่ยนแปลงตาม ViewType ได้) 🌟 -->
+    <!-- 🌟 Modal: แสดงรายการรถแบบตาราง 🌟 -->
     <div id="jobListModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center hidden p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden modal-fade border border-[#00320D] flex flex-col max-h-[90vh]">
             <div class="bg-[#00320D] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md z-20 relative border-b-4 border-amber-500">
@@ -317,9 +331,7 @@
             <div class="flex-1 overflow-auto custom-scrollbar p-0 bg-slate-50 relative">
                 <table class="simple-table border-none">
                     <thead class="bg-[#00320D] text-white uppercase sticky top-0 shadow-sm text-[11px]">
-                        <tr>
-                            <!-- Headers จะถูก Render ด้วย Javascript ตาม ViewType -->
-                        </tr>
+                        <tr></tr>
                     </thead>
                     <tbody id="modal_job_table" class="bg-white text-[11px]"></tbody>
                 </table>
@@ -345,7 +357,6 @@
             '10.กำลังซ่อม', '11.รถซ่อมเสร็จรอส่งมอบ'
         ];
 
-        // 🌟 Helper ดักจับค่าว่างหรือ Null ของวันที่ 🌟
         function getValidDateStr(val) {
             if (!val || String(val).trim() === '' || String(val) === 'null' || String(val) === 'undefined') return '';
             const str = String(val).split('T')[0];
@@ -402,7 +413,6 @@
                 }
                 if (results[1].status === 'fulfilled') allPartOrders = results[1].value;
                 
-                // 🌟 จัดการระบบสาขา (Branch Filter)
                 if (results[3].status === 'fulfilled') {
                     const employees = results[3].value;
                     let masterBranches = [...new Set(employees.map(e => e.branch_name).filter(Boolean))].sort();
@@ -461,11 +471,57 @@
             [...years].sort((a,b)=>b-a).forEach(y => yearSelect.innerHTML += `<option value="${y}">${y}</option>`);
             if(years.has(parseInt(savedYear))) yearSelect.value = savedYear;
             
+            // 🌟 อัปเดตป้ายภาพรวม Header ตามสาขาที่เลือก 🌟
+            updateHeaderSummaryBadges(allJobsData);
+
             if(currentViewSA) {
                 openSADetail(currentViewSA); 
             } else {
                 renderSAList();
             }
+        }
+
+        // 🌟 ฟังก์ชันคำนวณและอัปเดตป้ายสรุป Header 🌟
+        function updateHeaderSummaryBadges(jobs) {
+            const fMonth = document.getElementById('sa_cal_month')?.value || String(new Date().getMonth() + 1).padStart(2, '0');
+            const fYear = document.getElementById('sa_cal_year')?.value || String(new Date().getFullYear());
+
+            let waitBillCount = 0;
+            let billedCount = 0;
+            let sumMain = 0;
+            let sumSub = 0;
+
+            const targetJobs = jobs || allJobsData;
+
+            targetJobs.forEach(job => {
+                const st = job.job_status || "";
+                
+                // 1. รถรอออกบิล
+                if (st.includes('รอออกบิล')) {
+                    waitBillCount++;
+                }
+
+                // 2. ปิดบิลแล้ว ประจำเดือน
+                const isBilledStatus = st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิลประกัน') || st.includes('วางบิล Tesla') || st.includes('วางบิล EV ME') || st.includes('วางบิล EVME');
+                
+                if (isBilledStatus && getValidDateStr(job.billing_date)) {
+                    const d = new Date(job.billing_date);
+                    if (String(d.getMonth() + 1).padStart(2, '0') === fMonth && String(d.getFullYear()) === fYear) {
+                        billedCount++;
+                        
+                        const mQty = Number(job.main_part_qty) || (job.main_part_name ? job.main_part_name.split(',').filter(Boolean).length : 0);
+                        const sQty = Number(job.sub_part_qty) || (job.sub_part_name ? job.sub_part_name.split(',').filter(Boolean).length : 0);
+                        
+                        sumMain += mQty;
+                        sumSub += sQty;
+                    }
+                }
+            });
+
+            if (document.getElementById('badge_wait_bill')) document.getElementById('badge_wait_bill').innerText = waitBillCount;
+            if (document.getElementById('badge_billed')) document.getElementById('badge_billed').innerText = billedCount;
+            if (document.getElementById('badge_main_parts')) document.getElementById('badge_main_parts').innerText = sumMain;
+            if (document.getElementById('badge_sub_parts')) document.getElementById('badge_sub_parts').innerText = sumSub;
         }
 
         function globalSearchCar() {
@@ -540,6 +596,7 @@
             currentViewSA = ''; 
             document.getElementById('sa_detail_view').classList.add('hidden'); 
             document.getElementById('sa_list_view').classList.remove('hidden'); 
+            updateHeaderSummaryBadges(allJobsData);
         }
 
         function openSADetail(saName) {
@@ -591,7 +648,6 @@
             renderSAStatuses(saJobs); 
         }
 
-        // 🌟 อัปเดตตรรกะแจ้งเตือน Overdue 🌟
         function calculateSAOverdues(jobs) {
             const todayStr = new Date().toISOString().split('T')[0];
             let ovApp = 0, ovTgt = 0, ovDel = 0;
@@ -603,7 +659,6 @@
                 const isProcessJob = activeProcessStatuses.some(status => st.includes(status) || st.startsWith(status.substring(0, 2)));
 
                 if (isProcessJob) {
-                    // Overdue วันที่รถเข้าจอดอู่: ดูจาก arrived_date
                     const appVal = getValidDateStr(j.arrived_date);
                     const hasArrived = arrivedPrefixes.some(prefix => st.startsWith(prefix));
                     if (appVal && appVal <= todayStr && !hasArrived) ovApp++;
@@ -790,13 +845,15 @@
             document.getElementById('sum_labor').innerText = formatMoney(sumLabor);
             document.getElementById('sum_parts').innerText = formatMoney(sumParts);
             document.getElementById('sum_outsource').innerText = formatMoney(sumOutsource);
+
+            // 🌟 อัปเดตป้ายภาพรวม Header ด้วย 🌟
+            updateHeaderSummaryBadges(jobs);
         }
 
         function renderSAStatuses(jobs) {
             const statusCounts = {}; 
             jobs.forEach(job => { 
                 const st = job.job_status || "ไม่ระบุสถานะ"; 
-                // ไม่นับรวมในงานค้าง ถ้ามีวันที่ออกบิลแล้ว หรือ สถานะเกี่ยวกับการออกบิล หรือ อยู่แผนกบัญชี
                 const isBilled = getValidDateStr(job.billing_date) || st.includes('ออกบิลแล้ว') || st.includes('ชำระเงินสด') || st.includes('วางบิลประกัน') || st.includes('วางบิล Tesla') || st.includes('วางบิล EV') || job.department_routing === 'บัญชี';
                 
                 if (!isBilled) { 
@@ -996,7 +1053,6 @@
             if (viewType === 'finance') {
                 thead.innerHTML = `<th class="px-4 py-2 font-bold text-left">ทะเบียนรถ</th><th class="px-4 py-2 font-bold text-left">ลูกค้า / ยี่ห้อรถ</th><th class="px-4 py-2 font-bold text-center">จำนวนชิ้น(หลัก/รอง)</th><th class="px-4 py-2 font-bold text-right">ค่าแรง</th><th class="px-4 py-2 font-bold text-right">ค่าอะไหล่</th><th class="px-4 py-2 font-bold text-right">งานนอก</th><th class="px-4 py-2 font-bold text-center">จัดการ</th>`;
             } else if (viewType === 'overdue') {
-                // 🌟 อัปเดตส่วนหัวตารางจากการนำลูกค้านัดหมายออก 🌟
                 thead.innerHTML = `<th class="px-4 py-2 font-bold text-left">ทะเบียนรถ</th><th class="px-4 py-2 font-bold text-left">ลูกค้า / SA</th><th class="px-4 py-2 font-bold text-left">วันที่รถเข้าจอดอู่</th><th class="px-4 py-2 font-bold text-left">เป้าซ่อมเสร็จ</th><th class="px-4 py-2 font-bold text-left">กำหนดส่งมอบ</th><th class="px-4 py-2 font-bold text-center">จัดการ</th>`;
             } else {
                 thead.innerHTML = `<th class="px-4 py-2 font-bold text-left">ทะเบียนรถ</th><th class="px-4 py-2 font-bold text-left">ยี่ห้อ/รุ่น</th><th class="px-4 py-2 font-bold text-left">ลูกค้า / SA</th><th class="px-4 py-2 font-bold text-left">ความเสียหาย</th><th class="px-4 py-2 font-bold text-left">อัปเดตสถานะ (ERP)</th><th class="px-4 py-2 font-bold text-center">จัดการ</th>`;
