@@ -6,15 +6,12 @@ let canvasLarge, ctxLarge;
 let canvasSmall, ctxSmall;
 let currentTool = 'O'; 
 
-// 🌟 ฟังก์ชันดึงไฟล์ inspection.html มาแปะไว้ที่ Body ก่อนใช้งาน
 async function loadInspectionTemplate() {
     if (!document.getElementById('inspectionModal')) {
         try {
             const res = await fetch('inspection.html');
             const html = await res.text();
             document.body.insertAdjacentHTML('beforeend', html);
-            
-            // สร้างตารางรายการซ่อม
             renderPartsTable();
         } catch (e) {
             console.error("❌ ไม่สามารถโหลดไฟล์ inspection.html ได้:", e);
@@ -23,7 +20,6 @@ async function loadInspectionTemplate() {
 }
 
 async function openInspectionModal() {
-    // โหลดไฟล์ HTML ก่อนแสดงผล
     await loadInspectionTemplate();
 
     const carPlate = document.getElementById('car_plate')?.value || '';
@@ -37,17 +33,15 @@ async function openInspectionModal() {
     const jobId = document.getElementById('sa_report_id')?.value || '';
     const branchName = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
 
-    // 🌟 ดึงค่า 3 ตัวใหม่มาใส่ตัวแปร
     const paymentType = document.getElementById('payment_type')?.value || '';
     const claimNo = document.getElementById('claim_no')?.value || '';
-    const damageLevel = document.getElementById('damage_level')?.value || ''; // เบา/กลาง/หนัก
+    const damageLevel = document.getElementById('damage_level')?.value || ''; 
     
     if (!carPlate) {
         alert("⚠️ กรุณากรอก 'ทะเบียนรถ' ก่อนเปิดใบตรวจสภาพครับ");
         return;
     }
 
-    // หยอดข้อมูลลงฟอร์ม
     if (document.getElementById('ins_car_plate')) document.getElementById('ins_car_plate').value = carPlate;
     if (document.getElementById('ins_car_brand')) document.getElementById('ins_car_brand').value = carBrand;
     if (document.getElementById('ins_car_model')) document.getElementById('ins_car_model').value = carModel;
@@ -59,13 +53,11 @@ async function openInspectionModal() {
     if (document.getElementById('ins_job_no')) document.getElementById('ins_job_no').value = jobId ? `JOB-${jobId}` : '';
     if (document.getElementById('sign_cust_name')) document.getElementById('sign_cust_name').value = custName;
 
-    // 🌟 Map ค่าบริษัทประกัน และ เลขเคลม
     if (document.getElementById('ins_insurance')) document.getElementById('ins_insurance').value = paymentType;
     if (document.getElementById('ins_claim_no')) document.getElementById('ins_claim_no').value = claimNo;
 
-    // 🌟 Map ค่าระดับความเสียหาย (L / M / H)
     if (damageLevel) {
-        let jobTypeVal = 'L'; // ค่าตั้งต้น
+        let jobTypeVal = 'L'; 
         if (damageLevel === 'กลาง') jobTypeVal = 'M';
         if (damageLevel === 'หนัก') jobTypeVal = 'H';
         
@@ -106,7 +98,7 @@ async function openInspectionModal() {
     }, 200);
 }
 
-// 🌟 ปรับตารางรายการซ่อมให้ตัวหนังสือชิดซ้ายสุด
+// 🌟 บังคับใส่คลาส !text-left ให้ชิ้นส่วนชิดซ้ายเด็ดขาด
 function renderPartsTable() {
     const partsList = [
         { name: "กันชนหน้า", sides: false }, { name: "ฝากระโปรงหน้า", sides: false },
@@ -127,7 +119,7 @@ function renderPartsTable() {
         if(part.sides) {
             tbodyHtml += `
                 <tr>
-                    <td rowspan="2" class="text-left pl-1 pr-1 border-b border-r border-slate-500 w-[60%] leading-tight">${part.name}</td>
+                    <td rowspan="2" class="!text-left pl-2 pr-1 border-b border-r border-slate-500 w-[60%] leading-tight">${part.name}</td>
                     <td class="text-center border-b border-r border-slate-500 w-[15%] font-bold text-[7.5px]">ซ้าย</td>
                     <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
                     <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
@@ -147,7 +139,7 @@ function renderPartsTable() {
         } else {
             tbodyHtml += `
                 <tr>
-                    <td colspan="2" class="text-left pl-1 pr-1 border-b border-r border-slate-500 leading-tight">${part.name}</td>
+                    <td colspan="2" class="!text-left pl-2 pr-1 border-b border-r border-slate-500 leading-tight">${part.name}</td>
                     <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
                     <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
                     <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
@@ -169,7 +161,6 @@ function initCanvas() {
     canvasSmall = document.getElementById('carCanvasSmall');
     canvasLarge = document.getElementById('carCanvasLarge');
     
-    // 🌟 ล็อก Resolution ให้เท่ากันทั้ง 2 จอ
     const RES_W = 1000;
     const RES_H = 400;
 
@@ -183,10 +174,10 @@ function initCanvas() {
         canvasLarge.width = RES_W;
         canvasLarge.height = RES_H;
         ctxLarge = canvasLarge.getContext('2d');
-        canvasLarge.onclick = stampMark;
+        canvasLarge.onmousedown = stampMark;
         canvasLarge.ontouchstart = (e) => {
             e.preventDefault();
-            stampMark(e);
+            stampMark(e.touches[0]);
         };
     }
 }
@@ -199,8 +190,8 @@ function openCarDrawModal() {
     const tempImg = new Image();
     tempImg.src = canvasSmall.toDataURL();
     
-    canvasLarge.width = rectL.width;
-    canvasLarge.height = rectL.height;
+    canvasLarge.width = 1000;
+    canvasLarge.height = 400;
     
     tempImg.onload = () => {
         ctxLarge.drawImage(tempImg, 0, 0, canvasLarge.width, canvasLarge.height);
@@ -223,11 +214,11 @@ function setDrawTool(tool) {
     const btnX = document.getElementById('tool_X');
     
     if(tool === 'O') {
-        btnO.className = "px-5 py-2 bg-red-100 border-2 border-red-600 text-red-700 font-bold rounded-xl shadow-sm";
-        btnX.className = "px-5 py-2 bg-white border border-slate-300 text-slate-600 font-bold rounded-xl shadow-sm";
+        btnO.className = "px-6 py-2.5 bg-emerald-50 border-2 border-emerald-500 text-emerald-700 font-bold rounded-xl shadow-sm transition hover:bg-emerald-100";
+        btnX.className = "px-6 py-2.5 bg-white border border-slate-300 text-slate-600 font-bold rounded-xl shadow-sm transition hover:bg-slate-100";
     } else {
-        btnX.className = "px-5 py-2 bg-blue-100 border-2 border-blue-600 text-blue-700 font-bold rounded-xl shadow-sm";
-        btnO.className = "px-5 py-2 bg-white border border-slate-300 text-slate-600 font-bold rounded-xl shadow-sm";
+        btnX.className = "px-6 py-2.5 bg-rose-50 border-2 border-rose-500 text-rose-700 font-bold rounded-xl shadow-sm transition hover:bg-rose-100";
+        btnO.className = "px-6 py-2.5 bg-white border border-slate-300 text-slate-600 font-bold rounded-xl shadow-sm transition hover:bg-slate-100";
     }
 }
 
@@ -245,8 +236,6 @@ function stampMark(e) {
     }
 
     const rect = canvasLarge.getBoundingClientRect();
-    
-    // คืนค่าพิกัดให้ตรงกับ Resolution ภายใน Canvas
     const scaleX = canvasLarge.width / rect.width;
     const scaleY = canvasLarge.height / rect.height;
     
@@ -256,13 +245,13 @@ function stampMark(e) {
     ctxLarge.lineWidth = 6;
     
     if (currentTool === 'O') {
-        ctxLarge.strokeStyle = '#10b981'; // สีเขียวมรกต
+        ctxLarge.strokeStyle = '#10b981';
         ctxLarge.beginPath();
         ctxLarge.arc(x, y, 20, 0, Math.PI * 2);
         ctxLarge.stroke();
     } else if (currentTool === 'X') {
         const size = 15;
-        ctxLarge.strokeStyle = '#ef4444'; // สีแดง
+        ctxLarge.strokeStyle = '#ef4444';
         ctxLarge.beginPath();
         ctxLarge.moveTo(x - size, y - size);
         ctxLarge.lineTo(x + size, y + size);
@@ -278,11 +267,35 @@ function clearCanvas() {
     }
 }
 
+let currentZoom = 1;
+function changeZoom(delta) {
+    currentZoom += delta;
+    if(currentZoom < 0.5) currentZoom = 0.5;
+    if(currentZoom > 2.0) currentZoom = 2.0;
+    applyZoom();
+}
+
+function resetZoom() {
+    currentZoom = 1;
+    applyZoom();
+}
+
+function applyZoom() {
+    const area = document.getElementById('inspection_print_area');
+    const text = document.getElementById('zoomLevelText');
+    if(area) area.style.transform = `scale(${currentZoom})`;
+    if(text) text.innerText = Math.round(currentZoom * 100) + '%';
+}
+
 function updateFuelGauge(val) {
     if(document.getElementById('fuel_txt')) document.getElementById('fuel_txt').innerText = val;
-    const arcLength = 125;
+    const arcLength = 110;
     const filled = (val / 100) * arcLength;
-    if(document.getElementById('fuel_arc')) document.getElementById('fuel_arc').style.strokeDasharray = `${filled} ${arcLength}`;
+    const offset = arcLength - filled; 
+    if(document.getElementById('fuel_arc')) {
+        document.getElementById('fuel_arc').style.strokeDasharray = `${arcLength}`;
+        document.getElementById('fuel_arc').style.strokeDashoffset = `${offset}`;
+    }
 }
 
 function printInspection() {
