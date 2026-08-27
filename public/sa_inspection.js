@@ -15,7 +15,6 @@ function openInspectionModal() {
     const vin = document.getElementById('vin_no')?.value || '';
     const arrDate = document.getElementById('arrived_date')?.value || '';
     const tgtDate = document.getElementById('target_finish_date')?.value || '';
-    const saName = document.getElementById('sa_owner_input')?.value || sessionStorage.getItem('emp_name') || '';
     const jobId = document.getElementById('sa_report_id')?.value || '';
     const branchName = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
     
@@ -34,21 +33,19 @@ function openInspectionModal() {
     if (document.getElementById('ins_tgt_date')) document.getElementById('ins_tgt_date').value = tgtDate;
     if (document.getElementById('ins_job_no')) document.getElementById('ins_job_no').value = jobId ? `JOB-${jobId}` : '';
     if (document.getElementById('sign_cust_name')) document.getElementById('sign_cust_name').value = custName;
-    if (document.getElementById('sign_sa_name')) document.getElementById('sign_sa_name').value = saName;
 
     const addrBox = document.getElementById('ins_company_address');
     if (addrBox) {
         if (branchName.includes('Navamin') || branchName.includes('นวมินทร์')) {
             addrBox.innerHTML = `
-                <p class="text-base font-black text-[#00320D]">บริษัท ไรเซน เอนเนอร์จี จำกัด</p>
+                <p class="text-xs font-black text-[#00320D]">บริษัท ไรเซน เอนเนอร์จี จำกัด</p>
                 <p>เลขที่เสียภาษี 0-1055-60176-43-4</p>
-                <p>50/5-6 ซอย นวมินทร์ 151 นวลจันทร์</p>
-                <p>เขตบึงกุ่ม กรุงเทพมหานคร 10230</p>
+                <p>50/5-6 ซอย นวมินทร์ 151 นวลจันทร์ เขตบึงกุ่ม กรุงเทพมหานคร 10230</p>
                 <p>โทรศัพท์ : 0981515155</p>
             `;
         } else {
             addrBox.innerHTML = `
-                <p class="text-base font-black text-[#00320D]">บริษัท ไรเซน เอนเนอร์จี จำกัด</p>
+                <p class="text-xs font-black text-[#00320D]">บริษัท ไรเซน เอนเนอร์จี จำกัด</p>
                 <p>เลขที่เสียภาษี 0-1055-60176-43-4</p>
                 <p>47/1 หมู่ที่ 1 ตำบลคลองหนึ่ง อำเภอคลองหลวง จังหวัดปทุมธานี 12120</p>
                 <p>โทรศัพท์ : 02-055-9199 / 090-954-1115</p>
@@ -86,7 +83,6 @@ function initCanvas() {
     
     if (canvasLarge) {
         ctxLarge = canvasLarge.getContext('2d');
-        // ติดตั้ง Event ลากวาดรูปเฉพาะจอใหญ่
         canvasLarge.onmousedown = stampMark;
         canvasLarge.ontouchstart = (e) => {
             e.preventDefault();
@@ -101,7 +97,6 @@ function openCarDrawModal() {
     
     const rectL = canvasLarge.parentElement.getBoundingClientRect();
     
-    // สำรองรูปเดิมจากจอเล็กมาไว้จอใหญ่
     const tempImg = new Image();
     tempImg.src = canvasSmall.toDataURL();
     
@@ -118,7 +113,6 @@ function closeCarDrawModal(isSaved) {
     document.getElementById('carDrawModal').classList.remove('flex');
     
     if (isSaved && canvasSmall && canvasLarge) {
-        // ก๊อปปี้รูปจากจอใหญ่ ย่อกลับลงจอเล็ก A4
         ctxSmall.clearRect(0, 0, canvasSmall.width, canvasSmall.height);
         ctxSmall.drawImage(canvasLarge, 0, 0, canvasSmall.width, canvasSmall.height);
     }
@@ -178,7 +172,6 @@ async function saveInspectionForm() {
     const jobId = document.getElementById('sa_report_id')?.value || 'JOB-' + Date.now();
     const carPlate = document.getElementById('ins_car_plate')?.value || '';
     
-    // บันทึกรูปจากจอเล็ก (เพราะสัดส่วนเข้ากับเอกสาร A4 มากที่สุด)
     const carImageBase64 = canvasSmall ? canvasSmall.toDataURL("image/png") : '';
 
     const payload = {
@@ -247,7 +240,6 @@ async function loadExistingInspectionData(jobId) {
                 document.getElementById('ins_extra_notes').value = data.notes;
             }
 
-            // โหลดรูปลงทั้งจอเล็กและเตรียมไว้ให้จอใหญ่
             if (data.car_diagram_image && canvasSmall) {
                 const img = new Image();
                 img.onload = function() {
