@@ -2,11 +2,11 @@
 // 🚗 ระบบใบตรวจสภาพรถ (Vehicle Inspection)
 // ==========================================
 
-let canvas, ctx;
-let currentTool = 'O'; // เริ่มต้นใช้โหมดวงกลม
+let canvasLarge, ctxLarge;
+let canvasSmall, ctxSmall;
+let currentTool = 'O'; 
 
 function openInspectionModal() {
-    // 1. ดึงข้อมูลจากฟอร์มเปิดบิล มาใส่ในแบบฟอร์ม A4
     const carPlate = document.getElementById('car_plate')?.value || '';
     const carBrand = document.getElementById('car_brand')?.value || '';
     const carModel = document.getElementById('car_model')?.value || '';
@@ -17,8 +17,6 @@ function openInspectionModal() {
     const tgtDate = document.getElementById('target_finish_date')?.value || '';
     const saName = document.getElementById('sa_owner_input')?.value || sessionStorage.getItem('emp_name') || '';
     const jobId = document.getElementById('sa_report_id')?.value || '';
-    
-    // ดึงชื่อสาขาของพนักงาน
     const branchName = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
     
     if (!carPlate) {
@@ -26,7 +24,6 @@ function openInspectionModal() {
         return;
     }
 
-    // หยอดข้อมูลเข้าช่องฟอร์ม A4
     if (document.getElementById('ins_car_plate')) document.getElementById('ins_car_plate').value = carPlate;
     if (document.getElementById('ins_car_brand')) document.getElementById('ins_car_brand').value = carBrand;
     if (document.getElementById('ins_car_model')) document.getElementById('ins_car_model').value = carModel;
@@ -36,12 +33,9 @@ function openInspectionModal() {
     if (document.getElementById('ins_arr_date')) document.getElementById('ins_arr_date').value = arrDate;
     if (document.getElementById('ins_tgt_date')) document.getElementById('ins_tgt_date').value = tgtDate;
     if (document.getElementById('ins_job_no')) document.getElementById('ins_job_no').value = jobId ? `JOB-${jobId}` : '';
-    
-    // หยอดชื่อในกล่องลายเซ็น
     if (document.getElementById('sign_cust_name')) document.getElementById('sign_cust_name').value = custName;
     if (document.getElementById('sign_sa_name')) document.getElementById('sign_sa_name').value = saName;
 
-    // 🌟 เปลี่ยนที่อยู่บริษัทอัตโนมัติตามสาขา (รังสิต หรือ นวมินทร์) 🌟
     const addrBox = document.getElementById('ins_company_address');
     if (addrBox) {
         if (branchName.includes('Navamin') || branchName.includes('นวมินทร์')) {
@@ -56,18 +50,15 @@ function openInspectionModal() {
             addrBox.innerHTML = `
                 <p class="text-base font-black text-[#00320D]">บริษัท ไรเซน เอนเนอร์จี จำกัด</p>
                 <p>เลขที่เสียภาษี 0-1055-60176-43-4</p>
-                <p>47/1 หมู่ที่ 1 ตำบลคลองหนึ่ง อำเภอคลองหลวง</p>
-                <p>จังหวัดปทุมธานี 12120</p>
+                <p>47/1 หมู่ที่ 1 ตำบลคลองหนึ่ง อำเภอคลองหลวง จังหวัดปทุมธานี 12120</p>
                 <p>โทรศัพท์ : 02-055-9199 / 090-954-1115</p>
             `;
         }
     }
 
-    // 2. แสดง Modal
     document.getElementById('inspectionModal').classList.remove('hidden');
     document.getElementById('inspectionModal').classList.add('flex');
 
-    // 3. ตั้งค่า Canvas และโหลดข้อมูลเก่าถ้าเคยบันทึกไว้
     setTimeout(() => {
         initCanvas();
         loadExistingInspectionData(carPlate);
@@ -80,61 +71,102 @@ function closeInspectionModal() {
 }
 
 // ----------------------------------
-// 🖌️ ระบบ Canvas วาดรูปรถ
+// 🖌️ ระบบ Canvas วาดรูปรถแบบขยายจอ
 // ----------------------------------
 function initCanvas() {
-    canvas = document.getElementById('carCanvas');
-    if (!canvas) return;
-
-    const rect = canvas.parentElement.getBoundingClientRect();
-    canvas.width = rect.width;
-    canvas.height = rect.height;
-
-    ctx = canvas.getContext('2d');
+    canvasSmall = document.getElementById('carCanvasSmall');
+    canvasLarge = document.getElementById('carCanvasLarge');
     
-    canvas.onmousedown = stampMark;
-    canvas.ontouchstart = (e) => {
-        e.preventDefault();
-        stampMark(e.touches[0]);
+    if (canvasSmall) {
+        const rectS = canvasSmall.parentElement.getBoundingClientRect();
+        canvasSmall.width = rectS.width;
+        canvasSmall.height = rectS.height;
+        ctxSmall = canvasSmall.getContext('2d');
+    }
+    
+    if (canvasLarge) {
+        ctxLarge = canvasLarge.getContext('2d');
+        // ติดตั้ง Event ลากวาดรูปเฉพาะจอใหญ่
+        canvasLarge.onmousedown = stampMark;
+        canvasLarge.ontouchstart = (e) => {
+            e.preventDefault();
+            stampMark(e.touches[0]);
+        };
+    }
+}
+
+function openCarDrawModal() {
+    document.getElementById('carDrawModal').classList.remove('hidden');
+    document.getElementById('carDrawModal').classList.add('flex');
+    
+    const rectL = canvasLarge.parentElement.getBoundingClientRect();
+    
+    // สำรองรูปเดิมจากจอเล็กมาไว้จอใหญ่
+    const tempImg = new Image();
+    tempImg.src = canvasSmall.toDataURL();
+    
+    canvasLarge.width = rectL.width;
+    canvasLarge.height = rectL.height;
+    
+    tempImg.onload = () => {
+        ctxLarge.drawImage(tempImg, 0, 0, canvasLarge.width, canvasLarge.height);
     };
+}
+
+function closeCarDrawModal(isSaved) {
+    document.getElementById('carDrawModal').classList.add('hidden');
+    document.getElementById('carDrawModal').classList.remove('flex');
+    
+    if (isSaved && canvasSmall && canvasLarge) {
+        // ก๊อปปี้รูปจากจอใหญ่ ย่อกลับลงจอเล็ก A4
+        ctxSmall.clearRect(0, 0, canvasSmall.width, canvasSmall.height);
+        ctxSmall.drawImage(canvasLarge, 0, 0, canvasSmall.width, canvasSmall.height);
+    }
 }
 
 function setDrawTool(tool) {
     currentTool = tool;
+    const btnO = document.getElementById('tool_O');
+    const btnX = document.getElementById('tool_X');
+    
+    if(tool === 'O') {
+        btnO.className = "px-5 py-2 bg-red-100 border-2 border-red-600 text-red-700 font-bold rounded-xl shadow-sm";
+        btnX.className = "px-5 py-2 bg-white border border-slate-300 text-slate-600 font-bold rounded-xl shadow-sm";
+    } else {
+        btnX.className = "px-5 py-2 bg-blue-100 border-2 border-blue-600 text-blue-700 font-bold rounded-xl shadow-sm";
+        btnO.className = "px-5 py-2 bg-white border border-slate-300 text-slate-600 font-bold rounded-xl shadow-sm";
+    }
 }
 
 function stampMark(e) {
-    const rect = canvas.getBoundingClientRect();
+    const rect = canvasLarge.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    ctx.lineWidth = 3;
+    ctxLarge.lineWidth = 4;
     
     if (currentTool === 'O') {
-        ctx.strokeStyle = '#ef4444';
-        ctx.beginPath();
-        ctx.arc(x, y, 12, 0, Math.PI * 2);
-        ctx.stroke();
+        ctxLarge.strokeStyle = '#ef4444';
+        ctxLarge.beginPath();
+        ctxLarge.arc(x, y, 20, 0, Math.PI * 2);
+        ctxLarge.stroke();
     } else if (currentTool === 'X') {
-        ctx.strokeStyle = '#3b82f6';
-        ctx.beginPath();
-        ctx.moveTo(x - 10, y - 10);
-        ctx.lineTo(x + 10, y + 10);
-        ctx.moveTo(x + 10, y - 10);
-        ctx.lineTo(x - 10, y + 10);
-        ctx.stroke();
+        ctxLarge.strokeStyle = '#3b82f6';
+        ctxLarge.beginPath();
+        ctxLarge.moveTo(x - 15, y - 15);
+        ctxLarge.lineTo(x + 15, y + 15);
+        ctxLarge.moveTo(x + 15, y - 15);
+        ctxLarge.lineTo(x - 15, y + 15);
+        ctxLarge.stroke();
     }
 }
 
 function clearCanvas() {
     if(confirm("ลบเครื่องหมายแผลทั้งหมดใช่หรือไม่?")) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctxLarge.clearRect(0, 0, canvasLarge.width, canvasLarge.height);
     }
 }
 
-// ----------------------------------
-// 🖨️ สั่งพิมพ์ (Print)
-// ----------------------------------
 function printInspection() {
     window.print();
 }
@@ -146,8 +178,8 @@ async function saveInspectionForm() {
     const jobId = document.getElementById('sa_report_id')?.value || 'JOB-' + Date.now();
     const carPlate = document.getElementById('ins_car_plate')?.value || '';
     
-    // แปลงรูปวาดจาก Canvas เป็น Base64 String
-    const carImageBase64 = canvas ? canvas.toDataURL("image/png") : '';
+    // บันทึกรูปจากจอเล็ก (เพราะสัดส่วนเข้ากับเอกสาร A4 มากที่สุด)
+    const carImageBase64 = canvasSmall ? canvasSmall.toDataURL("image/png") : '';
 
     const payload = {
         job_id: jobId,
@@ -215,11 +247,12 @@ async function loadExistingInspectionData(jobId) {
                 document.getElementById('ins_extra_notes').value = data.notes;
             }
 
-            if (data.car_diagram_image && canvas) {
+            // โหลดรูปลงทั้งจอเล็กและเตรียมไว้ให้จอใหญ่
+            if (data.car_diagram_image && canvasSmall) {
                 const img = new Image();
                 img.onload = function() {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    ctxSmall.clearRect(0, 0, canvasSmall.width, canvasSmall.height);
+                    ctxSmall.drawImage(img, 0, 0, canvasSmall.width, canvasSmall.height);
                 };
                 img.src = data.car_diagram_image;
             }
