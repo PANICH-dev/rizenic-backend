@@ -6,7 +6,26 @@ let canvasLarge, ctxLarge;
 let canvasSmall, ctxSmall;
 let currentTool = 'O'; 
 
-function openInspectionModal() {
+// 🌟 ฟังก์ชันดึงไฟล์ inspection.html มาแปะไว้ที่ Body ก่อนใช้งาน
+async function loadInspectionTemplate() {
+    if (!document.getElementById('inspectionModal')) {
+        try {
+            const res = await fetch('inspection.html');
+            const html = await res.text();
+            document.body.insertAdjacentHTML('beforeend', html);
+            
+            // สร้างตารางรายการซ่อม
+            renderPartsTable();
+        } catch (e) {
+            console.error("❌ ไม่สามารถโหลดไฟล์ inspection.html ได้:", e);
+        }
+    }
+}
+
+async function openInspectionModal() {
+    // โหลดไฟล์ HTML ก่อนแสดงผล
+    await loadInspectionTemplate();
+
     const carPlate = document.getElementById('car_plate')?.value || '';
     const carBrand = document.getElementById('car_brand')?.value || '';
     const carModel = document.getElementById('car_model')?.value || '';
@@ -62,14 +81,64 @@ function openInspectionModal() {
     }, 200);
 }
 
+function renderPartsTable() {
+    const partsList = [
+        { name: "กันชนหน้า", sides: false }, { name: "ฝากระโปรงหน้า", sides: false },
+        { name: "บังโคลนหน้า", sides: true }, { name: "แผงหน้าทั้งชุด", sides: false },
+        { name: "คานหม้อน้ำ", sides: false }, { name: "กระโหลกบังโคลนหน้า", sides: true },
+        { name: "เสากระจกบังลมหน้า", sides: true }, { name: "กระจกบังลมหน้า", sides: false },
+        { name: "หลังคา", sides: false }, { name: "ประตูหน้า", sides: true },
+        { name: "กระจกมองข้าง", sides: true }, { name: "ประตูหลัง", sides: true },
+        { name: "บันได", sides: true }, { name: "บังโคลนหลัง", sides: true },
+        { name: "กระจกบังลมหลัง", sides: false }, { name: "ฝาปิดถังน้ำมัน", sides: false },
+        { name: "ฝากระโปรงหลัง", sides: false }, { name: "ฝาปิดท้าย", sides: false },
+        { name: "แผงตั้งท้าย", sides: false }, { name: "เปลือก กระบะ", sides: true },
+        { name: "กันชนหลัง", sides: false }
+    ];
+    
+    let tbodyHtml = '';
+    partsList.forEach(part => {
+        if(part.sides) {
+            tbodyHtml += `
+                <tr>
+                    <td rowspan="2" class="text-left px-1 border-b border-r border-slate-600 w-3/4">${part.name}</td>
+                    <td class="text-center px-1 border-b border-r border-slate-600 w-1/4">ซ้าย</td>
+                    <td class="border-b border-r border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="border-b border-r border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="border-b border-r border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="border-b border-r border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="border-b border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
+                </tr>
+                <tr>
+                    <td class="text-center px-1 border-b border-r border-slate-600">ขวา</td>
+                    <td class="border-b border-r border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="border-b border-r border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="border-b border-r border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="border-b border-r border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="border-b border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
+                </tr>
+            `;
+        } else {
+            tbodyHtml += `
+                <tr>
+                    <td colspan="2" class="text-left px-1 border-b border-r border-slate-600">${part.name}</td>
+                    <td class="border-b border-r border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="border-b border-r border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="border-b border-r border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="border-b border-r border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="border-b border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
+                </tr>`;
+        }
+    });
+    const container = document.getElementById('ins_parts_table_body');
+    if(container) container.innerHTML = tbodyHtml;
+}
+
 function closeInspectionModal() {
     document.getElementById('inspectionModal').classList.add('hidden');
     document.getElementById('inspectionModal').classList.remove('flex');
 }
 
-// ----------------------------------
-// 🖌️ ระบบ Canvas วาดรูปรถแบบขยายจอ
-// ----------------------------------
 function initCanvas() {
     canvasSmall = document.getElementById('carCanvasSmall');
     canvasLarge = document.getElementById('carCanvasLarge');
@@ -96,7 +165,6 @@ function openCarDrawModal() {
     document.getElementById('carDrawModal').classList.add('flex');
     
     const rectL = canvasLarge.parentElement.getBoundingClientRect();
-    
     const tempImg = new Image();
     tempImg.src = canvasSmall.toDataURL();
     
@@ -161,17 +229,20 @@ function clearCanvas() {
     }
 }
 
+function updateFuelGauge(val) {
+    if(document.getElementById('fuel_txt')) document.getElementById('fuel_txt').innerText = val;
+    const arcLength = 125;
+    const filled = (val / 100) * arcLength;
+    if(document.getElementById('fuel_arc')) document.getElementById('fuel_arc').style.strokeDasharray = `${filled} ${arcLength}`;
+}
+
 function printInspection() {
     window.print();
 }
 
-// ----------------------------------
-// 💾 บันทึกข้อมูลเข้าฐานข้อมูล (Save)
-// ----------------------------------
 async function saveInspectionForm() {
     const jobId = document.getElementById('sa_report_id')?.value || 'JOB-' + Date.now();
     const carPlate = document.getElementById('ins_car_plate')?.value || '';
-    
     const carImageBase64 = canvasSmall ? canvasSmall.toDataURL("image/png") : '';
 
     const payload = {
@@ -218,9 +289,6 @@ async function saveInspectionForm() {
     }
 }
 
-// ----------------------------------
-// 🔄 โหลดข้อมูลเก่าที่เคยบันทึกไว้
-// ----------------------------------
 async function loadExistingInspectionData(jobId) {
     try {
         const res = await fetch(`${API_BASE_URL}/api/inspection/${jobId}`);
@@ -231,7 +299,7 @@ async function loadExistingInspectionData(jobId) {
 
             if (data.fuel_level && document.getElementById('ins_fuel_level')) {
                 document.getElementById('ins_fuel_level').value = data.fuel_level;
-                if (typeof updateFuelGauge === 'function') updateFuelGauge(data.fuel_level);
+                updateFuelGauge(data.fuel_level);
             }
             if (data.current_mileage && document.getElementById('ins_mileage')) {
                 document.getElementById('ins_mileage').value = data.current_mileage;
