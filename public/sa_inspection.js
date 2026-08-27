@@ -143,19 +143,24 @@ function initCanvas() {
     canvasSmall = document.getElementById('carCanvasSmall');
     canvasLarge = document.getElementById('carCanvasLarge');
     
+    // 🌟 ล็อก Resolution ให้เท่ากันทั้ง 2 จอ
+    const RES_W = 1000;
+    const RES_H = 400;
+
     if (canvasSmall) {
-        const rectS = canvasSmall.parentElement.getBoundingClientRect();
-        canvasSmall.width = rectS.width;
-        canvasSmall.height = rectS.height;
+        canvasSmall.width = RES_W;
+        canvasSmall.height = RES_H;
         ctxSmall = canvasSmall.getContext('2d');
     }
     
     if (canvasLarge) {
+        canvasLarge.width = RES_W;
+        canvasLarge.height = RES_H;
         ctxLarge = canvasLarge.getContext('2d');
-        canvasLarge.onmousedown = stampMark;
+        canvasLarge.onclick = stampMark;
         canvasLarge.ontouchstart = (e) => {
             e.preventDefault();
-            stampMark(e.touches[0]);
+            stampMark(e);
         };
     }
 }
@@ -201,24 +206,42 @@ function setDrawTool(tool) {
 }
 
 function stampMark(e) {
-    const rect = canvasLarge.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    let clientX, clientY;
+    if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    } else if (e.changedTouches && e.changedTouches.length > 0) {
+        clientX = e.changedTouches[0].clientX;
+        clientY = e.changedTouches[0].clientY;
+    } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+    }
 
-    ctxLarge.lineWidth = 4;
+    const rect = canvasLarge.getBoundingClientRect();
+    
+    // คืนค่าพิกัดให้ตรงกับ Resolution ภายใน Canvas
+    const scaleX = canvasLarge.width / rect.width;
+    const scaleY = canvasLarge.height / rect.height;
+    
+    const x = (clientX - rect.left) * scaleX;
+    const y = (clientY - rect.top) * scaleY;
+
+    ctxLarge.lineWidth = 6;
     
     if (currentTool === 'O') {
-        ctxLarge.strokeStyle = '#ef4444';
+        ctxLarge.strokeStyle = '#10b981'; // สีเขียวมรกต
         ctxLarge.beginPath();
         ctxLarge.arc(x, y, 20, 0, Math.PI * 2);
         ctxLarge.stroke();
     } else if (currentTool === 'X') {
-        ctxLarge.strokeStyle = '#3b82f6';
+        const size = 15;
+        ctxLarge.strokeStyle = '#ef4444'; // สีแดง
         ctxLarge.beginPath();
-        ctxLarge.moveTo(x - 15, y - 15);
-        ctxLarge.lineTo(x + 15, y + 15);
-        ctxLarge.moveTo(x + 15, y - 15);
-        ctxLarge.lineTo(x - 15, y + 15);
+        ctxLarge.moveTo(x - size, y - size);
+        ctxLarge.lineTo(x + size, y + size);
+        ctxLarge.moveTo(x + size, y - size);
+        ctxLarge.lineTo(x - size, y + size);
         ctxLarge.stroke();
     }
 }
