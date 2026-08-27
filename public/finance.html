@@ -465,11 +465,20 @@
             const filterYear = document.getElementById('year_filter_select').value;
             const filterBranch = document.getElementById('branch_filter_select').value;
 
+            // กรองสาขา
             const branchFilteredJobs = allAccJobs.filter(j => filterBranch === 'ALL' || j.branch_name === filterBranch);
 
-            const unmanaged = branchFilteredJobs.filter(j => !j.billing_date || j.billing_date.trim() === '').length;
+            // 🌟 เพิ่มเงื่อนไขตัดสถานะ 18.ลูกค้ายกเลิก และ ปิดงาน ทิ้ง 🌟
+            const validAccJobs = branchFilteredJobs.filter(j => {
+                const st = j.job_status || "";
+                return !st.includes('18.ลูกค้ายกเลิก') && !st.includes('ปิดงาน');
+            });
+
+            // รอจัดการ = ยังไม่มีวันที่ออกบิล
+            const unmanaged = validAccJobs.filter(j => !j.billing_date || j.billing_date.trim() === '').length;
             
-            const managed = branchFilteredJobs.filter(j => {
+            // จัดการแล้ว = มีวันที่ออกบิลแล้ว
+            const managed = validAccJobs.filter(j => {
                 if (!j.billing_date || j.billing_date.trim() === '') return false;
                 const d = new Date(j.billing_date);
                 if (filterYear && d.getFullYear().toString() !== filterYear) return false;
@@ -509,7 +518,6 @@
                 }
             });
         }
-
         function filterByStatus(type) {
             document.getElementById('managed_filter_select').value = type;
             applyFilters();
