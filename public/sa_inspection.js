@@ -6,23 +6,62 @@ let canvas, ctx;
 let currentTool = 'O'; // เริ่มต้นใช้โหมดวงกลม
 
 function openInspectionModal() {
-    // 1. ดึงข้อมูลจากฟอร์มเปิดบิล มาใส่ในใบตรวจรับรถ
+    // 1. ดึงข้อมูลจากฟอร์มเปิดบิล มาใส่ในแบบฟอร์ม A4
     const carPlate = document.getElementById('car_plate')?.value || '';
     const carBrand = document.getElementById('car_brand')?.value || '';
     const carModel = document.getElementById('car_model')?.value || '';
     const custName = document.getElementById('customer_name')?.value || '';
+    const phone = document.getElementById('phone_number')?.value || '';
+    const vin = document.getElementById('vin_no')?.value || '';
+    const arrDate = document.getElementById('arrived_date')?.value || '';
+    const tgtDate = document.getElementById('target_finish_date')?.value || '';
     const saName = document.getElementById('sa_owner_input')?.value || sessionStorage.getItem('emp_name') || '';
+    const jobId = document.getElementById('sa_report_id')?.value || '';
+    
+    // ดึงชื่อสาขาของพนักงาน
+    const branchName = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
     
     if (!carPlate) {
         alert("⚠️ กรุณากรอก 'ทะเบียนรถ' ก่อนเปิดใบตรวจสภาพครับ");
         return;
     }
 
-    document.getElementById('ins_car_plate').value = carPlate;
-    document.getElementById('ins_car_brand').value = carBrand;
-    document.getElementById('ins_car_model').value = carModel;
-    document.getElementById('ins_cust_name').value = custName;
-    document.getElementById('ins_sa_sign_name').innerText = saName;
+    // หยอดข้อมูลเข้าช่องฟอร์ม A4
+    if (document.getElementById('ins_car_plate')) document.getElementById('ins_car_plate').value = carPlate;
+    if (document.getElementById('ins_car_brand')) document.getElementById('ins_car_brand').value = carBrand;
+    if (document.getElementById('ins_car_model')) document.getElementById('ins_car_model').value = carModel;
+    if (document.getElementById('ins_cust_name')) document.getElementById('ins_cust_name').value = custName;
+    if (document.getElementById('ins_phone')) document.getElementById('ins_phone').value = phone;
+    if (document.getElementById('ins_vin')) document.getElementById('ins_vin').value = vin;
+    if (document.getElementById('ins_arr_date')) document.getElementById('ins_arr_date').value = arrDate;
+    if (document.getElementById('ins_tgt_date')) document.getElementById('ins_tgt_date').value = tgtDate;
+    if (document.getElementById('ins_job_no')) document.getElementById('ins_job_no').value = jobId ? `JOB-${jobId}` : '';
+    
+    // หยอดชื่อในกล่องลายเซ็น
+    if (document.getElementById('sign_cust_name')) document.getElementById('sign_cust_name').value = custName;
+    if (document.getElementById('sign_sa_name')) document.getElementById('sign_sa_name').value = saName;
+
+    // 🌟 เปลี่ยนที่อยู่บริษัทอัตโนมัติตามสาขา (รังสิต หรือ นวมินทร์) 🌟
+    const addrBox = document.getElementById('ins_company_address');
+    if (addrBox) {
+        if (branchName.includes('Navamin') || branchName.includes('นวมินทร์')) {
+            addrBox.innerHTML = `
+                <p class="text-base font-black text-[#00320D]">บริษัท ไรเซน เอนเนอร์จี จำกัด</p>
+                <p>เลขที่เสียภาษี 0-1055-60176-43-4</p>
+                <p>50/5-6 ซอย นวมินทร์ 151 นวลจันทร์</p>
+                <p>เขตบึงกุ่ม กรุงเทพมหานคร 10230</p>
+                <p>โทรศัพท์ : 0981515155</p>
+            `;
+        } else {
+            addrBox.innerHTML = `
+                <p class="text-base font-black text-[#00320D]">บริษัท ไรเซน เอนเนอร์จี จำกัด</p>
+                <p>เลขที่เสียภาษี 0-1055-60176-43-4</p>
+                <p>47/1 หมู่ที่ 1 ตำบลคลองหนึ่ง อำเภอคลองหลวง</p>
+                <p>จังหวัดปทุมธานี 12120</p>
+                <p>โทรศัพท์ : 02-055-9199 / 090-954-1115</p>
+            `;
+        }
+    }
 
     // 2. แสดง Modal
     document.getElementById('inspectionModal').classList.remove('hidden');
@@ -47,14 +86,12 @@ function initCanvas() {
     canvas = document.getElementById('carCanvas');
     if (!canvas) return;
 
-    // เซ็ตขนาด Canvas ให้เท่ากับขนาดกล่อง div ที่ครอบอยู่
     const rect = canvas.parentElement.getBoundingClientRect();
     canvas.width = rect.width;
     canvas.height = rect.height;
 
     ctx = canvas.getContext('2d');
     
-    // จัดการ Event การคลิกเพื่อวาด (รองรับทั้งเมาส์และหน้าจอสัมผัส)
     canvas.onmousedown = stampMark;
     canvas.ontouchstart = (e) => {
         e.preventDefault();
@@ -64,16 +101,6 @@ function initCanvas() {
 
 function setDrawTool(tool) {
     currentTool = tool;
-    const btnO = document.getElementById('tool_O');
-    const btnX = document.getElementById('tool_X');
-    
-    if(tool === 'O') {
-        btnO.className = "px-3 py-1 bg-red-100 border-2 border-red-600 text-red-700 font-bold rounded-lg text-xs";
-        btnX.className = "px-3 py-1 bg-white border border-slate-300 text-slate-600 font-bold rounded-lg text-xs";
-    } else {
-        btnX.className = "px-3 py-1 bg-blue-100 border-2 border-blue-600 text-blue-700 font-bold rounded-lg text-xs";
-        btnO.className = "px-3 py-1 bg-white border border-slate-300 text-slate-600 font-bold rounded-lg text-xs";
-    }
 }
 
 function stampMark(e) {
@@ -84,19 +111,17 @@ function stampMark(e) {
     ctx.lineWidth = 3;
     
     if (currentTool === 'O') {
-        // วาดวงกลมสีแดง (O)
         ctx.strokeStyle = '#ef4444';
         ctx.beginPath();
-        ctx.arc(x, y, 15, 0, Math.PI * 2);
+        ctx.arc(x, y, 12, 0, Math.PI * 2);
         ctx.stroke();
     } else if (currentTool === 'X') {
-        // วาดกากบาทสีน้ำเงิน (X)
         ctx.strokeStyle = '#3b82f6';
         ctx.beginPath();
-        ctx.moveTo(x - 12, y - 12);
-        ctx.lineTo(x + 12, y + 12);
-        ctx.moveTo(x + 12, y - 12);
-        ctx.lineTo(x - 12, y + 12);
+        ctx.moveTo(x - 10, y - 10);
+        ctx.lineTo(x + 10, y + 10);
+        ctx.moveTo(x + 10, y - 10);
+        ctx.lineTo(x - 10, y + 10);
         ctx.stroke();
     }
 }
@@ -119,31 +144,33 @@ function printInspection() {
 // ----------------------------------
 async function saveInspectionForm() {
     const jobId = document.getElementById('sa_report_id')?.value || 'JOB-' + Date.now();
-    const carPlate = document.getElementById('ins_car_plate').value;
+    const carPlate = document.getElementById('ins_car_plate')?.value || '';
     
     // แปลงรูปวาดจาก Canvas เป็น Base64 String
-    const carImageBase64 = canvas.toDataURL("image/png");
+    const carImageBase64 = canvas ? canvas.toDataURL("image/png") : '';
 
     const payload = {
         job_id: jobId,
         car_plate: carPlate,
         branch_name: sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่',
-        fuel_level: document.getElementById('ins_fuel_level').value,
+        fuel_level: document.getElementById('ins_fuel_level')?.value || 50,
+        current_mileage: document.getElementById('ins_mileage')?.value || 0,
         inventory_checklist: {
-            jack: document.getElementById('inv_jack').checked,
-            spare_tire: document.getElementById('inv_spare_tire').checked,
-            tools: document.getElementById('inv_tools').checked,
-            radio: document.getElementById('inv_radio').checked
+            tools: document.getElementById('inv_tools')?.checked,
+            jack: document.getElementById('inv_jack')?.checked,
+            spare_tire: document.getElementById('inv_spare_tire')?.checked,
+            radio: document.getElementById('inv_radio')?.checked,
+            carpet: document.getElementById('inv_carpet')?.checked,
+            rubber: document.getElementById('inv_rubber')?.checked
         },
         car_diagram_image: carImageBase64,
-        notes: document.getElementById('ins_notes').value
+        notes: document.getElementById('ins_extra_notes')?.value || ''
     };
 
     try {
         const btn = document.querySelector('button[onclick="saveInspectionForm()"]');
-        const oldText = btn.innerHTML;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
-        btn.disabled = true;
+        const oldText = btn ? btn.innerHTML : '';
+        if(btn) { btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...'; btn.disabled = true; }
 
         const res = await fetch(`${API_BASE_URL}/api/inspection`, {
             method: 'POST',
@@ -159,8 +186,7 @@ async function saveInspectionForm() {
             alert('❌ บันทึกไม่สำเร็จ: ' + err.error);
         }
 
-        btn.innerHTML = oldText;
-        btn.disabled = false;
+        if(btn) { btn.innerHTML = oldText; btn.disabled = false; }
     } catch (e) {
         console.error(e);
         alert('❌ เครือข่ายมีปัญหา ไม่สามารถบันทึกได้');
@@ -178,24 +204,18 @@ async function loadExistingInspectionData(jobId) {
             const data = result.data;
             if (!data) return;
 
-            // เติมเกจน้ำมัน และ หมายเหตุ
-            if (data.fuel_level) {
+            if (data.fuel_level && document.getElementById('ins_fuel_level')) {
                 document.getElementById('ins_fuel_level').value = data.fuel_level;
-                document.getElementById('fuel_display').innerText = data.fuel_level + '%';
+                if (typeof updateFuelGauge === 'function') updateFuelGauge(data.fuel_level);
             }
-            if (data.notes) document.getElementById('ins_notes').value = data.notes;
-
-            // ติ๊กช่อง Checkbox
-            if (data.inventory_checklist) {
-                const inv = typeof data.inventory_checklist === 'string' ? JSON.parse(data.inventory_checklist) : data.inventory_checklist;
-                document.getElementById('inv_jack').checked = !!inv.jack;
-                document.getElementById('inv_spare_tire').checked = !!inv.spare_tire;
-                document.getElementById('inv_tools').checked = !!inv.tools;
-                document.getElementById('inv_radio').checked = !!inv.radio;
+            if (data.current_mileage && document.getElementById('ins_mileage')) {
+                document.getElementById('ins_mileage').value = data.current_mileage;
+            }
+            if (data.notes && document.getElementById('ins_extra_notes')) {
+                document.getElementById('ins_extra_notes').value = data.notes;
             }
 
-            // วาดรูปวาดเก่ากลับลงไปบน Canvas
-            if (data.car_diagram_image) {
+            if (data.car_diagram_image && canvas) {
                 const img = new Image();
                 img.onload = function() {
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
