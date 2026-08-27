@@ -554,11 +554,9 @@
             const container = document.getElementById('sa_cards_container');
             const saStats = {}; 
             
-            // ดึงเดือน/ปีปัจจุบันที่กำลังแสดงผล เพื่อคำนวณยอดปิดบิล
             const fMonth = document.getElementById('sa_cal_month')?.value || String(new Date().getMonth() + 1).padStart(2, '0');
             const fYear = document.getElementById('sa_cal_year')?.value || String(new Date().getFullYear());
             
-            // 🌟 ตัวแปรสำหรับการคำนวณ Overdue 🌟
             const todayStr = new Date().toISOString().split('T')[0];
             const arrivedPrefixes = ['09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21'];
 
@@ -573,41 +571,30 @@
                 const sa = job.sa_owner || "ไม่ระบุ SA"; 
                 const st = job.job_status || "";
                 
-                // สร้าง object เตรียมเก็บค่าให้ SA แต่ละคนถ้ายังไม่มี
                 if (!saStats[sa]) {
                     saStats[sa] = { pending: 0, waitBill: 0, billed: 0, mainParts: 0, subParts: 0, ovApp: 0, ovTgt: 0, ovDel: 0, totalOverdue: 0 };
                 }
 
-                // 1. ยอดงานค้างในระบบ (ตามสถานะ Pending)
-                if (pendingStatuses.some(status => st.includes(status))) {
-                    saStats[sa].pending++; 
-                }
+                if (pendingStatuses.some(status => st.includes(status))) saStats[sa].pending++; 
+                if (st.includes('รอออกบิล')) saStats[sa].waitBill++;
 
-                // 2. ยอดรอออกบิล
-                if (st.includes('รอออกบิล')) {
-                    saStats[sa].waitBill++;
-                }
-
-                // 3. ยอดปิดบิลแล้วประจำเดือน และ จำนวนอะไหล่ (หลัก/รอง)
                 const isBilledStatus = st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิลประกัน') || st.includes('วางบิล Tesla') || st.includes('วางบิล EV');
                 if (isBilledStatus && getValidDateStr(job.billing_date)) {
                     const d = new Date(job.billing_date);
                     if (String(d.getMonth() + 1).padStart(2, '0') === fMonth && String(d.getFullYear()) === fYear) {
                         saStats[sa].billed++;
-                        
                         const mQty = Number(job.main_part_qty) || (job.main_part_name ? job.main_part_name.split(',').filter(Boolean).length : 0);
                         const sQty = Number(job.sub_part_qty) || (job.sub_part_name ? job.sub_part_name.split(',').filter(Boolean).length : 0);
-                        
                         saStats[sa].mainParts += mQty;
                         saStats[sa].subParts += sQty;
                     }
                 }
 
-                // 4. 🌟 คำนวณยอด Overdue (รถเข้า / เป้าเสร็จ / ส่งมอบ) 🌟
                 const isProcessJob = activeProcessStatuses.some(status => st.includes(status) || st.startsWith(status.substring(0, 2)));
                 if (isProcessJob) {
                     const appVal = getValidDateStr(job.arrived_date);
-                    const hasArrived = arrivedPrefixes.some(prefix => st.startsWith(prefix));
+                    // 🌟 เพิ่มเงื่อนไข ถ้ารถสถานะ "จอดซ่อม" ให้ถือว่าเข้าอู่แล้ว (ไม่แจ้งเตือน Overdue)
+                    const hasArrived = arrivedPrefixes.some(prefix => st.startsWith(prefix)) || job.is_parked === 'จอดซ่อม';
                     if (appVal && appVal <= todayStr && !hasArrived) { saStats[sa].ovApp++; saStats[sa].totalOverdue++; }
 
                     const tgtVal = getValidDateStr(job.target_finish_date);
@@ -618,7 +605,6 @@
                 }
             });
 
-            // เรียงลำดับ SA ตามยอดงานค้างเยอะสุดไปน้อยสุด
             const sortedSAs = Object.keys(saStats).sort((a, b) => saStats[b].pending - saStats[a].pending);
             
             if(sortedSAs.length === 0) { 
@@ -641,13 +627,11 @@
                     </div>
                     
                     <div class="flex flex-col gap-1.5 relative z-10">
-                        <!-- บรรทัดบน: รวมงานค้าง -->
                         <div class="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100 flex justify-between items-center">
                             <span class="text-[11px] font-bold text-slate-600">งานค้างในระบบ</span>
                             <div class="text-right"><span class="text-lg font-black text-blue-600 leading-none">${stats.pending}</span> <span class="text-[10px] text-slate-500 font-bold">คัน</span></div>
                         </div>
 
-                        <!-- 🌟 แถบ Overdue 🌟 -->
                         ${stats.totalOverdue > 0 ? `
                         <div class="flex justify-between gap-1">
                             ${stats.ovApp > 0 ? `<div class="bg-red-50 text-red-700 text-[9px] font-bold px-1.5 py-1 rounded shadow-xs border border-red-200 flex-1 text-center"><i class="fa-solid fa-triangle-exclamation animate-pulse"></i> เข้า <span class="font-black text-xs">${stats.ovApp}</span></div>` : ''}
@@ -656,7 +640,6 @@
                         </div>
                         ` : `<div class="text-[9px] text-emerald-600 font-bold px-2 py-1 bg-emerald-50 rounded border border-emerald-100 text-center"><i class="fa-solid fa-circle-check"></i> ไร้งาน Overdue</div>`}
                         
-                        <!-- บรรทัดล่าง: สถิติ 3 ช่อง -->
                         <div class="flex justify-between gap-1.5 mt-0.5">
                             <div class="bg-amber-50/50 rounded-lg px-2 py-1.5 border border-amber-100 flex-1 text-center shadow-xs">
                                 <p class="text-[9px] font-bold text-amber-700 mb-0.5">รอออกบิล</p>
@@ -746,7 +729,8 @@
 
                 if (isProcessJob) {
                     const appVal = getValidDateStr(j.arrived_date);
-                    const hasArrived = arrivedPrefixes.some(prefix => st.startsWith(prefix));
+                    // 🌟 เพิ่มเงื่อนไข ถ้ารถสถานะ "จอดซ่อม" ไม่เอามานับ Overdue 🌟
+                    const hasArrived = arrivedPrefixes.some(prefix => st.startsWith(prefix)) || j.is_parked === 'จอดซ่อม';
                     if (appVal && appVal <= todayStr && !hasArrived) ovApp++;
 
                     const tgtVal = getValidDateStr(j.target_finish_date);
@@ -788,7 +772,8 @@
 
                 if (type === 'appointment') {
                     const appVal = getValidDateStr(j.arrived_date);
-                    const hasArrived = arrivedPrefixes.some(prefix => st.startsWith(prefix));
+                    // 🌟 เพิ่มเงื่อนไข ถ้ารถสถานะ "จอดซ่อม" ไม่เอามาโชว์ใน Modal 🌟
+                    const hasArrived = arrivedPrefixes.some(prefix => st.startsWith(prefix)) || j.is_parked === 'จอดซ่อม';
                     return appVal && appVal <= todayStr && !hasArrived;
                 } else if (type === 'target') {
                     const tgtVal = getValidDateStr(j.target_finish_date);
