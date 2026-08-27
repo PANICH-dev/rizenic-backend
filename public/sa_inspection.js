@@ -36,12 +36,18 @@ async function openInspectionModal() {
     const tgtDate = document.getElementById('target_finish_date')?.value || '';
     const jobId = document.getElementById('sa_report_id')?.value || '';
     const branchName = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+
+    // 🌟 ดึงค่า 3 ตัวใหม่มาใส่ตัวแปร
+    const paymentType = document.getElementById('payment_type')?.value || '';
+    const claimNo = document.getElementById('claim_no')?.value || '';
+    const damageLevel = document.getElementById('damage_level')?.value || ''; // เบา/กลาง/หนัก
     
     if (!carPlate) {
         alert("⚠️ กรุณากรอก 'ทะเบียนรถ' ก่อนเปิดใบตรวจสภาพครับ");
         return;
     }
 
+    // หยอดข้อมูลลงฟอร์ม
     if (document.getElementById('ins_car_plate')) document.getElementById('ins_car_plate').value = carPlate;
     if (document.getElementById('ins_car_brand')) document.getElementById('ins_car_brand').value = carBrand;
     if (document.getElementById('ins_car_model')) document.getElementById('ins_car_model').value = carModel;
@@ -53,18 +59,37 @@ async function openInspectionModal() {
     if (document.getElementById('ins_job_no')) document.getElementById('ins_job_no').value = jobId ? `JOB-${jobId}` : '';
     if (document.getElementById('sign_cust_name')) document.getElementById('sign_cust_name').value = custName;
 
+    // 🌟 Map ค่าบริษัทประกัน และ เลขเคลม
+    if (document.getElementById('ins_insurance')) document.getElementById('ins_insurance').value = paymentType;
+    if (document.getElementById('ins_claim_no')) document.getElementById('ins_claim_no').value = claimNo;
+
+    // 🌟 Map ค่าระดับความเสียหาย (L / M / H)
+    if (damageLevel) {
+        let jobTypeVal = 'L'; // ค่าตั้งต้น
+        if (damageLevel === 'กลาง') jobTypeVal = 'M';
+        if (damageLevel === 'หนัก') jobTypeVal = 'H';
+        
+        const radios = document.getElementsByName('ins_job_type');
+        for (let i = 0; i < radios.length; i++) {
+            if (radios[i].value === jobTypeVal) {
+                radios[i].checked = true;
+                break;
+            }
+        }
+    }
+
     const addrBox = document.getElementById('ins_company_address');
     if (addrBox) {
         if (branchName.includes('Navamin') || branchName.includes('นวมินทร์')) {
             addrBox.innerHTML = `
-                <p class="text-xs font-black text-[#00320D]">บริษัท ไรเซน เอนเนอร์จี จำกัด</p>
+                <p class="text-[11px] font-black text-[#00320D]">บริษัท ไรเซน เอนเนอร์จี จำกัด</p>
                 <p>เลขที่เสียภาษี 0-1055-60176-43-4</p>
                 <p>50/5-6 ซอย นวมินทร์ 151 นวลจันทร์ เขตบึงกุ่ม กรุงเทพมหานคร 10230</p>
                 <p>โทรศัพท์ : 0981515155</p>
             `;
         } else {
             addrBox.innerHTML = `
-                <p class="text-xs font-black text-[#00320D]">บริษัท ไรเซน เอนเนอร์จี จำกัด</p>
+                <p class="text-[11px] font-black text-[#00320D]">บริษัท ไรเซน เอนเนอร์จี จำกัด</p>
                 <p>เลขที่เสียภาษี 0-1055-60176-43-4</p>
                 <p>47/1 หมู่ที่ 1 ตำบลคลองหนึ่ง อำเภอคลองหลวง จังหวัดปทุมธานี 12120</p>
                 <p>โทรศัพท์ : 02-055-9199 / 090-954-1115</p>
@@ -81,6 +106,7 @@ async function openInspectionModal() {
     }, 200);
 }
 
+// 🌟 ปรับตารางรายการซ่อมให้ตัวหนังสือชิดซ้ายสุด
 function renderPartsTable() {
     const partsList = [
         { name: "กันชนหน้า", sides: false }, { name: "ฝากระโปรงหน้า", sides: false },
@@ -101,32 +127,32 @@ function renderPartsTable() {
         if(part.sides) {
             tbodyHtml += `
                 <tr>
-                    <td rowspan="2" class="text-left px-1 border-b border-r border-slate-600 w-3/4">${part.name}</td>
-                    <td class="text-center px-1 border-b border-r border-slate-600 w-1/4">ซ้าย</td>
-                    <td class="border-b border-r border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="border-b border-r border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="border-b border-r border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="border-b border-r border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="border-b border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
+                    <td rowspan="2" class="text-left pl-1 pr-1 border-b border-r border-slate-500 w-[60%] leading-tight">${part.name}</td>
+                    <td class="text-center border-b border-r border-slate-500 w-[15%] font-bold text-[7.5px]">ซ้าย</td>
+                    <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="border-b border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
                 </tr>
                 <tr>
-                    <td class="text-center px-1 border-b border-r border-slate-600">ขวา</td>
-                    <td class="border-b border-r border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="border-b border-r border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="border-b border-r border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="border-b border-r border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="border-b border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="text-center border-b border-r border-slate-500 font-bold text-[7.5px]">ขวา</td>
+                    <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="border-b border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
                 </tr>
             `;
         } else {
             tbodyHtml += `
                 <tr>
-                    <td colspan="2" class="text-left px-1 border-b border-r border-slate-600">${part.name}</td>
-                    <td class="border-b border-r border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="border-b border-r border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="border-b border-r border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="border-b border-r border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="border-b border-slate-600"><input type="checkbox" class="cb-box-sm"></td>
+                    <td colspan="2" class="text-left pl-1 pr-1 border-b border-r border-slate-500 leading-tight">${part.name}</td>
+                    <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="border-b border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
                 </tr>`;
         }
     });
