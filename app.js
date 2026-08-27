@@ -1017,6 +1017,65 @@ app.post('/api/send-line-notify', async (req, res) => {
 });
 
 
+
+
+
+
+// ==========================================
+// 📄 API ใบรับรถ / ตรวจสภาพรถ (inspection_reports)
+// ==========================================
+
+// 1. บันทึก / อัปเดตข้อมูลใบตรวจสภาพรถ
+app.post('/api/inspection', async (req, res) => {
+    const {
+        job_id, car_plate, branch_name, fuel_level, current_mileage,
+        job_type, job_category, repair_checklist, inventory_checklist,
+        electrical_checklist, car_diagram_image, customer_signature,
+        inspector_signature, notes
+    } = req.body;
+
+    try {
+        const query = `
+            INSERT INTO inspection_reports (
+                job_id, car_plate, branch_name, fuel_level, current_mileage,
+                job_type, job_category, repair_checklist, inventory_checklist,
+                electrical_checklist, car_diagram_image, customer_signature,
+                inspector_signature, notes, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, CURRENT_TIMESTAMP)
+            RETURNING *;
+        `;
+
+        const values = [
+            job_id, car_plate, branch_name, fuel_level || 0, current_mileage || 0,
+            job_type, job_category, JSON.stringify(repair_checklist || {}),
+            JSON.stringify(inventory_checklist || {}), JSON.stringify(electrical_checklist || {}),
+            car_diagram_image, customer_signature, inspector_signature, notes
+        ];
+
+        const result = await pool.query(query, values);
+        res.json({ success: true, data: result.rows[0] });
+    } catch (err) {
+        console.error("Error saving inspection report:", err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// 2. ดึงข้อมูลใบตรวจสภาพรถตาม Job ID
+app.get('/api/inspection/:job_id', async (req, res) => {
+    try {
+        const { job_id } = req.params;
+        const result = await pool.query('SELECT * FROM inspection_reports WHERE job_id = $1 ORDER BY id DESC LIMIT 1', [job_id]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'ไม่พบข้อมูลใบตรวจสภาพรถ' });
+        }
+        res.json({ success: true, data: result.rows[0] });
+    } catch (err) {
+        console.error("Error fetching inspection report:", err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 /// ==========================================
 // 🚀 Start Server
 // ==========================================
