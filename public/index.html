@@ -506,11 +506,113 @@
         </div>
     </div>
 
+    
+
+    <!-- ========================================== -->
+    <!-- 🚗 Modal: ใบตรวจสภาพรถก่อนรับบริการ (Inspection Form) -->
+    <!-- ========================================== -->
+    <div id="inspectionModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[200] hidden items-center justify-center p-2 sm:p-4 print:p-0 print:bg-white print:z-auto">
+        <div class="bg-white w-full max-w-5xl h-[95vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-300 print:w-full print:h-auto print:rounded-none print:shadow-none print:border-none">
+            
+            <!-- Header (ซ่อนตอนปริ้น) -->
+            <div class="bg-[#00320D] px-6 py-3 flex justify-between items-center text-white shrink-0 print:hidden">
+                <h2 class="font-black text-lg flex items-center gap-2"><i class="fa-solid fa-clipboard-check text-amber-400"></i> แบบฟอร์มตรวจสภาพรถก่อนรับบริการ</h2>
+                <div class="flex gap-2">
+                    <button onclick="printInspection()" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow transition"><i class="fa-solid fa-print"></i> พิมพ์ (Print)</button>
+                    <button onclick="closeInspectionModal()" class="px-3 py-1.5 bg-white/10 hover:bg-red-500/80 text-white rounded-lg transition"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+
+            <!-- Body (เนื้อหาใบรับรถ) -->
+            <div class="flex-1 overflow-auto custom-scrollbar p-6 bg-white print:p-0" id="inspection_print_area">
+                
+                <!-- 🌟 ส่วนหัวใบรับรถ (แก้ไขใส่ LOGO) 🌟 -->
+                <div class="text-center mb-6 border-b-2 border-[#00320D] pb-4 flex flex-col items-center">
+                    <!-- ดึง LOGO จากโฟลเดอร์ photo (แก้ไขชื่อไฟล์โลโก้ให้ตรงกับของจริงได้เลยครับ เช่น logo.png หรือ logo.jpg) -->
+                    <img src="photo/logo.png" alt="RIZENIC LOGO" class="h-12 object-contain mb-2">
+                    <h2 class="text-lg font-bold bg-[#00320D] text-white py-1 mt-2 w-full uppercase tracking-wide">แบบฟอร์มตรวจสภาพรถก่อนรับบริการ (Vehicle Inspection Form)</h2>
+                </div>
+
+                <!-- ข้อมูลลูกค้า (ดึงอัตโนมัติ) -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 text-sm">
+                    <div><span class="font-bold text-slate-600">ทะเบียน:</span> <input type="text" id="ins_car_plate" class="border-b border-slate-400 outline-none w-full font-black text-blue-700 uppercase" readonly></div>
+                    <div><span class="font-bold text-slate-600">ยี่ห้อ:</span> <input type="text" id="ins_car_brand" class="border-b border-slate-400 outline-none w-full font-bold" readonly></div>
+                    <div><span class="font-bold text-slate-600">รุ่น:</span> <input type="text" id="ins_car_model" class="border-b border-slate-400 outline-none w-full font-bold" readonly></div>
+                    <div><span class="font-bold text-slate-600">ลูกค้า:</span> <input type="text" id="ins_cust_name" class="border-b border-slate-400 outline-none w-full font-bold" readonly></div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    
+                    <!-- ฝั่งซ้าย: กระดานวาดรูปรถ -->
+                    <div class="border-2 border-slate-300 rounded-xl p-4 flex flex-col items-center relative bg-slate-50">
+                        <div class="w-full flex justify-between items-center mb-2 print:hidden">
+                            <span class="font-black text-[#00320D]">มาร์คจุดรอยแผล (คลิกเพื่อวาด)</span>
+                            <div class="flex gap-2">
+                                <button onclick="setDrawTool('O')" id="tool_O" class="px-3 py-1 bg-red-100 border-2 border-red-600 text-red-700 font-bold rounded-lg text-xs">วงกลม (O)</button>
+                                <button onclick="setDrawTool('X')" id="tool_X" class="px-3 py-1 bg-white border border-slate-300 text-slate-600 font-bold rounded-lg text-xs">กากบาท (X)</button>
+                                <button onclick="clearCanvas()" class="px-3 py-1 bg-slate-200 text-slate-700 font-bold rounded-lg text-xs"><i class="fa-solid fa-eraser"></i> ล้าง</button>
+                            </div>
+                        </div>
+                        
+                        <!-- 🌟 พื้นที่ Canvas วาดรูป (แก้ไข Path เป็น photo/car_outline.png) 🌟 -->
+                        <div class="relative border border-slate-300 bg-white w-full max-w-[400px] h-[300px] rounded shadow-inner" style="background-image: url('photo/car_outline.png'); background-size: contain; background-position: center; background-repeat: no-repeat;">
+                            <canvas id="carCanvas" class="absolute top-0 left-0 w-full h-full cursor-crosshair"></canvas>
+                        </div>
+
+                        <!-- เกจระดับน้ำมัน -->
+                        <div class="w-full mt-6">
+                            <span class="font-black text-slate-700 text-sm">ระดับพลังงาน/น้ำมัน (%)</span>
+                            <input type="range" id="ins_fuel_level" min="0" max="100" value="50" class="w-full mt-2 accent-[#00320D] print:hidden" oninput="document.getElementById('fuel_display').innerText = this.value + '%'">
+                            <div class="text-center font-black text-xl text-blue-700" id="fuel_display">50%</div>
+                        </div>
+                    </div>
+
+                    <!-- ฝั่งขวา: รายการตรวจเช็ก -->
+                    <div class="border-2 border-slate-300 rounded-xl p-4 bg-white">
+                        <h3 class="font-black text-[#00320D] bg-slate-100 px-3 py-1 rounded mb-3">อุปกรณ์ภายในรถ (Inventory)</h3>
+                        <div class="grid grid-cols-2 gap-3 text-sm font-bold text-slate-700">
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="inv_jack" class="w-4 h-4 accent-[#00320D]"> แม่แรง</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="inv_spare_tire" class="w-4 h-4 accent-[#00320D]"> ยางอะไหล่</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="inv_tools" class="w-4 h-4 accent-[#00320D]"> ชุดเครื่องมือ</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="inv_radio" class="w-4 h-4 accent-[#00320D]"> วิทยุ / จอแสดงผล</label>
+                        </div>
+                        
+                        <div class="mt-4 mb-2">
+                            <label class="text-xs font-bold text-slate-500">หมายเหตุเพิ่มเติม:</label>
+                            <textarea id="ins_notes" rows="2" class="w-full border border-slate-300 rounded p-2 text-sm outline-none mt-1 focus:border-[#00320D]"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer ลายเซ็น -->
+                <div class="grid grid-cols-2 gap-8 mt-10 pt-6 border-t-2 border-slate-200 text-center">
+                    <div>
+                        <div class="border-b border-slate-400 w-48 mx-auto mb-2"></div>
+                        <p class="text-sm font-bold text-slate-700">(.............................................................)</p>
+                        <p class="text-xs font-bold text-slate-500 mt-1">เจ้าของรถ / ลูกค้า</p>
+                    </div>
+                    <div>
+                        <div class="border-b border-slate-400 w-48 mx-auto mb-2"></div>
+                        <p class="text-sm font-bold text-slate-700">(<span id="ins_sa_sign_name" class="px-4 text-[#00320D]"></span>)</p>
+                        <p class="text-xs font-bold text-slate-500 mt-1">เจ้าหน้าที่ผู้ให้บริการ (SA)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Buttons -->
+            <div class="bg-slate-50 border-t border-slate-300 p-4 flex justify-end gap-3 shrink-0 print:hidden">
+                <button onclick="closeInspectionModal()" class="px-5 py-2 bg-white border border-slate-300 text-slate-700 font-bold rounded-xl hover:bg-slate-100 transition shadow-sm">ยกเลิก</button>
+                <button onclick="saveInspectionForm()" class="px-6 py-2 bg-[#00320D] text-white font-black rounded-xl hover:bg-black transition shadow-md flex items-center gap-2"><i class="fa-solid fa-save text-amber-400"></i> บันทึกข้อมูลใบรับรถ</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 🌟 โหลดสคริปต์แยกไฟล์ที่ถูกต้อง -->
     <script src="sa_core.js"></script>
     <script src="sa_parts.js"></script>
     <script src="sa_calendar.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="sa_import_qt.js"></script>
+    <script src="sa_inspection.js"></script>
 </body>
 </html>
