@@ -120,9 +120,7 @@ function renderSAAlerts() {
         const saOwner = job.sa_owner || 'ไม่ระบุ';
         const engineNoDisplay = job.engine_no || job.vin_no || '-'; 
         
-        const relatedParts = allPartOrders.filter(p => 
-            (String(p.report_id) === String(jobId) || (!p.report_id && p.car_plate === plate))
-        );
+        const relatedParts = allPartOrders.filter(p => String(p.report_id) === String(jobId));
 
         const qtDisplay = job.qt_no || job.quotation_no || (relatedParts.length > 0 ? (relatedParts[0].qt_no || '-') : '-');
         const soDisplay = job.so_no || job.job_order_no || (relatedParts.length > 0 ? (relatedParts[0].so_no || '-') : '-');
@@ -233,9 +231,7 @@ function openAlertModal(jobId, plate) {
     const defaultQt = mainJob ? (mainJob.qt_no || mainJob.quotation_no || '') : '';
     const defaultSo = mainJob ? (mainJob.so_no || mainJob.job_order_no || '') : '';
 
-    const jobParts = allPartOrders.filter(p => 
-        (String(p.report_id) === String(jobId) || (!p.report_id && p.car_plate === plate))
-    );
+    const jobParts = allPartOrders.filter(p => String(p.report_id) === String(jobId));
     
     const container = document.getElementById('modal_dynamic_table_container');
     const epcInput = document.getElementById('mass_epc_update');
