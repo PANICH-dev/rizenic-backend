@@ -175,6 +175,7 @@ async function sendSinglePO(btnElem) {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 job_id: currentJobId,
+                report_id: currentJobId,
                 car_plate: carPlate, 
                 vin_no: document.getElementById('vin_no')?.value || null, 
                 car_model: document.getElementById('car_model')?.value || null, 
@@ -190,6 +191,7 @@ async function sendSinglePO(btnElem) {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 job_id: currentJobId,
+                report_id: currentJobId,
                 issue_date: new Date().toISOString().split('T')[0],
                 part_no: pNo, part_main_no: pMain || null, part_name: pName, qty: pQty,
                 car_plate: carPlate, qt_no: qtArr.join(',') || null, so_no: soArr.join(',') || null,
@@ -211,7 +213,7 @@ async function sendSinglePO(btnElem) {
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 2500);
 
-        loadPartsTrackingTable(carPlate); 
+        loadPartsTrackingTable(carPlate, currentJobId); 
         
     } catch(e) { 
         alert('❌ เกิดข้อผิดพลาดในการยิงออเดอร์: ' + e.message); 
@@ -251,9 +253,11 @@ async function loadPartsTrackingTable(carPlate, paramJobId = null) {
         const data = Array.isArray(resData) ? resData : (resData.data || []);
         
         const filtered = data.filter(p => {
-            // ✅ ถ้ากำลังเปิดบิลเก่าอยู่ (มี ID) ให้กรองข้อมูลด้วย ID ใบงานแบบเป๊ะๆ 100%
+            // ✅ ถ้ากำลังเปิดบิลเก่าอยู่ (มี ID) ให้กรองข้อมูลด้วย ID ใบงาน (รองรับทั้ง report_id และ job_id)
             if (activeJobId) {
-                return String(p.report_id) === String(activeJobId);
+                const matchReportId = p.report_id && String(p.report_id) === String(activeJobId);
+                const matchJobId = p.job_id && String(p.job_id) === String(activeJobId);
+                return matchReportId || matchJobId;
             }
             // ❌ ถ้ากำลังเปิดบิลใหม่ (ยังไม่มี ID) ค่อยค้นประวัติเก่าๆ ด้วยทะเบียนรถ
             if(!p || !p.car_plate) return false;
@@ -390,7 +394,8 @@ async function submitEditPOModal(e) {
         }
 
         closeEditPOModal();
-        loadPartsTrackingTable(carPlate);
+        const activeJobId = document.getElementById('sa_report_id')?.value || null;
+        loadPartsTrackingTable(carPlate, activeJobId);
     } catch(err) {
         alert('❌ แก้ไขข้อมูลไม่สำเร็จ'); 
     } finally {
@@ -407,10 +412,10 @@ async function deletePO(id, carPlate) {
             const res = await fetch(`${API_BASE_URL}/api/part-orders/${id}`, { method: 'DELETE' }); 
             if(!res.ok) throw new Error();
             alert('✅ ลบข้อมูลเรียบร้อย'); 
-            loadPartsTrackingTable(carPlate); 
+            const activeJobId = document.getElementById('sa_report_id')?.value || null;
+            loadPartsTrackingTable(carPlate, activeJobId); 
         } catch(e) { 
             alert('❌ ลบข้อมูลไม่สำเร็จ'); 
         }
     }
 }
-
