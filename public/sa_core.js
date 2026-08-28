@@ -274,24 +274,16 @@ function autoCalculateDamageLevel() {
 }
 
 function addDocRow(type = 'QT', val = '') {
-    const tbody = document.getElementById('docs_body');
-    if (!tbody) return;
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-        <td class="px-4 py-3"><select class="minimal-input doc-type font-bold !py-1.5"><option value="QT" ${type==='QT'?'selected':''}>ใบเสนอราคา (QT)</option><option value="SO" ${type==='SO'?'selected':''}>ใบสั่งซ่อม (SO)</option><option value="BL" ${type==='BL'?'selected':''}>ใบวางบิล (BL)</option></select></td>
-        <td class="px-4 py-3"><input type="text" class="minimal-input doc-no font-mono uppercase !py-1.5" placeholder="กรอกหมายเลขเอกสาร" value="${val}"></td>
-        <td class="px-4 py-3 text-center"><button type="button" onclick="this.closest('tr').remove()" class="text-slate-400 hover:text-red-600 transition bg-white p-2 rounded-lg border border-slate-200 shadow-sm"><i class="fa-solid fa-trash"></i></button></td>
-    `;
-    tbody.appendChild(tr);
+    // 🌟 ยกเลิกการทำงานของ addDocRow เนื่องจากเปลี่ยนมาใช้ Document Pipeline แล้ว 🌟
+    // เก็บฟังก์ชันไว้เพื่อป้องกัน Error กรณีมีจุดอื่นเรียกใช้
+    console.log("addDocRow is deprecated. Using new Document Pipeline UI.");
 }
 
 async function checkCrossPageEditMode() {
     const idToEdit = sessionStorage.getItem('edit_job_id'); 
-    const docsBody = document.getElementById('docs_body');
     const orderPartsBody = document.getElementById('order_parts_body');
 
     if(!idToEdit) {
-        if(docsBody && docsBody.children.length === 0) addDocRow();
         if(orderPartsBody && orderPartsBody.children.length === 0 && typeof addPartRow === 'function') addPartRow();
         return;
     }
@@ -360,11 +352,17 @@ async function checkCrossPageEditMode() {
         if (carPlateEl) carPlateEl.value = job.car_plate || ''; 
         if (vinEl) vinEl.value = job.vin_no || '';
 
-        if (docsBody) docsBody.innerHTML = '';
-        if (job.qt_no) job.qt_no.split(',').forEach(v => { let val = v.trim(); if(val) addDocRow('QT', val); });
-        if (job.so_no) job.so_no.split(',').forEach(v => { let val = v.trim(); if(val) addDocRow('SO', val); });
-        if (job.bl_no) job.bl_no.split(',').forEach(v => { let val = v.trim(); if(val) addDocRow('BL', val); });
-        if (docsBody && docsBody.children.length === 0) addDocRow();
+        // 🌟 อัปเดตข้อมูลลง Document Pipeline โฉมใหม่ 🌟
+        const claimNoInp = document.getElementById('doc_claim_no');
+        const qtNoInp = document.getElementById('doc_qt_no');
+        const soNoInp = document.getElementById('doc_so_no');
+        const blNoInp = document.getElementById('doc_bl_no');
+        
+        // รองรับกรณีที่ข้อมูลเดิมถูกเก็บไว้ใน claim_no หรือข้อมูลเอกสารอื่นๆ
+        if (claimNoInp) claimNoInp.value = job.claim_no || '';
+        if (qtNoInp) qtNoInp.value = job.qt_no || '';
+        if (soNoInp) soNoInp.value = job.so_no || '';
+        if (blNoInp) blNoInp.value = job.bl_no || '';
 
         if (orderPartsBody) orderPartsBody.innerHTML = '';
         if (typeof addPartRow === 'function') addPartRow();
@@ -407,7 +405,7 @@ async function checkCrossPageEditMode() {
         setDateVal('delivery_date', job.delivery_date);
 
         if (job.car_plate && typeof loadPartsTrackingTable === 'function') {
-            loadPartsTrackingTable(job.car_plate.trim());
+            loadPartsTrackingTable(job.car_plate.trim(), job.id || idToEdit);
         }
 
     } catch(e) {
@@ -423,7 +421,6 @@ function cancelEditMode() {
     const saRepId = document.getElementById('sa_report_id');
     const editBadge = document.getElementById('edit_mode_badge');
     const btnSubSa = document.getElementById('btn_submit_sa');
-    const docsBody = document.getElementById('docs_body');
     const orderPartsBody = document.getElementById('order_parts_body');
     const trackPartsBody = document.getElementById('track_parts_body');
 
@@ -432,7 +429,17 @@ function cancelEditMode() {
     if (editBadge) editBadge.classList.add('hidden');
     if (btnSubSa) btnSubSa.innerHTML = '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ';
     
-    if (docsBody) { docsBody.innerHTML = ''; addDocRow(); }
+    // 🌟 ล้างค่า Document Pipeline โฉมใหม่ 🌟
+    const claimNoInp = document.getElementById('doc_claim_no');
+    const qtNoInp = document.getElementById('doc_qt_no');
+    const soNoInp = document.getElementById('doc_so_no');
+    const blNoInp = document.getElementById('doc_bl_no');
+    
+    if (claimNoInp) claimNoInp.value = '';
+    if (qtNoInp) qtNoInp.value = '';
+    if (soNoInp) soNoInp.value = '';
+    if (blNoInp) blNoInp.value = '';
+
     if (orderPartsBody) { orderPartsBody.innerHTML = ''; if(typeof addPartRow === 'function') addPartRow(); }
     if (trackPartsBody) trackPartsBody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400 text-xs font-bold bg-white">กรุณาบันทึกใบงานเพื่อติดตามสถานะอะไหล่</td></tr>`;
     
@@ -473,7 +480,8 @@ async function submitSaForm(event) {
         { id: 'car_plate', name: '2. ทะเบียนรถ' },
         { id: 'car_brand', name: 'ยี่ห้อรถ' },
         { id: 'vin_no', name: '3. หมายเลขตัวถัง (VIN)' },
-        { id: 'job_status', name: 'สถานะใบงาน' }
+        { id: 'job_status', name: 'สถานะใบงาน' },
+        { id: 'doc_claim_no', name: 'เลขที่ เคลม/รับแจ้ง' } // 🌟 เพิ่มตรวจสอบช่องเคลม
     ];
     
     let missingFields = [];
@@ -483,7 +491,7 @@ async function submitSaForm(event) {
     });
 
     if (missingFields.length > 0) { 
-        alert('⚠️ กรุณากรอกข้อมูลบังคับให้ครบถ้วนก่อนบันทึกครับ:\n\n- ' + missingFields.join('\n- ')); 
+        alert(`⚠️ กรุณากรอกข้อมูลบังคับให้ครบถ้วนก่อนบันทึกครับ:\n\n- ` + missingFields.join('\n- ')); 
         return; 
     }
 
@@ -508,7 +516,7 @@ async function submitSaForm(event) {
             const quotaCheck = await checkQuotaBeforeSubmit(branchName, arrivedDate, targetFinishDate, deliveryDate, cleanMainParts.length, cleanSubParts.length);
             
             if (quotaCheck !== true) {
-                alert('❌ ไม่สามารถบันทึกได้:\n\n' + quotaCheck + '\n\nกรุณาเลือกวันที่ใหม่ครับ');
+                alert(`❌ ไม่สามารถบันทึกได้:\n\n` + quotaCheck + `\n\nกรุณาเลือกวันที่ใหม่ครับ`);
                 if (btnSubmit) {
                     btnSubmit.innerHTML = oldBtnText;
                     btnSubmit.disabled = false;
@@ -521,11 +529,12 @@ async function submitSaForm(event) {
     }
 
     const editId = document.getElementById('sa_report_id')?.value || '';
-    let qtArr = [], soArr = [], blArr = [];
-    document.querySelectorAll('#docs_body tr').forEach(tr => {
-        const type = tr.querySelector('.doc-type')?.value; const val = tr.querySelector('.doc-no')?.value?.trim();
-        if(val) { if(type === 'QT') qtArr.push(val); if(type === 'SO') soArr.push(val); if(type === 'BL') blArr.push(val); }
-    });
+    
+    // 🌟 ดึงข้อมูลจาก Document Pipeline โฉมใหม่ 🌟
+    const claimVal = document.getElementById('doc_claim_no')?.value?.trim() || '';
+    const qtVal = document.getElementById('doc_qt_no')?.value?.trim() || '';
+    const soVal = document.getElementById('doc_so_no')?.value?.trim() || '';
+    const blVal = document.getElementById('doc_bl_no')?.value?.trim() || '';
 
     const routingDept = document.getElementById('department_routing')?.value || 'รอดำเนินการ';
     
@@ -545,7 +554,13 @@ async function submitSaForm(event) {
     formData.car_brand = document.getElementById('car_brand')?.value || '';
     formData.car_model = document.getElementById('car_model')?.value || ''; 
     formData.vin_no = document.getElementById('vin_no')?.value || '';
-    formData.qt_no = qtArr.join(', '); formData.so_no = soArr.join(', '); formData.bl_no = blArr.join(', ');
+    
+    // 🌟 บันทึกข้อมูลเอกสาร
+    formData.claim_no = claimVal;
+    formData.qt_no = qtVal; 
+    formData.so_no = soVal; 
+    formData.bl_no = blVal;
+    
     formData.payment_type = document.getElementById('payment_type')?.value || ''; 
     formData.damage_level = document.getElementById('damage_level')?.value || 'เบา';
     formData.contact_date = document.getElementById('contact_date')?.value || null; 
@@ -570,7 +585,7 @@ async function submitSaForm(event) {
         const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
         if (!response.ok) {
             const errData = await response.json();
-            alert('❌ บันทึกล้มเหลว:\n\n' + (errData.error || 'โปรดตรวจสอบอีกครั้ง'));
+            alert(`❌ บันทึกล้มเหลว:\n\n` + (errData.error || 'โปรดตรวจสอบอีกครั้ง'));
             if (btnSubmit) {
                 btnSubmit.innerHTML = editId ? '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม' : '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ';
                 btnSubmit.disabled = false; 
@@ -595,7 +610,8 @@ async function submitSaForm(event) {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
                             job_id: savedJobId,
-                            qt_no: qtArr.join(', '), so_no: soArr.join(', '), epc_no: null,
+                            report_id: savedJobId,
+                            qt_no: formData.qt_no, so_no: formData.so_no, epc_no: null,
                             order_date: new Date().toISOString().split('T')[0], car_plate: formData.car_plate, vin_no: formData.vin_no, car_model: formData.car_model, 
                             part_no: pNo, part_main_no: pMain, part_name: pName, qty_ordered: pQty, part_type: pType, branch_name: formData.branch_name, order_status: 'รอสั่งซื้อ' 
                         })
@@ -605,9 +621,10 @@ async function submitSaForm(event) {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             job_id: savedJobId,
+                            report_id: savedJobId,
                             issue_date: new Date().toISOString().split('T')[0],
                             part_no: pNo, part_main_no: pMain || null, part_name: pName, qty: pQty,
-                            car_plate: formData.car_plate, qt_no: qtArr.join(',') || null, so_no: soArr.join(',') || null,
+                            car_plate: formData.car_plate, qt_no: formData.qt_no || null, so_no: formData.so_no || null,
                             unit_price: 0, car_model: formData.car_model || null,
                             job_status: 'รอเข้าซ่อม', part_type: pType,
                             branch_name: formData.branch_name
@@ -619,7 +636,7 @@ async function submitSaForm(event) {
         
         if (editId) { 
             alert(`🎉 อัปเดตใบงานเรียบร้อย!`); 
-            if(formData.car_plate && typeof loadPartsTrackingTable === 'function') loadPartsTrackingTable(formData.car_plate);
+            if(formData.car_plate && typeof loadPartsTrackingTable === 'function') loadPartsTrackingTable(formData.car_plate, savedJobId);
             if (btnSubmit) {
                 btnSubmit.innerHTML = '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม';
                 btnSubmit.disabled = false;
