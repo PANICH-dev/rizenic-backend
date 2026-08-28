@@ -17,7 +17,6 @@ document.addEventListener('DOMContentLoaded', () => {
     enterApp();
 });
 
-// 🌟 เพิ่มฟังก์ชันล็อกเอาท์ให้กดออกระบบได้แล้วครับ 🌟
 function logout() {
     sessionStorage.clear();
     window.location.reload();
@@ -106,7 +105,6 @@ async function handleLogin(e) {
             sessionStorage.setItem('emp_role', emp.employee_role || 'SA'); 
             sessionStorage.setItem('emp_branch', emp.branch_name || 'สำนักงานใหญ่');
             
-            // 🌟 ปลดล็อกสิทธิ์ให้เข้าได้ทุกหน้าไปก่อน ป้องกันการเด้งกลับ 🌟
             const defaultAccess = 'dashboard,jobs,jobs_table,repair,parts,finance,admin,audit,history,index';
             sessionStorage.setItem('accessible_pages', emp.accessible_pages || defaultAccess);
             
@@ -127,7 +125,6 @@ async function enterApp() {
     if (loginScr) loginScr.classList.add('hidden');
     if (mainApp) mainApp.classList.remove('hidden');
     
-    // 🌟 เช็กซ้ำอีกรอบ: ถ้าสิทธิ์หาย ให้ยัดสิทธิ์เข้าทุกหน้าให้เลย 🌟
     let currentAccess = sessionStorage.getItem('accessible_pages');
     if (!currentAccess || currentAccess.trim() === '') {
         sessionStorage.setItem('accessible_pages', 'dashboard,jobs,jobs_table,repair,parts,finance,admin,audit,history,index');
@@ -273,17 +270,90 @@ function autoCalculateDamageLevel() {
     else if (totalParts > 7) { selectDamage('หนัก'); }
 }
 
+// 🌟 ฟังก์ชันสร้างการ์ด Flow ดีไซน์เดิม (เพิ่มได้หลายชุด) 🌟
+window.addPipelineRow = function(claim = '', qt = '', so = '', bl = '') {
+    const container = document.getElementById('doc_pipeline_container');
+    if (!container) return;
+    
+    const div = document.createElement('div');
+    div.className = "pipeline-set relative bg-white p-5 rounded-2xl border-2 border-slate-200 shadow-sm transition-all hover:border-blue-300";
+    
+    div.innerHTML = `
+        <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-100">
+            <span class="text-xs font-black text-blue-900 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
+                <i class="fa-solid fa-folder-tree mr-1"></i> ชุดเอกสารที่ <span class="row-num">1</span>
+            </span>
+            <button type="button" onclick="this.closest('.pipeline-set').remove(); updatePipelineNumbers();" class="text-slate-300 hover:text-red-500 transition px-2 py-1 text-xs font-bold" title="ลบชุดนี้">
+                <i class="fa-solid fa-trash mr-1"></i> ลบชุดนี้
+            </button>
+        </div>
+
+        <div class="flex flex-col md:flex-row items-stretch justify-between gap-4 relative">
+            <div class="hidden md:block absolute top-1/2 left-[10%] right-[10%] h-1 bg-slate-200 -z-10 -translate-y-1/2 rounded-full"></div>
+
+            <!-- 1. เคลม / รับแจ้ง -->
+            <div class="flex-1 bg-white p-4 rounded-xl border-2 border-indigo-200 shadow-sm relative z-0 flex flex-col items-center text-center group hover:border-indigo-400 transition-colors">
+                <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-black mb-3 border-2 border-indigo-300 group-hover:scale-110 transition-transform">1</div>
+                <label class="label-text text-indigo-800 text-[10px]">เลขที่ เคลม/รับแจ้ง <span class="text-red-500">*</span></label>
+                <input type="text" class="pipe-claim w-full mt-1 text-center font-mono font-black text-indigo-700 border-b-2 border-indigo-200 focus:border-indigo-500 outline-none bg-transparent py-1 uppercase" placeholder="ระบุเลขที่..." value="${claim}" required>
+            </div>
+
+            <i class="fa-solid fa-chevron-right text-slate-300 md:self-center hidden md:block text-xl"></i>
+            <i class="fa-solid fa-chevron-down text-slate-300 self-center md:hidden text-xl"></i>
+
+            <!-- 2. ใบเสนอราคา (QT) -->
+            <div class="flex-1 bg-white p-4 rounded-xl border-2 border-emerald-200 shadow-sm relative z-0 flex flex-col items-center text-center group hover:border-emerald-400 transition-colors">
+                <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-black mb-3 border-2 border-emerald-300 group-hover:scale-110 transition-transform">2</div>
+                <label class="label-text text-emerald-800 text-[10px]">ใบเสนอราคา (QT)</label>
+                <input type="text" class="pipe-qt w-full mt-1 text-center font-mono font-black text-emerald-700 border-b-2 border-emerald-200 focus:border-emerald-500 outline-none bg-transparent py-1 uppercase" placeholder="ระบุเลขที่..." value="${qt}">
+            </div>
+
+            <i class="fa-solid fa-chevron-right text-slate-300 md:self-center hidden md:block text-xl"></i>
+            <i class="fa-solid fa-chevron-down text-slate-300 self-center md:hidden text-xl"></i>
+
+            <!-- 3. ใบสั่งซ่อม (SO) -->
+            <div class="flex-1 bg-white p-4 rounded-xl border-2 border-amber-200 shadow-sm relative z-0 flex flex-col items-center text-center group hover:border-amber-400 transition-colors">
+                <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-black mb-3 border-2 border-amber-300 group-hover:scale-110 transition-transform">3</div>
+                <label class="label-text text-amber-800 text-[10px]">ใบสั่งซ่อม (SO)</label>
+                <input type="text" class="pipe-so w-full mt-1 text-center font-mono font-black text-amber-700 border-b-2 border-amber-200 focus:border-amber-500 outline-none bg-transparent py-1 uppercase" placeholder="ระบุเลขที่..." value="${so}">
+            </div>
+
+            <i class="fa-solid fa-chevron-right text-slate-300 md:self-center hidden md:block text-xl"></i>
+            <i class="fa-solid fa-chevron-down text-slate-300 self-center md:hidden text-xl"></i>
+
+            <!-- 4. ใบวางบิล (BL) - ส่วนของบัญชี -->
+            <div class="flex-1 bg-slate-50 p-4 rounded-xl border-2 border-slate-200 shadow-inner relative z-0 flex flex-col items-center text-center opacity-80">
+                <div class="w-10 h-10 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center font-black mb-3 border-2 border-slate-300"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+                <label class="label-text text-slate-600 text-[10px]">ใบวางบิล / แจ้งหนี้ (BL)</label>
+                <div class="w-full mt-1 flex flex-col items-center justify-center">
+                    <input type="text" class="pipe-bl w-full text-center font-mono font-bold text-slate-500 bg-transparent border-none outline-none py-1" placeholder="-" value="${bl}" readonly title="รอแผนกบัญชีดำเนินการ">
+                    <span class="text-[9px] text-slate-400 bg-slate-200 px-2 py-0.5 rounded-full mt-1">ส่วนของบัญชี</span>
+                </div>
+            </div>
+        </div>
+    `;
+    container.appendChild(div);
+    updatePipelineNumbers();
+};
+
+function updatePipelineNumbers() {
+    document.querySelectorAll('.pipeline-set').forEach((row, index) => {
+        const numEl = row.querySelector('.row-num');
+        if(numEl) numEl.innerText = index + 1;
+    });
+}
+
 function addDocRow(type = 'QT', val = '') {
-    // 🌟 ยกเลิกการทำงานของ addDocRow เนื่องจากเปลี่ยนมาใช้ Document Pipeline แล้ว 🌟
-    // เก็บฟังก์ชันไว้เพื่อป้องกัน Error กรณีมีจุดอื่นเรียกใช้
     console.log("addDocRow is deprecated. Using new Document Pipeline UI.");
 }
 
 async function checkCrossPageEditMode() {
     const idToEdit = sessionStorage.getItem('edit_job_id'); 
     const orderPartsBody = document.getElementById('order_parts_body');
+    const container = document.getElementById('doc_pipeline_container');
 
     if(!idToEdit) {
+        if (container) { container.innerHTML = ''; addPipelineRow(); }
         if(orderPartsBody && orderPartsBody.children.length === 0 && typeof addPartRow === 'function') addPartRow();
         return;
     }
@@ -320,10 +390,7 @@ async function checkCrossPageEditMode() {
             if (!value) return;
             const el = document.getElementById(elementId);
             if (!el) return;
-            if (!el.options) {
-                el.value = value;
-                return;
-            }
+            if (!el.options) { el.value = value; return; }
             const optionExists = Array.from(el.options).some(opt => opt.value === value);
             if (!optionExists) { el.add(new Option(value, value)); }
             el.value = value;
@@ -352,17 +419,18 @@ async function checkCrossPageEditMode() {
         if (carPlateEl) carPlateEl.value = job.car_plate || ''; 
         if (vinEl) vinEl.value = job.vin_no || '';
 
-        // 🌟 อัปเดตข้อมูลลง Document Pipeline โฉมใหม่ 🌟
-        const claimNoInp = document.getElementById('doc_claim_no');
-        const qtNoInp = document.getElementById('doc_qt_no');
-        const soNoInp = document.getElementById('doc_so_no');
-        const blNoInp = document.getElementById('doc_bl_no');
+        // 🌟 ดึงข้อมูลจากฐานข้อมูลมาแยกด้วยลูกน้ำ แล้วสร้างการ์ด Flow ตามจำนวนที่มี 🌟
+        if (container) container.innerHTML = '';
         
-        // รองรับกรณีที่ข้อมูลเดิมถูกเก็บไว้ใน claim_no หรือข้อมูลเอกสารอื่นๆ
-        if (claimNoInp) claimNoInp.value = job.claim_no || '';
-        if (qtNoInp) qtNoInp.value = job.qt_no || '';
-        if (soNoInp) soNoInp.value = job.so_no || '';
-        if (blNoInp) blNoInp.value = job.bl_no || '';
+        const claims = job.claim_no ? job.claim_no.split(',').map(s=>s.trim()) : [];
+        const qts = job.qt_no ? job.qt_no.split(',').map(s=>s.trim()) : [];
+        const sos = job.so_no ? job.so_no.split(',').map(s=>s.trim()) : [];
+        const bls = job.bl_no ? job.bl_no.split(',').map(s=>s.trim()) : [];
+        
+        const maxLen = Math.max(claims.length, qts.length, sos.length, bls.length, 1);
+        for(let i=0; i<maxLen; i++) {
+            addPipelineRow(claims[i]||'', qts[i]||'', sos[i]||'', bls[i]||'');
+        }
 
         if (orderPartsBody) orderPartsBody.innerHTML = '';
         if (typeof addPartRow === 'function') addPartRow();
@@ -423,22 +491,14 @@ function cancelEditMode() {
     const btnSubSa = document.getElementById('btn_submit_sa');
     const orderPartsBody = document.getElementById('order_parts_body');
     const trackPartsBody = document.getElementById('track_parts_body');
+    const container = document.getElementById('doc_pipeline_container');
 
     if (saForm) saForm.reset(); 
     if (saRepId) saRepId.value = '';
     if (editBadge) editBadge.classList.add('hidden');
     if (btnSubSa) btnSubSa.innerHTML = '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ';
     
-    // 🌟 ล้างค่า Document Pipeline โฉมใหม่ 🌟
-    const claimNoInp = document.getElementById('doc_claim_no');
-    const qtNoInp = document.getElementById('doc_qt_no');
-    const soNoInp = document.getElementById('doc_so_no');
-    const blNoInp = document.getElementById('doc_bl_no');
-    
-    if (claimNoInp) claimNoInp.value = '';
-    if (qtNoInp) qtNoInp.value = '';
-    if (soNoInp) soNoInp.value = '';
-    if (blNoInp) blNoInp.value = '';
+    if (container) { container.innerHTML = ''; addPipelineRow(); }
 
     if (orderPartsBody) { orderPartsBody.innerHTML = ''; if(typeof addPartRow === 'function') addPartRow(); }
     if (trackPartsBody) trackPartsBody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400 text-xs font-bold bg-white">กรุณาบันทึกใบงานเพื่อติดตามสถานะอะไหล่</td></tr>`;
@@ -471,6 +531,22 @@ function cancelEditMode() {
 async function submitSaForm(event) {
     event.preventDefault(); 
     
+    // 🌟 ดึงข้อมูลจากทุกชุดเอกสารมารวมกันคั่นด้วย (,) 🌟
+    let claimArr = [], qtArr = [], soArr = [], blArr = [];
+    document.querySelectorAll('.pipeline-set').forEach(row => {
+        const claim = row.querySelector('.pipe-claim')?.value?.trim() || '';
+        const qt = row.querySelector('.pipe-qt')?.value?.trim() || '';
+        const so = row.querySelector('.pipe-so')?.value?.trim() || '';
+        const bl = row.querySelector('.pipe-bl')?.value?.trim() || '';
+        
+        if(claim || qt || so || bl) {
+            claimArr.push(claim);
+            qtArr.push(qt);
+            soArr.push(so);
+            blArr.push(bl);
+        }
+    });
+
     const requiredFields = [
         { id: 'contact_date', name: '1. วันที่ติดต่อ' },
         { id: 'sa_owner_input', name: 'SA ผู้รับผิดชอบ' },
@@ -480,8 +556,7 @@ async function submitSaForm(event) {
         { id: 'car_plate', name: '2. ทะเบียนรถ' },
         { id: 'car_brand', name: 'ยี่ห้อรถ' },
         { id: 'vin_no', name: '3. หมายเลขตัวถัง (VIN)' },
-        { id: 'job_status', name: 'สถานะใบงาน' },
-        { id: 'doc_claim_no', name: 'เลขที่ เคลม/รับแจ้ง' } // 🌟 เพิ่มตรวจสอบช่องเคลม
+        { id: 'job_status', name: 'สถานะใบงาน' }
     ];
     
     let missingFields = [];
@@ -489,6 +564,10 @@ async function submitSaForm(event) {
         const el = document.getElementById(field.id);
         if (!el || !el.value.trim()) missingFields.push(field.name);
     });
+
+    if (claimArr.length === 0 || !claimArr[0]) {
+        missingFields.push('เลขที่ เคลม/รับแจ้ง (อย่างน้อย 1 รายการ)');
+    }
 
     if (missingFields.length > 0) { 
         alert(`⚠️ กรุณากรอกข้อมูลบังคับให้ครบถ้วนก่อนบันทึกครับ:\n\n- ` + missingFields.join('\n- ')); 
@@ -529,13 +608,6 @@ async function submitSaForm(event) {
     }
 
     const editId = document.getElementById('sa_report_id')?.value || '';
-    
-    // 🌟 ดึงข้อมูลจาก Document Pipeline โฉมใหม่ 🌟
-    const claimVal = document.getElementById('doc_claim_no')?.value?.trim() || '';
-    const qtVal = document.getElementById('doc_qt_no')?.value?.trim() || '';
-    const soVal = document.getElementById('doc_so_no')?.value?.trim() || '';
-    const blVal = document.getElementById('doc_bl_no')?.value?.trim() || '';
-
     const routingDept = document.getElementById('department_routing')?.value || 'รอดำเนินการ';
     
     let formData = {};
@@ -555,11 +627,10 @@ async function submitSaForm(event) {
     formData.car_model = document.getElementById('car_model')?.value || ''; 
     formData.vin_no = document.getElementById('vin_no')?.value || '';
     
-    // 🌟 บันทึกข้อมูลเอกสาร
-    formData.claim_no = claimVal;
-    formData.qt_no = qtVal; 
-    formData.so_no = soVal; 
-    formData.bl_no = blVal;
+    formData.claim_no = claimArr.join(', ');
+    formData.qt_no = qtArr.join(', '); 
+    formData.so_no = soArr.join(', '); 
+    formData.bl_no = blArr.join(', ');
     
     formData.payment_type = document.getElementById('payment_type')?.value || ''; 
     formData.damage_level = document.getElementById('damage_level')?.value || 'เบา';
@@ -661,21 +732,18 @@ async function submitSaForm(event) {
     }
 }
 
-// 🌟 ฟังก์ชันสลับแผนกส่งต่อแบบอัตโนมัติ 🌟
 function autoMapRouting() {
     const statusVal = document.getElementById('job_status')?.value || '';
     const deptSelect = document.getElementById('department_routing');
     
     if (!statusVal || !deptSelect) return;
 
-    // ค้นหาวัตถุแผนกใน globalStatuses
     const matchedStatus = globalStatuses.find(s => s.status_name === statusVal);
     let targetDept = "รอดำเนินการ";
 
     if (matchedStatus && matchedStatus.default_department) {
         targetDept = matchedStatus.default_department;
     } else {
-        // ลอจิกลำดับสำรอง
         if (/^(01|02|03|04|05|07|08|12)/.test(statusVal)) {
             targetDept = "บริการ";
         } else if (/^(06)/.test(statusVal)) {
