@@ -80,7 +80,6 @@ window.handleModalGridPaste = function(e, cellInput) {
                 targetInput.classList.add('bg-emerald-100', 'transition-colors'); 
                 setTimeout(() => targetInput.classList.remove('bg-emerald-100'), 800); 
                 
-                // ถ้ายิงรหัสอะไหล่มา ให้ดึงชื่อชิ้นส่วนจาก Master อัตโนมัติ
                 if (targetInput.classList.contains('part-no-input')) {
                     checkMasterPart(targetInput);
                 }
@@ -112,7 +111,7 @@ async function checkMasterPart(inputElem) {
                 if(n) n.value = data.part_name || ''; 
                 if(m) m.value = data.part_main_no || '-'; 
                 if(mo) mo.value = data.car_model || '-';
-                if(t) t.value = data.part_category || data.part_type || 'หลัก'; // ดึง part_category อัตโนมัติ
+                if(t) t.value = data.part_category || data.part_type || 'หลัก';
                 if(p) p.value = data.unit_price || 0; 
                 if(l) l.value = data.location || '-'; 
                 if(s) s.value = data.safety_stock || 0;
@@ -225,13 +224,23 @@ async function sendSinglePO(btnElem) {
 }
 
 // 🌟 6. ฟังก์ชันโหลดตารางติดตามสถานะอะไหล่ 🌟
-async function loadPartsTrackingTable(carPlate) {
+async function loadPartsTrackingTable(carPlate, paramJobId = null) {
     const tbody = document.getElementById('track_parts_body');
     if (!tbody) return;
     if (!carPlate || !carPlate.trim()) {
         tbody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400 text-xs font-bold bg-white">กรุณาระบุทะเบียนรถเพื่อติดตามสถานะอะไหล่</td></tr>`;
         return;
     }
+
+    // 💡 ระบบตรวจจับ ID ใบงานอัตโนมัติ (ดึงจากหน้าฟอร์มที่ SA กำลังเปิดอยู่)
+    let activeJobId = paramJobId;
+    if (!activeJobId) {
+        const hiddenIdInput = document.getElementById('sa_report_id');
+        if (hiddenIdInput && hiddenIdInput.value) {
+            activeJobId = hiddenIdInput.value;
+        }
+    }
+
     try {
         const clean = str => String(str || '').replace(/\s+/g, '').toUpperCase();
         const searchPlate = clean(carPlate);
@@ -242,13 +251,18 @@ async function loadPartsTrackingTable(carPlate) {
         const data = Array.isArray(resData) ? resData : (resData.data || []);
         
         const filtered = data.filter(p => {
+            // ✅ ถ้ากำลังเปิดบิลเก่าอยู่ (มี ID) ให้กรองข้อมูลด้วย ID ใบงานแบบเป๊ะๆ 100%
+            if (activeJobId) {
+                return String(p.report_id) === String(activeJobId);
+            }
+            // ❌ ถ้ากำลังเปิดบิลใหม่ (ยังไม่มี ID) ค่อยค้นประวัติเก่าๆ ด้วยทะเบียนรถ
             if(!p || !p.car_plate) return false;
             const pPlate = clean(p.car_plate);
             return pPlate === searchPlate || pPlate.includes(searchPlate) || searchPlate.includes(pPlate);
         });
 
         if (filtered.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400 text-xs font-bold bg-white">ไม่พบรายการสั่งซื้ออะไหล่สำหรับทะเบียน "${carPlate}"</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400 text-xs font-bold bg-white">ไม่พบรายการสั่งซื้ออะไหล่สำหรับทะเบียน "${carPlate}" (ในใบงานนี้)</td></tr>`;
             return;
         }
 
@@ -399,3 +413,4 @@ async function deletePO(id, carPlate) {
         }
     }
 }
+
