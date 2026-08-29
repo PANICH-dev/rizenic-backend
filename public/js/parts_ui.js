@@ -40,7 +40,7 @@ document.addEventListener('input', function(e) {
     }
 });
 
-// 🌟 ฟังก์ชันเปิดระบบลากขยายคอลัมน์ตาราง (Column Resizer ProMax) 🌟
+// 🌟 ฟังก์ชันเปิดระบบลากขยายคอลัมน์ตาราง 🌟
 window.initResizableColumns = function(tableId) {
     const table = document.getElementById(tableId);
     if (!table) return;
@@ -80,7 +80,7 @@ window.initResizableColumns = function(tableId) {
 };
 
 // ------------------------------------------
-// 1. แจ้งเตือน SA (SA Alerts - ตารางหลัก)
+// 1. แจ้งเตือน SA (SA Alerts)
 // ------------------------------------------
 function renderSAAlerts() {
     const tbody = document.getElementById('sa_alerts_body');
@@ -96,7 +96,6 @@ function renderSAAlerts() {
             const isPartsDept = job.department_routing === 'อะไหล่';
             const isWaitingParts = st.includes('สั่งอะไหล่') || st.includes('รอรถเข้าซ่อม') || st.includes('รออะไหล่');
 
-            // 🌟 เช็กเพิ่ม: ถ้าใบงานนี้มีรายการสั่งซื้ออะไหล่ผูกอยู่ ให้ดึงมาแสดงบนตารางทันที 🌟
             const hasPartOrders = (typeof allPartOrders !== 'undefined') && allPartOrders.some(p => 
                 (p.report_id && String(p.report_id) === String(jobId)) ||
                 (p.job_id && String(p.job_id) === String(jobId))
@@ -127,7 +126,6 @@ function renderSAAlerts() {
         const saOwner = job.sa_owner || 'ไม่ระบุ';
         const engineNoDisplay = job.engine_no || job.vin_no || '-'; 
         
-        // 🌟 ดึงอะไหล่ผูกใบงาน รองรับทั้ง report_id และ job_id 🌟
         const relatedParts = (typeof allPartOrders !== 'undefined') ? allPartOrders.filter(p => 
             (p.report_id && String(p.report_id) === String(jobId)) ||
             (p.job_id && String(p.job_id) === String(jobId))
@@ -248,7 +246,6 @@ function openAlertModal(jobId, plate) {
         else if (mainJob.job_order_no) defaultSo = String(mainJob.job_order_no).split(',')[0].trim();
     }
 
-    // 🌟 ดึงข้อมูลอะไหล่ใน Modal ทั้งจาก report_id และ job_id 🌟
     const jobParts = (typeof allPartOrders !== 'undefined') ? allPartOrders.filter(p => 
         (p.report_id && String(p.report_id) === String(jobId)) ||
         (p.job_id && String(p.job_id) === String(jobId))
@@ -398,10 +395,14 @@ window.handleModalGridPaste = function(e, cellInput) {
     const plate = currentRow.getAttribute('data-plate') || '';
     const epcNo = currentRow.querySelector('.dyn-epc').value || '';
 
+    // 🌟 ดึงค่าเริ่มต้น QT/SO จากแถวแรกสุดเพื่อส่งต่อให้แถวใหม่ 🌟
+    const defaultQt = document.querySelector('.dyn-qt')?.value || '';
+    const defaultSo = document.querySelector('.dyn-so')?.value || '';
+
     rows.forEach((rowStr) => {
         const cols = rowStr.split('\t'); 
         if (!currentRow) { 
-            addNewAlertRow(jobId, plate, epcNo); 
+            addNewAlertRow(jobId, plate, epcNo, defaultQt, defaultSo); 
             currentRow = tbody.lastElementChild; 
         }
         
@@ -461,6 +462,7 @@ async function saveSAAlertUpdate(e) {
         const rawRcv = tr.querySelector('.dyn-rcv').value;
         const rawEta = tr.querySelector('.dyn-eta').value;
 
+        // 🌟 ยิงรวบยอดใส่ ID ควบไปเลย 🌟
         updates.push({
             id: tr.getAttribute('data-id'),
             report_id: tr.getAttribute('data-jobid') || null,
@@ -490,10 +492,14 @@ async function saveSAAlertUpdate(e) {
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...'; 
         btn.disabled = true;
 
-        await Promise.all(updates.map(u => {
+        await Promise.all(updates.map(async u => {
             if (u.id === 'new') {
                 const todayStr = new Date().toISOString().split('T')[0];
-                return fetch(`${API_BASE_URL}/api/part-orders`, {
+                
+                // 🌟 แก้ตัวแปร branch ที่ทำให้พัง ดึงจากระบบโดยตรง 🌟
+                const currentBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+
+                const res = await fetch(`${API_BASE_URL}/api/part-orders`, {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ 
                         report_id: u.report_id, job_id: u.job_id, car_plate: u.car_plate, part_no: u.part_no, 
@@ -502,18 +508,27 @@ async function saveSAAlertUpdate(e) {
                         qt_no: u.qt_no, so_no: u.so_no, order_status: u.order_status, 
                         est_arrival_date: u.est_arrival_date, 
                         received_date: u.received_date,       
-                        order_date: todayStr, epc_no: u.epc_no, notes: u.notes, branch_name: userBranch
+                        order_date: todayStr, epc_no: u.epc_no, notes: u.notes, branch_name: currentBranch
                     })
                 });
+                
+                // 🌟 ดักจับ Error หาก POST พัง จะได้รู้ตัว 🌟
+                if(!res.ok) {
+                    const errTxt = await res.text();
+                    console.error("Save Failed:", errTxt);
+                    throw new Error("Failed to POST new row");
+                }
             } else {
                 const promises = [];
                 ['epc_no', 'part_no', 'part_main_no', 'part_name', 'part_type', 'qty_ordered', 'qt_no', 'so_no', 'order_status', 'est_arrival_date', 'received_date', 'notes'].forEach(field => {
                     let valToSend = u[field];
                     if(valToSend === '') valToSend = null;
-                    promises.push(fetch(`${API_BASE_URL}/api/part-orders/${u.id}/fast`, {
-                        method: 'PUT', headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ field, value: valToSend })
-                    }));
+                    promises.push(
+                        fetch(`${API_BASE_URL}/api/part-orders/${u.id}/fast`, {
+                            method: 'PUT', headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ field, value: valToSend })
+                        }).then(r => { if(!r.ok) throw new Error('PUT failed'); })
+                    );
                 });
                 return Promise.all(promises);
             }
@@ -535,6 +550,7 @@ async function saveSAAlertUpdate(e) {
 
     } catch(err) {
         if(typeof showToast === 'function') showToast('เกิดข้อผิดพลาดในการบันทึก กรุณาลองใหม่', 'error');
+        console.error("Save Error Process:", err);
     } finally {
         btn.innerHTML = originalBtnHtml || '<i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูล';
         btn.disabled = false;
@@ -576,6 +592,7 @@ function closeMasterModal() { document.getElementById('masterModal').classList.a
 
 async function editMaster(partNo) {
     try {
+        const userBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
         const res = await fetch(`${API_BASE_URL}/api/parts/check/${encodeURIComponent(partNo)}?branch=${encodeURIComponent(userBranch)}`);
         if(res.ok) {
             const data = await res.json(); const m = Array.isArray(data) ? data[0] : (data.data ? (Array.isArray(data.data) ? data.data[0] : data.data) : data);
@@ -595,6 +612,7 @@ async function saveMasterPart() {
     const id = document.getElementById('edit_master_id').value; const pNo = document.getElementById('master_part_no').value.trim().toUpperCase(); const pName = document.getElementById('master_part_name').value.trim();
     if(!pNo || !pName) return alert('กรุณากรอกบาร์โค้ดและชื่อชิ้นส่วนให้ครบถ้วน');
     const chks = document.querySelectorAll('.master-car-chk:checked'); const models = Array.from(chks).map(c => c.value).join(', ');
+    const userBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
 
     const payload = {
         part_no: pNo, part_main_no: document.getElementById('master_part_main').value.trim().toUpperCase() || null,
