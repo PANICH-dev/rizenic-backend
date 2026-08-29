@@ -555,7 +555,7 @@ app.put('/api/report/:id', async (req, res) => {
       station_qc, station_mag, station_kraj, station_film, station_pak, station_ready,
       repair_notes, repair_finish_date,
       epc_no, part_status, order_part_date, est_part_date, ordered_part_names,
-      department_routing, is_parked
+      department_routing, is_parked, claim_no // 🌟 1. ดึงตัวแปร claim_no ออกมาจาก req.body
     } = req.body;
 
     const quotaErrorMsg = await checkColorPartsQuota(branch_name, arrived_date, main_part_qty, sub_part_qty, req.params.id);
@@ -563,6 +563,7 @@ app.put('/api/report/:id', async (req, res) => {
         return res.status(400).json({ error: quotaErrorMsg });
     }
 
+    // 🌟 2. เพิ่มคอลัมน์ claim_no=$50 ในชุดคำสั่ง UPDATE
     const queryText = `
       UPDATE rizenicreport SET 
         sa_owner=$1, branch_name=$2, customer_name=$3, phone_number=$4, customer_type=$5, 
@@ -576,10 +577,12 @@ app.put('/api/report/:id', async (req, res) => {
         repair_notes=$41, repair_finish_date=$42,
         epc_no=$43, part_status=$44, order_part_date=$45, est_part_date=$46, ordered_part_names=$47,
         department_routing=$48,
-        is_parked=$49
-      WHERE id=$50;
+        is_parked=$49,
+        claim_no=$50 
+      WHERE id=$51;
     `;
 
+    // 🌟 3. ส่งค่า claim_no เข้าไปผูกกับ $50
     const values = [
       sa_owner || null, branch_name || 'สำนักงานใหญ่', customer_name || null, phone_number || null, customer_type || null,
       car_brand || null, car_model || null, vin_no || null, qt_no || null, so_no || null, bl_no || null, payment_type || null, damage_level || 'เบา',
@@ -593,6 +596,7 @@ app.put('/api/report/:id', async (req, res) => {
       epc_no || null, part_status || null, order_part_date || null, est_part_date || null, ordered_part_names || null,
       department_routing || 'รอดำเนินการ',
       is_parked || 'ไม่จอดซ่อม', 
+      claim_no || null, // ส่งค่า claim_no ตรงนี้
       req.params.id 
     ];
 
