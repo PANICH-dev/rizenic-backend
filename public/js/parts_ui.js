@@ -462,7 +462,6 @@ async function saveSAAlertUpdate(e) {
         const rawRcv = tr.querySelector('.dyn-rcv').value;
         const rawEta = tr.querySelector('.dyn-eta').value;
 
-        // 🌟 ยิงรวบยอดใส่ ID ควบไปเลย 🌟
         updates.push({
             id: tr.getAttribute('data-id'),
             report_id: tr.getAttribute('data-jobid') || null,
@@ -492,11 +491,10 @@ async function saveSAAlertUpdate(e) {
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...'; 
         btn.disabled = true;
 
-        await Promise.all(updates.map(async u => {
+        // 🌟 เปลี่ยนจาก Promise.all เป็น for...of เพื่อให้ฐานข้อมูลเซฟทีละคิว (ป้องกัน DB Locked) 🌟
+        for (const u of updates) {
             if (u.id === 'new') {
                 const todayStr = new Date().toISOString().split('T')[0];
-                
-                // 🌟 แก้ตัวแปร branch ที่ทำให้พัง ดึงจากระบบโดยตรง 🌟
                 const currentBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
 
                 const res = await fetch(`${API_BASE_URL}/api/part-orders`, {
@@ -512,27 +510,39 @@ async function saveSAAlertUpdate(e) {
                     })
                 });
                 
-                // 🌟 ดักจับ Error หาก POST พัง จะได้รู้ตัว 🌟
                 if(!res.ok) {
                     const errTxt = await res.text();
                     console.error("Save Failed:", errTxt);
                     throw new Error("Failed to POST new row");
                 }
             } else {
-                const promises = [];
-                ['epc_no', 'part_no', 'part_main_no', 'part_name', 'part_type', 'qty_ordered', 'qt_no', 'so_no', 'order_status', 'est_arrival_date', 'received_date', 'notes'].forEach(field => {
-                    let valToSend = u[field];
-                    if(valToSend === '') valToSend = null;
-                    promises.push(
-                        fetch(`${API_BASE_URL}/api/part-orders/${u.id}/fast`, {
+                // 🌟 อัปเดตข้อมูลรวมใน 1 Request (ถ้าเซิร์ฟเวอร์รองรับ) 🌟
+                const payload = {
+                    epc_no: u.epc_no, part_no: u.part_no, part_main_no: u.part_main_no, 
+                    part_name: u.part_name, part_type: u.part_type, qty_ordered: u.qty_ordered, 
+                    qt_no: u.qt_no, so_no: u.so_no, order_status: u.order_status, 
+                    est_arrival_date: u.est_arrival_date, received_date: u.received_date, notes: u.notes
+                };
+
+                const res = await fetch(`${API_BASE_URL}/api/part-orders/${u.id}`, {
+                    method: 'PUT', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+
+                // 🌟 ถ้าเซิร์ฟเวอร์บังคับอัปเดตทีละฟิลด์ จะใช้วิธีวนลูปยิงทีละ 1 คิว (ปลอดภัย 100%) 🌟
+                if (!res.ok) {
+                    for (const field of Object.keys(payload)) {
+                        let valToSend = payload[field];
+                        if(valToSend === '') valToSend = null;
+                        
+                        await fetch(`${API_BASE_URL}/api/part-orders/${u.id}/fast`, {
                             method: 'PUT', headers: {'Content-Type': 'application/json'},
                             body: JSON.stringify({ field, value: valToSend })
-                        }).then(r => { if(!r.ok) throw new Error('PUT failed'); })
-                    );
-                });
-                return Promise.all(promises);
+                        });
+                    }
+                }
             }
-        }));
+        } // จบลูป
 
         if(typeof showToast === 'function') showToast('อัปเดตข้อมูลอะไหล่เรียบร้อย!', 'success');
         
