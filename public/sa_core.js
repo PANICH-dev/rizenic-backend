@@ -531,6 +531,7 @@ function cancelEditMode() {
 async function submitSaForm(event) {
     event.preventDefault(); 
     
+    // 🌟 ดึงข้อมูลจากทุกชุดเอกสารมารวมกันคั่นด้วย (,) 🌟
     let claimArr = [], qtArr = [], soArr = [], blArr = [];
     document.querySelectorAll('.pipeline-set').forEach(row => {
         const claim = row.querySelector('.pipe-claim')?.value?.trim() || '';
@@ -539,7 +540,10 @@ async function submitSaForm(event) {
         const bl = row.querySelector('.pipe-bl')?.value?.trim() || '';
         
         if(claim || qt || so || bl) {
-            claimArr.push(claim); qtArr.push(qt); soArr.push(so); blArr.push(bl);
+            claimArr.push(claim);
+            qtArr.push(qt);
+            soArr.push(so);
+            blArr.push(bl);
         }
     });
 
@@ -561,10 +565,12 @@ async function submitSaForm(event) {
         if (!el || !el.value.trim()) missingFields.push(field.name);
     });
 
-    if (claimArr.length === 0 || !claimArr[0]) missingFields.push('เลขที่ เคลม/รับแจ้ง (อย่างน้อย 1 รายการ)');
+    if (claimArr.length === 0 || !claimArr[0]) {
+        missingFields.push('เลขที่ เคลม/รับแจ้ง (อย่างน้อย 1 รายการ)');
+    }
 
     if (missingFields.length > 0) { 
-        alert('⚠️ กรุณากรอกข้อมูลบังคับให้ครบถ้วนก่อนบันทึกครับ:\n\n- ' + missingFields.join('\n- ')); 
+        alert(`⚠️ กรุณากรอกข้อมูลบังคับให้ครบถ้วนก่อนบันทึกครับ:\n\n- ` + missingFields.join('\n- ')); 
         return; 
     }
 
@@ -587,12 +593,17 @@ async function submitSaForm(event) {
 
         if(typeof checkQuotaBeforeSubmit === 'function') {
             const quotaCheck = await checkQuotaBeforeSubmit(branchName, arrivedDate, targetFinishDate, deliveryDate, cleanMainParts.length, cleanSubParts.length);
+            
             if (quotaCheck !== true) {
-                alert('❌ ไม่สามารถบันทึกได้:\n\n' + quotaCheck + '\n\nกรุณาเลือกวันที่ใหม่ครับ');
-                if (btnSubmit) { btnSubmit.innerHTML = oldBtnText; btnSubmit.disabled = false; }
+                alert(`❌ ไม่สามารถบันทึกได้:\n\n` + quotaCheck + `\n\nกรุณาเลือกวันที่ใหม่ครับ`);
+                if (btnSubmit) {
+                    btnSubmit.innerHTML = oldBtnText;
+                    btnSubmit.disabled = false;
+                }
                 return;
             }
         }
+        
         if (btnSubmit) btnSubmit.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> กำลังบันทึก...';
     }
 
@@ -645,53 +656,13 @@ async function submitSaForm(event) {
         const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
         if (!response.ok) {
             const errData = await response.json();
-            alert('❌ บันทึกล้มเหลว:\n\n' + (errData.error || 'โปรดตรวจสอบอีกครั้ง'));
-            if (btnSubmit) { btnSubmit.innerHTML = editId ? '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม' : '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ'; btnSubmit.disabled = false; }
+            alert(`❌ บันทึกล้มเหลว:\n\n` + (errData.error || 'โปรดตรวจสอบอีกครั้ง'));
+            if (btnSubmit) {
+                btnSubmit.innerHTML = editId ? '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม' : '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ';
+                btnSubmit.disabled = false; 
+            }
             return;
         }
-
-        const resJson = await response.json();
-        const savedJobId = editId || resJson?.insertedId || resJson?.id || null;
-
-        if (routingDept.includes('อะไหล่') || formData.job_status.includes('06.สั่งอะไหล่')) {
-            const partRows = document.querySelectorAll('#order_parts_body tr');
-            for (let tr of partRows) {
-                const pNo = tr.querySelector('.part-no-input')?.value; 
-                const pMain = tr.querySelector('.part-main-input')?.value;
-                const pName = tr.querySelector('.part-name-input')?.value; 
-                const pType = tr.querySelector('.part-type-input')?.value || 'อะไหล่หลัก';
-                const pQty = tr.querySelector('.part-qty-input')?.value || '1';
-                
-                if (pNo && pName) {
-                    await fetch(`${API_BASE_URL}/api/part-orders`, {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            job_id: savedJobId, // 🌟 ย้ำให้ส่ง job_id ตลอด
-                            report_id: savedJobId,
-                            qt_no: formData.qt_no, so_no: formData.so_no, epc_no: null,
-                            order_date: new Date().toISOString().split('T')[0], car_plate: formData.car_plate, vin_no: formData.vin_no, car_model: formData.car_model, 
-                            part_no: pNo, part_main_no: pMain, part_name: pName, qty_ordered: pQty, part_type: pType, branch_name: formData.branch_name, order_status: 'รอสั่งซื้อ' 
-                        })
-                    });
-                }
-            }
-        }
-        
-        if (editId) { 
-            alert(`🎉 อัปเดตใบงานเรียบร้อย!`); 
-            if(formData.car_plate && typeof loadPartsTrackingTable === 'function') loadPartsTrackingTable(formData.car_plate, savedJobId);
-            if (btnSubmit) { btnSubmit.innerHTML = '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม'; btnSubmit.disabled = false; }
-        } else { 
-            alert(`🎉 เปิดบิลเรียบร้อย!`); 
-            if (savedJobId) { sessionStorage.setItem('edit_job_id', savedJobId); await checkCrossPageEditMode(); } 
-            else { cancelEditMode(); }
-        }
-        
-    } catch (e) { 
-        alert('❌ เครือข่ายขัดข้อง'); 
-        if (btnSubmit) { btnSubmit.innerHTML = editId ? '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม' : '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ'; btnSubmit.disabled = false; }
-    }
-}
 
         const resJson = await response.json();
         const savedJobId = editId || resJson?.insertedId || resJson?.id || null;
