@@ -91,11 +91,18 @@ function renderSAAlerts() {
 
     if (typeof allReports !== 'undefined') {
         allReports.forEach(job => {
+            const jobId = job.report_id || job.id;
             const st = job.job_status || '';
             const isPartsDept = job.department_routing === 'อะไหล่';
             const isWaitingParts = st.includes('สั่งอะไหล่') || st.includes('รอรถเข้าซ่อม') || st.includes('รออะไหล่');
 
-            if (isPartsDept || isWaitingParts) {
+            // 🌟 เช็กเพิ่ม: ถ้าใบงานนี้มีรายการสั่งซื้ออะไหล่ผูกอยู่ ให้ดึงมาแสดงบนตารางทันที 🌟
+            const hasPartOrders = (typeof allPartOrders !== 'undefined') && allPartOrders.some(p => 
+                (p.report_id && String(p.report_id) === String(jobId)) ||
+                (p.job_id && String(p.job_id) === String(jobId))
+            );
+
+            if (isPartsDept || isWaitingParts || hasPartOrders) {
                 jobsToDisplay.push(job);
             }
         });
@@ -120,7 +127,11 @@ function renderSAAlerts() {
         const saOwner = job.sa_owner || 'ไม่ระบุ';
         const engineNoDisplay = job.engine_no || job.vin_no || '-'; 
         
-        const relatedParts = allPartOrders.filter(p => String(p.report_id) === String(jobId));
+        // 🌟 ดึงอะไหล่ผูกใบงาน รองรับทั้ง report_id และ job_id 🌟
+        const relatedParts = (typeof allPartOrders !== 'undefined') ? allPartOrders.filter(p => 
+            (p.report_id && String(p.report_id) === String(jobId)) ||
+            (p.job_id && String(p.job_id) === String(jobId))
+        ) : [];
 
         const qtDisplay = job.qt_no || job.quotation_no || (relatedParts.length > 0 ? (relatedParts[0].qt_no || '-') : '-');
         const soDisplay = job.so_no || job.job_order_no || (relatedParts.length > 0 ? (relatedParts[0].so_no || '-') : '-');
@@ -225,9 +236,8 @@ window.deleteAlertPartRow = async function(btn, partId) {
 // โต๊ะคีย์ Modal
 // ------------------------------------------
 function openAlertModal(jobId, plate) {
-    const mainJob = (typeof allReports !== 'undefined') ? allReports.find(j => String(j.id) === String(jobId) || j.report_id === jobId) : null;
+    const mainJob = (typeof allReports !== 'undefined') ? allReports.find(j => String(j.id) === String(jobId) || String(j.report_id) === String(jobId)) : null;
     
-    // 🌟 ดึงค่าจาก mainJob ให้รองรับกรณีคั่นด้วยลูกน้ำ 🌟
     let defaultQt = '';
     let defaultSo = '';
     if (mainJob) {
@@ -238,7 +248,11 @@ function openAlertModal(jobId, plate) {
         else if (mainJob.job_order_no) defaultSo = String(mainJob.job_order_no).split(',')[0].trim();
     }
 
-    const jobParts = allPartOrders.filter(p => String(p.report_id) === String(jobId) || String(p.job_id) === String(jobId));
+    // 🌟 ดึงข้อมูลอะไหล่ใน Modal ทั้งจาก report_id และ job_id 🌟
+    const jobParts = (typeof allPartOrders !== 'undefined') ? allPartOrders.filter(p => 
+        (p.report_id && String(p.report_id) === String(jobId)) ||
+        (p.job_id && String(p.job_id) === String(jobId))
+    ) : [];
     
     const container = document.getElementById('modal_dynamic_table_container');
     const epcInput = document.getElementById('mass_epc_update');
@@ -447,7 +461,6 @@ async function saveSAAlertUpdate(e) {
         const rawRcv = tr.querySelector('.dyn-rcv').value;
         const rawEta = tr.querySelector('.dyn-eta').value;
 
-        // 🌟 เพิ่มฟิลด์ job_id กลับเข้าไปด้วย ป้องกันข้อมูลตกหล่น 🌟
         updates.push({
             id: tr.getAttribute('data-id'),
             report_id: tr.getAttribute('data-jobid') || null,
