@@ -437,7 +437,6 @@ function autoFillDynName(inputEl) {
 }
 
 function closeAlertModal() { document.getElementById('alertModal').classList.add('hidden'); document.getElementById('alertModal').classList.remove('flex'); }
-
 async function saveSAAlertUpdate(e) {
     e.preventDefault();
     const rows = document.querySelectorAll('#modal_dynamic_table_container tbody tr');
@@ -461,20 +460,24 @@ async function saveSAAlertUpdate(e) {
         
         const rawRcv = tr.querySelector('.dyn-rcv').value;
         const rawEta = tr.querySelector('.dyn-eta').value;
+        
+        // 🌟 ดึง QT / SO จากตารางมาตัดเอาเฉพาะอันแรกสุด (กรณีเป็น Array ลูกน้ำ) 🌟
+        const qtRaw = tr.querySelector('.dyn-qt').value.trim();
+        const soRaw = tr.querySelector('.dyn-so').value.trim();
 
         updates.push({
             id: tr.getAttribute('data-id'),
-            report_id: tr.getAttribute('data-jobid') || null,
-            job_id: tr.getAttribute('data-jobid') || null,
-            car_plate: tr.getAttribute('data-plate') || '',
+            report_id: tr.getAttribute('data-jobid') || currentJobId,
+            job_id: tr.getAttribute('data-jobid') || currentJobId,
+            car_plate: tr.getAttribute('data-plate') || currentPlate,
             epc_no: tr.querySelector('.dyn-epc').value.trim() || null,
             part_no: partNo || (isNew ? 'AUTO-PART' : null),
             part_main_no: tr.querySelector('.dyn-main').value.trim() || null,
             part_name: partName || (isNew ? 'อะไหล่ทั่วไป' : null),
             part_type: tr.querySelector('.dyn-type').value.trim() || 'หลัก',
             qty_ordered: parseInt(tr.querySelector('.dyn-qty').value) || 1,
-            qt_no: tr.querySelector('.dyn-qt').value.trim() || null,
-            so_no: tr.querySelector('.dyn-so').value.trim() || null,
+            qt_no: qtRaw ? qtRaw.split(',')[0].trim() : null, // 🌟 ส่งแค่ 1 เลข
+            so_no: soRaw ? soRaw.split(',')[0].trim() : null, // 🌟 ส่งแค่ 1 เลข
             order_status: tr.querySelector('.dyn-status').value,
             est_arrival_date: rawEta ? rawEta : null,
             received_date: rawRcv ? rawRcv : null,
@@ -491,7 +494,6 @@ async function saveSAAlertUpdate(e) {
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...'; 
         btn.disabled = true;
 
-        // 🌟 เปลี่ยนจาก Promise.all เป็น for...of เพื่อให้ฐานข้อมูลเซฟทีละคิว (ป้องกัน DB Locked) 🌟
         for (const u of updates) {
             if (u.id === 'new') {
                 const todayStr = new Date().toISOString().split('T')[0];
@@ -516,7 +518,6 @@ async function saveSAAlertUpdate(e) {
                     throw new Error("Failed to POST new row");
                 }
             } else {
-                // 🌟 อัปเดตข้อมูลรวมใน 1 Request (ถ้าเซิร์ฟเวอร์รองรับ) 🌟
                 const payload = {
                     epc_no: u.epc_no, part_no: u.part_no, part_main_no: u.part_main_no, 
                     part_name: u.part_name, part_type: u.part_type, qty_ordered: u.qty_ordered, 
@@ -529,7 +530,6 @@ async function saveSAAlertUpdate(e) {
                     body: JSON.stringify(payload)
                 });
 
-                // 🌟 ถ้าเซิร์ฟเวอร์บังคับอัปเดตทีละฟิลด์ จะใช้วิธีวนลูปยิงทีละ 1 คิว (ปลอดภัย 100%) 🌟
                 if (!res.ok) {
                     for (const field of Object.keys(payload)) {
                         let valToSend = payload[field];
@@ -542,7 +542,7 @@ async function saveSAAlertUpdate(e) {
                     }
                 }
             }
-        } // จบลูป
+        } 
 
         if(typeof showToast === 'function') showToast('อัปเดตข้อมูลอะไหล่เรียบร้อย!', 'success');
         
