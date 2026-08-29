@@ -158,7 +158,8 @@ async function loadInitialData() {
             fetch(`${API_BASE_URL}/api/customer-types`).then(r => r.json()),
             fetch(`${API_BASE_URL}/api/car-models`).then(r => r.json()),
             fetch(`${API_BASE_URL}/api/insurances`).then(r => r.json()),
-            fetch(`${API_BASE_URL}/api/body-parts`).then(r => r.json())
+            fetch(`${API_BASE_URL}/api/body-parts`).then(r => r.json()),
+            fetch(`${API_BASE_URL}/api/part-orders`).then(r => r.json()) // 🌟 1. เพิ่มการดึงข้อมูลอะไหล่
         ]);
 
         if (results[0].status === 'fulfilled' && Array.isArray(results[0].value)) {
@@ -213,6 +214,14 @@ async function loadInitialData() {
             repairBodyPartsList.sub = data.filter(p => p && p.category === 'ชิ้นส่วนรอง').map(p => p.part_name);
             if (typeof renderBodyPartsUI === 'function') renderBodyPartsUI();
         }
+
+        // 🌟 2. เก็บข้อมูลอะไหล่ไว้ใช้แสดงผล
+        if (results[6].status === 'fulfilled' && Array.isArray(results[6].value)) {
+            window.allPartOrders = results[6].value;
+        } else {
+            window.allPartOrders = [];
+        }
+
     } catch (err) {
         console.error("Error loading initial data", err);
     }
