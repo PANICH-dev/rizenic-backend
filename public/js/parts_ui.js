@@ -186,13 +186,11 @@ function renderSAAlerts() {
         `;
     }).join('');
 
-    // 🌟 เปิดระบบยืดคอลัมน์ของ saTable ทันทีหลัง Render 🌟
     setTimeout(() => {
         initResizableColumns('saTable');
     }, 150);
 }
 
-// 🌟 ยิงลบของจริงจาก Database 🌟
 window.deleteAlertPartRow = async function(btn, partId) {
     if (partId === 'new') {
         btn.closest('tr').remove();
@@ -228,10 +226,19 @@ window.deleteAlertPartRow = async function(btn, partId) {
 // ------------------------------------------
 function openAlertModal(jobId, plate) {
     const mainJob = (typeof allReports !== 'undefined') ? allReports.find(j => String(j.id) === String(jobId) || j.report_id === jobId) : null;
-    const defaultQt = mainJob ? (mainJob.qt_no || mainJob.quotation_no || '') : '';
-    const defaultSo = mainJob ? (mainJob.so_no || mainJob.job_order_no || '') : '';
+    
+    // 🌟 ดึงค่าจาก mainJob ให้รองรับกรณีคั่นด้วยลูกน้ำ 🌟
+    let defaultQt = '';
+    let defaultSo = '';
+    if (mainJob) {
+        if (mainJob.qt_no) defaultQt = String(mainJob.qt_no).split(',')[0].trim();
+        else if (mainJob.quotation_no) defaultQt = String(mainJob.quotation_no).split(',')[0].trim();
+        
+        if (mainJob.so_no) defaultSo = String(mainJob.so_no).split(',')[0].trim();
+        else if (mainJob.job_order_no) defaultSo = String(mainJob.job_order_no).split(',')[0].trim();
+    }
 
-    const jobParts = allPartOrders.filter(p => String(p.report_id) === String(jobId));
+    const jobParts = allPartOrders.filter(p => String(p.report_id) === String(jobId) || String(p.job_id) === String(jobId));
     
     const container = document.getElementById('modal_dynamic_table_container');
     const epcInput = document.getElementById('mass_epc_update');
@@ -440,9 +447,11 @@ async function saveSAAlertUpdate(e) {
         const rawRcv = tr.querySelector('.dyn-rcv').value;
         const rawEta = tr.querySelector('.dyn-eta').value;
 
+        // 🌟 เพิ่มฟิลด์ job_id กลับเข้าไปด้วย ป้องกันข้อมูลตกหล่น 🌟
         updates.push({
             id: tr.getAttribute('data-id'),
             report_id: tr.getAttribute('data-jobid') || null,
+            job_id: tr.getAttribute('data-jobid') || null,
             car_plate: tr.getAttribute('data-plate') || '',
             epc_no: tr.querySelector('.dyn-epc').value.trim() || null,
             part_no: partNo || (isNew ? 'AUTO-PART' : null),
@@ -474,7 +483,7 @@ async function saveSAAlertUpdate(e) {
                 return fetch(`${API_BASE_URL}/api/part-orders`, {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ 
-                        report_id: u.report_id, car_plate: u.car_plate, part_no: u.part_no, 
+                        report_id: u.report_id, job_id: u.job_id, car_plate: u.car_plate, part_no: u.part_no, 
                         part_main_no: u.part_main_no, part_name: u.part_name, part_type: u.part_type,
                         qty_ordered: u.qty_ordered, 
                         qt_no: u.qt_no, so_no: u.so_no, order_status: u.order_status, 
