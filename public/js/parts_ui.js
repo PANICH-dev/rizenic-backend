@@ -40,7 +40,6 @@ document.addEventListener('input', function(e) {
     }
 });
 
-// 🌟 ฟังก์ชันเปิดระบบลากขยายคอลัมน์ตาราง 🌟
 window.initResizableColumns = function(tableId) {
     const table = document.getElementById(tableId);
     if (!table) return;
@@ -79,9 +78,6 @@ window.initResizableColumns = function(tableId) {
     });
 };
 
-// ------------------------------------------
-// 1. แจ้งเตือน SA (SA Alerts)
-// ------------------------------------------
 function renderSAAlerts() {
     const tbody = document.getElementById('sa_alerts_body');
     const badge = document.getElementById('alert_count');
@@ -238,12 +234,18 @@ function openAlertModal(jobId, plate) {
     
     let defaultQt = '';
     let defaultSo = '';
+    let carModel = '';
+    let vinNo = '';
+
     if (mainJob) {
         if (mainJob.qt_no) defaultQt = String(mainJob.qt_no).split(',')[0].trim();
         else if (mainJob.quotation_no) defaultQt = String(mainJob.quotation_no).split(',')[0].trim();
         
         if (mainJob.so_no) defaultSo = String(mainJob.so_no).split(',')[0].trim();
         else if (mainJob.job_order_no) defaultSo = String(mainJob.job_order_no).split(',')[0].trim();
+        
+        carModel = mainJob.car_model || '';
+        vinNo = mainJob.vin_no || mainJob.engine_no || '';
     }
 
     const jobParts = (typeof allPartOrders !== 'undefined') ? allPartOrders.filter(p => 
@@ -307,7 +309,7 @@ function openAlertModal(jobId, plate) {
         const partTypeVal = p.part_type || p.part_category || 'หลัก';
 
         html += `
-            <tr class="hover:bg-amber-50/50 transition-colors" data-id="${p.order_id || p.id}" data-jobid="${jobId}" data-plate="${plate}">
+            <tr class="hover:bg-amber-50/50 transition-colors" data-id="${p.order_id || p.id}" data-jobid="${jobId}" data-plate="${plate}" data-carmodel="${carModel}" data-vin="${vinNo}">
                 <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-epc font-mono uppercase text-center" value="${p.epc_no || ''}" onpaste="handleModalGridPaste(event, this)"></td>
                 <td class="p-0 border border-slate-200"><input type="text" list="master_parts_datalist" class="inline-edit-input dyn-partno font-mono uppercase text-center font-bold text-blue-700 bg-blue-50/30" value="${p.part_no || ''}" onchange="autoFillDynName(this)" onpaste="handleModalGridPaste(event, this)"></td>
                 <td class="p-0 border border-slate-200"><input type="number" class="inline-edit-input dyn-qty text-center font-black text-amber-600 bg-amber-50" value="${p.qty_ordered || 1}" onpaste="handleModalGridPaste(event, this)"></td>
@@ -329,7 +331,7 @@ function openAlertModal(jobId, plate) {
     
     html += `
         <div class="mt-3 flex justify-between items-center">
-            <button type="button" onclick="addNewAlertRow('${jobId}', '${plate}', '', '${defaultQt}', '${defaultSo}')" class="px-5 py-2.5 bg-white border border-emerald-300 text-emerald-700 font-bold rounded-lg hover:bg-emerald-50 text-xs shadow-sm transition flex items-center gap-2">
+            <button type="button" onclick="addNewAlertRow('${jobId}', '${plate}', '', '${defaultQt}', '${defaultSo}', '${carModel}', '${vinNo}')" class="px-5 py-2.5 bg-white border border-emerald-300 text-emerald-700 font-bold rounded-lg hover:bg-emerald-50 text-xs shadow-sm transition flex items-center gap-2">
                 <i class="fa-solid fa-plus"></i> กดเพิ่มแถว
             </button>
             <button type="button" onclick="clearSpecificExcelFilter()" class="text-xs font-bold text-slate-400 hover:text-red-500 transition"><i class="fa-solid fa-filter-circle-xmark"></i> ล้างตัวกรองทั้งหมด</button>
@@ -345,7 +347,7 @@ function openAlertModal(jobId, plate) {
     }, 100);
 }
 
-window.addNewAlertRow = function(jobId, plate, epcNo, defaultQt = '', defaultSo = '') {
+window.addNewAlertRow = function(jobId, plate, epcNo, defaultQt = '', defaultSo = '', carModel = '', vinNo = '') {
     const tbody = document.querySelector('#modal_dynamic_table_container tbody');
     const safeStatusList = (allPartStatusesCache.length > 0) ? allPartStatusesCache : fallbackStatuses;
     const statusOptionsHtml = safeStatusList.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
@@ -359,6 +361,8 @@ window.addNewAlertRow = function(jobId, plate, epcNo, defaultQt = '', defaultSo 
     tr.setAttribute('data-id', 'new');
     tr.setAttribute('data-jobid', jobId);
     tr.setAttribute('data-plate', plate);
+    tr.setAttribute('data-carmodel', carModel);
+    tr.setAttribute('data-vin', vinNo);
     
     tr.innerHTML = `
         <td class="p-0 border border-slate-200"><input type="text" class="inline-edit-input dyn-epc font-mono uppercase text-center" value="${currentEpc}" onpaste="handleModalGridPaste(event, this)"></td>
@@ -393,16 +397,17 @@ window.handleModalGridPaste = function(e, cellInput) {
 
     const jobId = currentRow.getAttribute('data-jobid') || '';
     const plate = currentRow.getAttribute('data-plate') || '';
+    const carModel = currentRow.getAttribute('data-carmodel') || '';
+    const vinNo = currentRow.getAttribute('data-vin') || '';
     const epcNo = currentRow.querySelector('.dyn-epc').value || '';
 
-    // 🌟 ดึงค่าเริ่มต้น QT/SO จากแถวแรกสุดเพื่อส่งต่อให้แถวใหม่ 🌟
     const defaultQt = document.querySelector('.dyn-qt')?.value || '';
     const defaultSo = document.querySelector('.dyn-so')?.value || '';
 
     rows.forEach((rowStr) => {
         const cols = rowStr.split('\t'); 
         if (!currentRow) { 
-            addNewAlertRow(jobId, plate, epcNo, defaultQt, defaultSo); 
+            addNewAlertRow(jobId, plate, epcNo, defaultQt, defaultSo, carModel, vinNo); 
             currentRow = tbody.lastElementChild; 
         }
         
@@ -437,6 +442,7 @@ function autoFillDynName(inputEl) {
 }
 
 function closeAlertModal() { document.getElementById('alertModal').classList.add('hidden'); document.getElementById('alertModal').classList.remove('flex'); }
+
 async function saveSAAlertUpdate(e) {
     e.preventDefault();
     const rows = document.querySelectorAll('#modal_dynamic_table_container tbody tr');
@@ -461,7 +467,6 @@ async function saveSAAlertUpdate(e) {
         const rawRcv = tr.querySelector('.dyn-rcv').value;
         const rawEta = tr.querySelector('.dyn-eta').value;
         
-        // 🌟 ดึง QT / SO จากตารางมาตัดเอาเฉพาะอันแรกสุด (กรณีเป็น Array ลูกน้ำ) 🌟
         const qtRaw = tr.querySelector('.dyn-qt').value.trim();
         const soRaw = tr.querySelector('.dyn-so').value.trim();
 
@@ -470,14 +475,16 @@ async function saveSAAlertUpdate(e) {
             report_id: tr.getAttribute('data-jobid') || currentJobId,
             job_id: tr.getAttribute('data-jobid') || currentJobId,
             car_plate: tr.getAttribute('data-plate') || currentPlate,
+            car_model: tr.getAttribute('data-carmodel') || null, // 🌟 แนบรุ่นรถไปด้วย
+            vin_no: tr.getAttribute('data-vin') || null, // 🌟 แนบเลขตัวถังไปด้วย
             epc_no: tr.querySelector('.dyn-epc').value.trim() || null,
             part_no: partNo || (isNew ? 'AUTO-PART' : null),
             part_main_no: tr.querySelector('.dyn-main').value.trim() || null,
             part_name: partName || (isNew ? 'อะไหล่ทั่วไป' : null),
             part_type: tr.querySelector('.dyn-type').value.trim() || 'หลัก',
             qty_ordered: parseInt(tr.querySelector('.dyn-qty').value) || 1,
-            qt_no: qtRaw ? qtRaw.split(',')[0].trim() : null, // 🌟 ส่งแค่ 1 เลข
-            so_no: soRaw ? soRaw.split(',')[0].trim() : null, // 🌟 ส่งแค่ 1 เลข
+            qt_no: qtRaw ? qtRaw.split(',')[0].trim() : null, 
+            so_no: soRaw ? soRaw.split(',')[0].trim() : null, 
             order_status: tr.querySelector('.dyn-status').value,
             est_arrival_date: rawEta ? rawEta : null,
             received_date: rawRcv ? rawRcv : null,
@@ -502,8 +509,9 @@ async function saveSAAlertUpdate(e) {
                 const res = await fetch(`${API_BASE_URL}/api/part-orders`, {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ 
-                        report_id: u.report_id, job_id: u.job_id, car_plate: u.car_plate, part_no: u.part_no, 
-                        part_main_no: u.part_main_no, part_name: u.part_name, part_type: u.part_type,
+                        report_id: u.report_id, job_id: u.job_id, 
+                        car_plate: u.car_plate, car_model: u.car_model, vin_no: u.vin_no, // 🌟 ยิงค่าส่งให้ครบป้องกัน Error
+                        part_no: u.part_no, part_main_no: u.part_main_no, part_name: u.part_name, part_type: u.part_type,
                         qty_ordered: u.qty_ordered, 
                         qt_no: u.qt_no, so_no: u.so_no, order_status: u.order_status, 
                         est_arrival_date: u.est_arrival_date, 
@@ -514,7 +522,8 @@ async function saveSAAlertUpdate(e) {
                 
                 if(!res.ok) {
                     const errTxt = await res.text();
-                    console.error("Save Failed:", errTxt);
+                    console.error("Save POST Failed Error:", errTxt); // 🌟 โชว์ Error ใน Console ให้เห็นชัดๆ
+                    alert(`❌ ระบบปฏิเสธการบันทึก: \n${errTxt}`);
                     throw new Error("Failed to POST new row");
                 }
             } else {
@@ -535,10 +544,13 @@ async function saveSAAlertUpdate(e) {
                         let valToSend = payload[field];
                         if(valToSend === '') valToSend = null;
                         
-                        await fetch(`${API_BASE_URL}/api/part-orders/${u.id}/fast`, {
+                        const fastRes = await fetch(`${API_BASE_URL}/api/part-orders/${u.id}/fast`, {
                             method: 'PUT', headers: {'Content-Type': 'application/json'},
                             body: JSON.stringify({ field, value: valToSend })
                         });
+                        if (!fastRes.ok) {
+                            console.error(`Save PUT Failed for field: ${field}`);
+                        }
                     }
                 }
             }
@@ -559,7 +571,7 @@ async function saveSAAlertUpdate(e) {
         }
 
     } catch(err) {
-        if(typeof showToast === 'function') showToast('เกิดข้อผิดพลาดในการบันทึก กรุณาลองใหม่', 'error');
+        if(typeof showToast === 'function') showToast('เกิดข้อผิดพลาด! กรุณากด F12 ดู Console', 'error');
         console.error("Save Error Process:", err);
     } finally {
         btn.innerHTML = originalBtnHtml || '<i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูล';
