@@ -786,7 +786,7 @@
             applyFilters();
         }
 
-        function applyFilters() {
+function applyFilters() {
             const searchTxt = document.getElementById('search_input').value.toLowerCase();
             const managedType = document.getElementById('managed_filter_select').value; 
             const branchFilter = document.getElementById('branch_filter_select').value; 
@@ -798,8 +798,16 @@
             let sumLabor = 0, sumPart = 0, sumExt = 0, sumTotal = 0;
 
             const filteredData = allAccJobs.filter(job => {
+                // กรองสาขา
                 if (branchFilter !== 'ALL' && job.branch_name !== branchFilter) return false;
 
+                // 🌟 [เพิ่มตรงนี้] ตัดสถานะ "18.ลูกค้ายกเลิก" และ "ปิดงาน" ทิ้ง ไม่ให้โชว์ในตาราง Excel ด้วย 🌟
+                const currentStatus = job.job_status || '';
+                if (currentStatus.includes('18.ลูกค้ายกเลิก') || currentStatus.includes('ปิดงาน')) {
+                    return false;
+                }
+
+                // ค้นหาตามข้อความ
                 if (searchTxt) {
                     const matchStr = Object.values(job).join(' ').toLowerCase();
                     if(!matchStr.includes(searchTxt)) return false;
