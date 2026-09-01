@@ -811,8 +811,23 @@ function renderCalendarByRange(startDate, endDate) {
             maxSub += specialQ ? (parseInt(specialQ.quota_sub_parts)||0) : (defaultQ ? (parseInt(defaultQ.quota_sub_parts)||0) : 0);
         });
 
-        const mainSum = filteredJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === d.dateStr).reduce((sum, j) => sum + (parseInt(j.main_part_qty)||0), 0);
-        const subSum = filteredJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === d.dateStr).reduce((sum, j) => sum + (parseInt(j.sub_part_qty)||0), 0);
+        // 🌟 คำนวณชิ้นส่วนหลักและรอง ตามวันเป้าหมายซ่อมเสร็จ
+        const mainSum = filteredJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === d.dateStr).reduce((sum, j) => {
+            let qty = parseInt(j.main_part_qty);
+            if (isNaN(qty) || qty <= 0) qty = (j.main_part_name && j.main_part_name.trim() !== '-' && j.main_part_name.trim() !== '') ? 1 : 0;
+            return sum + qty;
+        }, 0);
+
+        const subSum = filteredJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === d.dateStr).reduce((sum, j) => {
+            let qty = parseInt(j.sub_part_qty);
+            if (isNaN(qty) || qty <= 0) qty = (j.sub_part_name && j.sub_part_name.trim() !== '-' && j.sub_part_name.trim() !== '') ? 1 : 0;
+            return sum + qty;
+        }, 0);
+
+        // 🌟 เช็กสถานะ "เต็ม" 🌟
+        let isMainFull = (maxMain > 0 && mainSum >= maxMain);
+        let isSubFull = (maxSub > 0 && subSum >= maxSub);
+        let isFull = isMainFull || isSubFull;
 
         let quotaHTML = '';
         if (maxMain > 0 || maxSub > 0) {
@@ -843,9 +858,16 @@ function renderCalendarByRange(startDate, endDate) {
         const todayStr = new Date().toISOString().split('T')[0];
         const isToday = d.dateStr === todayStr;
 
+        // 🌟 สร้างป้ายแสดงคำว่า "🔥 เต็ม" 🌟
+        let fullBadgeHTML = isFull ? `<span class="text-[9px] font-black bg-rose-500 text-white px-1.5 py-0.5 rounded shadow-sm animate-pulse border border-rose-600">🔥 เต็ม</span>` : '';
+
+        // เพิ่ม flex layout ให้วันที่มีป้ายเต็มแสดงผลได้สวยงาม
         grid.innerHTML += `
-            <div class="calendar-cell ${isToday ? 'today' : ''}">
-                <span class="calendar-day-label">${d.day}</span>
+            <div class="calendar-cell ${isToday ? 'today' : ''} ${isFull ? 'border-rose-300 bg-rose-50/20' : ''}">
+                <div class="flex justify-between items-start w-full mb-2">
+                    <span class="calendar-day-label !mb-0">${d.day}</span>
+                    ${fullBadgeHTML}
+                </div>
                 <div class="flex-1 flex flex-col justify-end w-full">
                     ${barBlock}
                     ${quotaHTML}
