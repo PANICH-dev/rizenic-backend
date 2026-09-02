@@ -642,11 +642,11 @@ function renderPartsTracking() {
     });
 
     if (pendingParts.length === 0) { 
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-slate-400 font-bold bg-slate-50"><i class="fa-solid fa-box-open text-3xl mb-3 block opacity-50"></i>ไม่มีรายการใบสั่งอะไหล่ที่ค้างรับ 🎉</td></tr>`; 
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400 font-bold bg-slate-50"><i class="fa-solid fa-box-open text-3xl mb-3 block opacity-50"></i>ไม่มีรายการใบสั่งอะไหล่ที่ค้างรับ 🎉</td></tr>`; 
         return; 
     }
 
-    // 2. จัดกลุ่มข้อมูลตาม "ทะเบียนรถ"
+    // 2. จัดกลุ่มตามทะเบียนรถ และเก็บรายการอะไหล่ทั้งหมดไว้ในคันนั้น
     const groupedParts = {};
     pendingParts.forEach(o => {
         const plate = o.car_plate || 'ไม่ระบุ';
@@ -654,48 +654,129 @@ function renderPartsTracking() {
             const jobMatch = allJobs.find(j => j.car_plate === plate);
             groupedParts[plate] = {
                 saName: jobMatch ? (jobMatch.sa_owner || 'ไม่ระบุ') : 'ไม่ระบุ',
-                totalItems: 0,
-                statusCounts: {}
+                items: [] // เก็บอะไหล่ทุกชิ้นของคันนี้
             };
         }
-        
-        groupedParts[plate].totalItems++;
-        
-        // นับจำนวนสถานะแต่ละประเภทของคันนี้
-        const st = o.order_status || 'รออัปเดต';
-        groupedParts[plate].statusCounts[st] = (groupedParts[plate].statusCounts[st] || 0) + 1;
+        groupedParts[plate].items.push(o);
     });
 
     const sortedPlates = Object.keys(groupedParts).sort();
 
-    // 3. แสดงผลตารางเป็นคัน
-    tbody.innerHTML = sortedPlates.map(plate => {
-        const data = groupedParts[plate];
-        
-        // สร้างป้าย Badge แจ้งสถานะและจำนวนชิ้นย่อยๆ
-        const statusBadges = Object.keys(data.statusCounts).map(st => {
-            const count = data.statusCounts[st];
+    let html = '';
+    
+    // 3. สร้างตารางแบบกางได้ (Accordion)
+    sortedPlates.forEach((plate, index) => {
+        const group = groupedParts[plate];
+        const rowId = `part_group_${index}`;
+
+        // นับสรุปป้ายสถานะสำหรับโชว์ในแถวหลัก
+        const statusCounts = {};
+        group.items.forEach(item => {
+            const st = item.order_status || 'รออัปเดต';
+            statusCounts[st] = (statusCounts[st] || 0) + 1;
+        });
+
+        const statusBadges = Object.keys(statusCounts).map(st => {
             const badgeClass = (st === 'รอสั่งซื้อ' || st === 'รออะไหล่' || st === 'ติด Back Order') 
                 ? 'bg-red-50 text-red-700 border-red-300' 
                 : 'bg-amber-50 text-amber-700 border-amber-300';
-            
-            return `
-                <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] font-bold shadow-sm ${badgeClass} mr-1.5 mb-1.5 whitespace-nowrap">
-                    ${st} <span class="bg-white px-1.5 py-0.5 rounded text-slate-800 shadow-inner border border-slate-100">${count}</span>
-                </span>`;
+            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-bold ${badgeClass} mr-1 mb-1">
+                ${st} <span class="bg-white px-1.5 rounded text-slate-800 border border-slate-100">${statusCounts[st]}</span>
+            </span>`;
         }).join('');
 
-        return `
-            <tr class="cursor-pointer hover:bg-blue-50/80 transition-colors border-b border-slate-100" onclick="window.location.href='parts.html'">
-                <td class="font-black text-[#00320D] px-4 py-3"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded text-xs shadow-inner">${plate}</span></td>
-                <td class="text-xs font-bold text-slate-600 px-4 py-3"><i class="fa-solid fa-user-tie text-blue-400 mr-1.5"></i>${data.saName}</td>
-                <td class="text-center px-4 py-3"><span class="text-blue-700 font-black bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 shadow-sm">${data.totalItems} รายการ</span></td>
-                <td class="px-4 py-3 align-middle">${statusBadges}</td>
-                <td class="text-center px-4 py-3"><button class="text-[10px] bg-white border border-blue-300 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-600 hover:text-white transition font-bold shadow-sm whitespace-nowrap"><i class="fa-solid fa-search"></i> ดูอะไหล่</button></td>
+        // 🟢 แถวหลัก (ระดับคันรถ) - กดแล้วกางตารางย่อย
+        html += `
+            <tr class="hover:bg-blue-50/80 transition-colors border-b border-slate-200 cursor-pointer font-medium" onclick="togglePartAccordion('${rowId}')">
+                <td class="text-center px-3 py-3">
+                    <i id="icon_${rowId}" class="fa-solid fa-chevron-right text-slate-400 transition-transform duration-200"></i>
+                </td>
+                <td class="font-black text-[#00320D] px-4 py-3">
+                    <span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded text-xs shadow-inner font-mono">${plate}</span>
+                </td>
+                <td class="text-xs font-bold text-slate-600 px-4 py-3">
+                    <i class="fa-solid fa-user-tie text-blue-400 mr-1.5"></i>${group.saName}
+                </td>
+                <td class="text-center px-4 py-3">
+                    <span class="text-blue-700 font-black bg-blue-100 px-2.5 py-1 rounded-lg border border-blue-200 text-xs shadow-sm">${group.items.length} รายการ</span>
+                </td>
+                <td class="px-4 py-3">${statusBadges}</td>
+                <td class="text-center px-4 py-3" onclick="event.stopPropagation()">
+                    <button onclick="window.location.href='parts.html'" class="text-[11px] bg-white border border-blue-300 text-blue-700 px-3 py-1 rounded-lg hover:bg-blue-600 hover:text-white transition font-bold shadow-sm whitespace-nowrap">
+                        <i class="fa-solid fa-boxes-stacked mr-1"></i>ไปคลัง
+                    </button>
+                </td>
             </tr>
         `;
-    }).join('');
+
+        // 🔵 แถวย่อย (รายการอะไหล่ของคันนั้นๆ) - ซ่อนไว้เป็นค่าเริ่มต้น (hidden)
+        let subRowsHtml = group.items.map(item => {
+            const st = item.order_status || 'รออัปเดต';
+            const badgeClass = (st === 'รอสั่งซื้อ' || st === 'รออะไหล่' || st === 'ติด Back Order') ? 'bg-red-100 text-red-800 border-red-300' : 'bg-amber-100 text-amber-800 border-amber-300';
+            const orderDate = item.order_date ? item.order_date.split('T')[0] : '-';
+            const estDate = item.est_arrival_date ? item.est_arrival_date.split('T')[0] : '-';
+
+            return `
+                <tr class="hover:bg-slate-50 border-b border-slate-100 text-xs">
+                    <td class="px-3 py-2 text-center font-mono font-bold text-purple-700 bg-purple-50/50">${item.epc_no || '-'}</td>
+                    <td class="px-3 py-2 font-mono font-bold text-blue-700">${item.part_no || '-'}</td>
+                    <td class="px-3 py-2 font-bold text-slate-700 max-w-[220px] truncate" title="${item.part_name || '-'}">${item.part_name || '-'}</td>
+                    <td class="px-3 py-2 text-center font-black text-amber-700">${item.qty_ordered || 1}</td>
+                    <td class="px-3 py-2 text-center font-mono text-slate-600 font-bold">${orderDate}</td>
+                    <td class="px-3 py-2 text-center font-mono text-emerald-700 font-bold">${estDate}</td>
+                    <td class="px-3 py-2 text-center"><span class="px-2 py-0.5 rounded text-[10px] border font-bold ${badgeClass}">${st}</span></td>
+                </tr>
+            `;
+        }).join('');
+
+        // โครงสร้างตารางย่อย
+        html += `
+            <tr id="${rowId}" class="hidden bg-slate-100/70">
+                <td colspan="6" class="p-3">
+                    <div class="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-inner">
+                        <div class="bg-slate-200/80 px-3 py-1.5 text-[11px] font-bold text-slate-700 border-b border-slate-300 flex justify-between items-center">
+                            <span><i class="fa-solid fa-list-check text-blue-600 mr-1.5"></i>ตารางคีย์อะไหล่ค้างรับ: ${plate}</span>
+                            <span class="text-slate-500 font-mono font-normal">รวม ${group.items.length} ชิ้น</span>
+                        </div>
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-slate-50 text-[10px] uppercase font-bold text-slate-600 border-b border-slate-200">
+                                <tr>
+                                    <th class="px-3 py-2 text-center w-28">เลข EPC</th>
+                                    <th class="px-3 py-2 w-36">รหัสอะไหล่</th>
+                                    <th class="px-3 py-2">ชื่อรายการอะไหล่</th>
+                                    <th class="px-3 py-2 text-center w-16">จำนวน</th>
+                                    <th class="px-3 py-2 text-center w-28">วันที่สั่ง</th>
+                                    <th class="px-3 py-2 text-center w-28">กำหนดเข้า</th>
+                                    <th class="px-3 py-2 text-center w-32">สถานะ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${subRowsHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
 }
+
+// ฟังก์ชันสลับการกาง/ยุบตารางย่อย (ถ้ายืนยันว่ามีในไฟล์แล้ว ไม่ต้องก๊อปซ้ำครับ)
+window.togglePartAccordion = function(id) {
+    const el = document.getElementById(id);
+    const icon = document.getElementById('icon_' + id);
+    if (el) {
+        if (el.classList.contains('hidden')) {
+            el.classList.remove('hidden');
+            if(icon) icon.classList.add('rotate-90');
+        } else {
+            el.classList.add('hidden');
+            if(icon) icon.classList.remove('rotate-90');
+        }
+    }
+};
 
 function renderParkedCars() {
     const tbody = document.getElementById('parked_cars_body');
