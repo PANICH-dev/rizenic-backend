@@ -9,12 +9,14 @@ const port = process.env.PORT || 3000;
 app.use(cors()); 
 app.use(express.json({ limit: '10mb' })); 
 
-// บังคับไม่ให้ Express และ Vercel จำ Cache ไฟล์ในโฟลเดอร์ public
+// ตั้งค่า Cache ตามประเภทไฟล์ static
 app.use(express.static(path.join(__dirname, 'public'), {
-  setHeaders: function (res, path) {
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-    res.set('Pragma', 'no-cache');
-    res.set('Expires', '0');
+  setHeaders: function (res, filePath) {
+    if (filePath.endsWith('.html')) {
+      res.set('Cache-Control', 'no-cache');
+    } else {
+      res.set('Cache-Control', 'public, max-age=86400');
+    }
   }
 }));
 
@@ -900,15 +902,19 @@ app.get('/api/parts-inventory', async (req, res) => {
       SELECT 
         i.part_main_no, i.part_no, i.part_name, i.car_model,
         COALESCE(SUM(i.qty), 0) AS total_inbound,
-        COALESCE((
-          SELECT SUM(o.qty) FROM rizenic_part_outbound o 
-          WHERE o.part_no = i.part_no AND o.branch_name = i.branch_name AND COALESCE(o.job_status, '') != 'รอเข้าซ่อม'
-        ), 0) AS total_issued,
-        COALESCE((
-          SELECT SUM(o.qty) FROM rizenic_part_outbound o 
-          WHERE o.part_no = i.part_no AND o.branch_name = i.branch_name AND o.job_status = 'รอเข้าซ่อม'
-        ), 0) AS total_booked
+        COALESCE(MAX(o.total_issued), 0) AS total_issued,
+        COALESCE(MAX(o.total_booked), 0) AS total_booked
       FROM rizenic_part_inbound i
+      LEFT JOIN (
+        SELECT 
+          part_no, 
+          branch_name,
+          SUM(CASE WHEN COALESCE(job_status, '') != 'รอเข้าซ่อม' THEN qty ELSE 0 END) AS total_issued,
+          SUM(CASE WHEN job_status = 'รอเข้าซ่อม' THEN qty ELSE 0 END) AS total_booked
+        FROM rizenic_part_outbound
+        WHERE branch_name = $1
+        GROUP BY part_no, branch_name
+      ) o ON i.part_no = o.part_no AND i.branch_name = o.branch_name
       WHERE i.branch_name = $1
       GROUP BY i.part_main_no, i.part_no, i.part_name, i.car_model, i.branch_name
       ORDER BY i.part_name ASC;
