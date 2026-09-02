@@ -635,33 +635,63 @@ function renderStationTable() {
 function renderPartsTracking() {
     const tbody = document.getElementById('parts_tracking_body');
     
+    // 1. กรองเฉพาะอะไหล่ที่ยังมาไม่ครบ
     const pendingParts = filteredPartOrders.filter(o => {
         const status = o.order_status || '';
         return !status.includes('ครบ') && status !== 'ยกเลิก';
     });
 
     if (pendingParts.length === 0) { 
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-400 font-bold bg-slate-50"><i class="fa-solid fa-box-open text-3xl mb-3 block opacity-50"></i>ไม่มีรายการใบสั่งอะไหล่ที่ค้างรับ 🎉</td></tr>`; 
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-slate-400 font-bold bg-slate-50"><i class="fa-solid fa-box-open text-3xl mb-3 block opacity-50"></i>ไม่มีรายการใบสั่งอะไหล่ที่ค้างรับ 🎉</td></tr>`; 
         return; 
     }
 
-    const sortedParts = [...pendingParts].sort((a,b) => b.order_id - a.order_id);
-
-    tbody.innerHTML = sortedParts.map(o => {
-        const statusBadge = (o.order_status === 'รอสั่งซื้อ' || o.order_status === 'รออะไหล่' || o.order_status === 'ติด Back Order') ? 'bg-red-100 text-red-800 border-red-400 font-black animate-pulse' : 'bg-amber-100 text-amber-800 border-amber-400 font-bold';
+    // 2. จัดกลุ่มข้อมูลตาม "ทะเบียนรถ"
+    const groupedParts = {};
+    pendingParts.forEach(o => {
+        const plate = o.car_plate || 'ไม่ระบุ';
+        if (!groupedParts[plate]) {
+            const jobMatch = allJobs.find(j => j.car_plate === plate);
+            groupedParts[plate] = {
+                saName: jobMatch ? (jobMatch.sa_owner || 'ไม่ระบุ') : 'ไม่ระบุ',
+                totalItems: 0,
+                statusCounts: {}
+            };
+        }
         
-        const jobMatch = allJobs.find(j => j.car_plate === o.car_plate);
-        const saName = jobMatch ? (jobMatch.sa_owner || 'ไม่ระบุ') : 'ไม่ระบุ';
+        groupedParts[plate].totalItems++;
+        
+        // นับจำนวนสถานะแต่ละประเภทของคันนี้
+        const st = o.order_status || 'รออัปเดต';
+        groupedParts[plate].statusCounts[st] = (groupedParts[plate].statusCounts[st] || 0) + 1;
+    });
+
+    const sortedPlates = Object.keys(groupedParts).sort();
+
+    // 3. แสดงผลตารางเป็นคัน
+    tbody.innerHTML = sortedPlates.map(plate => {
+        const data = groupedParts[plate];
+        
+        // สร้างป้าย Badge แจ้งสถานะและจำนวนชิ้นย่อยๆ
+        const statusBadges = Object.keys(data.statusCounts).map(st => {
+            const count = data.statusCounts[st];
+            const badgeClass = (st === 'รอสั่งซื้อ' || st === 'รออะไหล่' || st === 'ติด Back Order') 
+                ? 'bg-red-50 text-red-700 border-red-300' 
+                : 'bg-amber-50 text-amber-700 border-amber-300';
+            
+            return `
+                <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] font-bold shadow-sm ${badgeClass} mr-1.5 mb-1.5 whitespace-nowrap">
+                    ${st} <span class="bg-white px-1.5 py-0.5 rounded text-slate-800 shadow-inner border border-slate-100">${count}</span>
+                </span>`;
+        }).join('');
 
         return `
             <tr class="cursor-pointer hover:bg-blue-50/80 transition-colors border-b border-slate-100" onclick="window.location.href='parts.html'">
-                <td class="text-center px-4 py-3"><span class="px-2.5 py-1 rounded-lg border text-[10px] shadow-sm ${statusBadge}">${o.order_status || 'รออัปเดต'}</span></td>
-                <td class="font-black text-[#00320D] px-4 py-3"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded text-xs shadow-inner">${o.car_plate || '-'}</span></td>
-                <td class="text-xs font-bold text-slate-600 px-4 py-3">${saName}</td>
-                <td class="font-mono font-bold text-blue-700 text-xs px-4 py-3">${o.part_no || '-'}</td>
-                <td class="text-xs font-bold text-slate-700 truncate max-w-[200px] px-4 py-3" title="${o.part_name || '-'}">${o.part_name || '-'}</td>
-                <td class="text-center text-xs px-4 py-3"><span class="text-amber-600 font-black">${o.qty_ordered}</span> <span class="text-slate-400 mx-1">/</span> <span class="text-emerald-600 font-black">${o.qty_received || 0}</span></td>
-                <td class="text-center font-mono text-xs text-slate-500 font-bold px-4 py-3">${o.est_arrival_date ? o.est_arrival_date.split('T')[0] : '-'}</td>
+                <td class="font-black text-[#00320D] px-4 py-3"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded text-xs shadow-inner">${plate}</span></td>
+                <td class="text-xs font-bold text-slate-600 px-4 py-3"><i class="fa-solid fa-user-tie text-blue-400 mr-1.5"></i>${data.saName}</td>
+                <td class="text-center px-4 py-3"><span class="text-blue-700 font-black bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 shadow-sm">${data.totalItems} รายการ</span></td>
+                <td class="px-4 py-3 align-middle">${statusBadges}</td>
+                <td class="text-center px-4 py-3"><button class="text-[10px] bg-white border border-blue-300 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-600 hover:text-white transition font-bold shadow-sm whitespace-nowrap"><i class="fa-solid fa-search"></i> ดูอะไหล่</button></td>
             </tr>
         `;
     }).join('');
@@ -875,6 +905,7 @@ function renderCalendarByRange(startDate, endDate) {
             </div>
         `;
     });
+
 }
 
 function openJobListModalCalendar(dateStr, type) {
