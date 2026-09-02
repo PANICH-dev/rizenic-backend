@@ -633,16 +633,16 @@ function renderStationTable() {
 }
 
 // ========================================================
-// 📦 ฟังก์ชันแสดงผลตาราง PO Tracking (Accordion) ในหน้า Dashboard
+// 📦 ฟังก์ชันแสดงผลตาราง PO Tracking (Accordion) + Excel Quick Filter
 // ========================================================
 function renderPartsTracking() {
     const tbody = document.getElementById('parts_tracking_body');
     if (!tbody) return;
 
-    // 🟢 [แก้ไข] ไม่ตัดอะไหล่ที่ "ครบ" แล้วออก เพื่อให้เห็นประวัติรถที่สั่งอะไหล่ทั้งหมด
+    // 🟢 ไม่ตัดอะไหล่ที่ "ครบ" แล้วออก เพื่อให้เห็นประวัติรถที่สั่งอะไหล่ทั้งหมด
     const pendingParts = filteredPartOrders.filter(o => {
         const status = o.order_status || '';
-        return status !== 'ยกเลิก'; // ตัดแค่ "ยกเลิก" ทิ้งอย่างเดียว
+        return status !== 'ยกเลิก'; // ตัดเฉพาะรายการที่ยกเลิกออกเท่านั้น
     });
 
     if (pendingParts.length === 0) { 
@@ -665,7 +665,6 @@ function renderPartsTracking() {
     });
 
     const sortedPlates = Object.keys(groupedParts).sort();
-
     let html = '';
     
     // สร้างตารางแบบกางได้ (Accordion)
@@ -674,7 +673,7 @@ function renderPartsTracking() {
         const rowId = `part_group_${index}`;
 
         // หาสถานะที่ "แย่ที่สุด" (Worst Status) เพื่อใช้เป็นป้ายหลักของคันนั้น
-        let worstStatus = 'มีของ/ครบ'; // เปลี่ยนค่าเริ่มต้นเป็น ครบ
+        let worstStatus = 'มีของ/ครบ';
         const statuses = group.items.map(i => i.order_status || '');
         
         if (statuses.includes('รอสั่งซื้อ')) worstStatus = 'รอสั่งซื้อ';
@@ -682,16 +681,15 @@ function renderPartsTracking() {
         else if (statuses.includes('รออะไหล่')) worstStatus = 'รออะไหล่';
         else if (statuses.includes('รออัปเดต')) worstStatus = 'รออัปเดต';
         else if (statuses.some(s => !s.includes('ครบ') && !s.includes('มีของ'))) {
-            // ถ้ายังมีบางชิ้นที่ไม่ใช่ 'ครบ' หรือ 'มีของ' (เช่น กำลังจัดส่ง)
             worstStatus = statuses.find(s => !s.includes('ครบ') && !s.includes('มีของ')) || 'รออะไหล่';
         }
 
         // กำหนดสีป้ายสถานะหลักตาม worstStatus
-        let mainBadgeClass = 'bg-amber-50 text-amber-700 border-amber-300'; // สีเหลือง (รออัปเดต, กำลังจัดส่ง)
+        let mainBadgeClass = 'bg-amber-50 text-amber-700 border-amber-300';
         if (worstStatus === 'รอสั่งซื้อ' || worstStatus === 'รออะไหล่' || worstStatus === 'ติด Back Order') {
-            mainBadgeClass = 'bg-red-50 text-red-700 border-red-300'; // สีแดง (ค้างรับ/มีปัญหา)
+            mainBadgeClass = 'bg-red-50 text-red-700 border-red-300';
         } else if (worstStatus === 'มีของ/ครบ' || worstStatus.includes('ครบ')) {
-            mainBadgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-300'; // สีเขียว (อะไหล่ครบหมดแล้ว)
+            mainBadgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-300';
         }
             
         const mainBadgeHtml = `<span class="inline-flex items-center px-3 py-1 rounded-md border text-xs font-black shadow-sm ${mainBadgeClass}">${worstStatus}</span>`;
@@ -720,11 +718,10 @@ function renderPartsTracking() {
             </tr>
         `;
 
-        // 🔵 แถวย่อย (รายการอะไหล่ของคันนั้นๆ) - ซ่อนไว้เป็นค่าเริ่มต้น (hidden)
+        // 🔵 แถวย่อย (รายการอะไหล่ของคันนั้นๆ)
         let subRowsHtml = group.items.map(item => {
             const st = item.order_status || 'รออัปเดต';
             
-            // กำหนดสีของแต่ละชิ้น
             let badgeClass = 'bg-amber-100 text-amber-800 border-amber-300';
             if (st === 'รอสั่งซื้อ' || st === 'รออะไหล่' || st === 'ติด Back Order') {
                 badgeClass = 'bg-red-100 text-red-800 border-red-300';
@@ -781,6 +778,45 @@ function renderPartsTracking() {
 
     tbody.innerHTML = html;
 }
+
+// 🔍 ฟังก์ชันกรองตาราง PO Tracking ด่วนสไตล์ Excel (ทะเบียนรถ, SA, ชื่ออะไหล่)
+window.filterPOTable = function(keyword) {
+    const tbody = document.getElementById('parts_tracking_body');
+    if (!tbody) return;
+    
+    const lowerKeyword = keyword.toLowerCase().trim();
+    const mainRows = Array.from(tbody.querySelectorAll('tr[onclick^="togglePartAccordion"]'));
+    
+    mainRows.forEach(row => {
+        const nextRow = row.nextElementSibling;
+        let isMatch = false;
+
+        if (lowerKeyword === '') {
+            isMatch = true;
+        } else {
+            const mainText = row.innerText.toLowerCase();
+            if (mainText.includes(lowerKeyword)) {
+                isMatch = true;
+            } else if (nextRow && nextRow.id.startsWith('part_group_')) {
+                const subText = nextRow.innerText.toLowerCase();
+                if (subText.includes(lowerKeyword)) {
+                    isMatch = true;
+                }
+            }
+        }
+
+        if (isMatch) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+            if (nextRow && nextRow.id.startsWith('part_group_')) {
+                nextRow.classList.add('hidden');
+                const icon = row.querySelector('.fa-chevron-right');
+                if(icon) icon.classList.remove('rotate-90');
+            }
+        }
+    });
+};
 
 // ฟังก์ชันสลับการกาง/ยุบตารางย่อย (ถ้ายืนยันว่ามีในไฟล์แล้ว ไม่ต้องก๊อปซ้ำครับ)
 window.togglePartAccordion = function(id) {
