@@ -654,7 +654,7 @@ function renderPartsTracking() {
             const jobMatch = allJobs.find(j => j.car_plate === plate);
             groupedParts[plate] = {
                 saName: jobMatch ? (jobMatch.sa_owner || 'ไม่ระบุ') : 'ไม่ระบุ',
-                items: [] // เก็บอะไหล่ทุกชิ้นของคันนี้
+                items: [] 
             };
         }
         groupedParts[plate].items.push(o);
@@ -669,21 +669,19 @@ function renderPartsTracking() {
         const group = groupedParts[plate];
         const rowId = `part_group_${index}`;
 
-        // นับสรุปป้ายสถานะสำหรับโชว์ในแถวหลัก
-        const statusCounts = {};
-        group.items.forEach(item => {
-            const st = item.order_status || 'รออัปเดต';
-            statusCounts[st] = (statusCounts[st] || 0) + 1;
-        });
+        // หาสถานะที่ "แย่ที่สุด" (Worst Status) เพื่อใช้เป็นป้ายหลักของคันนั้น
+        let worstStatus = 'รออัปเดต';
+        const statuses = group.items.map(i => i.order_status || '');
+        if (statuses.includes('รอสั่งซื้อ')) worstStatus = 'รอสั่งซื้อ';
+        else if (statuses.includes('ติด Back Order')) worstStatus = 'ติด Back Order';
+        else if (statuses.includes('รออะไหล่')) worstStatus = 'รออะไหล่';
+        else if (statuses.length > 0) worstStatus = statuses[0];
 
-        const statusBadges = Object.keys(statusCounts).map(st => {
-            const badgeClass = (st === 'รอสั่งซื้อ' || st === 'รออะไหล่' || st === 'ติด Back Order') 
-                ? 'bg-red-50 text-red-700 border-red-300' 
-                : 'bg-amber-50 text-amber-700 border-amber-300';
-            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-bold ${badgeClass} mr-1 mb-1">
-                ${st} <span class="bg-white px-1.5 rounded text-slate-800 border border-slate-100">${statusCounts[st]}</span>
-            </span>`;
-        }).join('');
+        const mainBadgeClass = (worstStatus === 'รอสั่งซื้อ' || worstStatus === 'รออะไหล่' || worstStatus === 'ติด Back Order') 
+            ? 'bg-red-50 text-red-700 border-red-300' 
+            : 'bg-amber-50 text-amber-700 border-amber-300';
+            
+        const mainBadgeHtml = `<span class="inline-flex items-center px-3 py-1 rounded-md border text-xs font-black shadow-sm ${mainBadgeClass}">${worstStatus}</span>`;
 
         // 🟢 แถวหลัก (ระดับคันรถ) - กดแล้วกางตารางย่อย
         html += `
@@ -692,17 +690,17 @@ function renderPartsTracking() {
                     <i id="icon_${rowId}" class="fa-solid fa-chevron-right text-slate-400 transition-transform duration-200"></i>
                 </td>
                 <td class="font-black text-[#00320D] px-4 py-3">
-                    <span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded text-xs shadow-inner font-mono">${plate}</span>
+                    <span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded text-sm shadow-inner font-mono">${plate}</span>
                 </td>
                 <td class="text-xs font-bold text-slate-600 px-4 py-3">
                     <i class="fa-solid fa-user-tie text-blue-400 mr-1.5"></i>${group.saName}
                 </td>
                 <td class="text-center px-4 py-3">
-                    <span class="text-blue-700 font-black bg-blue-100 px-2.5 py-1 rounded-lg border border-blue-200 text-xs shadow-sm">${group.items.length} รายการ</span>
+                    <span class="text-blue-700 font-black bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 text-xs shadow-sm">${group.items.length} รายการ</span>
                 </td>
-                <td class="px-4 py-3">${statusBadges}</td>
+                <td class="px-4 py-3 align-middle">${mainBadgeHtml}</td>
                 <td class="text-center px-4 py-3" onclick="event.stopPropagation()">
-                    <button onclick="window.location.href='parts.html'" class="text-[11px] bg-white border border-blue-300 text-blue-700 px-3 py-1 rounded-lg hover:bg-blue-600 hover:text-white transition font-bold shadow-sm whitespace-nowrap">
+                    <button onclick="window.location.href='parts.html'" class="text-[11px] bg-white border border-blue-300 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-600 hover:text-white transition font-bold shadow-sm whitespace-nowrap">
                         <i class="fa-solid fa-boxes-stacked mr-1"></i>ไปคลัง
                     </button>
                 </td>
