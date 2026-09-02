@@ -1177,3 +1177,55 @@ async function sendReportToLine(targetBranch) {
         btn.disabled = false;
     }
 }
+
+// ==========================================
+// 🔍 ฟังก์ชันค้นหาในตาราง PO Tracking (Accordion)
+// ==========================================
+window.filterPOTable = function(keyword) {
+    const tbody = document.getElementById('parts_tracking_body');
+    if (!tbody) return;
+    
+    const lowerKeyword = keyword.toLowerCase().trim();
+    
+    // ดึงเฉพาะแถวหลัก (แถวระดับคันรถ ที่มี onclick ขึ้นต้นด้วย togglePartAccordion)
+    const mainRows = Array.from(tbody.querySelectorAll('tr[onclick^="togglePartAccordion"]'));
+    
+    mainRows.forEach(row => {
+        const nextRow = row.nextElementSibling; // แถวซ่อนรายการย่อย
+        let isMatch = false;
+
+        // ถ้าไม่มีคำค้นหา ให้แสดงแถวหลักทั้งหมด
+        if (lowerKeyword === '') {
+            isMatch = true;
+        } else {
+            // 1. ค้นหาจากแถวหลัก (ทะเบียนรถ, SA, สถานะรวม)
+            const mainText = row.innerText.toLowerCase();
+            if (mainText.includes(lowerKeyword)) {
+                isMatch = true;
+            } 
+            // 2. ค้นหาลึกเข้าไปในแถวย่อย (รหัสอะไหล่, ชื่ออะไหล่, EPC) ถ้าไม่เจอในแถวหลัก
+            else if (nextRow && nextRow.id.startsWith('part_group_')) {
+                const subText = nextRow.innerText.toLowerCase();
+                if (subText.includes(lowerKeyword)) {
+                    isMatch = true;
+                }
+            }
+        }
+
+        // แสดงหรือซ่อนแถวหลักตามผลการค้นหา
+        if (isMatch) {
+            row.style.display = '';
+            // หมายเหตุ: ไม่ต้องสั่งกางแถวย่อยอัตโนมัติ ให้คงสถานะซ่อนไว้ตามเดิม
+        } else {
+            row.style.display = 'none';
+            // ถ้าแถวหลักถูกซ่อน ต้องบังคับซ่อนแถวย่อยเสมอ (กันบั๊กกรณีค้างกางไว้)
+            if (nextRow && nextRow.id.startsWith('part_group_')) {
+                nextRow.classList.add('hidden');
+                
+                // รีเซ็ตไอคอนลูกศรให้ชี้ขวา
+                const icon = row.querySelector('.fa-chevron-right');
+                if(icon) icon.classList.remove('rotate-90');
+            }
+        }
+    });
+};
