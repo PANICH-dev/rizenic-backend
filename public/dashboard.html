@@ -336,9 +336,14 @@
         <div class="card-box !p-0 shadow-md mb-6 border border-slate-200">
             <div class="p-5 border-b border-slate-200 flex justify-between items-center bg-white cursor-pointer hover:bg-slate-50 transition" onclick="document.getElementById('content_po').classList.toggle('hidden'); document.getElementById('icon_po').classList.toggle('rotate-180');">
                 <h3 class="text-lg font-black text-blue-900 flex items-center gap-2">
-                    <i class="fa-solid fa-boxes-stacked text-blue-600 bg-blue-50 p-2 rounded-lg"></i> แจ้งเตือนใบสั่งอะไหล่ (PO Tracking) - รอดำเนินการ
+                    <i class="fa-solid fa-boxes-stacked text-blue-600 bg-blue-50 p-2 rounded-lg"></i> แจ้งเตือนใบสั่งอะไหล่ (PO Tracking)
                 </h3>
                 <div class="flex items-center gap-3">
+                    <!-- 🔍 ช่องค้นหา -->
+                    <div class="relative w-48 sm:w-64" onclick="event.stopPropagation()">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                        <input type="text" onkeyup="filterPOTable(this.value)" class="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:border-blue-500 shadow-sm" placeholder="ค้นหา ทะเบียนรถ, ชื่อ...">
+                    </div>
                     <button onclick="event.stopPropagation(); window.location.href='parts.html'" class="text-xs bg-blue-50 text-blue-700 px-4 py-2 rounded-lg font-bold hover:bg-blue-600 hover:text-white transition shadow-sm border border-blue-200 flex items-center gap-2">
                         <i class="fa-solid fa-arrow-up-right-from-square"></i> ไปแผนกอะไหล่
                     </button>
@@ -346,15 +351,30 @@
                 </div>
             </div>
             <div id="content_po">
-                <div class="overflow-x-auto max-h-[400px] custom-scrollbar p-0">
+                <div class="overflow-x-auto max-h-[550px] custom-scrollbar p-0">
                     <table class="excel-table w-full border-none" id="partsTrackingTable">
                         <thead class="bg-gradient-to-r from-blue-900 to-blue-700 text-blue-50 text-xs tracking-wider sticky top-0 shadow-md z-10">
                             <tr>
                                 <th class="w-10 px-3 py-3.5 text-center"></th>
-                                <th class="w-32 px-4 py-3.5 border-b border-blue-950">ทะเบียนรถ</th>
-                                <th class="w-36 px-4 py-3.5 border-b border-blue-950">SA รับผิดชอบ</th>
-                                <th class="w-28 px-4 py-3.5 border-b border-blue-950 text-center">รายการค้างรับ</th>
-                                <th class="w-auto px-4 py-3.5 border-b border-blue-950">สรุปสถานะอะไหล่</th>
+                                <th class="w-32 px-4 py-3.5 border-b border-blue-950 select-none" id="po_th_plate">
+                                    <div class="flex justify-between items-center">
+                                        <span class="cursor-pointer flex-1" onclick="sortTable('partsTrackingTable', 1)">ทะเบียนรถ <i class="fa-solid fa-sort sort-icon"></i></span>
+                                        <i class="fa-solid fa-filter ml-2 cursor-pointer text-blue-300 hover:text-amber-400 po-filter-icon transition-colors" onclick="openPOExcelFilter(event, 'plate', 'ทะเบียนรถ')"></i>
+                                    </div>
+                                </th>
+                                <th class="w-32 px-4 py-3.5 border-b border-blue-950 select-none" id="po_th_sa">
+                                    <div class="flex justify-between items-center">
+                                        <span class="cursor-pointer flex-1" onclick="sortTable('partsTrackingTable', 2)">SA <i class="fa-solid fa-sort sort-icon"></i></span>
+                                        <i class="fa-solid fa-filter ml-2 cursor-pointer text-blue-300 hover:text-amber-400 po-filter-icon transition-colors" onclick="openPOExcelFilter(event, 'sa', 'SA ผู้ดูแล')"></i>
+                                    </div>
+                                </th>
+                                <th class="w-28 px-4 py-3.5 border-b border-blue-950 text-center">จำนวนรายการ</th>
+                                <th class="w-[450px] px-4 py-3.5 border-b border-blue-950 select-none" id="po_th_status">
+                                    <div class="flex justify-between items-center">
+                                        <span>รายการสั่งซื้ออะไหล่ (PO) & สถานะคิว</span>
+                                        <i class="fa-solid fa-filter ml-2 cursor-pointer text-blue-300 hover:text-amber-400 po-filter-icon transition-colors" onclick="openPOExcelFilter(event, 'status', 'สถานะหลัก')"></i>
+                                    </div>
+                                </th>
                                 <th class="w-28 px-4 py-3.5 border-b border-blue-950 text-center">จัดการ</th>
                             </tr>
                         </thead>
@@ -523,6 +543,6 @@
     </div>
 
     <!-- 🌟 สคริปต์ Dashboard 🌟 -->
-    <script src="dashboard.js?v=2.0"></script>
+    <script src="dashboard.js?v=2.1"></script>
 </body>
 </html>
