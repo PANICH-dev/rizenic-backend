@@ -632,21 +632,25 @@ function renderStationTable() {
     }).join('');
 }
 
+// ========================================================
+// 📦 ฟังก์ชันแสดงผลตาราง PO Tracking (Accordion) ในหน้า Dashboard
+// ========================================================
 function renderPartsTracking() {
     const tbody = document.getElementById('parts_tracking_body');
-    
-    // 1. กรองเฉพาะอะไหล่ที่ยังมาไม่ครบ
+    if (!tbody) return;
+
+    // 🟢 [แก้ไข] ไม่ตัดอะไหล่ที่ "ครบ" แล้วออก เพื่อให้เห็นประวัติรถที่สั่งอะไหล่ทั้งหมด
     const pendingParts = filteredPartOrders.filter(o => {
         const status = o.order_status || '';
-        return !status.includes('ครบ') && status !== 'ยกเลิก';
+        return status !== 'ยกเลิก'; // ตัดแค่ "ยกเลิก" ทิ้งอย่างเดียว
     });
 
     if (pendingParts.length === 0) { 
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400 font-bold bg-slate-50"><i class="fa-solid fa-box-open text-3xl mb-3 block opacity-50"></i>ไม่มีรายการใบสั่งอะไหล่ที่ค้างรับ 🎉</td></tr>`; 
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400 font-bold bg-slate-50"><i class="fa-solid fa-box-open text-3xl mb-3 block opacity-50"></i>ไม่มีรายการใบสั่งอะไหล่ 🎉</td></tr>`; 
         return; 
     }
 
-    // 2. จัดกลุ่มตามทะเบียนรถ และเก็บรายการอะไหล่ทั้งหมดไว้ในคันนั้น
+    // จัดกลุ่มตามทะเบียนรถ และเก็บรายการอะไหล่ทั้งหมดไว้ในคันนั้น
     const groupedParts = {};
     pendingParts.forEach(o => {
         const plate = o.car_plate || 'ไม่ระบุ';
@@ -664,22 +668,31 @@ function renderPartsTracking() {
 
     let html = '';
     
-    // 3. สร้างตารางแบบกางได้ (Accordion)
+    // สร้างตารางแบบกางได้ (Accordion)
     sortedPlates.forEach((plate, index) => {
         const group = groupedParts[plate];
         const rowId = `part_group_${index}`;
 
         // หาสถานะที่ "แย่ที่สุด" (Worst Status) เพื่อใช้เป็นป้ายหลักของคันนั้น
-        let worstStatus = 'รออัปเดต';
+        let worstStatus = 'มีของ/ครบ'; // เปลี่ยนค่าเริ่มต้นเป็น ครบ
         const statuses = group.items.map(i => i.order_status || '');
+        
         if (statuses.includes('รอสั่งซื้อ')) worstStatus = 'รอสั่งซื้อ';
         else if (statuses.includes('ติด Back Order')) worstStatus = 'ติด Back Order';
         else if (statuses.includes('รออะไหล่')) worstStatus = 'รออะไหล่';
-        else if (statuses.length > 0) worstStatus = statuses[0];
+        else if (statuses.includes('รออัปเดต')) worstStatus = 'รออัปเดต';
+        else if (statuses.some(s => !s.includes('ครบ') && !s.includes('มีของ'))) {
+            // ถ้ายังมีบางชิ้นที่ไม่ใช่ 'ครบ' หรือ 'มีของ' (เช่น กำลังจัดส่ง)
+            worstStatus = statuses.find(s => !s.includes('ครบ') && !s.includes('มีของ')) || 'รออะไหล่';
+        }
 
-        const mainBadgeClass = (worstStatus === 'รอสั่งซื้อ' || worstStatus === 'รออะไหล่' || worstStatus === 'ติด Back Order') 
-            ? 'bg-red-50 text-red-700 border-red-300' 
-            : 'bg-amber-50 text-amber-700 border-amber-300';
+        // กำหนดสีป้ายสถานะหลักตาม worstStatus
+        let mainBadgeClass = 'bg-amber-50 text-amber-700 border-amber-300'; // สีเหลือง (รออัปเดต, กำลังจัดส่ง)
+        if (worstStatus === 'รอสั่งซื้อ' || worstStatus === 'รออะไหล่' || worstStatus === 'ติด Back Order') {
+            mainBadgeClass = 'bg-red-50 text-red-700 border-red-300'; // สีแดง (ค้างรับ/มีปัญหา)
+        } else if (worstStatus === 'มีของ/ครบ' || worstStatus.includes('ครบ')) {
+            mainBadgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-300'; // สีเขียว (อะไหล่ครบหมดแล้ว)
+        }
             
         const mainBadgeHtml = `<span class="inline-flex items-center px-3 py-1 rounded-md border text-xs font-black shadow-sm ${mainBadgeClass}">${worstStatus}</span>`;
 
@@ -710,7 +723,15 @@ function renderPartsTracking() {
         // 🔵 แถวย่อย (รายการอะไหล่ของคันนั้นๆ) - ซ่อนไว้เป็นค่าเริ่มต้น (hidden)
         let subRowsHtml = group.items.map(item => {
             const st = item.order_status || 'รออัปเดต';
-            const badgeClass = (st === 'รอสั่งซื้อ' || st === 'รออะไหล่' || st === 'ติด Back Order') ? 'bg-red-100 text-red-800 border-red-300' : 'bg-amber-100 text-amber-800 border-amber-300';
+            
+            // กำหนดสีของแต่ละชิ้น
+            let badgeClass = 'bg-amber-100 text-amber-800 border-amber-300';
+            if (st === 'รอสั่งซื้อ' || st === 'รออะไหล่' || st === 'ติด Back Order') {
+                badgeClass = 'bg-red-100 text-red-800 border-red-300';
+            } else if (st.includes('ครบ') || st.includes('มีของ')) {
+                badgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+            }
+
             const orderDate = item.order_date ? item.order_date.split('T')[0] : '-';
             const estDate = item.est_arrival_date ? item.est_arrival_date.split('T')[0] : '-';
 
@@ -733,7 +754,7 @@ function renderPartsTracking() {
                 <td colspan="6" class="p-3">
                     <div class="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-inner">
                         <div class="bg-slate-200/80 px-3 py-1.5 text-[11px] font-bold text-slate-700 border-b border-slate-300 flex justify-between items-center">
-                            <span><i class="fa-solid fa-list-check text-blue-600 mr-1.5"></i>ตารางคีย์อะไหล่ค้างรับ: ${plate}</span>
+                            <span><i class="fa-solid fa-list-check text-blue-600 mr-1.5"></i>ตารางตรวจสอบสั่งอะไหล่: ${plate}</span>
                             <span class="text-slate-500 font-mono font-normal">รวม ${group.items.length} ชิ้น</span>
                         </div>
                         <table class="w-full text-left border-collapse">
