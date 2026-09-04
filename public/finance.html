@@ -227,7 +227,7 @@
                 <table class="excel-table" id="accTable">
                     <thead id="acc_table_head"></thead>
                     <tbody id="acc_table_body">
-                        <tr><td colspan="12" class="text-center py-10 text-slate-400 font-mono text-sm"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังโหลดข้อมูลบัญชี...</td></tr>
+                        <tr><td colspan="13" class="text-center py-10 text-slate-400 font-mono text-sm"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังโหลดข้อมูลบัญชี...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -247,38 +247,34 @@
         const columnsDef = [
             { idx: 0, key: 'car_plate', title: 'ทะเบียนรถ', width: 120 },
             { idx: 1, key: 'job_status', title: 'สถานะงาน (บัญชี)', width: 180 },
-            { idx: 2, key: 'billing_date', title: 'วันที่ออกบิล', width: 130 },
-            { idx: 3, key: 'insurance_pay_date', title: 'วันที่ประกันจ่ายเงิน', width: 140 }, 
-            { idx: 4, key: 'sa_owner', title: 'SA ผู้ดูแล', width: 130 },
-            { idx: 5, key: 'ivn_no', title: 'เลข IVN.', width: 140 },
-            { idx: 6, key: 'qt_no', title: 'เลขที่ใบเสนอราคา (QT)', width: 150 },
-            { idx: 7, key: 'so_no', title: 'เลขที่ใบสั่งซ่อม (SO)', width: 150 },
-            { idx: 8, key: 'cost_labor', title: 'ค่าแรง', width: 120 },
-            { idx: 9, key: 'cost_part', title: 'ค่าอะไหล่', width: 120 },
-            { idx: 10, key: 'cost_external', title: 'งานนอก', width: 120 },
-            { idx: 11, key: 'total_cost', title: 'ยอดรวม (Auto)', width: 140 }
+            { idx: 2, key: 'payment_type', title: 'รูปแบบการชำระเงิน/ประกัน', width: 180 },
+            { idx: 3, key: 'billing_date', title: 'วันที่ออกบิล', width: 130 },
+            { idx: 4, key: 'insurance_pay_date', title: 'วันที่ประกันจ่ายเงิน', width: 140 }, 
+            { idx: 5, key: 'sa_owner', title: 'SA ผู้ดูแล', width: 130 },
+            { idx: 6, key: 'ivn_no', title: 'เลข IVN.', width: 140 },
+            { idx: 7, key: 'qt_no', title: 'เลขที่ใบเสนอราคา (QT)', width: 150 },
+            { idx: 8, key: 'so_no', title: 'เลขที่ใบสั่งซ่อม (SO)', width: 150 },
+            { idx: 9, key: 'cost_labor', title: 'ค่าแรง', width: 120 },
+            { idx: 10, key: 'cost_part', title: 'ค่าอะไหล่', width: 120 },
+            { idx: 11, key: 'cost_external', title: 'งานนอก', width: 120 },
+            { idx: 12, key: 'total_cost', title: 'ยอดรวม (Auto)', width: 140 }
         ];
 
         let activeFilters = {}; 
         let currentFilterKey = -1;
 
-        // 🌟 ฟังก์ชันหาค่าเริ่มต้นเดือนปัจจุบัน 🌟
-function setCurrentMonthFilter() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    
-    // วันที่ 1 ของเดือนปัจจุบัน
-    const firstDayStr = `${year}-${month}-01`;
-    
-    // หาหน้าวันสุดท้ายของเดือน
-    const lastDay = new Date(year, now.getMonth() + 1, 0);
-    const lastDayStr = `${year}-${month}-${String(lastDay.getDate()).padStart(2, '0')}`;
+        function setCurrentMonthFilter() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            
+            const firstDayStr = `${year}-${month}-01`;
+            const lastDay = new Date(year, now.getMonth() + 1, 0);
+            const lastDayStr = `${year}-${month}-${String(lastDay.getDate()).padStart(2, '0')}`;
 
-    // เซตค่าให้ Input วันที่
-    document.getElementById('date_start').value = firstDayStr;
-    document.getElementById('date_end').value = lastDayStr;
-}
+            document.getElementById('date_start').value = firstDayStr;
+            document.getElementById('date_end').value = lastDayStr;
+        }
 
         function showToast(msg, type='success') {
             const toast = document.getElementById('toastMsg');
@@ -308,9 +304,7 @@ function setCurrentMonthFilter() {
             const curMonth = String(today.getMonth() + 1).padStart(2, '0');
             document.getElementById('month_filter_select').value = curMonth;
 
-            // 🌟 เซตค่าเริ่มต้นเดือนปัจจุบันให้ช่องวันที่
             setCurrentMonthFilter();
-
             initColumns();
             loadAccountingData();
         });
@@ -389,24 +383,27 @@ function setCurrentMonthFilter() {
 
         async function loadAccountingData() {
             try {
-                const statRes = await fetch(`${API_BASE_URL}/api/statuses`);
+                const [statRes, reportsRes] = await Promise.all([
+                    fetch(`${API_BASE_URL}/api/statuses`),
+                    fetch(`${API_BASE_URL}/api/reports`)
+                ]);
+
                 if(statRes.ok) {
                     const allStats = await statRes.json();
                     accStatuses = allStats.filter(s => s.department === 'บัญชี').map(s => s.status_name);
                 }
 
-                const res = await fetch(`${API_BASE_URL}/api/reports`);
-                const data = await res.json();
-                
-                allAccJobs = data.filter(d => d.department_routing === 'บัญชี' && d.job_status !== 'ปิดงาน');
-                
-                if (!['BA','Manager','Admin','แอดมิน'].includes(userRole)) {
-                    allAccJobs = allAccJobs.filter(d => d.branch_name === userBranch);
+                if(reportsRes.ok) {
+                    const data = await reportsRes.json();
+                    allAccJobs = data.filter(d => d.department_routing === 'บัญชี' && d.job_status !== 'ปิดงาน');
+                    
+                    if (!['BA','Manager','Admin','แอดมิน'].includes(userRole)) {
+                        allAccJobs = allAccJobs.filter(d => d.branch_name === userBranch);
+                    }
                 }
                 
                 buildBranchDropdown();
                 buildYearDropdown(); 
-
                 applyGlobalFilters();
             } catch (error) {
                 document.getElementById('acc_table_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-10 text-red-500 font-bold">⚠️ ไม่สามารถเชื่อมต่อฐานข้อมูลได้</td></tr>`;
@@ -468,19 +465,15 @@ function setCurrentMonthFilter() {
             const filterYear = document.getElementById('year_filter_select').value;
             const filterBranch = document.getElementById('branch_filter_select').value;
 
-            // กรองสาขา
             const branchFilteredJobs = allAccJobs.filter(j => filterBranch === 'ALL' || j.branch_name === filterBranch);
 
-            // 🌟 เพิ่มเงื่อนไขตัดสถานะ 18.ลูกค้ายกเลิก และ ปิดงาน ทิ้ง 🌟
             const validAccJobs = branchFilteredJobs.filter(j => {
                 const st = j.job_status || "";
                 return !st.includes('18.ลูกค้ายกเลิก') && !st.includes('ปิดงาน');
             });
 
-            // รอจัดการ = ยังไม่มีวันที่ออกบิล
             const unmanaged = validAccJobs.filter(j => !j.billing_date || j.billing_date.trim() === '').length;
             
-            // จัดการแล้ว = มีวันที่ออกบิลแล้ว
             const managed = validAccJobs.filter(j => {
                 if (!j.billing_date || j.billing_date.trim() === '') return false;
                 const d = new Date(j.billing_date);
@@ -521,6 +514,7 @@ function setCurrentMonthFilter() {
                 }
             });
         }
+
         function filterByStatus(type) {
             document.getElementById('managed_filter_select').value = type;
             applyFilters();
@@ -605,6 +599,7 @@ function setCurrentMonthFilter() {
                 case 'car_plate': return job.car_plate || '-';
                 case 'sa_owner': return job.sa_owner || '-';
                 case 'job_status': return job.job_status || '';
+                case 'payment_type': return job.payment_type || '-';
                 case 'billing_date': return job.billing_date ? String(job.billing_date).split('T')[0] : '';
                 case 'insurance_pay_date':
                     const insDate = job.insurance_pay_date || job.insurance_payment_date;
@@ -637,12 +632,19 @@ function setCurrentMonthFilter() {
                     switch(col.key) {
                         case 'car_plate': cellData = `<div class="w-full text-center font-black text-amber-700 bg-amber-50 uppercase py-2">${job.car_plate || '-'}</div>`; break;
                         case 'sa_owner': cellData = `<div class="w-full h-full px-3 py-2 text-slate-700 font-bold bg-slate-50/50 flex items-center"><i class="fa-solid fa-user-tie text-blue-500 mr-2"></i> ${job.sa_owner || '-'}</div>`; break;
+                        
                         case 'job_status': 
                             let safeStatus = job.job_status || ''; let safeOpts = optsHtml;
                             if(safeStatus && !safeOpts.includes(`value="${safeStatus}"`)) safeOpts = `<option value="${safeStatus}">${safeStatus}</option>` + safeOpts;
                             safeOpts = safeOpts.replace(`value="${safeStatus}"`, `value="${safeStatus}" selected`);
                             cellData = `<select onchange="fastUpdateAcc('${job.id}', 'job_status', this.value)" class="inline-edit-select bg-blue-50/50">${safeOpts}</select>`; 
                             break;
+
+                        // 🟢 แสดงผลอย่างเดียว (Read-Only Text) สำหรับ payment_type
+                        case 'payment_type':
+                            cellData = `<div class="w-full h-full px-3 py-2 text-slate-800 font-bold bg-purple-50/30 flex items-center justify-center">${job.payment_type || '-'}</div>`;
+                            break;
+
                         case 'billing_date': cellData = `<input type="date" value="${job.billing_date ? String(job.billing_date).split('T')[0] : ''}" onchange="fastUpdateAcc('${job.id}', 'billing_date', this.value)" class="inline-edit-input font-mono text-center">`; break;
                         case 'insurance_pay_date': 
                             const dateVal = job.insurance_pay_date || job.insurance_payment_date;
@@ -782,14 +784,13 @@ function setCurrentMonthFilter() {
             
             if (['Manager', 'Admin', 'BA', 'แอดมิน'].includes(userRole)) document.getElementById('branch_filter_select').value = 'ALL';
             
-            // 🌟 เมื่อกดล้างตัวกรอง ให้กลับไปค่าเริ่มต้นเดือนปัจจุบันแทนการล้างออกเป็นค่าว่าง 🌟
             setCurrentMonthFilter();
             
             document.querySelectorAll('.filter-icon').forEach(icon => { icon.classList.remove('text-amber-400'); icon.classList.add('text-slate-400'); });
             applyFilters();
         }
 
-function applyFilters() {
+        function applyFilters() {
             const searchTxt = document.getElementById('search_input').value.toLowerCase();
             const managedType = document.getElementById('managed_filter_select').value; 
             const branchFilter = document.getElementById('branch_filter_select').value; 
@@ -801,16 +802,13 @@ function applyFilters() {
             let sumLabor = 0, sumPart = 0, sumExt = 0, sumTotal = 0;
 
             const filteredData = allAccJobs.filter(job => {
-                // กรองสาขา
                 if (branchFilter !== 'ALL' && job.branch_name !== branchFilter) return false;
 
-                // 🌟 [เพิ่มตรงนี้] ตัดสถานะ "18.ลูกค้ายกเลิก" และ "ปิดงาน" ทิ้ง ไม่ให้โชว์ในตาราง Excel ด้วย 🌟
                 const currentStatus = job.job_status || '';
                 if (currentStatus.includes('18.ลูกค้ายกเลิก') || currentStatus.includes('ปิดงาน')) {
                     return false;
                 }
 
-                // ค้นหาตามข้อความ
                 if (searchTxt) {
                     const matchStr = Object.values(job).join(' ').toLowerCase();
                     if(!matchStr.includes(searchTxt)) return false;
@@ -822,9 +820,7 @@ function applyFilters() {
                 if (managedType === 'จัดการแล้ว' && !hasBillingDate) return false;
                 if (managedType === '13.วางบิลประกัน' && job.job_status !== '13.วางบิลประกัน') return false;
 
-                // 🌟 ระบบช่วงวันที่ (Start - End Date)
                 if (dateStart || dateEnd) {
-                    // 🟢 เพิ่มเงื่อนไข: ถ้าเลือกดู "รอจัดการ" ให้ข้ามการกรองวันที่ไปเลย เพราะงานกลุ่มนี้ยังไม่มีวันที่
                     if (managedType !== 'รอจัดการ') {
                         let targetDateStr = null;
                         if (dateType === 'billing_date') {
