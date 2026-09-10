@@ -311,6 +311,20 @@ async function fastUpdateStationDropdown(id, selectedLevel) {
 
 async function fastUpdateJob(jobId, field, value, silent = false) {
     let formattedValue = value;
+
+    // 🌟 ระบบเซฟตี้: ตัดความยาวข้อความหากยาวเกินไป ป้องกัน DB Crash
+    if (typeof formattedValue === 'string') {
+        const textLimits = {
+            'main_part_name': 250,
+            'sub_part_name': 250,
+            'customer_name': 100,
+            'car_plate': 50
+        };
+        if (textLimits[field] && formattedValue.length > textLimits[field]) {
+            formattedValue = formattedValue.substring(0, textLimits[field]);
+        }
+    }
+
     if (field.includes('date') || ['repair_finish_date', 'target_finish_date', 'delivery_date', 'contact_date', 'arrived_date'].includes(field)) {
         if (value === '' || value === undefined || value === null) formattedValue = null;
         else formattedValue = String(value).split('T')[0];
@@ -348,12 +362,14 @@ async function fastUpdateJob(jobId, field, value, silent = false) {
             if(!silent) showToast('บันทึกข้อมูลเรียบร้อย!');
             if(field === 'job_status') await autoMapRouting(jobId, value);
             if(!silent && typeof applyFilters === 'function') applyFilters();
-        } else throw new Error('บันทึกไม่สำเร็จ');
+        } else {
+            const errData = await res.json();
+            throw new Error(errData.error || 'บันทึกไม่สำเร็จ');
+        }
     } catch (err) {
-        if(!silent) showToast('บันทึกไม่สำเร็จ!', 'error'); 
+        if(!silent) showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error'); 
     }
 }
-
 async function deleteJobRow(jobId, carPlate) {
     if (!confirm(`🚨 ยืนยันการลบใบงานรถทะเบียน [ ${carPlate} ] ?\n(ข้อมูลจะถูกลบออกจากฐานข้อมูลถาวร)`)) return;
     
