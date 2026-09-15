@@ -107,14 +107,25 @@ async function loadUserColumnPreferences() {
             const data = await res.json();
             if (data.hidden_columns && typeof data.hidden_columns === 'object') {
                 if (data.hidden_columns.hidden) hiddenCols = new Set(data.hidden_columns.hidden);
+                
                 if (data.hidden_columns.order && Array.isArray(data.hidden_columns.order)) {
-                    const colMap = new Map(); columnsDef.forEach(c => colMap.set(c.key, c));
+                    // จัดเรียงตามออเดอร์เก่า
+                    const colMap = new Map(); 
+                    columnsDef.forEach(c => colMap.set(c.key, c));
+                    
                     let newCols = [];
                     data.hidden_columns.order.forEach(k => { 
-                        if(colMap.has(k)) { newCols.push(colMap.get(k)); colMap.delete(k); } 
+                        if(colMap.has(k)) { 
+                            newCols.push(colMap.get(k)); 
+                            colMap.delete(k); // ลบตัวที่ดึงไปแล้วทิ้ง
+                        } 
                     });
+                    
+                    // 🌟 ดึงคอลัมน์ใหม่ทั้งหมดที่เหลืออยู่ (รวมถึง vin_no) ไปต่อท้าย
                     colMap.forEach(c => newCols.push(c));
-                    columnsDef.length = 0; columnsDef.push(...newCols);
+                    
+                    columnsDef.length = 0; 
+                    columnsDef.push(...newCols); // อัปเดตตารางด้วยคอลัมน์ใหม่
                 }
                 if (data.hidden_columns.sort) {
                     savedSortCol = data.hidden_columns.sort.col;
@@ -122,7 +133,9 @@ async function loadUserColumnPreferences() {
                 }
             }
         }
-    } catch (err) {}
+    } catch (err) {
+        console.error("Error loading preferences:", err);
+    }
 }
 
 async function saveUserPreferences() {
