@@ -41,6 +41,7 @@ let columnsDef = [
     { idx: 14, key: 'sa_owner', title: 'SA', w: 120, filter: true },
     { idx: 2, key: 'car_brand', title: 'ยี่ห้อ/รุ่น', w: 180, filter: true },
     { idx: 37, key: 'car_color', title: 'สีรถ', w: 110, filter: true },
+    { idx: 16, key: 'vin_no', title: 'เลขตัวถัง/เครื่อง', w: 180, filter: true },
     { idx: 3, key: 'arrived_date', title: 'รถเข้า', w: 120, filter: true, showCount: true },
     { idx: 4, key: 'target_finish_date', title: 'เป้าเสร็จ', w: 120, filter: true, showCount: true },
     { idx: 5, key: 'repair_finish_date', title: 'เสร็จจริง', w: 150, filter: true, showCount: true },
@@ -606,6 +607,9 @@ function renderRepairListTable(data) {
                     break;
                 case 'car_plate': 
                     cellData = `<div class="font-mono text-base font-black px-3 py-2 truncate ${isOverdue ? 'text-rose-600' : 'text-[#00320D]'}">${isOverdue ? '<i class="fa-solid fa-circle-exclamation mr-1 animate-pulse"></i>' : ''}${j.car_plate || '-'}</div>`; 
+                    break;
+                case 'vin_no': 
+                    cellData = `<div class="font-mono text-sm font-bold text-emerald-600 px-3 py-2 truncate" title="${j.vin_no || ''}">${j.vin_no || '-'}</div>`; 
                     break;
                 case 'sa_owner': 
                     cellData = `<div class="px-3 py-2 font-bold text-slate-700 text-sm truncate" title="${j.sa_owner || ''}"><i class="fa-solid fa-user-tie text-amber-500 mr-1"></i> ${j.sa_owner || '-'}</div>`; 
