@@ -42,7 +42,48 @@ const excludedStatuses = [
     '19.ออกบิลแล้ว', '20.จอดซ่อม TC', '21.พักซ่อม'
 ];
 
-// 🌟 กำหนดคอลัมน์ (เอา appointment_date ออกแล้ว) 🌟
+// 🌟 ชุดคำสั่งสำหรับคำนวณและอัปเดตสถานีช่าง
+const stationLevels = ["ส่งจ๊อบ", "01.เคาะ", "02.โป๊ว", "03.เตรียมพื้น", "04.พ่นสี", "05.ประกอบ", "06.ขัดสี", "07.QC", "08.แม็ก", "09.กระจก", "10.ฟิล์ม", "11.พักซ่อม", "12.รอส่งมอบ"];
+
+function isTrue(val) { 
+    if (val === null || val === undefined) return false;
+    const strVal = String(val).trim().toUpperCase(); return strVal === "TRUE" || strVal === "1" || val === true || val === 1; 
+}
+
+function computeHighestStationIFS(j) {
+    if(isTrue(j.station_ready)) return "12.รอส่งมอบ"; if(isTrue(j.station_pak)) return "11.พักซ่อม"; if(isTrue(j.station_film)) return "10.ฟิล์ม";
+    if(isTrue(j.station_kraj)) return "09.กระจก"; if(isTrue(j.station_mag)) return "08.แม็ก"; if(isTrue(j.station_qc)) return "07.QC";
+    if(isTrue(j.station_kat)) return "06.ขัดสี"; if(isTrue(j.station_prak)) return "05.ประกอบ"; if(isTrue(j.station_pon)) return "04.พ่นสี";
+    if(isTrue(j.station_puan)) return "03.เตรียมพื้น"; if(isTrue(j.station_pou)) return "02.โป๊ว"; if(isTrue(j.station_kho)) return "01.เคาะ";
+    return "ส่งจ๊อบ"; 
+}
+
+async function fastUpdateStationDropdown(id, selectedLevel) {
+    const job = allJobsData.find(j => String(j.id) === String(id));
+    if (!job) return;
+    const selectedIdx = stationLevels.indexOf(selectedLevel);
+    
+    const payload = {
+        station_kho: selectedIdx >= 1, station_pou: selectedIdx >= 2, station_puan: selectedIdx >= 3,
+        station_pon: selectedIdx >= 4, station_prak: selectedIdx >= 5, station_kat: selectedIdx >= 6,
+        station_qc: selectedIdx >= 7, station_mag: selectedIdx >= 8, station_kraj: selectedIdx >= 9,
+        station_film: selectedIdx >= 10, station_pak: selectedIdx >= 11, station_ready: selectedIdx >= 12
+    };
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/report/${id}/station`, {
+            method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+        });
+        if(res.ok) {
+            showToast('อัปเดตความคืบหน้าสถานีเรียบร้อย!');
+            Object.assign(job, payload);
+            job.calculated_station = computeHighestStationIFS(job);
+            applyFilters();
+        } else throw new Error();
+    } catch(e) { showToast('อัปเดตไม่สำเร็จ', 'error'); }
+}
+
+// 🌟 กำหนดคอลัมน์ 🌟
 let columnsDef = [
     { idx: 1, key: 'action', title: 'Action', width: 90 },
     { idx: 2, key: 'contact_date', title: 'เข้ามาติดต่อวันที่', width: 115 },
@@ -68,6 +109,7 @@ let columnsDef = [
     { idx: 22, key: 'delivery_date', title: 'วันที่ส่งมอบ', width: 150 },
     { idx: 23, key: 'notes', title: 'หมายเหตุ', width: 180 },
     { idx: 24, key: 'job_status', title: 'สถานะงาน', width: 140 },
+    { idx: 38, key: 'calculated_station', title: 'ความคืบหน้าสถานีซ่อม', width: 160 },
     { idx: 25, key: 'part_status', title: 'สถานะอะไหล่', width: 120 },
     { idx: 26, key: 'epc_no', title: 'EPC No.', width: 115 },
     { idx: 27, key: 'ordered_part_names', title: 'รายการอะไหล่ที่สั่ง', width: 240 },
@@ -83,7 +125,7 @@ let columnsDef = [
 
 const defaultVisibleKeys = [
     'action', 'contact_date', 'arrived_date', 'car_plate', 'car_brand', 'car_model', 
-    'customer_name', 'damage_level', 'target_finish_date', 'repair_finish_date', 'delivery_date', 'job_status', 'sa_owner'
+    'customer_name', 'damage_level', 'target_finish_date', 'repair_finish_date', 'delivery_date', 'job_status', 'calculated_station', 'sa_owner'
 ];
 
 let hiddenCols = new Set(columnsDef.filter(c => !defaultVisibleKeys.includes(c.key)).map(c => c.idx));
@@ -307,7 +349,10 @@ async function loadJobsData() {
 
         if (results[3].status === 'fulfilled') {
             const data = results[3].value;
-            allJobsData = (['BA','Manager','Admin','แอดมิน'].includes(userRole)) ? data : data.filter(d => d.branch_name === userBranch);
+            let tempJobs = (['BA','Manager','Admin','แอดมิน'].includes(userRole)) ? data : data.filter(d => d.branch_name === userBranch);
+            
+            // 🟢 คำนวณสถานะสถานีช่างตอนโหลด
+            allJobsData = tempJobs.map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
         }
         
         const dlBrands = document.getElementById('dl_car_brands');
@@ -798,6 +843,11 @@ function renderTable(data) {
                     let sOpts = safeOptsGlobal; if(!sOpts.includes(`value="${job.job_status||''}"`)) sOpts = `<option value="${job.job_status||''}">${job.job_status||''}</option>` + sOpts; sOpts = sOpts.replace(`value="${job.job_status||''}"`, `value="${job.job_status||''}" selected`); 
                     cellData = `<select onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'job_status', this.value)" class="inline-edit-select text-blue-700 font-bold">${sOpts}</select>`; break;
                 
+                case 'calculated_station': 
+                    const stationOptionsHtml = stationLevels.map(st => `<option value="${st}" ${job.calculated_station === st ? 'selected' : ''}>${st}</option>`).join('');
+                    cellData = `<select onclick="event.stopPropagation()" onchange="fastUpdateStationDropdown('${job.id}', this.value)" class="inline-edit-select text-amber-700 font-bold bg-amber-50">${stationOptionsHtml}</select>`; 
+                    break;
+                    
                 case 'cost_labor': case 'cost_part': case 'cost_external':
                     cellData = `<input type="number" value="${job[col.key] || ''}" onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input text-right" placeholder="0">`; break;
                 
@@ -830,7 +880,7 @@ function renderTable(data) {
 }
 
 function openBulkModal() {
-    const pdiCols = columnsDef.filter(c => c.key !== 'action'); 
+    const pdiCols = columnsDef.filter(c => c.key !== 'action' && c.key !== 'calculated_station'); 
     let thHtml = '<th class="w-10 min-w-[40px] text-center bg-[#00320D] text-white border-b border-[#1e3a1e] sticky left-0 z-20">#</th>';
     pdiCols.forEach(c => thHtml += `<th class="min-w-[150px] px-2 bg-[#00320D] text-white border-b border-[#1e3a1e]">${c.title} <button type="button" onclick="copyDown('${c.key}')" class="text-amber-400 hover:text-white ml-1 transition" title="คัดลอกลงด้านล่าง"><i class="fa-solid fa-arrow-down"></i></button></th>`);
     document.getElementById('bulk_table_head_tr').innerHTML = thHtml; 
@@ -876,7 +926,7 @@ function addBulkRow(rowData = null) {
         branchOptions = `<option value="${userBranch}" selected>${userBranch}</option>`;
     }
 
-    columnsDef.filter(c => c.key !== 'action').forEach(c => {
+    columnsDef.filter(c => c.key !== 'action' && c.key !== 'calculated_station').forEach(c => {
         const val = rowData ? (rowData[c.title] || '') : '';
         
         if (c.key.includes('date')) {
@@ -945,7 +995,7 @@ function addBulkRow(rowData = null) {
 }
 
 function downloadExcelTemplate() {
-    let row = {}; columnsDef.filter(c => c.key !== 'action').forEach(c => { row[c.title] = ''; });
+    let row = {}; columnsDef.filter(c => c.key !== 'action' && c.key !== 'calculated_station').forEach(c => { row[c.title] = ''; });
     row['ทะเบียนรถ'] = 'กข 1234'; row['ยี่ห้อรถ'] = 'Tesla'; row['รุ่นรถ'] = 'Model 3'; row['สถานะงาน'] = '09.จอดรอเข้าซ่อม';
     const ws = XLSX.utils.json_to_sheet([row]); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "PDI_Full_Template"); XLSX.writeFile(wb, "RIZENIC_PDI_Full_Template.xlsx");
 }
@@ -966,7 +1016,7 @@ function copyDown(fieldKey) {
 }
 
 async function saveBulkData() {
-    const rows = document.querySelectorAll('.bulk-row'); let promises = []; const pdiCols = columnsDef.filter(c => c.key !== 'action');
+    const rows = document.querySelectorAll('.bulk-row'); let promises = []; const pdiCols = columnsDef.filter(c => c.key !== 'action' && c.key !== 'calculated_station');
     
     const btn = document.getElementById('btn_save_bulk'); 
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังตรวจสอบข้อมูล...'; 
