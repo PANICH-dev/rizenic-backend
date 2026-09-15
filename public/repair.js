@@ -1214,6 +1214,8 @@ async function openModal(jobId) {
         document.getElementById('m_plate').innerText = job.car_plate || '-';
         document.getElementById('m_car').innerText = `${job.car_brand} ${job.car_model || ''}`;
         document.getElementById('m_sa_owner').innerText = job.sa_owner || 'ไม่ระบุ';
+        // 🌟 เพิ่มบรรทัดนี้ดึง VIN ลง Modal
+        document.getElementById('m_vin').innerHTML = job.vin_no ? `<i class="fa-solid fa-barcode mr-1"></i> ${job.vin_no}` : '';
         
         const qtListDiv = document.getElementById('m_qt_list'); qtListDiv.innerHTML = '';
         const soListDiv = document.getElementById('m_so_list'); soListDiv.innerHTML = '';
