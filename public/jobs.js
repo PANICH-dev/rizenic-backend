@@ -15,7 +15,7 @@ let keyDeskRows = [];
 
 const activeProcessStatuses = [
     '01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ', 
-    '04.รอลูกค้าอนุมัติ (เงินสด)', '05.อนุมัติแล้ว', '06.สั่งอะไหล่', 
+    '04.รอลูกค้าอนุมัติ', '05.อนุมัติแล้ว', '06.สั่งอะไหล่', 
     '07.รอนัดหมายเข้าซ่อม', '08.นัดหมายแล้วรอเข้าซ่อม', '09.จอดรอเข้าซ่อม', 
     '10.กำลังซ่อม', '11.รถซ่อมเสร็จรอส่งมอบ'
 ];
@@ -264,7 +264,7 @@ function renderSAList() {
     const sortedSAs = Object.keys(saStats).sort((a, b) => saStats[b].pending - saStats[a].pending);
     const formatMoney = (val) => Number(val).toLocaleString('th-TH', {minimumFractionDigits: 0, maximumFractionDigits: 2});
 
-    // 🌟 Banner สรุปยอดรวมของ "ทั้งสาขา" ด้านบนสุด
+    // Banner สรุปยอดรวม
     let html = `
     <div class="col-span-full bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-2 flex flex-col md:flex-row gap-6">
         <div class="flex-1 flex flex-col justify-center bg-amber-50 border border-amber-200 rounded-xl p-4">
@@ -318,7 +318,6 @@ function renderSAList() {
         return; 
     }
 
-    // 🌟 การ์ดแยกแต่ละ SA + กล่องสรุปการเงิน
     html += sortedSAs.map(sa => {
         const stats = saStats[sa];
         return `
@@ -334,45 +333,26 @@ function renderSAList() {
             </div>
             
             <div class="flex flex-col gap-1.5 relative z-10">
-                <div class="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100 flex justify-between items-center">
+                <div class="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100 flex justify-between items-center mb-1">
                     <span class="text-[11px] font-bold text-slate-600">งานค้างในระบบ</span>
                     <div class="text-right"><span class="text-lg font-black text-blue-600 leading-none">${stats.pending}</span> <span class="text-[10px] text-slate-500 font-bold">คัน</span></div>
                 </div>
 
-                ${stats.totalOverdue > 0 ? `<div class="flex justify-between gap-1">${stats.ovApp > 0 ? `<div class="bg-red-50 text-red-700 text-[9px] font-bold px-1.5 py-1 rounded shadow-xs border border-red-200 flex-1 text-center"><i class="fa-solid fa-triangle-exclamation animate-pulse"></i> เข้า <span class="font-black text-xs">${stats.ovApp}</span></div>` : ''}${stats.ovTgt > 0 ? `<div class="bg-amber-50 text-amber-800 text-[9px] font-bold px-1.5 py-1 rounded shadow-xs border border-amber-300 flex-1 text-center"><i class="fa-solid fa-clock"></i> เสร็จ <span class="font-black text-xs">${stats.ovTgt}</span></div>` : ''}${stats.ovDel > 0 ? `<div class="bg-purple-50 text-purple-800 text-[9px] font-bold px-1.5 py-1 rounded shadow-xs border border-purple-300 flex-1 text-center"><i class="fa-solid fa-key"></i> ส่ง <span class="font-black text-xs">${stats.ovDel}</span></div>` : ''}</div>` : `<div class="text-[9px] text-emerald-600 font-bold px-2 py-1 bg-emerald-50 rounded border border-emerald-100 text-center"><i class="fa-solid fa-circle-check"></i> ไร้งาน Overdue</div>`}
-                
-                <!-- 🌟 กล่องสรุปการเงินและการปิดบิลของการ์ด SA ใบนี้ 🌟 -->
-                <div class="mt-2 pt-2 border-t border-slate-100">
-                    <div class="flex justify-between gap-1 mb-1.5">
-                        <div class="bg-amber-50/70 rounded px-2 py-1 flex-1 flex justify-between items-center border border-amber-100 shadow-xs">
-                            <span class="text-[9px] text-amber-700 font-bold">รอออกบิล</span>
-                            <span class="text-xs font-black text-amber-600">${stats.waitBill}</span>
-                        </div>
-                        <div class="bg-emerald-50/70 rounded px-2 py-1 flex-1 flex justify-between items-center border border-emerald-100 shadow-xs">
-                            <span class="text-[9px] text-emerald-700 font-bold">ปิดแล้ว</span>
-                            <span class="text-xs font-black text-emerald-600">${stats.billed}</span>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-4 gap-1 text-center bg-slate-50 rounded p-1 border border-slate-200">
-                        <div>
-                            <p class="text-[8px] text-slate-500 font-bold mb-0.5">ชิ้น(หลัก/รอง)</p>
-                            <p class="text-[9px] font-black"><span class="text-blue-600">${stats.mainParts}</span><span class="text-slate-400 mx-0.5">/</span><span class="text-amber-600">${stats.subParts}</span></p>
-                        </div>
-                        <div class="border-l border-slate-200">
-                            <p class="text-[8px] text-slate-500 font-bold mb-0.5">ค่าแรง</p>
-                            <p class="text-[9px] font-black text-emerald-700">${formatMoney(stats.sumLabor)}</p>
-                        </div>
-                        <div class="border-l border-slate-200">
-                            <p class="text-[8px] text-slate-500 font-bold mb-0.5">ค่าอะไหล่</p>
-                            <p class="text-[9px] font-black text-purple-600">${formatMoney(stats.sumParts)}</p>
-                        </div>
-                        <div class="border-l border-slate-200">
-                            <p class="text-[8px] text-slate-500 font-bold mb-0.5">งานนอก</p>
-                            <p class="text-[9px] font-black text-orange-600">${formatMoney(stats.sumOutsource)}</p>
-                        </div>
-                    </div>
+                <!-- 🌟 แถบป้ายสถิติ รอออกบิล / ปิดบิล / อะไหล่ แบบเดียวกับ Header 🌟 -->
+                <div class="flex items-center justify-between gap-1 mt-1 mb-2 text-[9px] font-bold">
+                    <span class="bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded border border-amber-300 shadow-sm flex-1 text-center truncate" title="รถรอออกบิล">
+                        📄 รอออกบิล: <span class="font-black text-amber-600 text-[10px]">${stats.waitBill}</span>
+                    </span>
+                    <span class="bg-emerald-500/10 text-emerald-600 px-1.5 py-0.5 rounded border border-emerald-300 shadow-sm flex-1 text-center truncate" title="ปิดบิลแล้วประจำเดือน">
+                        ✅ ปิดบิล: <span class="font-black text-emerald-600 text-[10px]">${stats.billed}</span>
+                    </span>
+                    <span class="bg-blue-500/10 text-blue-600 px-1.5 py-0.5 rounded border border-blue-300 shadow-sm flex-[1.2] text-center truncate" title="ชิ้นส่วนอะไหล่ (หลัก / รอง)">
+                        📦 อะไหล่: <span class="font-black text-blue-600 text-[10px]">${stats.mainParts}</span><span class="text-slate-400 mx-0.5 font-medium">/</span><span class="font-black text-amber-500 text-[10px]">${stats.subParts}</span>
+                    </span>
                 </div>
 
+                ${stats.totalOverdue > 0 ? `<div class="flex justify-between gap-1">${stats.ovApp > 0 ? `<div class="bg-red-50 text-red-700 text-[9px] font-bold px-1.5 py-1 rounded shadow-xs border border-red-200 flex-1 text-center"><i class="fa-solid fa-triangle-exclamation animate-pulse"></i> เข้า <span class="font-black text-xs">${stats.ovApp}</span></div>` : ''}${stats.ovTgt > 0 ? `<div class="bg-amber-50 text-amber-800 text-[9px] font-bold px-1.5 py-1 rounded shadow-xs border border-amber-300 flex-1 text-center"><i class="fa-solid fa-clock"></i> เสร็จ <span class="font-black text-xs">${stats.ovTgt}</span></div>` : ''}${stats.ovDel > 0 ? `<div class="bg-purple-50 text-purple-800 text-[9px] font-bold px-1.5 py-1 rounded shadow-xs border border-purple-300 flex-1 text-center"><i class="fa-solid fa-key"></i> ส่ง <span class="font-black text-xs">${stats.ovDel}</span></div>` : ''}</div>` : `<div class="text-[9px] text-emerald-600 font-bold px-2 py-1 bg-emerald-50 rounded border border-emerald-100 text-center"><i class="fa-solid fa-circle-check"></i> ไร้งาน Overdue</div>`}
+                
             </div>
         </div>`;
     }).join('');
@@ -397,7 +377,7 @@ function openSADetail(saName) {
 
     const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === saName);
     
-    refreshSADashboardFilter(); // Calendar, Statuses, Overdue
+    refreshSADashboardFilter(); 
     renderSAParkedCars(saJobs); 
     renderSAPOTracking(saJobs); 
 }
@@ -634,33 +614,105 @@ function renderSAParkedCars(jobs) {
 }
 
 
-// =====================================
-// 🌟 THE NEW PO TRACKING FOR SA (Accordian + Dynamic Editor + สถานะจอด) 🌟
-// =====================================
-function renderSAPOTracking(saJobs) {
-    const tbody = document.getElementById('sa_po_body');
+// ========================================================
+// 📦 ฟังก์ชันแสดงผลตาราง PO Tracking สำหรับ SA + ระบบกรอง Excel
+// ========================================================
+
+let activePOFilters = {};
+let currentPOFilterKey = '';
+
+function injectPOFilterModal() {
+    if (document.getElementById('poExcelFilterModal')) return;
+    const modalHtml = `
+    <div id="poExcelFilterModal" class="hidden fixed bg-white border border-slate-300 shadow-2xl rounded-xl w-64 z-[9999] flex-col overflow-hidden text-xs">
+        <div class="bg-[#00320D] text-white border-b border-green-800 px-3 py-2.5 flex justify-between items-center">
+            <span class="font-bold flex items-center gap-1.5"><i class="fa-solid fa-filter text-amber-400"></i> ตัวกรอง: <span id="po_ef_col_name" class="text-slate-200"></span></span>
+            <button onclick="closePOExcelFilter()" class="text-slate-300 hover:text-red-400 transition"><i class="fa-solid fa-xmark text-base"></i></button>
+        </div>
+        <div class="p-2.5 pb-1">
+            <div class="relative mb-2">
+                <i class="fa-solid fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" id="po_ef_search" class="w-full border border-slate-300 rounded-lg pl-8 pr-2 py-1.5 text-xs outline-none focus:border-amber-500 transition-all bg-white" placeholder="ค้นหา..." onkeyup="searchPOExcelFilter()">
+            </div>
+            <label class="flex items-center gap-2 px-1.5 py-1 border-b border-slate-100 mb-1 cursor-pointer hover:bg-slate-50 rounded transition">
+                <input type="checkbox" id="po_ef_select_all" checked onchange="toggleAllPOExcelFilters(this.checked)" class="w-3.5 h-3.5 accent-[#00320D] cursor-pointer rounded">
+                <span class="font-bold text-slate-700 select-none">เลือกทั้งหมด</span>
+            </label>
+            <div id="po_ef_checkbox_list" class="max-h-44 overflow-y-auto space-y-0.5 custom-scrollbar pr-1"></div>
+        </div>
+        <div class="bg-slate-50 border-t border-slate-200 p-2 flex gap-2">
+            <button onclick="applyPOExcelFilter()" class="flex-1 bg-[#00320D] text-white font-bold py-1.5 rounded-lg hover:bg-black transition shadow-sm flex justify-center items-center gap-1"><i class="fa-solid fa-check"></i> ตกลง</button>
+            <button onclick="clearSpecificPOExcelFilter()" class="flex-1 bg-white text-slate-600 border border-slate-300 font-bold py-1.5 rounded-lg hover:bg-slate-100 transition shadow-sm flex justify-center items-center gap-1"><i class="fa-solid fa-eraser"></i> ล้าง</button>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
     
-    // ดึงเฉพาะรถที่มีอะไหล่ (จากตาราง allPartOrders) และไม่ถูกยกเลิก 
-    // หรือรถที่มีสถานะ 'สั่งอะไหล่' ค้างอยู่
+    document.addEventListener('click', (e) => {
+        const modal = document.getElementById('poExcelFilterModal');
+        if (modal && !modal.contains(e.target) && !e.target.closest('.po-filter-icon') && !modal.classList.contains('hidden')) {
+            closePOExcelFilter();
+        }
+    });
+}
+
+function renderSAPOTracking(saJobs) {
+    injectPOFilterModal();
+    const tbody = document.getElementById('sa_po_body');
+    const thead = document.querySelector('#poTable thead tr');
+    
+    if (thead && !thead.dataset.filtered) {
+        thead.innerHTML = `
+            <th style="width: 130px;" class="select-none text-left" id="po_th_plate">
+                <div class="flex justify-between items-center pr-2">
+                    <span>ทะเบียนรถ</span><i class="fa-solid fa-filter cursor-pointer text-slate-400 hover:text-amber-400 po-filter-icon transition-colors" onclick="openPOExcelFilter(event, 'plate', 'ทะเบียนรถ')"></i>
+                </div>
+                <div class="resizer-green"></div>
+            </th>
+            <th style="width: 100px;" class="select-none text-left" id="po_th_parked">
+                <div class="flex justify-between items-center pr-2">
+                    <span>สถานะจอด</span><i class="fa-solid fa-filter cursor-pointer text-slate-400 hover:text-amber-400 po-filter-icon transition-colors" onclick="openPOExcelFilter(event, 'parked', 'สถานะจอดซ่อม')"></i>
+                </div>
+                <div class="resizer-green"></div>
+            </th>
+            <th style="width: 100px;">วันที่รับงาน<div class="resizer-green"></div></th>
+            <th style="width: 140px;">รุ่นรถ<div class="resizer-green"></div></th>
+            <th style="width: 140px;">หมายเลขเครื่อง/VIN<div class="resizer-green"></div></th>
+            <th style="width: 150px;">ชื่อลูกค้า<div class="resizer-green"></div></th>
+            <th style="width: 100px;">QT<div class="resizer-green"></div></th>
+            <th style="width: 100px;">SO<div class="resizer-green"></div></th>
+            <th style="width: 350px;" class="text-left pl-4 select-none" id="po_th_status">
+                <div class="flex justify-between items-center pr-2">
+                    <span><i class="fa-solid fa-list-ul"></i> รายการสั่งซื้ออะไหล่ (PO)</span>
+                    <i class="fa-solid fa-filter cursor-pointer text-slate-400 hover:text-amber-400 po-filter-icon transition-colors" onclick="openPOExcelFilter(event, 'status', 'สถานะอะไหล่')"></i>
+                </div>
+                <div class="resizer-green"></div>
+            </th>
+            <th style="width: 100px;">จัดการ</th>
+        `;
+        thead.dataset.filtered = 'true';
+    }
+
+    if (!tbody) return;
+
+    // 🎯 ดึงเฉพาะ SA ปัจจุบันที่คลิกเข้ามา และมีสถานะ ERP เป็น "06.สั่งอะไหล่" เท่านั้น
     const relevantJobs = saJobs.filter(job => {
-        const hasPO = allPartOrders.some(po => po.car_plate === job.car_plate && po.order_status !== 'ยกเลิก');
-        return hasPO || (job.job_status || '').includes('สั่งอะไหล่');
+        return (job.job_status || '').includes('06.สั่งอะไหล่');
     });
 
     if (relevantJobs.length === 0) { 
-        tbody.innerHTML = `<tr><td colspan="10" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีรายการสั่งซื้ออะไหล่</td></tr>`; return; 
+        tbody.innerHTML = `<tr><td colspan="10" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีรถในสถานะ "06.สั่งอะไหล่" ของ SA ท่านนี้</td></tr>`; return; 
     }
 
     relevantJobs.sort((a,b) => new Date(b.arrived_date || b.contact_date || 0) - new Date(a.arrived_date || a.contact_date || 0));
 
     let finalHtml = '';
+    let visibleCount = 0;
 
     relevantJobs.forEach((job, index) => {
         const jobPOs = allPartOrders.filter(po => po.car_plate === job.car_plate && po.order_status !== 'ยกเลิก');
         const rowId = `part_group_${index}`;
 
-        // หา Worst Status ของคันนั้นๆ (รอสั่ง > รอของ > เข้าครบ)
-        let worstStatus = 'อะไหล่มาครบแล้ว';
+        let worstStatus = 'มีของ/ครบ';
         const statuses = jobPOs.map(i => i.order_status || '');
         if (jobPOs.length === 0) worstStatus = 'รอสั่งซื้อ';
         else if (statuses.includes('รอสั่งซื้อ')) worstStatus = 'รอสั่งซื้อ';
@@ -669,6 +721,15 @@ function renderSAPOTracking(saJobs) {
         else if (statuses.some(s => !s.includes('ครบ') && !s.includes('มีของ'))) {
             worstStatus = statuses.find(s => !s.includes('ครบ') && !s.includes('มีของ')) || 'รออะไหล่';
         }
+
+        const pkFilterVal = job.is_parked === 'จอดซ่อม' ? 'จอดซ่อม' : 'ไม่จอดซ่อม';
+        const plateVal = job.car_plate || '-';
+
+        if (activePOFilters['plate'] && !activePOFilters['plate'].has(plateVal)) return;
+        if (activePOFilters['status'] && !activePOFilters['status'].has(worstStatus)) return;
+        if (activePOFilters['parked'] && !activePOFilters['parked'].has(pkFilterVal)) return;
+
+        visibleCount++;
 
         let mainBadgeClass = 'bg-amber-50 text-amber-700 border-amber-300';
         if (worstStatus === 'รอสั่งซื้อ' || worstStatus === 'รออะไหล่' || worstStatus === 'ติด Back Order') {
@@ -679,31 +740,27 @@ function renderSAPOTracking(saJobs) {
 
         const arrDate = job.arrived_date ? job.arrived_date.split('T')[0] : (job.contact_date ? job.contact_date.split('T')[0] : '-');
 
-        // 🌟 เพิ่มการแสดงผลสถานะจอด (จอดซ่อม / ไม่จอดซ่อม) 🌟
-        const isParked = job.is_parked === 'จอดซ่อม';
-        const parkedBadge = isParked ? 
-            `<span class="bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded font-black text-[10px]"><i class="fa-solid fa-square-p text-amber-600"></i> จอดซ่อม</span>` : 
-            `<span class="bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded font-bold text-[10px]">ไม่จอดซ่อม</span>`;
+        const parkedBadge = job.is_parked === 'จอดซ่อม' ? 
+            `<span class="bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded font-black text-[10px] whitespace-nowrap"><i class="fa-solid fa-square-p text-amber-600"></i> จอดซ่อม</span>` : 
+            `<span class="bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded font-bold text-[10px] whitespace-nowrap">ไม่จอดซ่อม</span>`;
 
-        // Main Row (คลิกแล้วจะ Dropdown ลงมา)
         finalHtml += `
             <tr class="hover:bg-amber-50/80 transition-colors border-b border-slate-200 cursor-pointer font-medium" onclick="togglePartAccordion('${rowId}')">
-                <td class="text-center px-3 py-3 font-black text-amber-800"><span class="bg-amber-100 border border-amber-300 rounded px-2 py-1 shadow-sm">${job.car_plate || '-'}</span></td>
+                <td class="text-center px-3 py-3 font-black text-amber-800"><span class="bg-amber-100 border border-amber-300 rounded px-2 py-1 shadow-sm whitespace-nowrap">${plateVal}</span></td>
                 <td class="text-center px-2 py-3">${parkedBadge}</td>
                 <td class="text-center font-bold text-slate-700 px-3 py-3 font-mono">${arrDate}</td>
-                <td class="text-center font-bold text-slate-700 px-3 py-3">${job.car_model || '-'}</td>
-                <td class="text-center font-bold text-slate-600 px-3 py-3 font-mono text-[11px]">${job.vin_no || '-'}</td>
-                <td class="px-4 py-3"><div class="font-bold text-slate-800 text-xs truncate max-w-[140px]">${job.customer_name || '-'}</div></td>
+                <td class="text-center font-bold text-slate-700 px-3 py-3 truncate max-w-[140px]" title="${job.car_model || '-'}">${job.car_model || '-'}</td>
+                <td class="text-center font-bold text-slate-600 px-3 py-3 font-mono text-[11px] truncate max-w-[140px]" title="${job.vin_no || '-'}">${job.vin_no || '-'}</td>
+                <td class="px-4 py-3"><div class="font-bold text-slate-800 text-xs truncate max-w-[150px]" title="${job.customer_name || '-'}">${job.customer_name || '-'}</div></td>
                 <td class="text-center font-mono font-bold text-slate-600 px-3 py-3 text-[11px]">${job.qt_no || '-'}</td>
                 <td class="text-center font-mono font-bold text-slate-600 px-3 py-3 text-[11px]">${job.so_no || '-'}</td>
-                <td class="px-4 py-3 align-middle"><span class="inline-flex items-center px-3 py-1 rounded-md border text-xs font-black shadow-sm ${mainBadgeClass}">${worstStatus}</span> <span class="text-[10px] text-slate-500 font-bold ml-2">(${jobPOs.length} ชิ้น)</span> <i id="icon_${rowId}" class="fa-solid fa-chevron-right text-slate-400 transition-transform duration-200 ml-2"></i></td>
+                <td class="px-4 py-3 align-middle"><span class="inline-flex items-center px-3 py-1 rounded-md border text-[11px] font-black shadow-sm ${mainBadgeClass} whitespace-nowrap">${worstStatus}</span> <span class="text-[10px] text-slate-500 font-bold ml-2">(${jobPOs.length} ชิ้น)</span> <i id="icon_${rowId}" class="fa-solid fa-chevron-right text-slate-400 transition-transform duration-200 ml-2"></i></td>
                 <td class="text-center px-3 py-3" onclick="event.stopPropagation()">
                     <button onclick="openSAKeyDeskModal('${job.id}')" class="bg-[#00320D] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full whitespace-nowrap"><i class="fa-solid fa-table-cells"></i> โต๊ะคีย์</button>
                 </td>
             </tr>
         `;
 
-        // Sub Row (Accordion Content)
         let subRowsHtml = '';
         if (jobPOs.length === 0) {
             subRowsHtml = `<tr><td colspan="7" class="text-center py-4 text-rose-500 font-bold text-xs"><i class="fa-solid fa-circle-exclamation"></i> ยังไม่มีการคีย์รายการอะไหล่เข้าระบบ (กรุณากด 'โต๊ะคีย์' เพื่อเพิ่มข้อมูล)</td></tr>`;
@@ -736,7 +793,7 @@ function renderSAPOTracking(saJobs) {
                 <td colspan="10" class="p-3">
                     <div class="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-inner w-full max-w-[1000px] ml-auto">
                         <div class="bg-slate-200/80 px-3 py-1.5 text-[11px] font-bold text-slate-700 border-b border-slate-300 flex justify-between items-center">
-                            <span><i class="fa-solid fa-list-check text-blue-600 mr-1.5"></i>ตารางตรวจสอบสั่งอะไหล่: ${job.car_plate}</span>
+                            <span><i class="fa-solid fa-list-check text-blue-600 mr-1.5"></i>ตารางตรวจสอบสั่งอะไหล่: ${plateVal}</span>
                         </div>
                         <table class="w-full text-left border-collapse">
                             <thead class="bg-slate-50 text-[10px] uppercase font-bold text-slate-600 border-b border-slate-200">
@@ -752,8 +809,133 @@ function renderSAPOTracking(saJobs) {
         `;
     });
 
-    tbody.innerHTML = finalHtml;
-    setTimeout(initResizableGreenGridColumns, 300);
+    if (visibleCount === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" class="text-center py-10 text-slate-400 font-bold bg-slate-50">ไม่พบข้อมูลที่ตรงกับตัวกรอง</td></tr>`;
+    } else {
+        tbody.innerHTML = finalHtml;
+        setTimeout(initResizableGreenGridColumns, 300);
+    }
+}
+
+window.togglePartAccordion = function(id) {
+    const el = document.getElementById(id);
+    const icon = document.getElementById('icon_' + id);
+    if (el) {
+        if (el.classList.contains('hidden')) {
+            el.classList.remove('hidden');
+            if(icon) icon.classList.add('rotate-90');
+        } else {
+            el.classList.add('hidden');
+            if(icon) icon.classList.remove('rotate-90');
+        }
+    }
+};
+
+function openPOExcelFilter(e, colKey, title) {
+    e.stopPropagation();
+    currentPOFilterKey = colKey;
+    document.getElementById('po_ef_col_name').innerText = title;
+    document.getElementById('po_ef_search').value = '';
+
+    const uniqueValues = new Set();
+    const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
+    
+    // 🎯 ดึงเฉพาะ SA คนปัจจุบัน และสถานะ 06.สั่งอะไหล่
+    const relevantJobs = saJobs.filter(job => (job.job_status || '').includes('06.สั่งอะไหล่'));
+
+    relevantJobs.forEach(job => {
+        const jobPOs = allPartOrders.filter(po => po.car_plate === job.car_plate && po.order_status !== 'ยกเลิก');
+        let worstStatus = 'มีของ/ครบ';
+        const statuses = jobPOs.map(i => i.order_status || '');
+        if (jobPOs.length === 0) worstStatus = 'รอสั่งซื้อ';
+        else if (statuses.includes('รอสั่งซื้อ')) worstStatus = 'รอสั่งซื้อ';
+        else if (statuses.includes('ติด Back Order')) worstStatus = 'ติด Back Order';
+        else if (statuses.includes('รออะไหล่')) worstStatus = 'รออะไหล่';
+        else if (statuses.includes('รออัปเดต')) worstStatus = 'รออัปเดต';
+        else if (statuses.some(s => !s.includes('ครบ') && !s.includes('มีของ'))) worstStatus = statuses.find(s => !s.includes('ครบ') && !s.includes('มีของ')) || 'รออะไหล่';
+
+        const plate = job.car_plate || '-';
+        const parkedStatus = job.is_parked === 'จอดซ่อม' ? 'จอดซ่อม' : 'ไม่จอดซ่อม';
+
+        if (colKey === 'plate') uniqueValues.add(plate);
+        else if (colKey === 'parked') uniqueValues.add(parkedStatus);
+        else if (colKey === 'status') uniqueValues.add(worstStatus);
+    });
+
+    const listDiv = document.getElementById('po_ef_checkbox_list');
+    listDiv.innerHTML = '';
+    
+    [...uniqueValues].sort().forEach(val => {
+        const isChecked = activePOFilters[colKey] ? activePOFilters[colKey].has(val) : true;
+        listDiv.innerHTML += `
+            <label class="flex items-start gap-2 hover:bg-slate-100 p-1.5 rounded cursor-pointer po-ef-item transition">
+                <input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''} class="po-ef-check accent-[#00320D] mt-0.5 cursor-pointer w-4 h-4">
+                <span class="text-slate-700 font-medium truncate w-full text-sm" title="${val}">${val}</span>
+            </label>
+        `;
+    });
+    
+    const selAll = document.getElementById('po_ef_select_all');
+    if(selAll) selAll.checked = Array.from(document.querySelectorAll('.po-ef-check')).every(cb => cb.checked);
+    
+    const modal = document.getElementById('poExcelFilterModal');
+    const th = e.target.closest('th');
+    if(th) {
+        const rect = th.getBoundingClientRect();
+        modal.style.top = (rect.bottom + window.scrollY + 8) + 'px';
+        let leftPos = rect.left + window.scrollX;
+        if (leftPos + 260 > window.innerWidth) leftPos = window.innerWidth - 270;
+        modal.style.left = leftPos + 'px';
+    } else {
+        modal.style.top = '50%';
+        modal.style.left = '50%';
+        modal.style.transform = 'translate(-50%, -50%)';
+    }
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closePOExcelFilter() {
+    const modal = document.getElementById('poExcelFilterModal');
+    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); modal.style.transform = 'none'; }
+}
+
+function searchPOExcelFilter() {
+    const txt = document.getElementById('po_ef_search').value.toLowerCase();
+    document.querySelectorAll('.po-ef-item').forEach(l => {
+        l.style.display = l.querySelector('.po-ef-check').value.toLowerCase().includes(txt) ? 'flex' : 'none';
+    });
+}
+
+function toggleAllPOExcelFilters(checked) {
+    document.querySelectorAll('.po-ef-item:not([style*="display: none"]) .po-ef-check').forEach(cb => cb.checked = checked);
+}
+
+function applyPOExcelFilter() {
+    const checks = document.querySelectorAll('.po-ef-check');
+    const checkedVals = Array.from(checks).filter(cb => cb.checked).map(cb => cb.value);
+    const thIcon = document.querySelector(`#po_th_${currentPOFilterKey} .po-filter-icon`);
+    
+    if (checkedVals.length === checks.length || checkedVals.length === 0) {
+        delete activePOFilters[currentPOFilterKey];
+        if(thIcon) { thIcon.classList.remove('text-amber-400'); thIcon.classList.add('text-slate-400'); }
+    } else {
+        activePOFilters[currentPOFilterKey] = new Set(checkedVals);
+        if(thIcon) { thIcon.classList.remove('text-slate-400'); thIcon.classList.add('text-amber-400'); }
+    }
+    
+    closePOExcelFilter();
+    const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
+    renderSAPOTracking(saJobs);
+}
+
+function clearSpecificPOExcelFilter() {
+    delete activePOFilters[currentPOFilterKey];
+    const thIcon = document.querySelector(`#po_th_${currentPOFilterKey} .po-filter-icon`);
+    if(thIcon) { thIcon.classList.remove('text-amber-400'); thIcon.classList.add('text-slate-400'); }
+    closePOExcelFilter();
+    const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
+    renderSAPOTracking(saJobs);
 }
 
 window.filterPOTable = function(keyword) {
