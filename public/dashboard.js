@@ -178,11 +178,10 @@ function isDateInRange(dateStr, start, end) {
     return true;
 }
 
-// 🎯 แก้ไขเงื่อนไข KPI รถที่เข้ามาจอด
+// 🎯 แก้ไข: KPI นับเฉพาะรถที่เข้ามาจอดจริงๆ (arrived_date) และมีสถานะ 01-11
 function renderKPIs(start, end) {
     const contacted = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end)).length;
     
-    // 🌟 แก้ไข: รถเข้าจอด นับเฉพาะรถที่เข้าจอดแล้วจริง (arrived_date) และสถานะอยู่ใน Process 01-11
     const parked = filteredJobs.filter(j => {
         const st = j.job_status || '';
         const inProcess = activeProcessStatuses.some(s => st.includes(s) || st.startsWith(s.substring(0, 2)));
@@ -230,7 +229,6 @@ function openFilteredModal(type) {
     let title = "";
     if(type === 'contacted') { jobsToShow = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end)); title = "1. รถเข้ามาที่ศูนย์"; }
     
-    // 🌟 แก้ไข: รถเข้าจอดใน Modal
     if(type === 'parked') { 
         jobsToShow = filteredJobs.filter(j => {
             const st = j.job_status || '';
@@ -295,7 +293,6 @@ function renderDailyReport() {
             { label: "พักซ่อม", icon: "👥", filter: j => (j.job_status||'').includes('พักซ่อม') }
         ],
         finance: [
-            // 🌟 แก้ไข: วางบิลประกัน เอาวันที่ประกัน (Billing Date) ตรงกับวันที่กรอกในปฏิทินเป๊ะๆ
             { label: "วางบิลประกัน (ตามช่วงเวลา)", icon: "💳", filter: j => (j.job_status||'').includes('วางบิลประกัน') && isDateInRange(j.billing_date, start, end) },
             { label: "ชำระเงินสด (ตามช่วงเวลา)", icon: "💵", filter: j => (j.job_status||'').includes('ชำระเงินสด') && isDateInRange(j.billing_date, start, end) },
             { label: "วางบิล Tesla (ตามช่วงเวลา)", icon: "🏎️", filter: j => (j.job_status||'').includes('วางบิล Tesla') && isDateInRange(j.billing_date, start, end) },
@@ -476,13 +473,21 @@ function renderPaymentChart() {
     });
 }
 
+// 🎯 แก้ไข: กราฟบัญชี นับตามวันที่บิลจริงๆ (billing_date)
 function renderFinanceChart(start, end) {
-    const accJobs = filteredJobs.filter(d => d.department_routing === 'บัญชี');
+    const billedStatuses = ['ชำระเงินสด', 'ออกบิลแล้ว', 'วางบิล'];
     
-    const unmanaged = accJobs.filter(j => !j.billing_date || j.billing_date.trim() === '').length;
-    const managed = accJobs.filter(j => {
-        if (!j.billing_date || j.billing_date.trim() === '') return false;
-        return isDateInRange(j.billing_date, start, end);
+    // นับวันที่ออกบิล (billing_date) ตรงกับปฏิทินกรอง
+    const managed = filteredJobs.filter(j => {
+        const st = j.job_status || '';
+        const isBilled = billedStatuses.some(b => st.includes(b));
+        return isBilled && isDateInRange(j.billing_date, start, end);
+    }).length;
+
+    // รอดำเนินการ = มีคำว่า 'รอออกบิล' (สะสมรวม)
+    const unmanaged = filteredJobs.filter(j => {
+        const st = j.job_status || '';
+        return st.includes('รอออกบิล');
     }).length;
 
     if (financeChartInstance) financeChartInstance.destroy();
@@ -490,7 +495,7 @@ function renderFinanceChart(start, end) {
     financeChartInstance = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['ยังไม่ออกบิล (รอจัดการ)', 'ออกบิลแล้ว (จัดการแล้ว)'],
+            labels: ['ยังไม่ออกบิล (รอจัดการ)', 'ออกบิลแล้ว (ตามช่วงเวลา)'],
             datasets: [{ data: [unmanaged, managed], backgroundColor: ['#ef4444', '#10b981'], borderWidth: 0, hoverOffset: 8 }]
         },
         options: {
@@ -1091,7 +1096,7 @@ function injectPOFilterModal() {
     });
 }
 
-// 🌟 แก้ไขให้แสดงสถานะจอดซ่อม / ไม่จอดซ่อม
+// 🌟 แก้ไข: ตาราง PO Tracking เพิ่มสถานะจอดซ่อม
 function renderPartsTracking() {
     injectPOFilterModal(); 
 
@@ -1108,7 +1113,12 @@ function renderPartsTracking() {
                     <i class="fa-solid fa-filter ml-2 cursor-pointer text-blue-300 hover:text-amber-400 po-filter-icon transition-colors" onclick="openPOExcelFilter(event, 'plate', 'ทะเบียนรถ')"></i>
                 </div>
             </th>
-            <th class="w-28 px-4 py-3.5 border-b border-blue-950 text-center">สถานะจอด</th>
+            <th class="w-28 px-4 py-3.5 border-b border-blue-950 text-center select-none" id="po_th_parked">
+                <div class="flex justify-between items-center">
+                    <span class="cursor-pointer flex-1" onclick="sortTable('partsTrackingTable', 2)">สถานะจอด <i class="fa-solid fa-sort sort-icon"></i></span>
+                    <i class="fa-solid fa-filter ml-2 cursor-pointer text-blue-300 hover:text-amber-400 po-filter-icon transition-colors" onclick="openPOExcelFilter(event, 'parked', 'สถานะจอด')"></i>
+                </div>
+            </th>
             <th class="w-32 px-4 py-3.5 border-b border-blue-950 select-none" id="po_th_sa">
                 <div class="flex justify-between items-center">
                     <span class="cursor-pointer flex-1" onclick="sortTable('partsTrackingTable', 3)">SA <i class="fa-solid fa-sort sort-icon"></i></span>
@@ -1164,9 +1174,12 @@ function renderPartsTracking() {
             worstStatus = statuses.find(s => !s.includes('ครบ') && !s.includes('มีของ')) || 'รออะไหล่';
         }
 
+        const pkFilterVal = group.isParked === 'จอดซ่อม' ? 'จอดซ่อม' : 'ไม่จอดซ่อม';
+
         if (activePOFilters['plate'] && !activePOFilters['plate'].has(plate)) return;
         if (activePOFilters['sa'] && !activePOFilters['sa'].has(group.saName)) return;
         if (activePOFilters['status'] && !activePOFilters['status'].has(worstStatus)) return;
+        if (activePOFilters['parked'] && !activePOFilters['parked'].has(pkFilterVal)) return;
 
         visibleCount++;
 
@@ -1179,7 +1192,7 @@ function renderPartsTracking() {
             
         const mainBadgeHtml = `<span class="inline-flex items-center px-3 py-1 rounded-md border text-xs font-black shadow-sm ${mainBadgeClass}">${worstStatus}</span>`;
         
-        // 🌟 ป้ายสถานะจอด
+        // 🌟 ป้ายสถานะจอดซ่อม / ไม่จอดซ่อม
         const parkedBadge = group.isParked === 'จอดซ่อม' ? 
             `<span class="bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded font-black text-[10px]"><i class="fa-solid fa-square-p text-amber-600"></i> จอดซ่อม</span>` : 
             `<span class="bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded font-bold text-[10px]">ไม่จอดซ่อม</span>`;
@@ -1285,12 +1298,16 @@ window.togglePartAccordion = function(id) {
     }
 };
 
-// 🌟 แก้ไขบั๊กตัวกรอง
+// 🌟 แก้ไข: บั๊กคลิก Filter ในตาราง
 function openPOExcelFilter(e, colKey, title) {
     e.stopPropagation();
     currentPOFilterKey = colKey;
-    document.getElementById('po_ef_col_name').innerText = title;
-    document.getElementById('po_ef_search').value = '';
+    
+    const modalName = document.getElementById('po_ef_col_name');
+    if(modalName) modalName.innerText = title;
+    
+    const searchInput = document.getElementById('po_ef_search');
+    if(searchInput) searchInput.value = '';
 
     const uniqueValues = new Set();
     const pendingParts = filteredPartOrders.filter(o => o.order_status !== 'ยกเลิก');
@@ -1300,7 +1317,7 @@ function openPOExcelFilter(e, colKey, title) {
         const plate = o.car_plate || 'ไม่ระบุ';
         if (!groupedParts[plate]) {
             const jobMatch = allJobs.find(j => j.car_plate === plate);
-            groupedParts[plate] = { saName: jobMatch ? (jobMatch.sa_owner || 'ไม่ระบุ') : 'ไม่ระบุ', items: [] };
+            groupedParts[plate] = { saName: jobMatch ? (jobMatch.sa_owner || 'ไม่ระบุ') : 'ไม่ระบุ', isParked: jobMatch ? (jobMatch.is_parked || 'ไม่ระบุ') : 'ไม่ระบุ', items: [] };
         }
         groupedParts[plate].items.push(o);
     });
@@ -1318,6 +1335,7 @@ function openPOExcelFilter(e, colKey, title) {
         if (colKey === 'plate') uniqueValues.add(plate);
         else if (colKey === 'sa') uniqueValues.add(group.saName);
         else if (colKey === 'status') uniqueValues.add(worstStatus);
+        else if (colKey === 'parked') uniqueValues.add(group.isParked === 'จอดซ่อม' ? 'จอดซ่อม' : 'ไม่จอดซ่อม');
     });
 
     const listDiv = document.getElementById('po_ef_checkbox_list');
@@ -1333,11 +1351,12 @@ function openPOExcelFilter(e, colKey, title) {
         `;
     });
     
-    document.getElementById('po_ef_select_all').checked = Array.from(document.querySelectorAll('.po-ef-check')).every(cb => cb.checked);
+    const selAll = document.getElementById('po_ef_select_all');
+    if(selAll) selAll.checked = Array.from(document.querySelectorAll('.po-ef-check')).every(cb => cb.checked);
     
     const modal = document.getElementById('poExcelFilterModal');
     
-    // 🌟 แก้ไขบั๊กให้รองรับกรณีคลิกที่ไอคอนแทนที่ th
+    // 🌟 แก้ไข: ดัก Error กรณี e.target.closest('th') เป็น null
     const th = e.target.closest('th');
     if(th) {
         const rect = th.getBoundingClientRect();
