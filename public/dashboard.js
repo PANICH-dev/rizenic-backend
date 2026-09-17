@@ -17,6 +17,13 @@ let paymentChartInstance = null;
 let userRole = '';
 let userBranch = '';
 
+const activeProcessStatuses = [
+    '01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ', 
+    '04.รอลูกค้าอนุมัติ', '05.อนุมัติแล้ว', '06.สั่งอะไหล่', 
+    '07.รอนัดหมายเข้าซ่อม', '08.นัดหมายแล้วรอเข้าซ่อม', '09.จอดรอเข้าซ่อม', 
+    '10.กำลังซ่อม', '11.รถซ่อมเสร็จรอส่งมอบ'
+];
+
 function isTrue(val) {
     if (val === null || val === undefined) return false;
     const strVal = String(val).trim().toUpperCase();
@@ -171,9 +178,17 @@ function isDateInRange(dateStr, start, end) {
     return true;
 }
 
+// 🎯 แก้ไขเงื่อนไข KPI รถที่เข้ามาจอด
 function renderKPIs(start, end) {
     const contacted = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end)).length;
-    const parked = filteredJobs.filter(j => isDateInRange(j.appointment_date, start, end)).length;
+    
+    // 🌟 แก้ไข: รถเข้าจอด นับเฉพาะรถที่เข้าจอดแล้วจริง (arrived_date) และสถานะอยู่ใน Process 01-11
+    const parked = filteredJobs.filter(j => {
+        const st = j.job_status || '';
+        const inProcess = activeProcessStatuses.some(s => st.includes(s) || st.startsWith(s.substring(0, 2)));
+        return inProcess && isDateInRange(j.arrived_date, start, end);
+    }).length;
+
     const billedJobs = filteredJobs.filter(j => isDateInRange(j.billing_date, start, end));
     const billed = billedJobs.length;
 
@@ -214,7 +229,17 @@ function openFilteredModal(type) {
     let jobsToShow = []; 
     let title = "";
     if(type === 'contacted') { jobsToShow = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end)); title = "1. รถเข้ามาที่ศูนย์"; }
-    if(type === 'parked') { jobsToShow = filteredJobs.filter(j => isDateInRange(j.appointment_date, start, end)); title = "2. รถที่เข้ามาจอด"; }
+    
+    // 🌟 แก้ไข: รถเข้าจอดใน Modal
+    if(type === 'parked') { 
+        jobsToShow = filteredJobs.filter(j => {
+            const st = j.job_status || '';
+            const inProcess = activeProcessStatuses.some(s => st.includes(s) || st.startsWith(s.substring(0, 2)));
+            return inProcess && isDateInRange(j.arrived_date, start, end);
+        }); 
+        title = "2. รถที่เข้ามาจอดในศูนย์ (สถานะ 01-11)"; 
+    }
+
     if(type === 'delivered') { 
         const deliveredStatuses = ['12.ส่งมอบ', '13.วางบิลประกัน', '14.ชำระเงินสด', '15.วางบิล Tesla', '16.วางบิล EV ME', '17.รอออกบิล', '19.ออกบิลแล้ว'];
         jobsToShow = filteredJobs.filter(j => {
@@ -270,6 +295,7 @@ function renderDailyReport() {
             { label: "พักซ่อม", icon: "👥", filter: j => (j.job_status||'').includes('พักซ่อม') }
         ],
         finance: [
+            // 🌟 แก้ไข: วางบิลประกัน เอาวันที่ประกัน (Billing Date) ตรงกับวันที่กรอกในปฏิทินเป๊ะๆ
             { label: "วางบิลประกัน (ตามช่วงเวลา)", icon: "💳", filter: j => (j.job_status||'').includes('วางบิลประกัน') && isDateInRange(j.billing_date, start, end) },
             { label: "ชำระเงินสด (ตามช่วงเวลา)", icon: "💵", filter: j => (j.job_status||'').includes('ชำระเงินสด') && isDateInRange(j.billing_date, start, end) },
             { label: "วางบิล Tesla (ตามช่วงเวลา)", icon: "🏎️", filter: j => (j.job_status||'').includes('วางบิล Tesla') && isDateInRange(j.billing_date, start, end) },
@@ -1065,12 +1091,14 @@ function injectPOFilterModal() {
     });
 }
 
+// 🌟 แก้ไขให้แสดงสถานะจอดซ่อม / ไม่จอดซ่อม
 function renderPartsTracking() {
     injectPOFilterModal(); 
 
     const tbody = document.getElementById('parts_tracking_body');
     const thead = document.querySelector('#partsTrackingTable thead tr');
     
+    // อัปเดตโครงสร้างหัวตาราง (เพิ่มสถานะจอด)
     if (thead && !thead.dataset.filtered) {
         thead.innerHTML = `
             <th class="w-10 px-3 py-3.5 text-center"></th>
@@ -1080,9 +1108,10 @@ function renderPartsTracking() {
                     <i class="fa-solid fa-filter ml-2 cursor-pointer text-blue-300 hover:text-amber-400 po-filter-icon transition-colors" onclick="openPOExcelFilter(event, 'plate', 'ทะเบียนรถ')"></i>
                 </div>
             </th>
+            <th class="w-28 px-4 py-3.5 border-b border-blue-950 text-center">สถานะจอด</th>
             <th class="w-32 px-4 py-3.5 border-b border-blue-950 select-none" id="po_th_sa">
                 <div class="flex justify-between items-center">
-                    <span class="cursor-pointer flex-1" onclick="sortTable('partsTrackingTable', 2)">SA <i class="fa-solid fa-sort sort-icon"></i></span>
+                    <span class="cursor-pointer flex-1" onclick="sortTable('partsTrackingTable', 3)">SA <i class="fa-solid fa-sort sort-icon"></i></span>
                     <i class="fa-solid fa-filter ml-2 cursor-pointer text-blue-300 hover:text-amber-400 po-filter-icon transition-colors" onclick="openPOExcelFilter(event, 'sa', 'SA ผู้ดูแล')"></i>
                 </div>
             </th>
@@ -1103,7 +1132,7 @@ function renderPartsTracking() {
     const pendingParts = filteredPartOrders.filter(o => o.order_status !== 'ยกเลิก');
 
     if (pendingParts.length === 0) { 
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400 font-bold bg-slate-50"><i class="fa-solid fa-box-open text-3xl mb-3 block opacity-50"></i>ไม่มีประวัติใบสั่งอะไหล่ 🎉</td></tr>`; 
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-400 font-bold bg-slate-50"><i class="fa-solid fa-box-open text-3xl mb-3 block opacity-50"></i>ไม่มีประวัติใบสั่งอะไหล่ 🎉</td></tr>`; 
         return; 
     }
 
@@ -1112,7 +1141,7 @@ function renderPartsTracking() {
         const plate = o.car_plate || 'ไม่ระบุ';
         if (!groupedParts[plate]) {
             const jobMatch = allJobs.find(j => j.car_plate === plate);
-            groupedParts[plate] = { saName: jobMatch ? (jobMatch.sa_owner || 'ไม่ระบุ') : 'ไม่ระบุ', items: [] };
+            groupedParts[plate] = { saName: jobMatch ? (jobMatch.sa_owner || 'ไม่ระบุ') : 'ไม่ระบุ', isParked: jobMatch ? (jobMatch.is_parked || 'ไม่ระบุ') : 'ไม่ระบุ', items: [] };
         }
         groupedParts[plate].items.push(o);
     });
@@ -1149,6 +1178,11 @@ function renderPartsTracking() {
         }
             
         const mainBadgeHtml = `<span class="inline-flex items-center px-3 py-1 rounded-md border text-xs font-black shadow-sm ${mainBadgeClass}">${worstStatus}</span>`;
+        
+        // 🌟 ป้ายสถานะจอด
+        const parkedBadge = group.isParked === 'จอดซ่อม' ? 
+            `<span class="bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded font-black text-[10px]"><i class="fa-solid fa-square-p text-amber-600"></i> จอดซ่อม</span>` : 
+            `<span class="bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded font-bold text-[10px]">ไม่จอดซ่อม</span>`;
 
         html += `
             <tr class="hover:bg-blue-50/80 transition-colors border-b border-slate-200 cursor-pointer font-medium" onclick="togglePartAccordion('${rowId}')">
@@ -1158,6 +1192,7 @@ function renderPartsTracking() {
                 <td class="font-black text-[#00320D] px-4 py-3">
                     <span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded text-sm shadow-inner font-mono">${plate}</span>
                 </td>
+                <td class="text-center px-2 py-3">${parkedBadge}</td>
                 <td class="text-xs font-bold text-slate-600 px-4 py-3">
                     <i class="fa-solid fa-user-tie text-blue-400 mr-1.5"></i>${group.saName}
                 </td>
@@ -1201,7 +1236,7 @@ function renderPartsTracking() {
 
         html += `
             <tr id="${rowId}" class="hidden bg-slate-100/70">
-                <td colspan="6" class="p-3">
+                <td colspan="7" class="p-3">
                     <div class="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-inner">
                         <div class="bg-slate-200/80 px-3 py-1.5 text-[11px] font-bold text-slate-700 border-b border-slate-300 flex justify-between items-center">
                             <span><i class="fa-solid fa-list-check text-blue-600 mr-1.5"></i>ตารางตรวจสอบสั่งอะไหล่: ${plate}</span>
@@ -1230,7 +1265,7 @@ function renderPartsTracking() {
     });
 
     if (visibleCount === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400 font-bold bg-slate-50"><i class="fa-solid fa-filter-circle-xmark text-3xl mb-3 block opacity-50"></i>ไม่พบข้อมูลที่ตรงกับตัวกรอง</td></tr>`; 
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-400 font-bold bg-slate-50"><i class="fa-solid fa-filter-circle-xmark text-3xl mb-3 block opacity-50"></i>ไม่พบข้อมูลที่ตรงกับตัวกรอง</td></tr>`; 
     } else {
         tbody.innerHTML = html;
     }
@@ -1250,6 +1285,7 @@ window.togglePartAccordion = function(id) {
     }
 };
 
+// 🌟 แก้ไขบั๊กตัวกรอง
 function openPOExcelFilter(e, colKey, title) {
     e.stopPropagation();
     currentPOFilterKey = colKey;
@@ -1300,18 +1336,28 @@ function openPOExcelFilter(e, colKey, title) {
     document.getElementById('po_ef_select_all').checked = Array.from(document.querySelectorAll('.po-ef-check')).every(cb => cb.checked);
     
     const modal = document.getElementById('poExcelFilterModal');
-    const rect = e.target.closest('th').getBoundingClientRect();
-    modal.style.top = (rect.bottom + window.scrollY + 8) + 'px';
-    let leftPos = rect.left + window.scrollX;
-    if (leftPos + 260 > window.innerWidth) leftPos = window.innerWidth - 270;
-    modal.style.left = leftPos + 'px';
+    
+    // 🌟 แก้ไขบั๊กให้รองรับกรณีคลิกที่ไอคอนแทนที่ th
+    const th = e.target.closest('th');
+    if(th) {
+        const rect = th.getBoundingClientRect();
+        modal.style.top = (rect.bottom + window.scrollY + 8) + 'px';
+        let leftPos = rect.left + window.scrollX;
+        if (leftPos + 260 > window.innerWidth) leftPos = window.innerWidth - 270;
+        modal.style.left = leftPos + 'px';
+    } else {
+        modal.style.top = '50%';
+        modal.style.left = '50%';
+        modal.style.transform = 'translate(-50%, -50%)';
+    }
+    
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 }
 
 function closePOExcelFilter() {
     const modal = document.getElementById('poExcelFilterModal');
-    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); modal.style.transform = 'none'; }
 }
 
 function searchPOExcelFilter() {
