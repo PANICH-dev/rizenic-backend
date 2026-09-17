@@ -211,7 +211,11 @@ async function sendReportToLine(targetBranch) {
     }
 }
 
+// 🎯 แก้ไข: กราฟสถานะ ให้กรองวันที่ออกบิล (billing_date) สำหรับกลุ่มสถานะการเงิน/วางบิล
 function renderStatusChart() {
+    const start = document.getElementById('dash_start_date').value;
+    const end = document.getElementById('dash_end_date').value;
+
     const targetStatuses = [
         '01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ', 
         '04.รอลูกค้าอนุมัติ (เงินสด)', '05.อนุมัติแล้ว', '06.สั่งอะไหล่', 
@@ -229,7 +233,15 @@ function renderStatusChart() {
         const st = (job.job_status || "").trim();
         if (!st.includes('ปิดงานแล้ว')) {
             const matchedStatus = targetStatuses.find(t => st === t || st.includes(t));
-            if (matchedStatus) statusCounts[matchedStatus]++;
+            if (matchedStatus) {
+                // ถ้าเป็นสถานะเกี่ยวข้องกับการวางบิล ให้นับเฉพาะที่ตรงกับวันที่ออกบิล (billing_date)
+                const billingStatuses = ['13.วางบิลประกัน', '14.ชำระเงินสด', '15.วางบิล Tesla', '16.วางบิล EV ME', '19.ออกบิลแล้ว'];
+                if (billingStatuses.includes(matchedStatus)) {
+                    if (!isDateInRange(job.billing_date, start, end)) return;
+                }
+
+                statusCounts[matchedStatus]++;
+            }
         }
     });
 
@@ -259,11 +271,25 @@ function renderStatusChart() {
 }
 
 function openStatusModal(statusName) {
+    const start = document.getElementById('dash_start_date').value;
+    const end = document.getElementById('dash_end_date').value;
+
     document.getElementById('modal_status_name').innerText = `รายการ: ${statusName.replace(/^[0-9]+\./, '')}`;
     const jobsToShow = filteredJobs.filter(job => {
         const st = (job.job_status || "").trim();
-        return (st === statusName || st.includes(statusName)) && !st.includes('ปิดงานแล้ว');
+        const isMatch = (st === statusName || st.includes(statusName)) && !st.includes('ปิดงานแล้ว');
+
+        if (isMatch) {
+            // ดักให้ Modal แสดงตรงกับกราฟที่ถูกกรองด้วย Billing Date
+            const billingStatuses = ['13.วางบิลประกัน', '14.ชำระเงินสด', '15.วางบิล Tesla', '16.วางบิล EV ME', '19.ออกบิลแล้ว'];
+            if (billingStatuses.some(b => statusName.includes(b))) {
+                return isDateInRange(job.billing_date, start, end);
+            }
+            return true;
+        }
+        return false;
     });
+
     renderJobTableInModalGroupedBySA(jobsToShow);
     document.getElementById('jobListModal').classList.remove('hidden');
 }
