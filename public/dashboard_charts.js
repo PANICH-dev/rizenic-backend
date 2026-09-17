@@ -211,7 +211,7 @@ async function sendReportToLine(targetBranch) {
     }
 }
 
-// 🎯 แก้ไข: กราฟสถานะ ให้กรองวันที่ออกบิล (billing_date) สำหรับกลุ่มสถานะการเงิน/วางบิล
+// 🌟 แก้ไขให้กราฟสถานะ (วางบิล/การเงิน) นับตามวันที่ออกบิล (billing_date)
 function renderStatusChart() {
     const start = document.getElementById('dash_start_date').value;
     const end = document.getElementById('dash_end_date').value;
@@ -234,12 +234,11 @@ function renderStatusChart() {
         if (!st.includes('ปิดงานแล้ว')) {
             const matchedStatus = targetStatuses.find(t => st === t || st.includes(t));
             if (matchedStatus) {
-                // ถ้าเป็นสถานะเกี่ยวข้องกับการวางบิล ให้นับเฉพาะที่ตรงกับวันที่ออกบิล (billing_date)
+                // กรองเฉพาะวันที่ออกบิล (billing_date) สำหรับสถานะการเงิน/วางบิล
                 const billingStatuses = ['13.วางบิลประกัน', '14.ชำระเงินสด', '15.วางบิล Tesla', '16.วางบิล EV ME', '19.ออกบิลแล้ว'];
                 if (billingStatuses.includes(matchedStatus)) {
                     if (!isDateInRange(job.billing_date, start, end)) return;
                 }
-
                 statusCounts[matchedStatus]++;
             }
         }
@@ -280,7 +279,7 @@ function openStatusModal(statusName) {
         const isMatch = (st === statusName || st.includes(statusName)) && !st.includes('ปิดงานแล้ว');
 
         if (isMatch) {
-            // ดักให้ Modal แสดงตรงกับกราฟที่ถูกกรองด้วย Billing Date
+            // ดักให้ Modal แสดงตรงกับกราฟ (กรองด้วย Billing Date)
             const billingStatuses = ['13.วางบิลประกัน', '14.ชำระเงินสด', '15.วางบิล Tesla', '16.วางบิล EV ME', '19.ออกบิลแล้ว'];
             if (billingStatuses.some(b => statusName.includes(b))) {
                 return isDateInRange(job.billing_date, start, end);
