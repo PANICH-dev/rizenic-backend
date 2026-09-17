@@ -171,7 +171,7 @@ function globalSearchCar() {
     }
 }
 
-// =====================================
+/// =====================================
 // View 1: SA Cards List
 // =====================================
 function renderSAList() {
@@ -187,14 +187,23 @@ function renderSAList() {
         const sa = job.sa_owner || "ไม่ระบุ SA"; 
         const st = job.job_status || "";
         
-        if (!saStats[sa]) saStats[sa] = { pending: 0, waitBill: 0, billed: 0, ovApp: 0, ovTgt: 0, ovDel: 0, totalOverdue: 0 };
+        // 🌟 เพิ่ม mainParts, subParts กลับมา
+        if (!saStats[sa]) saStats[sa] = { pending: 0, waitBill: 0, billed: 0, ovApp: 0, ovTgt: 0, ovDel: 0, totalOverdue: 0, mainParts: 0, subParts: 0 };
         if (pendingStatuses.some(s => st.includes(s))) saStats[sa].pending++; 
         if (st.includes('รอออกบิล')) saStats[sa].waitBill++;
 
         const isBilled = st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิล');
         if (isBilled && getValidDateStr(job.billing_date)) {
             const d = new Date(job.billing_date);
-            if (String(d.getMonth() + 1).padStart(2, '0') === fMonth && String(d.getFullYear()) === fYear) saStats[sa].billed++;
+            if (String(d.getMonth() + 1).padStart(2, '0') === fMonth && String(d.getFullYear()) === fYear) {
+                saStats[sa].billed++;
+                
+                // 🌟 บวกเลขอะไหล่กลับมา
+                const mQty = Number(job.main_part_qty) || (job.main_part_name ? job.main_part_name.split(',').filter(Boolean).length : 0);
+                const sQty = Number(job.sub_part_qty) || (job.sub_part_name ? job.sub_part_name.split(',').filter(Boolean).length : 0);
+                saStats[sa].mainParts += mQty;
+                saStats[sa].subParts += sQty;
+            }
         }
 
         const isProcess = activeProcessStatuses.some(s => st.includes(s) || st.startsWith(s.substring(0, 2)));
@@ -230,6 +239,24 @@ function renderSAList() {
                     <div class="text-right"><span class="text-lg font-black text-blue-600 leading-none">${stats.pending}</span> <span class="text-[10px] text-slate-500 font-bold">คัน</span></div>
                 </div>
                 ${stats.totalOverdue > 0 ? `<div class="flex justify-between gap-1">${stats.ovApp > 0 ? `<div class="bg-red-50 text-red-700 text-[9px] font-bold px-1.5 py-1 rounded shadow-xs border border-red-200 flex-1 text-center"><i class="fa-solid fa-triangle-exclamation animate-pulse"></i> เข้า <span class="font-black text-xs">${stats.ovApp}</span></div>` : ''}${stats.ovTgt > 0 ? `<div class="bg-amber-50 text-amber-800 text-[9px] font-bold px-1.5 py-1 rounded shadow-xs border border-amber-300 flex-1 text-center"><i class="fa-solid fa-clock"></i> เสร็จ <span class="font-black text-xs">${stats.ovTgt}</span></div>` : ''}${stats.ovDel > 0 ? `<div class="bg-purple-50 text-purple-800 text-[9px] font-bold px-1.5 py-1 rounded shadow-xs border border-purple-300 flex-1 text-center"><i class="fa-solid fa-key"></i> ส่ง <span class="font-black text-xs">${stats.ovDel}</span></div>` : ''}</div>` : `<div class="text-[9px] text-emerald-600 font-bold px-2 py-1 bg-emerald-50 rounded border border-emerald-100 text-center"><i class="fa-solid fa-circle-check"></i> ไร้งาน Overdue</div>`}
+                
+                <!-- 🌟 กล่องยอด 3 กล่อง กลับมาแล้ว! 🌟 -->
+                <div class="flex justify-between gap-1.5 mt-0.5">
+                    <div class="bg-amber-50/50 rounded-lg px-2 py-1.5 border border-amber-100 flex-1 text-center shadow-xs">
+                        <p class="text-[9px] font-bold text-amber-700 mb-0.5">รอออกบิล</p>
+                        <p class="text-sm font-black text-amber-600 leading-none">${stats.waitBill}</p>
+                    </div>
+                    <div class="bg-emerald-50/50 rounded-lg px-2 py-1.5 border border-emerald-100 flex-1 text-center shadow-xs">
+                        <p class="text-[9px] font-bold text-emerald-700 mb-0.5">ปิดบิลแล้ว</p>
+                        <p class="text-sm font-black text-emerald-600 leading-none">${stats.billed}</p>
+                    </div>
+                    <div class="bg-blue-50/50 rounded-lg px-2 py-1.5 border border-blue-100 flex-1 text-center shadow-xs" title="อะไหล่หลัก / อะไหล่รอง">
+                        <p class="text-[9px] font-bold text-blue-700 mb-0.5">อะไหล่ (M/S)</p>
+                        <p class="text-sm font-black leading-none">
+                            <span class="text-blue-600">${stats.mainParts}</span><span class="text-slate-400 font-medium text-[10px] mx-0.5">/</span><span class="text-amber-600">${stats.subParts}</span>
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>`
     }).join('');
