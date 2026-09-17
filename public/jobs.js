@@ -10,6 +10,9 @@ let userBranch = '';
 let currentViewSA = ''; 
 let selectedBranchFilter = 'ALL';
 
+let currentKeyDeskJobId = null;
+let keyDeskRows = [];
+
 const activeProcessStatuses = [
     '01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ', 
     '04.รอลูกค้าอนุมัติ (เงินสด)', '05.อนุมัติแล้ว', '06.สั่งอะไหล่', 
@@ -183,7 +186,6 @@ function renderSAList() {
     const arrivedPrefixes = ['09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21'];
     const pendingStatuses = ['01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ', '04.รอลูกค้าอนุมัติ', '05.อนุมัติแล้ว', '06.สั่งอะไหล่', '07.รอนัดหมายเข้าซ่อม', '08.นัดหมายแล้วรอเข้าซ่อม', '09.จอดรอเข้าซ่อม', '10.กำลังซ่อม', '11.รถซ่อมเสร็จรอส่งมอบ', '12.ส่งมอบ','21.พักซ่อม'];
 
-    // ตัวแปรสำหรับคำนวณยอดรวมของทั้งสาขา (วางไว้บนสุด)
     let totalWaitBill = 0;
     let totalBilled = 0;
     let totalMain = 0;
@@ -198,7 +200,7 @@ function renderSAList() {
         
         if (!saStats[sa]) saStats[sa] = { pending: 0, waitBill: 0, billed: 0, ovApp: 0, ovTgt: 0, ovDel: 0, totalOverdue: 0, sumLabor: 0, sumParts: 0, sumOutsource: 0, mainParts: 0, subParts: 0 };
         
-        // นับงานค้างรวม
+        // นับงานค้าง
         if (pendingStatuses.some(s => st.includes(s))) saStats[sa].pending++; 
 
         // คำนวณรถรอออกบิล
@@ -216,7 +218,7 @@ function renderSAList() {
             }
         }
 
-        // คำนวณรถปิดบิลแล้ว (รวมค่าแรง ค่าอะไหล่ ชิ้นงาน)
+        // คำนวณรถปิดบิลแล้ว
         const isBilled = st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิล');
         if (isBilled && getValidDateStr(job.billing_date)) {
             const d = new Date(job.billing_date);
@@ -244,7 +246,7 @@ function renderSAList() {
             }
         }
 
-        // นับ Overdue ล่าช้า
+        // นับ Overdue
         const isProcess = activeProcessStatuses.some(s => st.includes(s) || st.startsWith(s.substring(0, 2)));
         if (isProcess) {
             const appVal = getValidDateStr(job.arrived_date);
@@ -262,7 +264,6 @@ function renderSAList() {
     const sortedSAs = Object.keys(saStats).sort((a, b) => saStats[b].pending - saStats[a].pending);
     const formatMoney = (val) => Number(val).toLocaleString('th-TH', {minimumFractionDigits: 0, maximumFractionDigits: 2});
 
-    // 🌟 1. สร้าง Banner สรุปยอดรวมของ "ทั้งสาขา" แปะไว้บนสุด
     let html = `
     <div class="col-span-full bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-2 flex flex-col md:flex-row gap-6">
         <div class="flex-1 flex flex-col justify-center bg-amber-50 border border-amber-200 rounded-xl p-4">
@@ -312,11 +313,10 @@ function renderSAList() {
     `;
 
     if(sortedSAs.length === 0) { 
-        container.innerHTML = html + `<div class="col-span-full text-center py-10 text-slate-400 font-bold bg-white rounded-xl">ไม่มีงานค้างเลย 🎉</div>`; 
+        container.innerHTML = html + `<div class="col-span-full text-center py-10 text-slate-400 font-bold bg-white rounded-xl border border-slate-200">ยังไม่มีงานค้างเลย 🎉</div>`; 
         return; 
     }
 
-    // 🌟 2. สร้างการ์ดแยกแต่ละ SA
     html += sortedSAs.map(sa => {
         const stats = saStats[sa];
         return `
@@ -372,11 +372,12 @@ function renderSAList() {
                 </div>
 
             </div>
-        </div>`
+        </div>`;
     }).join('');
 
     container.innerHTML = html;
 }
+
 function backToSAList() { 
     currentViewSA = ''; 
     document.getElementById('sa_detail_view').classList.add('hidden'); 
@@ -510,7 +511,7 @@ function openSAJobListModalCalendar(dateStr, type) {
     document.getElementById('jobListModal').classList.remove('hidden');
 }
 
-/// ---- Statuses & Finance Summary ----
+// ---- Statuses & Finance Summary ----
 function updateBilledCount(jobs) {
     const fMonth = document.getElementById('sa_cal_month').value;
     const fYear = document.getElementById('sa_cal_year').value;
@@ -546,14 +547,14 @@ function updateBilledCount(jobs) {
     document.getElementById('waitbill_month_label').innerText = `(เดือน ${fMonth}/${fYear})`;
     document.getElementById('billed_month_label').innerText = `(เดือน ${fMonth}/${fYear})`;
 
-    const formatMoney = (val) => val.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-    
-    if(document.getElementById('sum_main_parts')) document.getElementById('sum_main_parts').innerText = sumMain;
-    if(document.getElementById('sum_sub_parts')) document.getElementById('sum_sub_parts').innerText = sumSub;
-    if(document.getElementById('sum_labor')) document.getElementById('sum_labor').innerText = formatMoney(sumLabor);
-    if(document.getElementById('sum_parts')) document.getElementById('sum_parts').innerText = formatMoney(sumParts);
-    if(document.getElementById('sum_outsource')) document.getElementById('sum_outsource').innerText = formatMoney(sumOutsource);
+    const formatMoney = (val) => val.toLocaleString('th-TH', {minimumFractionDigits: 0, maximumFractionDigits: 2});
+    document.getElementById('sum_main_parts').innerText = sumMain;
+    document.getElementById('sum_sub_parts').innerText = sumSub;
+    document.getElementById('sum_labor').innerText = formatMoney(sumLabor);
+    document.getElementById('sum_parts').innerText = formatMoney(sumParts);
+    document.getElementById('sum_outsource').innerText = formatMoney(sumOutsource);
 }
+
 function renderSAStatuses(jobs) {
     const statusCounts = {}; 
     jobs.forEach(job => { 
