@@ -198,13 +198,12 @@ function renderSAList() {
         const sa = job.sa_owner || "ไม่ระบุ SA"; 
         const st = job.job_status || "";
         
-        // กำหนดตัวแปรเก็บค่า 
         if (!saStats[sa]) saStats[sa] = { pending: 0, waitBill: 0, billed: 0, ovApp: 0, ovTgt: 0, ovDel: 0, totalOverdue: 0, sumLabor: 0, sumParts: 0, sumOutsource: 0, mainParts: 0, subParts: 0 };
         
-        // 1. นับงานค้างรวม
+        // นับงานค้าง
         if (pendingStatuses.some(s => st.includes(s))) saStats[sa].pending++; 
 
-        // 2. คำนวณรถรอออกบิล
+        // คำนวณรถรอออกบิล
         if (st.includes('รอออกบิล')) {
             let jobDate = job.delivery_date || job.repair_finish_date || job.target_finish_date || job.arrived_date;
             if (jobDate) {
@@ -219,7 +218,7 @@ function renderSAList() {
             }
         }
 
-        // 3. คำนวณรถปิดบิลแล้ว (รวมค่าแรง ค่าอะไหล่ ชิ้นงาน)
+        // คำนวณรถปิดบิลแล้ว
         const isBilled = st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิล');
         if (isBilled && getValidDateStr(job.billing_date)) {
             const d = new Date(job.billing_date);
@@ -247,7 +246,7 @@ function renderSAList() {
             }
         }
 
-        // 4. นับ Overdue ล่าช้า
+        // นับ Overdue
         const isProcess = activeProcessStatuses.some(s => st.includes(s) || st.startsWith(s.substring(0, 2)));
         if (isProcess) {
             const appVal = getValidDateStr(job.arrived_date);
@@ -265,7 +264,7 @@ function renderSAList() {
     const sortedSAs = Object.keys(saStats).sort((a, b) => saStats[b].pending - saStats[a].pending);
     const formatMoney = (val) => Number(val).toLocaleString('th-TH', {minimumFractionDigits: 0, maximumFractionDigits: 2});
 
-    // 🌟 1. Banner สรุปยอดรวมของ "ทั้งสาขา" บนสุด
+    // 🌟 Banner สรุปยอดรวมของ "ทั้งสาขา" ด้านบนสุด
     let html = `
     <div class="col-span-full bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-2 flex flex-col md:flex-row gap-6">
         <div class="flex-1 flex flex-col justify-center bg-amber-50 border border-amber-200 rounded-xl p-4">
@@ -315,11 +314,11 @@ function renderSAList() {
     `;
 
     if(sortedSAs.length === 0) { 
-        container.innerHTML = html + `<div class="col-span-full text-center py-10 text-slate-400 font-bold bg-white rounded-xl">ไม่มีงานค้างเลย 🎉</div>`; 
+        container.innerHTML = html + `<div class="col-span-full text-center py-10 text-slate-400 font-bold bg-white rounded-xl border border-slate-200">ยังไม่มีงานค้างเลย 🎉</div>`; 
         return; 
     }
 
-    // 🌟 2. การ์ดแยกแต่ละ SA + กล่องสรุปการเงิน
+    // 🌟 การ์ดแยกแต่ละ SA + กล่องสรุปการเงิน
     html += sortedSAs.map(sa => {
         const stats = saStats[sa];
         return `
@@ -335,14 +334,14 @@ function renderSAList() {
             </div>
             
             <div class="flex flex-col gap-1.5 relative z-10">
-                <div class="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100 flex justify-between items-center mb-1">
+                <div class="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100 flex justify-between items-center">
                     <span class="text-[11px] font-bold text-slate-600">งานค้างในระบบ</span>
                     <div class="text-right"><span class="text-lg font-black text-blue-600 leading-none">${stats.pending}</span> <span class="text-[10px] text-slate-500 font-bold">คัน</span></div>
                 </div>
 
                 ${stats.totalOverdue > 0 ? `<div class="flex justify-between gap-1">${stats.ovApp > 0 ? `<div class="bg-red-50 text-red-700 text-[9px] font-bold px-1.5 py-1 rounded shadow-xs border border-red-200 flex-1 text-center"><i class="fa-solid fa-triangle-exclamation animate-pulse"></i> เข้า <span class="font-black text-xs">${stats.ovApp}</span></div>` : ''}${stats.ovTgt > 0 ? `<div class="bg-amber-50 text-amber-800 text-[9px] font-bold px-1.5 py-1 rounded shadow-xs border border-amber-300 flex-1 text-center"><i class="fa-solid fa-clock"></i> เสร็จ <span class="font-black text-xs">${stats.ovTgt}</span></div>` : ''}${stats.ovDel > 0 ? `<div class="bg-purple-50 text-purple-800 text-[9px] font-bold px-1.5 py-1 rounded shadow-xs border border-purple-300 flex-1 text-center"><i class="fa-solid fa-key"></i> ส่ง <span class="font-black text-xs">${stats.ovDel}</span></div>` : ''}</div>` : `<div class="text-[9px] text-emerald-600 font-bold px-2 py-1 bg-emerald-50 rounded border border-emerald-100 text-center"><i class="fa-solid fa-circle-check"></i> ไร้งาน Overdue</div>`}
                 
-                <!-- 🌟 กล่องสรุปการเงินและการปิดบิลของ SA คนนี้ 🌟 -->
+                <!-- 🌟 กล่องสรุปการเงินและการปิดบิลของการ์ด SA ใบนี้ 🌟 -->
                 <div class="mt-2 pt-2 border-t border-slate-100">
                     <div class="flex justify-between gap-1 mb-1.5">
                         <div class="bg-amber-50/70 rounded px-2 py-1 flex-1 flex justify-between items-center border border-amber-100 shadow-xs">
@@ -375,7 +374,7 @@ function renderSAList() {
                 </div>
 
             </div>
-        </div>`
+        </div>`;
     }).join('');
 
     container.innerHTML = html;
@@ -636,7 +635,7 @@ function renderSAParkedCars(jobs) {
 
 
 // =====================================
-// 🌟 THE NEW PO TRACKING FOR SA (Accordian + Dynamic Editor) 🌟
+// 🌟 THE NEW PO TRACKING FOR SA (Accordian + Dynamic Editor + สถานะจอด) 🌟
 // =====================================
 function renderSAPOTracking(saJobs) {
     const tbody = document.getElementById('sa_po_body');
@@ -649,7 +648,7 @@ function renderSAPOTracking(saJobs) {
     });
 
     if (relevantJobs.length === 0) { 
-        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีรายการสั่งซื้ออะไหล่</td></tr>`; return; 
+        tbody.innerHTML = `<tr><td colspan="10" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีรายการสั่งซื้ออะไหล่</td></tr>`; return; 
     }
 
     relevantJobs.sort((a,b) => new Date(b.arrived_date || b.contact_date || 0) - new Date(a.arrived_date || a.contact_date || 0));
@@ -680,10 +679,17 @@ function renderSAPOTracking(saJobs) {
 
         const arrDate = job.arrived_date ? job.arrived_date.split('T')[0] : (job.contact_date ? job.contact_date.split('T')[0] : '-');
 
+        // 🌟 เพิ่มการแสดงผลสถานะจอด (จอดซ่อม / ไม่จอดซ่อม) 🌟
+        const isParked = job.is_parked === 'จอดซ่อม';
+        const parkedBadge = isParked ? 
+            `<span class="bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded font-black text-[10px]"><i class="fa-solid fa-square-p text-amber-600"></i> จอดซ่อม</span>` : 
+            `<span class="bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded font-bold text-[10px]">ไม่จอดซ่อม</span>`;
+
         // Main Row (คลิกแล้วจะ Dropdown ลงมา)
         finalHtml += `
             <tr class="hover:bg-amber-50/80 transition-colors border-b border-slate-200 cursor-pointer font-medium" onclick="togglePartAccordion('${rowId}')">
                 <td class="text-center px-3 py-3 font-black text-amber-800"><span class="bg-amber-100 border border-amber-300 rounded px-2 py-1 shadow-sm">${job.car_plate || '-'}</span></td>
+                <td class="text-center px-2 py-3">${parkedBadge}</td>
                 <td class="text-center font-bold text-slate-700 px-3 py-3 font-mono">${arrDate}</td>
                 <td class="text-center font-bold text-slate-700 px-3 py-3">${job.car_model || '-'}</td>
                 <td class="text-center font-bold text-slate-600 px-3 py-3 font-mono text-[11px]">${job.vin_no || '-'}</td>
@@ -727,7 +733,7 @@ function renderSAPOTracking(saJobs) {
 
         finalHtml += `
             <tr id="${rowId}" class="hidden bg-slate-100/70">
-                <td colspan="9" class="p-3">
+                <td colspan="10" class="p-3">
                     <div class="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-inner w-full max-w-[1000px] ml-auto">
                         <div class="bg-slate-200/80 px-3 py-1.5 text-[11px] font-bold text-slate-700 border-b border-slate-300 flex justify-between items-center">
                             <span><i class="fa-solid fa-list-check text-blue-600 mr-1.5"></i>ตารางตรวจสอบสั่งอะไหล่: ${job.car_plate}</span>
