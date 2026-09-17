@@ -171,7 +171,7 @@ function globalSearchCar() {
     }
 }
 
-/// =====================================
+// =====================================
 // View 1: SA Cards List
 // =====================================
 function renderSAList() {
@@ -183,41 +183,68 @@ function renderSAList() {
     const arrivedPrefixes = ['09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21'];
     const pendingStatuses = ['01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ', '04.รอลูกค้าอนุมัติ', '05.อนุมัติแล้ว', '06.สั่งอะไหล่', '07.รอนัดหมายเข้าซ่อม', '08.นัดหมายแล้วรอเข้าซ่อม', '09.จอดรอเข้าซ่อม', '10.กำลังซ่อม', '11.รถซ่อมเสร็จรอส่งมอบ', '12.ส่งมอบ','21.พักซ่อม'];
 
+    // ตัวแปรสำหรับคำนวณยอดรวมของทั้งสาขา (วางไว้บนสุด)
+    let totalWaitBill = 0;
+    let totalBilled = 0;
+    let totalMain = 0;
+    let totalSub = 0;
+    let totalLabor = 0;
+    let totalParts = 0;
+    let totalOutsource = 0;
+
     allJobsData.forEach(job => { 
         const sa = job.sa_owner || "ไม่ระบุ SA"; 
         const st = job.job_status || "";
         
-        // กำหนดตัวแปรเก็บค่า (เพิ่มค่าแรงและค่าอะไหล่)
-        if (!saStats[sa]) saStats[sa] = { pending: 0, waitBill: 0, billed: 0, ovApp: 0, ovTgt: 0, ovDel: 0, totalOverdue: 0, sumLabor: 0, sumParts: 0 };
+        if (!saStats[sa]) saStats[sa] = { pending: 0, waitBill: 0, billed: 0, ovApp: 0, ovTgt: 0, ovDel: 0, totalOverdue: 0, sumLabor: 0, sumParts: 0, sumOutsource: 0, mainParts: 0, subParts: 0 };
         
-        // 1. นับงานค้าง
+        // นับงานค้างรวม
         if (pendingStatuses.some(s => st.includes(s))) saStats[sa].pending++; 
 
-        // 2. นับงานรอออกบิล
+        // คำนวณรถรอออกบิล
         if (st.includes('รอออกบิล')) {
             let jobDate = job.delivery_date || job.repair_finish_date || job.target_finish_date || job.arrived_date;
             if (jobDate) {
                 const d = new Date(jobDate);
                 if (String(d.getMonth() + 1).padStart(2, '0') === fMonth && String(d.getFullYear()) === fYear) {
                     saStats[sa].waitBill++;
+                    totalWaitBill++;
                 }
             } else {
-                saStats[sa].waitBill++; // ถ้ารถไม่มีวันที่ ให้นับรวมไปด้วย
+                saStats[sa].waitBill++;
+                totalWaitBill++;
             }
         }
 
-        // 3. นับงานปิดบิล และบวกยอดเงิน
+        // คำนวณรถปิดบิลแล้ว (รวมค่าแรง ค่าอะไหล่ ชิ้นงาน)
         const isBilled = st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิล');
         if (isBilled && getValidDateStr(job.billing_date)) {
             const d = new Date(job.billing_date);
             if (String(d.getMonth() + 1).padStart(2, '0') === fMonth && String(d.getFullYear()) === fYear) {
                 saStats[sa].billed++;
-                saStats[sa].sumLabor += Number(job.cost_labor || job.labor_total || 0);
-                saStats[sa].sumParts += Number(job.cost_part || job.part_total || 0);
+                totalBilled++;
+                
+                const mQty = Number(job.main_part_qty) || (job.main_part_name ? job.main_part_name.split(',').filter(Boolean).length : 0);
+                const sQty = Number(job.sub_part_qty) || (job.sub_part_name ? job.sub_part_name.split(',').filter(Boolean).length : 0);
+                const labor = Number(job.cost_labor || job.labor_total || 0);
+                const partsCost = Number(job.cost_part || job.part_total || 0);
+                const outsource = Number(job.cost_external || job.outsource_total || 0);
+
+                saStats[sa].mainParts += mQty;
+                saStats[sa].subParts += sQty;
+                saStats[sa].sumLabor += labor;
+                saStats[sa].sumParts += partsCost;
+                saStats[sa].sumOutsource += outsource;
+
+                totalMain += mQty;
+                totalSub += sQty;
+                totalLabor += labor;
+                totalParts += partsCost;
+                totalOutsource += outsource;
             }
         }
 
-        // 4. นับงานล่าช้า (Overdue)
+        // นับ Overdue ล่าช้า
         const isProcess = activeProcessStatuses.some(s => st.includes(s) || st.startsWith(s.substring(0, 2)));
         if (isProcess) {
             const appVal = getValidDateStr(job.arrived_date);
@@ -233,15 +260,69 @@ function renderSAList() {
     });
 
     const sortedSAs = Object.keys(saStats).sort((a, b) => saStats[b].pending - saStats[a].pending);
-    if(sortedSAs.length === 0) { container.innerHTML = `<div class="col-span-full text-center py-10 text-slate-400 font-bold bg-white rounded-xl">ไม่มีงานค้างเลย 🎉</div>`; return; }
-
     const formatMoney = (val) => Number(val).toLocaleString('th-TH', {minimumFractionDigits: 0, maximumFractionDigits: 2});
 
-    container.innerHTML = sortedSAs.map(sa => {
+    // 🌟 1. สร้าง Banner สรุปยอดรวมของ "ทั้งสาขา" แปะไว้บนสุด
+    let html = `
+    <div class="col-span-full bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-2 flex flex-col md:flex-row gap-6">
+        <div class="flex-1 flex flex-col justify-center bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-file-invoice text-3xl text-amber-400"></i>
+                    <div>
+                        <h3 class="text-amber-800 font-bold text-sm">ยอดรถรอปิดบิลรวม</h3>
+                        <span class="text-[10px] text-amber-600">(เดือน ${fMonth}/${fYear})</span>
+                    </div>
+                </div>
+                <span class="text-4xl font-black text-amber-600">${totalWaitBill}</span>
+            </div>
+        </div>
+        
+        <div class="flex-[2.5] bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex flex-col justify-center">
+            <div class="flex justify-between items-center mb-3">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-file-invoice-dollar text-3xl text-emerald-400"></i>
+                    <div>
+                        <h3 class="text-emerald-800 font-bold text-sm">ยอดปิดบิลแล้วรวมทั้งหมด</h3>
+                        <span class="text-[10px] text-emerald-600">(เดือน ${fMonth}/${fYear})</span>
+                    </div>
+                </div>
+                <span class="text-4xl font-black text-emerald-600">${totalBilled}</span>
+            </div>
+            <div class="grid grid-cols-4 gap-2 text-center border-t border-emerald-200/60 pt-3">
+                <div>
+                    <p class="text-[11px] text-emerald-700 font-bold mb-0.5">ชิ้น(หลัก/รอง)</p>
+                    <p class="text-base font-black text-slate-700"><span class="text-blue-600">${totalMain}</span> / <span class="text-amber-600">${totalSub}</span></p>
+                </div>
+                <div class="border-l border-emerald-200/60">
+                    <p class="text-[11px] text-emerald-700 font-bold mb-0.5">ค่าแรง</p>
+                    <p class="text-base font-black text-emerald-700">${formatMoney(totalLabor)}</p>
+                </div>
+                <div class="border-l border-emerald-200/60">
+                    <p class="text-[11px] text-emerald-700 font-bold mb-0.5">ค่าอะไหล่</p>
+                    <p class="text-base font-black text-purple-600">${formatMoney(totalParts)}</p>
+                </div>
+                <div class="border-l border-emerald-200/60">
+                    <p class="text-[11px] text-emerald-700 font-bold mb-0.5">งานนอก</p>
+                    <p class="text-base font-black text-orange-600">${formatMoney(totalOutsource)}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    `;
+
+    if(sortedSAs.length === 0) { 
+        container.innerHTML = html + `<div class="col-span-full text-center py-10 text-slate-400 font-bold bg-white rounded-xl">ไม่มีงานค้างเลย 🎉</div>`; 
+        return; 
+    }
+
+    // 🌟 2. สร้างการ์ดแยกแต่ละ SA
+    html += sortedSAs.map(sa => {
         const stats = saStats[sa];
         return `
         <div onclick="openSADetail('${sa}')" class="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between cursor-pointer hover:border-amber-500 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden group">
             <div class="absolute -right-4 -bottom-4 text-slate-100 text-6xl opacity-30 rotate-12 transition-transform group-hover:scale-110"><i class="fa-solid fa-user-tie"></i></div>
+            
             <div class="flex items-center gap-4 mb-3 relative z-10">
                 <div class="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-xl font-black shadow-md shrink-0"><i class="fa-solid fa-user-tie"></i></div>
                 <div class="truncate w-full">
@@ -258,34 +339,43 @@ function renderSAList() {
 
                 ${stats.totalOverdue > 0 ? `<div class="flex justify-between gap-1">${stats.ovApp > 0 ? `<div class="bg-red-50 text-red-700 text-[9px] font-bold px-1.5 py-1 rounded shadow-xs border border-red-200 flex-1 text-center"><i class="fa-solid fa-triangle-exclamation animate-pulse"></i> เข้า <span class="font-black text-xs">${stats.ovApp}</span></div>` : ''}${stats.ovTgt > 0 ? `<div class="bg-amber-50 text-amber-800 text-[9px] font-bold px-1.5 py-1 rounded shadow-xs border border-amber-300 flex-1 text-center"><i class="fa-solid fa-clock"></i> เสร็จ <span class="font-black text-xs">${stats.ovTgt}</span></div>` : ''}${stats.ovDel > 0 ? `<div class="bg-purple-50 text-purple-800 text-[9px] font-bold px-1.5 py-1 rounded shadow-xs border border-purple-300 flex-1 text-center"><i class="fa-solid fa-key"></i> ส่ง <span class="font-black text-xs">${stats.ovDel}</span></div>` : ''}</div>` : `<div class="text-[9px] text-emerald-600 font-bold px-2 py-1 bg-emerald-50 rounded border border-emerald-100 text-center"><i class="fa-solid fa-circle-check"></i> ไร้งาน Overdue</div>`}
                 
-                <!-- 🌟 กล่องสรุปการเงินและการปิดบิล (หน้าการ์ด SA) 🌟 -->
+                <!-- กล่องสรุปการเงินและการปิดบิลของ SA คนนี้ -->
                 <div class="mt-2 pt-2 border-t border-slate-100">
-                    <div class="flex justify-between gap-1 mb-1">
-                        <div class="bg-amber-50 rounded px-2 py-1 flex-1 text-center border border-amber-100 shadow-xs">
-                            <p class="text-[9px] text-amber-700 font-bold">รอออกบิล</p>
-                            <p class="text-xs font-black text-amber-600">${stats.waitBill}</p>
+                    <div class="flex justify-between gap-1 mb-1.5">
+                        <div class="bg-amber-50/70 rounded px-2 py-1 flex-1 flex justify-between items-center border border-amber-100 shadow-xs">
+                            <span class="text-[9px] text-amber-700 font-bold">รอออกบิล</span>
+                            <span class="text-xs font-black text-amber-600">${stats.waitBill}</span>
                         </div>
-                        <div class="bg-emerald-50 rounded px-2 py-1 flex-1 text-center border border-emerald-100 shadow-xs">
-                            <p class="text-[9px] text-emerald-700 font-bold">ปิดบิลแล้ว</p>
-                            <p class="text-xs font-black text-emerald-600">${stats.billed}</p>
+                        <div class="bg-emerald-50/70 rounded px-2 py-1 flex-1 flex justify-between items-center border border-emerald-100 shadow-xs">
+                            <span class="text-[9px] text-emerald-700 font-bold">ปิดแล้ว</span>
+                            <span class="text-xs font-black text-emerald-600">${stats.billed}</span>
                         </div>
                     </div>
-                    <div class="flex justify-between gap-1">
-                        <div class="bg-slate-50 rounded px-2 py-1 flex-1 text-center border border-slate-200">
-                            <p class="text-[8px] text-slate-500 font-bold">ค่าแรง</p>
-                            <p class="text-[10px] font-black text-emerald-700">${formatMoney(stats.sumLabor)}</p>
+                    <div class="grid grid-cols-4 gap-1 text-center bg-slate-50 rounded p-1 border border-slate-200">
+                        <div>
+                            <p class="text-[8px] text-slate-500 font-bold mb-0.5">ชิ้น(หลัก/รอง)</p>
+                            <p class="text-[9px] font-black"><span class="text-blue-600">${stats.mainParts}</span><span class="text-slate-400 mx-0.5">/</span><span class="text-amber-600">${stats.subParts}</span></p>
                         </div>
-                        <div class="bg-slate-50 rounded px-2 py-1 flex-1 text-center border border-slate-200">
-                            <p class="text-[8px] text-slate-500 font-bold">ค่าอะไหล่</p>
-                            <p class="text-[10px] font-black text-purple-600">${formatMoney(stats.sumParts)}</p>
+                        <div class="border-l border-slate-200">
+                            <p class="text-[8px] text-slate-500 font-bold mb-0.5">ค่าแรง</p>
+                            <p class="text-[9px] font-black text-emerald-700">${formatMoney(stats.sumLabor)}</p>
+                        </div>
+                        <div class="border-l border-slate-200">
+                            <p class="text-[8px] text-slate-500 font-bold mb-0.5">ค่าอะไหล่</p>
+                            <p class="text-[9px] font-black text-purple-600">${formatMoney(stats.sumParts)}</p>
+                        </div>
+                        <div class="border-l border-slate-200">
+                            <p class="text-[8px] text-slate-500 font-bold mb-0.5">งานนอก</p>
+                            <p class="text-[9px] font-black text-orange-600">${formatMoney(stats.sumOutsource)}</p>
                         </div>
                     </div>
                 </div>
-                <!-- 🌟 สิ้นสุดกล่องสรุปการเงิน 🌟 -->
 
             </div>
         </div>`
     }).join('');
+
+    container.innerHTML = html;
 }
 function backToSAList() { 
     currentViewSA = ''; 
