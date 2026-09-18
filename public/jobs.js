@@ -143,7 +143,9 @@ function updateHeaderSummaryBadges(jobs) {
 
     jobs.forEach(job => {
         const st = job.job_status || "";
+        // 🌟 ปลดกรองเดือนสำหรับรอออกบิล (Header Badge)
         if (st.includes('รอออกบิล')) waitBillCount++;
+        
         const isBilledStatus = st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิล');
         if (isBilledStatus && getValidDateStr(job.billing_date)) {
             const d = new Date(job.billing_date);
@@ -203,22 +205,13 @@ function renderSAList() {
         // นับงานค้าง
         if (pendingStatuses.some(s => st.includes(s))) saStats[sa].pending++; 
 
-        // คำนวณรถรอออกบิล
+        // 🌟 ปลดกรองเดือนสำหรับรถรอออกบิล
         if (st.includes('รอออกบิล')) {
-            let jobDate = job.delivery_date || job.repair_finish_date || job.target_finish_date || job.arrived_date;
-            if (jobDate) {
-                const d = new Date(jobDate);
-                if (String(d.getMonth() + 1).padStart(2, '0') === fMonth && String(d.getFullYear()) === fYear) {
-                    saStats[sa].waitBill++;
-                    totalWaitBill++;
-                }
-            } else {
-                saStats[sa].waitBill++;
-                totalWaitBill++;
-            }
+            saStats[sa].waitBill++;
+            totalWaitBill++;
         }
 
-        // คำนวณรถปิดบิลแล้ว
+        // คำนวณรถปิดบิลแล้ว (ยังต้องกรองตามเดือนเพื่อดูยอดเงิน)
         const isBilled = st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิล');
         if (isBilled && getValidDateStr(job.billing_date)) {
             const d = new Date(job.billing_date);
@@ -273,7 +266,7 @@ function renderSAList() {
                     <i class="fa-solid fa-file-invoice text-3xl text-amber-400"></i>
                     <div>
                         <h3 class="text-amber-800 font-bold text-sm">ยอดรถรอปิดบิลรวม</h3>
-                        <span class="text-[10px] text-amber-600">(เดือน ${fMonth}/${fYear})</span>
+                        <span class="text-[10px] text-amber-600">(ยอดสะสมทั้งหมด ไม่สนใจเดือน)</span>
                     </div>
                 </div>
                 <span class="text-4xl font-black text-amber-600">${totalWaitBill}</span>
@@ -338,9 +331,8 @@ function renderSAList() {
                     <div class="text-right"><span class="text-lg font-black text-blue-600 leading-none">${stats.pending}</span> <span class="text-[10px] text-slate-500 font-bold">คัน</span></div>
                 </div>
 
-                <!-- 🌟 แถบป้ายสถิติ รอออกบิล / ปิดบิล / อะไหล่ แบบเดียวกับ Header 🌟 -->
                 <div class="flex items-center justify-between gap-1 mt-1 mb-2 text-[9px] font-bold">
-                    <span class="bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded border border-amber-300 shadow-sm flex-1 text-center truncate" title="รถรอออกบิล">
+                    <span class="bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded border border-amber-300 shadow-sm flex-1 text-center truncate" title="ยอดสะสมรถรอออกบิล (ไม่สนใจเดือน)">
                         📄 รอออกบิล: <span class="font-black text-amber-600 text-[10px]">${stats.waitBill}</span>
                     </span>
                     <span class="bg-emerald-500/10 text-emerald-600 px-1.5 py-0.5 rounded border border-emerald-300 shadow-sm flex-1 text-center truncate" title="ปิดบิลแล้วประจำเดือน">
@@ -502,13 +494,9 @@ function updateBilledCount(jobs) {
     
     jobs.forEach(job => {
         const st = job.job_status || "";
-        if (st.includes('รอออกบิล')) {
-            let jobDate = job.delivery_date || job.repair_finish_date || job.target_finish_date || job.arrived_date;
-            if (jobDate) {
-                const d = new Date(jobDate);
-                if (String(d.getMonth() + 1).padStart(2, '0') === fMonth && String(d.getFullYear()) === fYear) waitBillCount++;
-            }
-        }
+        
+        // 🌟 ปลดกรองเดือนสำหรับรถรอออกบิล
+        if (st.includes('รอออกบิล')) waitBillCount++;
         
         const isBilled = st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิล');
         if (isBilled && getValidDateStr(job.billing_date)) {
@@ -526,7 +514,9 @@ function updateBilledCount(jobs) {
     
     document.getElementById('sa_waitbill_count').innerText = waitBillCount;
     document.getElementById('sa_billed_count').innerText = billedCount;
-    document.getElementById('waitbill_month_label').innerText = `(เดือน ${fMonth}/${fYear})`;
+    
+    // เอา label (เดือน...) ออกจากหน้าจอสำหรับกล่องรอปิดบิล
+    document.getElementById('waitbill_month_label').innerText = `(ยอดสะสมรวมทั้งหมด)`;
     document.getElementById('billed_month_label').innerText = `(เดือน ${fMonth}/${fYear})`;
 
     const formatMoney = (val) => val.toLocaleString('th-TH', {minimumFractionDigits: 0, maximumFractionDigits: 2});
@@ -570,16 +560,9 @@ function openSAFilteredModal(statusType) {
         });
         document.getElementById('modal_status_name').innerText = `งานปิดบิลแล้ว`; vType = 'finance';
     } else if (statusType === 'WaitBill') {
-        jobsToShow = saJobs.filter(job => {
-            if ((job.job_status || "").includes('รอออกบิล')) {
-                let jobDate = job.delivery_date || job.repair_finish_date || job.target_finish_date || job.arrived_date;
-                if (jobDate) {
-                    const d = new Date(jobDate);
-                    return (String(d.getMonth() + 1).padStart(2, '0') === fMonth && String(d.getFullYear()) === fYear);
-                }
-            } return false;
-        });
-        document.getElementById('modal_status_name').innerText = `งานรอปิดบิล`; vType = 'finance';
+        // 🌟 ปลดกรองเดือนสำหรับก้อน "รอออกบิล" ในหน้า Modal
+        jobsToShow = saJobs.filter(job => (job.job_status || "").includes('รอออกบิล'));
+        document.getElementById('modal_status_name').innerText = `งานรอปิดบิล (ยอดสะสมทั้งหมด)`; vType = 'finance';
     } else { 
         jobsToShow = saJobs.filter(j => j.job_status === statusType); 
         document.getElementById('modal_status_name').innerText = `สถานะ: ${statusType}`; 
