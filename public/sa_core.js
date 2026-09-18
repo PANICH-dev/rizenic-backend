@@ -14,6 +14,36 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mainApp) mainApp.classList.add('hidden');
         return;
     }
+    
+    // 🚗 ระบบเปลี่ยนสถานะจอดซ่อมอัตโนมัติตาม Job Status
+    const jobStatusInput = document.getElementById('job_status');
+    const isParkedInput = document.getElementById('park_status'); // ใน HTML ช่องนี้ใช้ ID=park_status
+
+    if (jobStatusInput && isParkedInput) {
+        jobStatusInput.addEventListener('change', function() {
+            const statusValue = this.value;
+            
+            // 🎯 กำหนดกลุ่มสถานะที่ต้องเป็น "จอดซ่อม" 
+            const parkedStatuses = [
+                '09.จอดรอเข้าซ่อม',
+                '10.กำลังซ่อม',
+                '11.รถซ่อมเสร็จรอส่งมอบ',
+                '12.ส่งมอบ',
+                '22.ปิดงาน',
+                '23.รื้อตรวจสอบความเสียหาย'
+            ];
+
+            // เช็คว่าสถานะที่เลือก อยู่ในกลุ่มที่ต้อง "จอดซ่อม" หรือไม่
+            const shouldBeParked = parkedStatuses.some(s => statusValue.includes(s));
+
+            if (shouldBeParked) {
+                isParkedInput.value = 'จอดซ่อม';
+            } else {
+                isParkedInput.value = 'ไม่จอดซ่อม';
+            }
+        });
+    }
+
     enterApp();
 });
 
