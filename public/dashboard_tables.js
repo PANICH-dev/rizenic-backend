@@ -5,31 +5,8 @@ function cleanDate(dStr) {
     if (!dStr) return '';
     let s = String(dStr).trim();
     if (!s || s === 'null' || s === 'undefined' || s === '-') return '';
-    
     if (s.includes('T')) s = s.split('T')[0];
     if (s.includes(' ')) s = s.split(' ')[0];
-    
-    if (s.includes('/')) {
-        const parts = s.split('/');
-        if (parts.length === 3) {
-            let d = parts[0].padStart(2, '0');
-            let m = parts[1].padStart(2, '0');
-            let y = parseInt(parts[2], 10);
-            if (y > 2500) y -= 543;
-            return `${y}-${m}-${d}`;
-        }
-    }
-    
-    if (s.includes('-')) {
-        const parts = s.split('-');
-        if (parts.length === 3) {
-            let y = parseInt(parts[0], 10);
-            if (y > 2500) y -= 543;
-            let m = parts[1].padStart(2, '0');
-            let d = parts[2].padStart(2, '0');
-            return `${y}-${m}-${d}`;
-        }
-    }
     return s;
 }
 
@@ -171,6 +148,9 @@ function sortTable(tableId, colIndex) {
     rows.forEach(row => tbody.appendChild(row));
 }
 
+// ==========================================
+// 🛠️ 1. ตารางรายการรถในสถานีซ่อม (กำลังดำเนินการ) 
+// ==========================================
 function renderStationTable() {
     const tbody = document.getElementById('station_table_body');
     if(!tbody) return;
@@ -178,8 +158,10 @@ function renderStationTable() {
     
     const safeJobs = getSafeJobsData();
     
+    // 🎯 กรองเฉพาะรถที่เข้าสถานีซ่อม โดยเอาเฉพาะรถที่ยังไม่ถูกส่งมอบ
     const inRepairCars = safeJobs.filter(j => {
-        if((j.job_status||'').includes('ส่งมอบแล้ว') || (j.job_status||'').includes('12.ส่งมอบ')) return false;
+        const st = (j.job_status || '').trim();
+        if(st.includes('ส่งมอบแล้ว') || st.includes('12.ส่งมอบ') || st.includes('ปิดงาน')) return false;
         return activeStations.includes(computeHighestStationIFS(j));
     });
     
@@ -215,19 +197,26 @@ function renderStationTable() {
                 <td class="px-4 py-3 font-mono text-xs text-blue-600 text-center font-bold">${target}</td>
                 <td class="px-4 py-3 font-mono text-xs text-emerald-600 text-center font-bold">${actual}</td>
                 <td class="px-4 py-3 font-mono text-xs text-purple-600 text-center font-bold">${delivery}</td>
-                <td class="px-4 py-3 text-center"><button class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-sm whitespace-nowrap"><i class="fa-solid fa-pen"></i> ดูข้อมูล</button></td>
+                <td class="px-4 py-3 text-center"><button class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-sm w-full whitespace-nowrap"><i class="fa-solid fa-pen"></i> ดูข้อมูล</button></td>
             </tr>
         `;
     }).join('');
 }
 
+// ==========================================
+// 🚗 2. รายการรถกำลังจอดซ่อมในศูนย์ (ตามสถานะ ERP)
+// ==========================================
 function renderParkedCars() {
     const tbody = document.getElementById('parked_cars_body');
     if(!tbody) return;
-    const parkedStatuses = ["08.นัดหมายแล้วรอเข้าซ่อม", "09.จอดรอเข้าซ่อม", "10.กำลังซ่อม", "11.รถซ่อมเสร็จรอส่งมอบ", "20.จอดซ่อม TC", "21.พักซ่อม"];
     
     const safeJobs = getSafeJobsData();
-    const parkedCars = safeJobs.filter(j => parkedStatuses.some(p => (j.job_status || '').includes(p)));
+    
+    // 🎯 กรองเอาเฉพาะรถที่มีฟิลด์ is_parked ระบุว่า "จอดซ่อม" (หรือมีคำว่าจอดซ่อม)
+    const parkedCars = safeJobs.filter(j => {
+        const pk = String(j.is_parked || '').trim();
+        return pk === 'จอดซ่อม' || pk.includes('จอด');
+    });
     
     if(parkedCars.length === 0) {
         tbody.innerHTML = `<tr><td colspan="10" class="text-center py-10 text-slate-400 font-bold bg-slate-50"><i class="fa-solid fa-car-tunnel text-3xl mb-3 block opacity-50"></i>ไม่มีรถจอดซ่อมในศูนย์ขณะนี้ 🎉</td></tr>`;
@@ -260,7 +249,7 @@ function renderParkedCars() {
 }
 
 // ==========================================
-// 🗓️ ปฏิทินปฏิบัติงาน (ดึงโควต้าแบบครอบจักรวาล 100%)
+// 🗓️ 3. ปฏิทินปฏิบัติงาน (ดึงโควต้าเป๊ะๆ 100% ตาม repair.js)
 // ==========================================
 function renderCalendarByRange(startDate, endDate) {
     const grid = document.getElementById('calendar_grid'); 
@@ -293,7 +282,6 @@ function renderCalendarByRange(startDate, endDate) {
         currentDay.setDate(currentDay.getDate() + 1);
     }
 
-    // 🎯 ดึงข้อมูลสาขา และ โควต้าแอดมิน ครอบคลุมทุกการออกแบบ
     const branchFilterEl = document.getElementById('branchFilter');
     const branchVal = branchFilterEl ? branchFilterEl.value : 'all';
     const safeAllJobs = typeof allJobs !== 'undefined' && Array.isArray(allJobs) ? allJobs : safeFilteredJobs;
@@ -301,14 +289,11 @@ function renderCalendarByRange(startDate, endDate) {
     const safeAllQuotas = typeof allQuotas !== 'undefined' && Array.isArray(allQuotas) ? allQuotas : [];
 
     daysData.forEach(d => {
-        // ------------------------------------------
-        // 1. คำนวณความสูงแท่งกราฟ (Bar Blocks)
-        // ------------------------------------------
         let barBlock = '';
         if(d.arrJobs.length > 0 || d.tarJobs.length > 0 || d.delJobs.length > 0) {
-            barBlock = `<div class="flex items-end justify-center gap-2 w-full h-[60px] mt-auto pb-1">`;
+            barBlock = `<div class="flex items-end justify-center gap-1.5 w-full h-[60px] mt-auto pb-1">`;
             
-            if(d.arrJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[18px]" onclick="openJobListModalCalendar('${d.dateStr}', 'arrived')"><span class="text-[9px] font-black text-blue-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-blue-200">${d.arrJobs.length}</span><div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-blue-700/20" style="height: ${Math.max(20, (d.arrJobs.length/maxCount)*100)}%;"></div></div>`;
+            if(d.arrJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[20px]" onclick="openJobListModalCalendar('${d.dateStr}', 'arrived')" title="รถเข้าจอด: ${d.arrJobs.length}"><span class="text-[9px] font-black text-blue-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-blue-200">${d.arrJobs.length}</span><div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-blue-700/20" style="height: ${Math.max(20, (d.arrJobs.length/maxCount)*100)}%;"></div></div>`;
             
             const doneQty = d.tarJobs.filter(j => {
                 const st = j.job_status || '';
@@ -317,61 +302,47 @@ function renderCalendarByRange(startDate, endDate) {
             const isAllDone = doneQty === d.tarJobs.length && d.tarJobs.length > 0;
             const pctDone = d.tarJobs.length > 0 ? (doneQty / d.tarJobs.length) * 100 : 0;
 
-            if(d.tarJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[28px]" onclick="openJobListModalCalendar('${d.dateStr}', 'target')"><span class="text-[9px] font-black ${isAllDone ? 'text-emerald-700 bg-emerald-100 border-emerald-400' : 'text-amber-700 bg-amber-100 border-amber-400'} mb-0.5 z-10 bg-white/90 rounded-sm w-full h-4 flex items-center justify-center shadow-sm border">${doneQty}/${d.tarJobs.length}</span><div class="w-full bg-slate-200 rounded-sm shadow-inner relative overflow-hidden" style="height: ${Math.max(20, (d.tarJobs.length/maxCount)*100)}%;"><div class="absolute bottom-0 left-0 w-full bg-gradient-to-t ${isAllDone ? 'from-emerald-500 to-emerald-400' : 'from-amber-500 to-amber-300'} transition-all duration-500 ease-in-out" style="height: ${pctDone}%;"></div></div></div>`;
+            if(d.tarJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[28px]" onclick="openJobListModalCalendar('${d.dateStr}', 'target')" title="เป้าซ่อมเสร็จ: ${d.tarJobs.length} (เสร็จแล้ว ${doneQty})"><span class="text-[9px] font-black ${isAllDone ? 'text-emerald-700 bg-emerald-100 border-emerald-400' : 'text-amber-700 bg-amber-100 border-amber-400'} mb-0.5 z-10 bg-white/90 rounded-sm w-full h-4 flex items-center justify-center shadow-sm border">${doneQty}/${d.tarJobs.length}</span><div class="w-full bg-slate-200 rounded-sm shadow-inner relative overflow-hidden" style="height: ${Math.max(20, (d.tarJobs.length/maxCount)*100)}%;"><div class="absolute bottom-0 left-0 w-full bg-gradient-to-t ${isAllDone ? 'from-emerald-500 to-emerald-400' : 'from-amber-500 to-amber-300'} transition-all duration-500 ease-in-out" style="height: ${pctDone}%;"></div></div></div>`;
             
-            if(d.delJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[18px]" onclick="openJobListModalCalendar('${d.dateStr}', 'delivery')"><span class="text-[9px] font-black text-emerald-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-emerald-200">${d.delJobs.length}</span><div class="w-full bg-gradient-to-t from-emerald-500 to-emerald-300 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-emerald-600/20" style="height: ${Math.max(20, (d.delJobs.length/maxCount)*100)}%;"></div></div>`;
+            if(d.delJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[20px]" onclick="openJobListModalCalendar('${d.dateStr}', 'delivery')" title="นัดส่งมอบ: ${d.delJobs.length}"><span class="text-[9px] font-black text-emerald-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-emerald-200">${d.delJobs.length}</span><div class="w-full bg-gradient-to-t from-emerald-500 to-emerald-300 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-emerald-600/20" style="height: ${Math.max(20, (d.delJobs.length/maxCount)*100)}%;"></div></div>`;
             barBlock += `</div>`;
         } else {
             barBlock = `<div class="flex items-center justify-center h-[60px] w-full mt-auto"><span class="text-[10px] font-bold text-slate-300">ว่าง</span></div>`;
         }
 
-        // ------------------------------------------
-        // 2. คำนวณหลอดชิ้นส่วนหลัก/รอง แบบครอบจักรวาล
-        // ------------------------------------------
+        // 🎯 ดึงโควต้าชิ้นหลัก ชิ้นรอง ตามตรรกะของ repair_3.js เป๊ะๆ
         let maxMain = 0; let maxSub = 0;
-        
-        // ก. หาโควต้าตามวันที่/สาขา
         branchesToCheck.forEach(b => {
-            const branchQuotas = safeAllQuotas.filter(q => q.branch_name === b || !q.branch_name);
+            const branchQuotas = safeAllQuotas.filter(q => q.branch_name === b);
             const specialQ = branchQuotas.find(q => q.quota_type === 'special' && q.quota_date && cleanDate(q.quota_date) === d.dateStr);
-            const defaultQ = branchQuotas.find(q => q.quota_type === 'default' || !q.quota_type);
+            const defaultQ = branchQuotas.find(q => q.quota_type === 'default');
             
-            const getQMain = (obj) => parseInt(obj.quota_main_parts || obj.parts_quota || obj.max_main_parts || 0, 10);
-            const getQSub = (obj) => parseInt(obj.quota_sub_parts || obj.sub_parts_quota || obj.max_sub_parts || 0, 10);
-
-            if (specialQ) {
-                maxMain += getQMain(specialQ); maxSub += getQSub(specialQ);
-            } else if (defaultQ) {
-                maxMain += getQMain(defaultQ); maxSub += getQSub(defaultQ);
-            }
+            maxMain += specialQ ? (parseInt(specialQ.quota_main_parts)||0) : (defaultQ ? (parseInt(defaultQ.quota_main_parts)||0) : 0);
+            maxSub += specialQ ? (parseInt(specialQ.quota_sub_parts)||0) : (defaultQ ? (parseInt(defaultQ.quota_sub_parts)||0) : 0);
         });
 
-        // ข. ถ้าหาโควต้าไม่เจอเลย (DB แอดมินอาจจะว่าง) บังคับให้เป็น 50 / 30 จะได้มีหลอดโชว์เสมอ
-        if (maxMain === 0) maxMain = 50;
-        if (maxSub === 0) maxSub = 30;
-
-        // คำนวณผลรวมชิ้นส่วนจริงของรถที่มีเป้าเสร็จในวันนี้
+        // คำนวณชิ้นส่วนของงานซ่อม
         const mainSum = d.tarJobs.reduce((sum, j) => sum + (parseInt(j.main_part_qty) || ((j.main_part_name && String(j.main_part_name).trim() !== '-' && String(j.main_part_name).trim() !== '') ? String(j.main_part_name).split(',').filter(Boolean).length : 0)), 0);
         const subSum = d.tarJobs.reduce((sum, j) => sum + (parseInt(j.sub_part_qty) || ((j.sub_part_name && String(j.sub_part_name).trim() !== '-' && String(j.sub_part_name).trim() !== '') ? String(j.sub_part_name).split(',').filter(Boolean).length : 0)), 0);
 
-        // วาด HTML สำหรับหลอดชิ้นส่วน (เอา if ออก เพื่อบังคับโชว์เสมอ)
-        let quotaHTML = `<div class="w-full mt-2 pt-1 border-t border-slate-100 flex flex-col gap-1">`;
-        
-        let pctMain = Math.min((mainSum / maxMain) * 100, 100);
-        quotaHTML += `<div title="เป้าหมายชิ้นส่วนหลัก"><div class="flex justify-between text-[9px] font-bold text-slate-500 mb-0.5"><span>ชิ้นหลัก</span><span class="${pctMain>=100?'text-rose-600':''}">${mainSum}/${maxMain}</span></div><div class="h-1.5 rounded-full bg-slate-200"><div class="h-full rounded-full ${pctMain>=100?'bg-rose-500':(pctMain>=80?'bg-amber-500':'bg-blue-500')} transition-all" style="width: ${pctMain}%"></div></div></div>`;
-        
-        let pctSub = Math.min((subSum / maxSub) * 100, 100);
-        quotaHTML += `<div title="เป้าหมายชิ้นส่วนรอง"><div class="flex justify-between text-[9px] font-bold text-slate-500 mb-0.5"><span>ชิ้นรอง</span><span class="${pctSub>=100?'text-rose-600':''}">${subSum}/${maxSub}</span></div><div class="h-1.5 rounded-full bg-slate-200"><div class="h-full rounded-full ${pctSub>=100?'bg-rose-500':(pctSub>=80?'bg-amber-500':'bg-amber-400')} transition-all" style="width: ${pctSub}%"></div></div></div>`;
-        
-        quotaHTML += `</div>`;
+        let quotaHTML = '';
+        if (maxMain > 0 || maxSub > 0) {
+            quotaHTML = `<div class="w-full mt-1 pt-1 border-t border-slate-100 flex flex-col gap-1">`;
+            if (maxMain > 0) {
+                let pct = Math.min((mainSum / maxMain) * 100, 100);
+                quotaHTML += `<div title="เป้าหมายชิ้นส่วนหลัก"><div class="flex justify-between text-[9px] font-bold text-slate-500 mb-0.5"><span>ชิ้นหลัก</span><span class="${pct>=100?'text-rose-600':''}">${mainSum}/${maxMain}</span></div><div class="h-1.5 rounded-full bg-slate-200"><div class="h-full rounded-full ${pct>=100?'bg-rose-500':(pct>=80?'bg-amber-500':'bg-blue-500')} transition-all" style="width: ${pct}%"></div></div></div>`;
+            }
+            if (maxSub > 0) {
+                let pct = Math.min((subSum / maxSub) * 100, 100);
+                quotaHTML += `<div title="เป้าหมายชิ้นส่วนรอง"><div class="flex justify-between text-[9px] font-bold text-slate-500 mb-0.5"><span>ชิ้นรอง</span><span class="${pct>=100?'text-rose-600':''}">${subSum}/${maxSub}</span></div><div class="h-1.5 rounded-full bg-slate-200"><div class="h-full rounded-full ${pct>=100?'bg-rose-500':(pct>=80?'bg-amber-500':'bg-amber-400')} transition-all" style="width: ${pct}%"></div></div></div>`;
+            }
+            quotaHTML += `</div>`;
+        }
 
-        // ------------------------------------------
-        // 3. วาดช่องปฏิทิน
-        // ------------------------------------------
         const todayObj = new Date();
         const todayStrLocal = `${todayObj.getFullYear()}-${String(todayObj.getMonth()+1).padStart(2,'0')}-${String(todayObj.getDate()).padStart(2,'0')}`;
         const isToday = d.dateStr === todayStrLocal;
-        const isFull = (mainSum >= maxMain) || (subSum >= maxSub);
+        const isFull = (maxMain > 0 && mainSum >= maxMain) || (maxSub > 0 && subSum >= maxSub);
 
         const hasOverdue = d.tarJobs.some(j => {
             if (j.repair_finish_date) return false;
@@ -382,12 +353,12 @@ function renderCalendarByRange(startDate, endDate) {
         });
 
         grid.innerHTML += `
-            <div class="calendar-cell ${isToday ? 'today ring-2 ring-amber-400 bg-amber-50/20' : 'bg-white'} border border-slate-200 rounded-xl p-3 flex flex-col hover:border-amber-400 hover:shadow-lg transition-all relative min-h-[160px] ${isFull ? 'border-rose-300 bg-rose-50/20' : ''} ${hasOverdue ? 'bg-red-50/20' : ''}">
-                <div class="flex justify-between items-start w-full mb-2">
-                    <span class="calendar-day-label !mb-0">${d.day}</span>
+            <div class="calendar-cell ${isToday ? 'today ring-2 ring-amber-400 bg-amber-50/20' : 'bg-white'} border border-slate-200 rounded-xl p-3 flex flex-col hover:border-amber-400 hover:shadow-lg transition-all relative min-h-[150px] ${isFull ? 'border-rose-300 bg-rose-50/20' : ''} ${hasOverdue ? 'bg-red-50/20' : ''}">
+                <div class="flex justify-between items-start w-full mb-1">
+                    <span class="text-sm font-black text-slate-600 ${isToday ? 'text-amber-600 bg-amber-100 px-1.5 rounded' : ''} font-mono">${d.day}</span>
                     <div class="flex gap-1">
                         ${hasOverdue ? `<i class="fa-solid fa-circle-exclamation text-red-500 animate-pulse text-[10px]" title="มีรถดีเลย์!"></i>` : ''}
-                        ${isFull ? `<span class="text-[9px] font-black bg-rose-500 text-white px-1.5 py-0.5 rounded shadow-sm animate-pulse border border-rose-600">🔥 เต็ม</span>` : ''}
+                        ${isFull ? `<span class="text-[9px] font-black bg-rose-500 text-white px-1 py-0.5 rounded shadow-sm animate-pulse border border-rose-600">เต็ม</span>` : ''}
                     </div>
                 </div>
                 <div class="flex-1 flex flex-col justify-end w-full">${barBlock}${quotaHTML}</div>
