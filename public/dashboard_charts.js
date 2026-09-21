@@ -678,15 +678,15 @@ function openPaymentModal(paymentType, start, end) {
 }
 
 // ==========================================
-// 🍩 4. กราฟสถานะอะไหล่ (ล็อกเป้าเฉพาะ "06.สั่งอะไหล่" ไม่กรองวันที่)
+// 🍩 4. กราฟสถานะอะไหล่ (ล็อกสถานะ "06.สั่งอะไหล่" และ "สั่งอะไหล่" ไม่กรองวันที่)
 // ==========================================
 function renderPartsStatusChart() {
     const counts = {};
     
-    // 1. ดึงเฉพาะงานที่ "กำลังอยู่ในสถานะ 06.สั่งอะไหล่" เท่านั้น (ไม่กรองวันที่)
+    // 1. ดึงเฉพาะงานที่ "กำลังอยู่ในสถานะสั่งอะไหล่" (คลุมทั้งมี "06." และไม่มี "06.")
     const orderingJobs = filteredJobs.filter(j => {
         const st = (j.job_status || '').trim();
-        return st.includes('06.สั่งอะไหล่') || st.includes('06. สั่งอะไหล่');
+        return st.includes('สั่งอะไหล่'); 
     });
     
     // 2. ดึง Job ID ออกมาทั้งหมด (แปลงเป็น String เพื่อเทียบง่าย)
@@ -696,16 +696,14 @@ function renderPartsStatusChart() {
     const cleanPlate = str => String(str || '').replace(/\s+/g, '').toLowerCase();
     const orderingPlates = new Set(orderingJobs.map(j => cleanPlate(j.car_plate)).filter(Boolean));
 
-    // 4. กรองรายการอะไหล่ให้ตรงกับใบงานที่อยู่ในสถานะ "06.สั่งอะไหล่" เท่านั้น
+    // 4. กรองรายการอะไหล่ให้ตรงกับใบงานที่อยู่ในสถานะสั่งอะไหล่เท่านั้น
     const pendingParts = filteredPartOrders.filter(o => {
         if (o.order_status === 'ยกเลิก') return false;
         
         const oJobId = String(o.job_id || o.report_id || '');
         if (oJobId && oJobId !== 'undefined' && oJobId !== 'null' && oJobId !== '') {
-            return orderingJobIds.has(oJobId); // ถ้ามี Job ID บังคับเทียบจาก ID ชัวร์สุด
+            return orderingJobIds.has(oJobId); 
         } 
-        
-        // ถ้าข้อมูลเก่าไม่มี Job ID ให้เช็คด้วยทะเบียนรถแทน
         return orderingPlates.has(cleanPlate(o.car_plate));
     });
     
@@ -742,9 +740,10 @@ function renderPartsStatusChart() {
 function openPartsStatusModal(statusLabel) {
     document.getElementById('modal_status_name').innerText = `รถที่รออะไหล่: ${statusLabel}`;
     
+    // ดึงสถานะสั่งอะไหล่ทั้งหมด
     const orderingJobs = filteredJobs.filter(j => {
         const st = (j.job_status || '').trim();
-        return st.includes('06.สั่งอะไหล่') || st.includes('06. สั่งอะไหล่');
+        return st.includes('สั่งอะไหล่'); 
     });
     
     const orderingJobIds = new Set(orderingJobs.map(j => String(j.id)));
@@ -781,6 +780,7 @@ function openPartsStatusModal(statusLabel) {
     renderJobTableInModalGroupedBySA(jobsToShow);
     document.getElementById('jobListModal').classList.remove('hidden');
 }
+
 // ==========================================
 // 🍩 5. กราฟสถานะช่าง (สีตัดกันชัดเจน พร้อม Pop-up)
 // ==========================================
