@@ -439,8 +439,8 @@ function renderDailyLineChart(start, end) {
     });
 }
 
-// ==========================================
-// 🍩 2. กราฟ Damage Level (กรองตามปฏิทินจากวันที่รถเข้า)
+// // ==========================================
+// 🍩 2. กราฟ Damage Level (ระดับความเสียหาย สีตามกำหนด)
 // ==========================================
 function renderDamageChart(start, end) {
     const counts = {};
@@ -452,7 +452,14 @@ function renderDamageChart(start, end) {
     const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
     const labels = sorted.map(i => i[0]);
     const data = sorted.map(i => i[1]);
-    const colors = ['#ef4444', '#f97316', '#eab308', '#3b82f6', '#94a3b8'];
+
+    // 🎯 แมปสีตามระดับความเสียหาย: เบา=เขียว, กลาง=เหลือง, หนัก=แดง
+    const colors = labels.map(l => {
+        if (l.includes('เบา')) return '#10b981';   // 🟢 สีเขียว
+        if (l.includes('กลาง')) return '#facc15';  // 🟡 สีเหลือง
+        if (l.includes('หนัก')) return '#ef4444';  // 🔴 สีแดง
+        return '#94a3b8';                          // ⚪ สีเทา (ไม่ระบุ)
+    });
 
     if (damageChartInstance) damageChartInstance.destroy();
     const ctx = document.getElementById('damageChart').getContext('2d');
@@ -468,6 +475,8 @@ function renderDamageChart(start, end) {
         }
     });
 }
+
+
 
 // ==========================================
 // 🍩 3. อัปเดต Payment Chart (รับค่า Start/End เพื่อกรองปฏิทิน)
@@ -504,11 +513,21 @@ function renderPaymentChart(start, end) {
 }
 
 // ==========================================
-// 🍩 4. กราฟสถานะอะไหล่ (ดึงจาก filteredPartOrders)
+// 🍩 4. กราฟสถานะอะไหล่ (เฉพาะคันที่อยู่สถานะ "06.สั่งอะไหล่" และไม่สนปฏิทิน)
 // ==========================================
 function renderPartsStatusChart() {
     const counts = {};
-    const pendingParts = filteredPartOrders.filter(o => o.order_status !== 'ยกเลิก');
+    
+    // 1. ดึงเฉพาะคันที่สถานะหลักคือ "06.สั่งอะไหล่" (และทะลุกรอบปฏิทิน ไม่ใช้ isDateInRange)
+    const orderingJobs = filteredJobs.filter(j => (j.job_status || '').includes('06.สั่งอะไหล่'));
+    
+    // สร้างลิสต์ทะเบียนรถที่อยู่ในสถานะสั่งอะไหล่
+    const orderingPlates = new Set(orderingJobs.map(j => j.car_plate));
+
+    // 2. ดึงเฉพาะชิ้นส่วนที่รถคันนั้นสั่งอยู่ และยังไม่ถูกยกเลิก
+    const pendingParts = filteredPartOrders.filter(o => {
+        return o.order_status !== 'ยกเลิก' && orderingPlates.has(o.car_plate);
+    });
     
     pendingParts.forEach(o => {
         let st = (o.order_status || 'รออัปเดต').trim();
@@ -518,12 +537,12 @@ function renderPartsStatusChart() {
 
     const labels = Object.keys(counts);
     const data = Object.values(counts);
-    // 🎯 แมปสีตามชื่อระดับความเสียหาย
     const colors = labels.map(l => {
-        if (l.includes('เบา')) return '#10b981';   // 🟢 สีเขียว
-        if (l.includes('กลาง')) return '#f59e0b';  // 🟡 สีเหลือง
-        if (l.includes('หนัก')) return '#ef4444';  // 🔴 สีแดง
-        return '#94a3b8';                         // ⚪ สีเทา (ไม่ระบุ/อื่นๆ)
+        if(l === 'มีของ/ครบ') return '#10b981'; // เขียว
+        if(l === 'รอสั่งซื้อ') return '#ef4444'; // แดง
+        if(l === 'รออะไหล่') return '#f59e0b'; // ส้ม
+        if(l === 'ติด Back Order') return '#9333ea'; // ม่วง
+        return '#94a3b8'; // เทา
     });
 
     if (partsStatusChartInstance) partsStatusChartInstance.destroy();
