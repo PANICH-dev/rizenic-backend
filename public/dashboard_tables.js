@@ -170,66 +170,144 @@ function sortTable(tableId, colIndex) {
 }
 
 // ==========================================
-// 🛠️ ตารางรายการรถในสถานีซ่อม (กำลังดำเนินการ)
+// 🗓️ ปฏิทินปฏิบัติงาน (ดีไซน์ Original สุดคลีนจากรูป ds3.jpg)
 // ==========================================
-function renderStationTable() {
-    const tbody = document.getElementById('station_table_body');
-    const activeStations = ["01.เคาะ", "02.โป๊ว", "03.เตรียมพื้น", "04.พ่นสี", "05.ประกอบ", "06.ขัดสี", "08.เก็บงาน", "09.ซ่อมแม็ก", "10.กระจก", "11.ฟิล์ม"];
-    
-    // 🎯 กรองเฉพาะรถที่ "จอดซ่อม" และไม่ถูกส่งมอบแล้ว
-    const inRepairCars = filteredJobs.filter(j => {
-        const st = (j.job_status || '').trim();
-        
-        // เช็กจากฟิลด์ is_parked ที่เราเพิ่งอัปเดต SQL ไป
-        const isParked = j.is_parked === 'จอดซ่อม' || 
-                         (j.is_parked !== 'ไม่จอดซ่อม' && !['13.วางบิลประกัน','14.ชำระเงินสด','15.วางบิล Tesla','16.วางบิล EV ME','17.รอออกบิล','18.ลูกค้ายกเลิก','19.ออกบิลแล้ว','20.จอดซ่อม TC','21.พักซ่อม','22.ปิดงาน'].some(ex => st.includes(ex)));
-        
-        if (st.includes('ส่งมอบแล้ว') || st.includes('12.ส่งมอบ')) return false;
-        
-        return isParked && activeStations.includes(computeHighestStationIFS(j));
-    });
-    
-    if(inRepairCars.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-slate-400 font-bold bg-slate-50">ไม่มีรถกำลังดำเนินการในสถานีช่างขณะนี้ 🎉</td></tr>`;
+function renderCalendarByRange(startStr, endStr) {
+    const grid = document.getElementById('calendar_grid');
+    if (!grid) return;
+
+    if (!startStr || !endStr) {
+        grid.innerHTML = `<div class="col-span-7 text-center py-10 text-slate-400 font-bold">กรุณาเลือกช่วงเวลา</div>`;
         return;
     }
+    
+    const startDate = new Date(startStr);
+    const endDate = new Date(endStr);
+    
+    const startCalendar = new Date(startDate);
+    startCalendar.setDate(startCalendar.getDate() - startCalendar.getDay());
+    
+    const endCalendar = new Date(endDate);
+    if (endCalendar.getDay() !== 6) {
+        endCalendar.setDate(endCalendar.getDate() + (6 - endCalendar.getDay()));
+    }
 
-    inRepairCars.sort((a,b) => new Date(a.target_finish_date||'9999') - new Date(b.target_finish_date||'9999'));
+    let html = '';
+    let current = new Date(startCalendar);
+    const todayStr = new Date().toISOString().split('T')[0];
 
-    const today = new Date(); today.setHours(0,0,0,0);
+    const cleanDate = (dStr) => dStr ? String(dStr).split('T')[0].trim() : '';
 
-    tbody.innerHTML = inRepairCars.map(j => {
-        const target = j.target_finish_date ? j.target_finish_date.split('T')[0] : '-';
-        const actual = j.repair_finish_date ? j.repair_finish_date.split('T')[0] : '-';
-        const delivery = j.delivery_date ? j.delivery_date.split('T')[0] : '-';
-        const station = computeHighestStationIFS(j);
-        
-        let overdueWarning = '';
-        if (j.delivery_date && today > new Date(j.delivery_date).setHours(0,0,0,0)) {
-            overdueWarning = `<i class="fa-solid fa-triangle-exclamation text-red-500 animate-pulse ml-1" title="เลยกำหนดส่งมอบ!"></i>`;
-        } else if (j.target_finish_date && today > new Date(j.target_finish_date).setHours(0,0,0,0)) {
-            overdueWarning = `<i class="fa-solid fa-clock text-amber-500 animate-pulse ml-1" title="เลยเป้าซ่อมเสร็จ!"></i>`;
+    while (current <= endCalendar) {
+        const dateStr = current.toISOString().split('T')[0];
+        const isOutOfRange = current < startDate || current > endDate;
+        const isToday = dateStr === todayStr;
+
+        if (isOutOfRange) {
+            html += `<div class="bg-slate-50 border border-slate-100 rounded-xl p-3 min-h-[160px] opacity-40"></div>`;
+        } else {
+            // 1. ดึงจำนวนงานแต่ละหมวด
+            const arrivedJobs = (filteredJobs || []).filter(j => cleanDate(j.arrived_date) === dateStr || cleanDate(j.appointment_date) === dateStr);
+            const targetJobs = (filteredJobs || []).filter(j => cleanDate(j.target_finish_date) === dateStr);
+            const deliveredJobs = (filteredJobs || []).filter(j => cleanDate(j.delivery_date) === dateStr);
+            
+            // นับชิ้นส่วนหลัก/รอง 
+            let mainCount = 0; let subCount = 0;
+            const uniqueJobsForDay = new Map();
+            [...arrivedJobs, ...targetJobs, ...deliveredJobs].forEach(j => uniqueJobsForDay.set(j.id, j));
+            
+            uniqueJobsForDay.forEach(j => {
+                if (j.main_part_name && j.main_part_name !== '-' && j.main_part_name.trim() !== '') mainCount++;
+                if (j.sub_part_name && j.sub_part_name !== '-' && j.sub_part_name.trim() !== '') subCount++;
+            });
+
+            // 2. ดึงโควต้า
+            const quotasArray = Array.isArray(allQuotas) ? allQuotas : [];
+            const q = quotasArray.find(x => cleanDate(x.quota_date) === dateStr) || {};
+            
+            const limitIn = parseInt(q.intake_quota || 10, 10);
+            const limitTar = parseInt(q.target_quota || 10, 10);
+            const limitDel = parseInt(q.delivery_quota || 10, 10);
+            const limitParts = parseInt(q.parts_quota || 50, 10);
+            const limitSubParts = parseInt(q.parts_quota || 30, 10); // สมมติโควต้ารองให้น้อยกว่าหลักนิดหน่อย
+
+            const countIn = arrivedJobs.length;
+            const countTar = targetJobs.length;
+            const countDel = deliveredJobs.length;
+
+            // คำนวณความสูงกราฟแนวตั้ง (มีตัวเลขก็ให้สูงขั้นต่ำ 5%)
+            const hIn = countIn > 0 ? Math.max(Math.min((countIn / limitIn) * 100, 100), 5) : 0;
+            const hTar = countTar > 0 ? Math.max(Math.min((countTar / limitTar) * 100, 100), 5) : 0;
+            const hDel = countDel > 0 ? Math.max(Math.min((countDel / limitDel) * 100, 100), 5) : 0;
+            
+            const pctMain = Math.min((mainCount / limitParts) * 100, 100);
+            const pctSub = Math.min((subCount / limitSubParts) * 100, 100);
+
+            // กรอบปฏิทิน
+            let cellClass = "bg-white border border-slate-200 rounded-xl p-3 min-h-[180px] flex flex-col hover:border-blue-400 hover:shadow-lg transition-all cursor-pointer relative";
+            if (isToday) cellClass += " ring-2 ring-blue-500 bg-blue-50/10";
+
+            html += `
+            <div class="${cellClass}" onclick="openCalendarModal('${dateStr}')">
+                
+                <!-- วันที่ มุมขวาบน -->
+                <div class="absolute top-2 right-3 text-xs font-bold ${isToday ? 'text-blue-600' : 'text-slate-600'}">
+                    ${current.getDate()}
+                </div>
+                
+                <!-- เว้นที่ว่างด้านบน -->
+                <div class="h-4"></div>
+
+                <!-- กราฟแท่งแนวตั้ง 3 แท่ง (ตรงกลาง) -->
+                <div class="flex-1 flex justify-center items-end gap-3 pb-4">
+                    <!-- เข้าจอด (น้ำเงิน) -->
+                    <div class="flex flex-col items-center justify-end h-[65px] w-3">
+                        ${countIn > 0 ? `<span class="text-[9px] font-bold text-blue-600 bg-white border border-blue-200 rounded px-1 mb-1 shadow-sm leading-tight z-10">${countIn}</span>` : ''}
+                        <div class="w-full bg-blue-500 rounded-t-sm transition-all duration-300" style="height: ${hIn}%;"></div>
+                    </div>
+                    
+                    <!-- เป้าเสร็จ (เหลือง/ส้ม) -->
+                    <div class="flex flex-col items-center justify-end h-[65px] w-3">
+                        ${countTar > 0 ? `<span class="text-[9px] font-bold text-amber-500 bg-white border border-amber-200 rounded px-1 mb-1 shadow-sm leading-tight z-10">${countTar}</span>` : ''}
+                        <div class="w-full bg-amber-400 rounded-t-sm transition-all duration-300" style="height: ${hTar}%;"></div>
+                    </div>
+                    
+                    <!-- ส่งมอบ (เขียว) -->
+                    <div class="flex flex-col items-center justify-end h-[65px] w-3">
+                        ${countDel > 0 ? `<span class="text-[9px] font-bold text-emerald-500 bg-white border border-emerald-200 rounded px-1 mb-1 shadow-sm leading-tight z-10">${countDel}</span>` : ''}
+                        <div class="w-full bg-emerald-400 rounded-t-sm transition-all duration-300" style="height: ${hDel}%;"></div>
+                    </div>
+                </div>
+
+                <!-- ชิ้นส่วนหลัก/รอง ด้านล่างสุด -->
+                <div class="mt-auto space-y-2 w-full">
+                    <!-- ชิ้นหลัก -->
+                    <div>
+                        <div class="flex justify-between text-[9px] font-bold text-slate-500 mb-0.5">
+                            <span>ชิ้นหลัก</span>
+                            <span>${mainCount}/${limitParts}</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-1">
+                            <div class="bg-blue-500 h-1 rounded-full transition-all duration-300" style="width: ${pctMain}%;"></div>
+                        </div>
+                    </div>
+                    <!-- ชิ้นรอง -->
+                    <div>
+                        <div class="flex justify-between text-[9px] font-bold text-slate-500 mb-0.5">
+                            <span>ชิ้นรอง</span>
+                            <span>${subCount}/${limitSubParts}</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-1">
+                            <div class="bg-amber-400 h-1 rounded-full transition-all duration-300" style="width: ${pctSub}%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>`;
         }
-        
-        return `
-            <tr class="cursor-pointer hover:bg-orange-50/50 transition-colors border-b border-slate-100" onclick="goToEditJob('${j.id}')">
-                <td class="px-4 py-3 font-black text-orange-700"><span class="bg-orange-50 px-2.5 py-1 rounded border border-orange-200 shadow-inner">${j.car_plate || '-'}${overdueWarning}</span></td>
-                <td class="px-4 py-3 text-xs font-bold text-slate-700">${j.car_brand} ${j.car_model || ''}</td>
-                <td class="px-4 py-3 text-xs font-medium text-slate-600 truncate max-w-[150px]" title="${j.customer_name}">${j.customer_name || '-'}</td>
-                <td class="px-4 py-3 text-xs font-bold text-slate-700"><span class="bg-slate-100 px-2 py-1 rounded shadow-sm border border-slate-200">${j.job_status || '-'}</span></td>
-                <td class="px-4 py-3 text-xs font-black text-orange-600 bg-orange-50/30"><i class="fa-solid fa-wrench"></i> ${station.replace(/[0-9.]/g, '')}</td>
-                <td class="px-4 py-3 font-mono text-xs text-blue-600 text-center font-bold">${target}</td>
-                <td class="px-4 py-3 font-mono text-xs text-emerald-600 text-center font-bold">${actual}</td>
-                <td class="px-4 py-3 font-mono text-xs text-purple-600 text-center font-bold">${delivery}</td>
-                <td class="px-4 py-3 text-center">
-                    <!-- 🎯 ปุ่มดูข้อมูล -->
-                    <button class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full whitespace-nowrap" onclick="event.stopPropagation(); goToEditJob('${j.id}')">
-                        <i class="fa-solid fa-pen"></i> ดูข้อมูล
-                    </button>
-                </td>
-            </tr>
-        `;
-    }).join('');
+        current.setDate(current.getDate() + 1);
+    }
+    grid.innerHTML = html;
 }
 
 function renderParkedCars() {
