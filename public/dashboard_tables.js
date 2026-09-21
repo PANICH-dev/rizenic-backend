@@ -1,6 +1,38 @@
 // =====================================
 // 🛠️ HELPER FUNCTIONS
 // =====================================
+function cleanDate(dStr) {
+    if (!dStr) return '';
+    let s = String(dStr).trim();
+    if (!s || s === 'null' || s === 'undefined' || s === '-') return '';
+    
+    if (s.includes('T')) s = s.split('T')[0];
+    if (s.includes(' ')) s = s.split(' ')[0];
+    
+    if (s.includes('/')) {
+        const parts = s.split('/');
+        if (parts.length === 3) {
+            let d = parts[0].padStart(2, '0');
+            let m = parts[1].padStart(2, '0');
+            let y = parseInt(parts[2], 10);
+            if (y > 2500) y -= 543;
+            return `${y}-${m}-${d}`;
+        }
+    }
+    
+    if (s.includes('-')) {
+        const parts = s.split('-');
+        if (parts.length === 3) {
+            let y = parseInt(parts[0], 10);
+            if (y > 2500) y -= 543;
+            let m = parts[1].padStart(2, '0');
+            let d = parts[2].padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+    }
+    return s;
+}
+
 function isTrue(val) {
     if (val === null || val === undefined) return false;
     const strVal = String(val).trim().toUpperCase();
@@ -19,13 +51,20 @@ window.goToEditJob = window.goToEditJob || function(id) {
     window.location.href = 'index.html';
 };
 
+function getSafeJobsData() {
+    if (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs) && filteredJobs.length > 0) return filteredJobs;
+    if (typeof allJobs !== 'undefined' && Array.isArray(allJobs) && allJobs.length > 0) return allJobs;
+    if (typeof originalRepairJobs !== 'undefined' && Array.isArray(originalRepairJobs) && originalRepairJobs.length > 0) return originalRepairJobs;
+    return [];
+}
+
 // =====================================
 // 📋 TABLES, CALENDAR & LISTS
 // =====================================
 
 function renderSASection() {
     const saCounts = {};
-    const safeJobs = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs)) ? filteredJobs : [];
+    const safeJobs = getSafeJobsData();
     
     safeJobs.forEach(job => {
         const sa = job.sa_owner || "ไม่ระบุ SA";
@@ -54,7 +93,7 @@ function renderSASection() {
 
 function openSAModal(saName) {
     if(document.getElementById('modal_status_name')) document.getElementById('modal_status_name').innerText = `รถทั้งหมดของ SA: ${saName}`;
-    const safeJobs = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs)) ? filteredJobs : [];
+    const safeJobs = getSafeJobsData();
     const jobsToShow = safeJobs.filter(j => (j.sa_owner || "ไม่ระบุ SA") === saName);
     if(typeof renderJobTableInModalGroupedBySA === 'function') renderJobTableInModalGroupedBySA(jobsToShow);
     if(document.getElementById('jobListModal')) document.getElementById('jobListModal').classList.remove('hidden');
@@ -80,7 +119,7 @@ function computeHighestStationIFS(j) {
 function renderStationSection() {
     const stCounts = { "01.เคาะ":0, "02.โป๊ว":0, "03.เตรียมพื้น":0, "04.พ่นสี":0, "05.ประกอบ":0, "06.ขัดสี":0, "08.เก็บงาน":0, "09.ซ่อมแม็ก":0, "10.กระจก":0, "11.ฟิล์ม":0, "12.พักซ่อม":0, "13.รอส่งมอบ":0, "รอรับรถ":0 };
     
-    const safeJobs = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs)) ? filteredJobs : [];
+    const safeJobs = getSafeJobsData();
     safeJobs.filter(j => !(j.job_status||'').includes('ส่งมอบแล้ว')).forEach(j => {
         const s = computeHighestStationIFS(j);
         if(stCounts[s] !== undefined) stCounts[s]++;
@@ -99,7 +138,7 @@ function renderStationSection() {
 
 function openStationModal(stationName) {
     if(document.getElementById('modal_status_name')) document.getElementById('modal_status_name').innerText = `สถานีช่าง: ${stationName}`;
-    const safeJobs = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs)) ? filteredJobs : [];
+    const safeJobs = getSafeJobsData();
     const jobsToShow = safeJobs.filter(j => j.job_status !== '12.ส่งมอบแล้ว' && computeHighestStationIFS(j) === stationName);
     if(typeof renderJobTableInModalGroupedBySA === 'function') renderJobTableInModalGroupedBySA(jobsToShow);
     if(document.getElementById('jobListModal')) document.getElementById('jobListModal').classList.remove('hidden');
@@ -137,7 +176,7 @@ function renderStationTable() {
     if(!tbody) return;
     const activeStations = ["01.เคาะ", "02.โป๊ว", "03.เตรียมพื้น", "04.พ่นสี", "05.ประกอบ", "06.ขัดสี", "08.เก็บงาน", "09.ซ่อมแม็ก", "10.กระจก", "11.ฟิล์ม"];
     
-    const safeJobs = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs)) ? filteredJobs : [];
+    const safeJobs = getSafeJobsData();
     
     const inRepairCars = safeJobs.filter(j => {
         if((j.job_status||'').includes('ส่งมอบแล้ว') || (j.job_status||'').includes('12.ส่งมอบ')) return false;
@@ -154,9 +193,9 @@ function renderStationTable() {
     const today = new Date(); today.setHours(0,0,0,0);
 
     tbody.innerHTML = inRepairCars.map(j => {
-        const target = j.target_finish_date ? j.target_finish_date.split('T')[0] : '-';
-        const actual = j.repair_finish_date ? j.repair_finish_date.split('T')[0] : '-';
-        const delivery = j.delivery_date ? j.delivery_date.split('T')[0] : '-';
+        const target = j.target_finish_date ? cleanDate(j.target_finish_date) : '-';
+        const actual = j.repair_finish_date ? cleanDate(j.repair_finish_date) : '-';
+        const delivery = j.delivery_date ? cleanDate(j.delivery_date) : '-';
         const station = computeHighestStationIFS(j);
         
         let overdueWarning = '';
@@ -187,7 +226,7 @@ function renderParkedCars() {
     if(!tbody) return;
     const parkedStatuses = ["08.นัดหมายแล้วรอเข้าซ่อม", "09.จอดรอเข้าซ่อม", "10.กำลังซ่อม", "11.รถซ่อมเสร็จรอส่งมอบ", "20.จอดซ่อม TC", "21.พักซ่อม"];
     
-    const safeJobs = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs)) ? filteredJobs : [];
+    const safeJobs = getSafeJobsData();
     const parkedCars = safeJobs.filter(j => parkedStatuses.some(p => (j.job_status || '').includes(p)));
     
     if(parkedCars.length === 0) {
@@ -210,18 +249,18 @@ function renderParkedCars() {
                 <td class="font-bold text-slate-800 px-4 py-3 text-xs">${j.car_brand || ''} ${j.car_model || ''}</td>
                 <td class="truncate max-w-[150px] font-medium text-slate-700 px-4 py-3 text-xs" title="${j.customer_name}">${j.customer_name || '-'}</td>
                 <td class="font-bold text-orange-600 text-xs px-4 py-3"><i class="fa-solid fa-wrench"></i> ${computeHighestStationIFS(j).replace(/[0-9.]/g, '')}</td>
-                <td class="font-mono text-xs text-blue-600 text-center font-bold px-4 py-3">${j.target_finish_date ? j.target_finish_date.split('T')[0] : '-'}</td>
-                <td class="font-mono text-xs text-emerald-600 text-center font-bold px-4 py-3">${j.repair_finish_date ? j.repair_finish_date.split('T')[0] : '-'}</td>
-                <td class="font-mono text-xs text-purple-600 text-center font-bold px-4 py-3">${j.delivery_date ? j.delivery_date.split('T')[0] : '-'}</td>
+                <td class="font-mono text-xs text-blue-600 text-center font-bold px-4 py-3">${j.target_finish_date ? cleanDate(j.target_finish_date) : '-'}</td>
+                <td class="font-mono text-xs text-emerald-600 text-center font-bold px-4 py-3">${j.repair_finish_date ? cleanDate(j.repair_finish_date) : '-'}</td>
+                <td class="font-mono text-xs text-purple-600 text-center font-bold px-4 py-3">${j.delivery_date ? cleanDate(j.delivery_date) : '-'}</td>
                 <td class="font-bold text-slate-600 text-[11px] px-4 py-3"><span class="bg-slate-100 border border-slate-200 px-2 py-1 rounded shadow-sm">${j.job_status || '-'}</span></td>
-                <td class="text-center px-4 py-3"><button class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full whitespace-nowrap"><i class="fa-solid fa-pen"></i> ดูข้อมูล</button></td>
+                <td class="text-center px-4 py-3"><button class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-sm w-full whitespace-nowrap"><i class="fa-solid fa-pen"></i> ดูข้อมูล</button></td>
             </tr>
         `;
     }).join('');
 }
 
 // ==========================================
-// 🗓️ ปฏิทินปฏิบัติงาน (ดึงโควต้า Admin ถูกต้อง 100%)
+// 🗓️ ปฏิทินปฏิบัติงาน (ดึงโควต้าแบบครอบจักรวาล 100%)
 // ==========================================
 function renderCalendarByRange(startDate, endDate) {
     const grid = document.getElementById('calendar_grid'); 
@@ -237,24 +276,24 @@ function renderCalendarByRange(startDate, endDate) {
         grid.innerHTML = `<div class="col-span-7 text-center py-10 text-slate-400 font-bold bg-slate-50 rounded-xl">รองรับสูงสุด 31 วัน</div>`; return;
     }
 
-    for(let i = 0; i < start.getDay(); i++) grid.innerHTML += `<div class="bg-slate-50/50 rounded-xl border border-transparent min-h-[140px]"></div>`; 
+    for(let i = 0; i < start.getDay(); i++) grid.innerHTML += `<div class="bg-slate-50/50 rounded-xl border border-transparent"></div>`; 
 
-    const safeFilteredJobs = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs)) ? filteredJobs : ((typeof allJobs !== 'undefined' && Array.isArray(allJobs)) ? allJobs : []);
+    const safeFilteredJobs = getSafeJobsData();
 
     let maxCount = 1; const daysData = [];
     let currentDay = new Date(start);
     while(currentDay <= end) {
         const dateStr = `${currentDay.getFullYear()}-${String(currentDay.getMonth()+1).padStart(2,'0')}-${String(currentDay.getDate()).padStart(2,'0')}`;
-        const arr = safeFilteredJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr);
-        const tar = safeFilteredJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr);
-        const del = safeFilteredJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr);
+        const arr = safeFilteredJobs.filter(j => j.arrived_date && cleanDate(j.arrived_date) === dateStr);
+        const tar = safeFilteredJobs.filter(j => j.target_finish_date && cleanDate(j.target_finish_date) === dateStr);
+        const del = safeFilteredJobs.filter(j => j.delivery_date && cleanDate(j.delivery_date) === dateStr);
         
         maxCount = Math.max(maxCount, arr.length, tar.length, del.length);
         daysData.push({ day: currentDay.getDate(), dateStr, arrJobs: arr, tarJobs: tar, delJobs: del });
         currentDay.setDate(currentDay.getDate() + 1);
     }
 
-    // 🎯 ดึงข้อมูลสาขา และ โควต้าแอดมิน 🎯
+    // 🎯 ดึงข้อมูลสาขา และ โควต้าแอดมิน ครอบคลุมทุกการออกแบบ
     const branchFilterEl = document.getElementById('branchFilter');
     const branchVal = branchFilterEl ? branchFilterEl.value : 'all';
     const safeAllJobs = typeof allJobs !== 'undefined' && Array.isArray(allJobs) ? allJobs : safeFilteredJobs;
@@ -262,74 +301,93 @@ function renderCalendarByRange(startDate, endDate) {
     const safeAllQuotas = typeof allQuotas !== 'undefined' && Array.isArray(allQuotas) ? allQuotas : [];
 
     daysData.forEach(d => {
+        // ------------------------------------------
+        // 1. คำนวณความสูงแท่งกราฟ (Bar Blocks)
+        // ------------------------------------------
         let barBlock = '';
         if(d.arrJobs.length > 0 || d.tarJobs.length > 0 || d.delJobs.length > 0) {
-            barBlock = `<div class="flex items-end justify-center gap-1.5 w-full h-[55px] mt-auto pb-1">`;
+            barBlock = `<div class="flex items-end justify-center gap-2 w-full h-[60px] mt-auto pb-1">`;
             
-            if(d.arrJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[20px]" onclick="openJobListModalCalendar('${d.dateStr}', 'arrived')" title="รถเข้าจอด: ${d.arrJobs.length}"><span class="text-[9px] font-black text-blue-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-blue-200">${d.arrJobs.length}</span><div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-blue-700/20" style="height: ${Math.max(20, (d.arrJobs.length/maxCount)*100)}%;"></div></div>`;
+            if(d.arrJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[18px]" onclick="openJobListModalCalendar('${d.dateStr}', 'arrived')"><span class="text-[9px] font-black text-blue-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-blue-200">${d.arrJobs.length}</span><div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-blue-700/20" style="height: ${Math.max(20, (d.arrJobs.length/maxCount)*100)}%;"></div></div>`;
             
             const doneQty = d.tarJobs.filter(j => {
                 const st = j.job_status || '';
-                return ['11', '12', '13', '14', '15', '16', '17', '19', '20', '21'].some(p => st.startsWith(p));
+                return ['11', '12', '13', '14', '15', '16', '17', '19', '20', '21'].some(p => String(st).startsWith(p));
             }).length;
             const isAllDone = doneQty === d.tarJobs.length && d.tarJobs.length > 0;
             const pctDone = d.tarJobs.length > 0 ? (doneQty / d.tarJobs.length) * 100 : 0;
 
-            if(d.tarJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[28px]" onclick="openJobListModalCalendar('${d.dateStr}', 'target')" title="เป้าซ่อมเสร็จ: ${d.tarJobs.length} (เสร็จแล้ว ${doneQty})"><span class="text-[9px] font-black ${isAllDone ? 'text-emerald-700 bg-emerald-100 border-emerald-400' : 'text-amber-700 bg-amber-100 border-amber-400'} mb-0.5 z-10 bg-white/90 rounded-sm w-full h-4 flex items-center justify-center shadow-sm border">${doneQty}/${d.tarJobs.length}</span><div class="w-full bg-slate-200 rounded-sm shadow-inner relative overflow-hidden" style="height: ${Math.max(20, (d.tarJobs.length/maxCount)*100)}%;"><div class="absolute bottom-0 left-0 w-full bg-gradient-to-t ${isAllDone ? 'from-emerald-500 to-emerald-400' : 'from-amber-500 to-amber-300'} transition-all duration-500 ease-in-out" style="height: ${pctDone}%;"></div></div></div>`;
+            if(d.tarJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[28px]" onclick="openJobListModalCalendar('${d.dateStr}', 'target')"><span class="text-[9px] font-black ${isAllDone ? 'text-emerald-700 bg-emerald-100 border-emerald-400' : 'text-amber-700 bg-amber-100 border-amber-400'} mb-0.5 z-10 bg-white/90 rounded-sm w-full h-4 flex items-center justify-center shadow-sm border">${doneQty}/${d.tarJobs.length}</span><div class="w-full bg-slate-200 rounded-sm shadow-inner relative overflow-hidden" style="height: ${Math.max(20, (d.tarJobs.length/maxCount)*100)}%;"><div class="absolute bottom-0 left-0 w-full bg-gradient-to-t ${isAllDone ? 'from-emerald-500 to-emerald-400' : 'from-amber-500 to-amber-300'} transition-all duration-500 ease-in-out" style="height: ${pctDone}%;"></div></div></div>`;
             
-            if(d.delJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[20px]" onclick="openJobListModalCalendar('${d.dateStr}', 'delivery')" title="นัดส่งมอบ: ${d.delJobs.length}"><span class="text-[9px] font-black text-emerald-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-emerald-200">${d.delJobs.length}</span><div class="w-full bg-gradient-to-t from-emerald-500 to-emerald-300 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-emerald-600/20" style="height: ${Math.max(20, (d.delJobs.length/maxCount)*100)}%;"></div></div>`;
+            if(d.delJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[18px]" onclick="openJobListModalCalendar('${d.dateStr}', 'delivery')"><span class="text-[9px] font-black text-emerald-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-emerald-200">${d.delJobs.length}</span><div class="w-full bg-gradient-to-t from-emerald-500 to-emerald-300 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-emerald-600/20" style="height: ${Math.max(20, (d.delJobs.length/maxCount)*100)}%;"></div></div>`;
             barBlock += `</div>`;
         } else {
-            barBlock = `<div class="flex items-center justify-center h-[55px] w-full mt-auto"><span class="text-[10px] font-bold text-slate-300">ว่าง</span></div>`;
+            barBlock = `<div class="flex items-center justify-center h-[60px] w-full mt-auto"><span class="text-[10px] font-bold text-slate-300">ว่าง</span></div>`;
         }
 
-        // 🎯 เช็กโควต้า (ดึงแบบมี Default vs Special เผื่อวันธรรมดา)
+        // ------------------------------------------
+        // 2. คำนวณหลอดชิ้นส่วนหลัก/รอง แบบครอบจักรวาล
+        // ------------------------------------------
         let maxMain = 0; let maxSub = 0;
+        
+        // ก. หาโควต้าตามวันที่/สาขา
         branchesToCheck.forEach(b => {
-            const branchQuotas = safeAllQuotas.filter(q => q.branch_name === b);
-            const specialQ = branchQuotas.find(q => q.quota_type === 'special' && q.quota_date && q.quota_date.split('T')[0] === d.dateStr);
-            const defaultQ = branchQuotas.find(q => q.quota_type === 'default');
+            const branchQuotas = safeAllQuotas.filter(q => q.branch_name === b || !q.branch_name);
+            const specialQ = branchQuotas.find(q => q.quota_type === 'special' && q.quota_date && cleanDate(q.quota_date) === d.dateStr);
+            const defaultQ = branchQuotas.find(q => q.quota_type === 'default' || !q.quota_type);
             
-            maxMain += specialQ ? (parseInt(specialQ.quota_main_parts)||0) : (defaultQ ? (parseInt(defaultQ.quota_main_parts)||0) : 0);
-            maxSub += specialQ ? (parseInt(specialQ.quota_sub_parts)||0) : (defaultQ ? (parseInt(defaultQ.quota_sub_parts)||0) : 0);
+            const getQMain = (obj) => parseInt(obj.quota_main_parts || obj.parts_quota || obj.max_main_parts || 0, 10);
+            const getQSub = (obj) => parseInt(obj.quota_sub_parts || obj.sub_parts_quota || obj.max_sub_parts || 0, 10);
+
+            if (specialQ) {
+                maxMain += getQMain(specialQ); maxSub += getQSub(specialQ);
+            } else if (defaultQ) {
+                maxMain += getQMain(defaultQ); maxSub += getQSub(defaultQ);
+            }
         });
 
-        const mainSum = d.tarJobs.reduce((sum, j) => sum + (parseInt(j.main_part_qty) || ((j.main_part_name && j.main_part_name.trim() !== '-' && j.main_part_name.trim() !== '') ? j.main_part_name.split(',').filter(Boolean).length : 0)), 0);
-        const subSum = d.tarJobs.reduce((sum, j) => sum + (parseInt(j.sub_part_qty) || ((j.sub_part_name && j.sub_part_name.trim() !== '-' && j.sub_part_name.trim() !== '') ? j.sub_part_name.split(',').filter(Boolean).length : 0)), 0);
+        // ข. ถ้าหาโควต้าไม่เจอเลย (DB แอดมินอาจจะว่าง) บังคับให้เป็น 50 / 30 จะได้มีหลอดโชว์เสมอ
+        if (maxMain === 0) maxMain = 50;
+        if (maxSub === 0) maxSub = 30;
 
-        let quotaHTML = '';
-        if (maxMain > 0 || maxSub > 0) {
-            quotaHTML = `<div class="w-full mt-1 pt-1 border-t border-slate-100 flex flex-col gap-1">`;
-            if (maxMain > 0) {
-                let pct = Math.min((mainSum / maxMain) * 100, 100);
-                quotaHTML += `<div title="เป้าหมายชิ้นส่วนหลัก"><div class="flex justify-between text-[9px] font-bold text-slate-500 mb-0.5"><span>ชิ้นหลัก</span><span class="${pct>=100?'text-rose-600':''}">${mainSum}/${maxMain}</span></div><div class="h-1.5 rounded-full bg-slate-200"><div class="h-full rounded-full ${pct>=100?'bg-rose-500':(pct>=80?'bg-amber-500':'bg-blue-500')} transition-all" style="width: ${pct}%"></div></div></div>`;
-            }
-            if (maxSub > 0) {
-                let pct = Math.min((subSum / maxSub) * 100, 100);
-                quotaHTML += `<div title="เป้าหมายชิ้นส่วนรอง"><div class="flex justify-between text-[9px] font-bold text-slate-500 mb-0.5"><span>ชิ้นรอง</span><span class="${pct>=100?'text-rose-600':''}">${subSum}/${maxSub}</span></div><div class="h-1.5 rounded-full bg-slate-200"><div class="h-full rounded-full ${pct>=100?'bg-rose-500':(pct>=80?'bg-amber-500':'bg-amber-400')} transition-all" style="width: ${pct}%"></div></div></div>`;
-            }
-            quotaHTML += `</div>`;
-        }
+        // คำนวณผลรวมชิ้นส่วนจริงของรถที่มีเป้าเสร็จในวันนี้
+        const mainSum = d.tarJobs.reduce((sum, j) => sum + (parseInt(j.main_part_qty) || ((j.main_part_name && String(j.main_part_name).trim() !== '-' && String(j.main_part_name).trim() !== '') ? String(j.main_part_name).split(',').filter(Boolean).length : 0)), 0);
+        const subSum = d.tarJobs.reduce((sum, j) => sum + (parseInt(j.sub_part_qty) || ((j.sub_part_name && String(j.sub_part_name).trim() !== '-' && String(j.sub_part_name).trim() !== '') ? String(j.sub_part_name).split(',').filter(Boolean).length : 0)), 0);
 
+        // วาด HTML สำหรับหลอดชิ้นส่วน (เอา if ออก เพื่อบังคับโชว์เสมอ)
+        let quotaHTML = `<div class="w-full mt-2 pt-1 border-t border-slate-100 flex flex-col gap-1">`;
+        
+        let pctMain = Math.min((mainSum / maxMain) * 100, 100);
+        quotaHTML += `<div title="เป้าหมายชิ้นส่วนหลัก"><div class="flex justify-between text-[9px] font-bold text-slate-500 mb-0.5"><span>ชิ้นหลัก</span><span class="${pctMain>=100?'text-rose-600':''}">${mainSum}/${maxMain}</span></div><div class="h-1.5 rounded-full bg-slate-200"><div class="h-full rounded-full ${pctMain>=100?'bg-rose-500':(pctMain>=80?'bg-amber-500':'bg-blue-500')} transition-all" style="width: ${pctMain}%"></div></div></div>`;
+        
+        let pctSub = Math.min((subSum / maxSub) * 100, 100);
+        quotaHTML += `<div title="เป้าหมายชิ้นส่วนรอง"><div class="flex justify-between text-[9px] font-bold text-slate-500 mb-0.5"><span>ชิ้นรอง</span><span class="${pctSub>=100?'text-rose-600':''}">${subSum}/${maxSub}</span></div><div class="h-1.5 rounded-full bg-slate-200"><div class="h-full rounded-full ${pctSub>=100?'bg-rose-500':(pctSub>=80?'bg-amber-500':'bg-amber-400')} transition-all" style="width: ${pctSub}%"></div></div></div>`;
+        
+        quotaHTML += `</div>`;
+
+        // ------------------------------------------
+        // 3. วาดช่องปฏิทิน
+        // ------------------------------------------
         const todayObj = new Date();
         const todayStrLocal = `${todayObj.getFullYear()}-${String(todayObj.getMonth()+1).padStart(2,'0')}-${String(todayObj.getDate()).padStart(2,'0')}`;
         const isToday = d.dateStr === todayStrLocal;
-        const isFull = (maxMain > 0 && mainSum >= maxMain) || (maxSub > 0 && subSum >= maxSub);
+        const isFull = (mainSum >= maxMain) || (subSum >= maxSub);
 
         const hasOverdue = d.tarJobs.some(j => {
+            if (j.repair_finish_date) return false;
             const targetDate = new Date(j.target_finish_date);
             const today = new Date();
             targetDate.setHours(0,0,0,0); today.setHours(0,0,0,0);
-            return !j.repair_finish_date && targetDate < today;
+            return targetDate < today;
         });
 
         grid.innerHTML += `
-            <div class="calendar-cell ${isToday ? 'today ring-2 ring-amber-400 bg-amber-50/20' : 'bg-white'} border border-slate-200 rounded-xl p-2 flex flex-col hover:border-amber-400 hover:shadow-lg transition-all relative min-h-[140px] ${isFull ? 'border-rose-300 bg-rose-50/20' : ''} ${hasOverdue ? 'bg-red-50/20' : ''}">
-                <div class="flex justify-between items-start w-full mb-1">
-                    <span class="text-sm font-black text-slate-600 ${isToday ? 'text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded shadow-sm' : ''} font-mono">${d.day}</span>
+            <div class="calendar-cell ${isToday ? 'today ring-2 ring-amber-400 bg-amber-50/20' : 'bg-white'} border border-slate-200 rounded-xl p-3 flex flex-col hover:border-amber-400 hover:shadow-lg transition-all relative min-h-[160px] ${isFull ? 'border-rose-300 bg-rose-50/20' : ''} ${hasOverdue ? 'bg-red-50/20' : ''}">
+                <div class="flex justify-between items-start w-full mb-2">
+                    <span class="calendar-day-label !mb-0">${d.day}</span>
                     <div class="flex gap-1">
                         ${hasOverdue ? `<i class="fa-solid fa-circle-exclamation text-red-500 animate-pulse text-[10px]" title="มีรถดีเลย์!"></i>` : ''}
-                        ${isFull ? `<span class="text-[9px] font-black bg-rose-500 text-white px-1 py-0.5 rounded shadow-sm animate-pulse border border-rose-600">เต็ม</span>` : ''}
+                        ${isFull ? `<span class="text-[9px] font-black bg-rose-500 text-white px-1.5 py-0.5 rounded shadow-sm animate-pulse border border-rose-600">🔥 เต็ม</span>` : ''}
                     </div>
                 </div>
                 <div class="flex-1 flex flex-col justify-end w-full">${barBlock}${quotaHTML}</div>
@@ -339,11 +397,11 @@ function renderCalendarByRange(startDate, endDate) {
 
 function openJobListModalCalendar(dateStr, type) {
     let typeLabel = ""; let jobsToShow = [];
-    const safeFilteredJobs = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs)) ? filteredJobs : [];
+    const safeFilteredJobs = getSafeJobsData();
     
-    if(type === 'arrived') { typeLabel = "รถเข้าจอด"; jobsToShow = safeFilteredJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr); }
-    else if(type === 'target') { typeLabel = "กำหนดเสร็จ"; jobsToShow = safeFilteredJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr); }
-    else if(type === 'delivery') { typeLabel = "วันส่งมอบ"; jobsToShow = safeFilteredJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr); }
+    if(type === 'arrived') { typeLabel = "รถเข้าจอด"; jobsToShow = safeFilteredJobs.filter(j => j.arrived_date && cleanDate(j.arrived_date) === dateStr); }
+    else if(type === 'target') { typeLabel = "กำหนดเสร็จ"; jobsToShow = safeFilteredJobs.filter(j => j.target_finish_date && cleanDate(j.target_finish_date) === dateStr); }
+    else if(type === 'delivery') { typeLabel = "วันส่งมอบ"; jobsToShow = safeFilteredJobs.filter(j => j.delivery_date && cleanDate(j.delivery_date) === dateStr); }
 
     if(document.getElementById('modal_status_name')) document.getElementById('modal_status_name').innerText = `วันที่ ${new Date(dateStr).toLocaleDateString('th-TH')} (${typeLabel})`;
     if(typeof renderJobTableInModalGroupedBySA === 'function') renderJobTableInModalGroupedBySA(jobsToShow);
