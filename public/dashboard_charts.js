@@ -576,3 +576,46 @@ function renderMechanicChart() {
         }
     });
 }
+
+// ==========================================
+// 🍩 5. กราฟสถานะช่าง (ดึงจากรถที่กำลังซ่อม)
+// ==========================================
+function renderMechanicChart() {
+    const activeStations = ["01.เคาะ", "02.โป๊ว", "03.เตรียมพื้น", "04.พ่นสี", "05.ประกอบ", "06.ขัดสี", "08.เก็บงาน", "09.ซ่อมแม็ก", "10.กระจก", "11.ฟิล์ม"];
+    const counts = {};
+    
+    // อาศัยฟังก์ชัน computeHighestStationIFS จากไฟล์ dashboard_tables.js
+    filteredJobs.filter(j => !j.job_status?.includes('ส่งมอบแล้ว')).forEach(j => {
+        const s = computeHighestStationIFS(j);
+        if(activeStations.includes(s)) {
+            const shortName = s.replace(/[0-9.]/g, ''); // ตัดตัวเลขข้างหน้าออก
+            counts[shortName] = (counts[shortName] || 0) + 1;
+        }
+    });
+
+    const labels = Object.keys(counts);
+    const data = Object.values(counts);
+    const stationColors = ['#ea580c', '#f97316', '#fb923c', '#fdba74', '#f59e0b', '#d97706', '#b45309', '#ca8a04', '#eab308', '#facc15'];
+    
+    if (mechanicChartInstance) mechanicChartInstance.destroy();
+    const ctx = document.getElementById('mechanicChart').getContext('2d');
+    mechanicChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: { 
+            labels: labels, 
+            datasets: [{ 
+                data: data, 
+                backgroundColor: stationColors.slice(0, labels.length), // ดึงสีมาใช้ตามจำนวนข้อมูลที่มี
+                borderWidth: 1, 
+                borderColor: '#fff' 
+            }] 
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '50%',
+            plugins: { 
+                legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
+                datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? v : '' }
+            }
+        }
+    });
+}
