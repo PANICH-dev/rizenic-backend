@@ -253,9 +253,130 @@ function renderParkedCars() {
 }
 
 
-function renderCalendarByRange(startStr, endStr)
+// ==========================================
+// 🗓️ ปฏิทินปฏิบัติงาน (ดีไซน์กราฟแท่งแนวตั้ง + ชิ้นส่วนหลัก/รอง ด้านบน ตามต้นฉบับเป๊ะๆ)
+// ==========================================
+function renderCalendarByRange(startStr, endStr) {
+    const grid = document.getElementById('calendar_grid');
+    if (!grid) return;
 
+    if (!startStr || !endStr) {
+        grid.innerHTML = `<div class="col-span-7 text-center py-10 text-slate-400 font-bold">กรุณาเลือกช่วงเวลา</div>`;
+        return;
+    }
+    
+    const startDate = new Date(startStr);
+    const endDate = new Date(endStr);
+    
+    const startCalendar = new Date(startDate);
+    startCalendar.setDate(startCalendar.getDate() - startCalendar.getDay());
+    
+    const endCalendar = new Date(endDate);
+    if (endCalendar.getDay() !== 6) {
+        endCalendar.setDate(endCalendar.getDate() + (6 - endCalendar.getDay()));
+    }
 
+    let html = '';
+    let current = new Date(startCalendar);
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    const cleanDate = (dStr) => dStr ? String(dStr).split('T')[0].trim() : '';
+
+    while (current <= endCalendar) {
+        const dateStr = current.toISOString().split('T')[0];
+        const isOutOfRange = current < startDate || current > endDate;
+        const isToday = dateStr === todayStr;
+
+        if (isOutOfRange) {
+            html += `<div class="bg-slate-100/50 border border-slate-200/50 rounded p-2 min-h-[160px] opacity-40"></div>`;
+        } else {
+            // ดึงจำนวนงานแต่ละหมวด
+            const arrivedJobs = (filteredJobs || []).filter(j => cleanDate(j.arrived_date) === dateStr || cleanDate(j.appointment_date) === dateStr);
+            const targetJobs = (filteredJobs || []).filter(j => cleanDate(j.target_finish_date) === dateStr);
+            const deliveredJobs = (filteredJobs || []).filter(j => cleanDate(j.delivery_date) === dateStr);
+            
+            // นับจำนวนชิ้นส่วน หลัก/รอง (ประยุกต์จากการนับอะไหล่และข้อมูลในใบงาน)
+            const activeJobsForParts = [...arrivedJobs, ...targetJobs];
+            let mainCount = 0;
+            let subCount = 0;
+            activeJobsForParts.forEach(j => {
+                if (j.main_part_name && j.main_part_name !== '-') mainCount++;
+                if (j.sub_part_name && j.sub_part_name !== '-') subCount++;
+            });
+
+            // ดึงโควต้า
+            const quotasArray = Array.isArray(allQuotas) ? allQuotas : [];
+            const q = quotasArray.find(x => cleanDate(x.quota_date) === dateStr) || {};
+            
+            const limitIn = parseInt(q.intake_quota || 5, 10);
+            const limitTar = parseInt(q.target_quota || 5, 10);
+            const limitDel = parseInt(q.delivery_quota || 5, 10);
+
+            const countIn = arrivedJobs.length;
+            const countTar = targetJobs.length;
+            const countDel = deliveredJobs.length;
+
+            // ตรวจสอบสถานะงานล้นเพื่อแสดงไอคอน ❗️
+            const isOverloaded = (countIn > limitIn) || (countTar > limitTar) || (countDel > limitDel);
+
+            // คำนวณความสูงของกราฟแท่ง (Max 100%)
+            const hIn = limitIn > 0 ? Math.min((countIn / limitIn) * 100, 100) : 0;
+            const hTar = limitTar > 0 ? Math.min((countTar / limitTar) * 100, 100) : 0;
+            const hDel = limitDel > 0 ? Math.min((countDel / limitDel) * 100, 100) : 0;
+
+            // 🎯 ฟังก์ชันสร้างกราฟแท่งแนวตั้ง
+            const renderVerticalBar = (count, limit, heightPct, baseColorClass, barColorClass) => {
+                const labelText = limit > 0 ? `${count}/${limit}` : count;
+                // ถ้าเลขเยอะ (ล้น) ให้กล่องป้ายชื่อเป็นสีแดง
+                const labelBg = (count >= limit && limit > 0) ? 'bg-red-500' : baseColorClass;
+                
+                return `
+                <div class="flex flex-col items-center justify-end h-full w-[28%]">
+                    <div class="${labelBg} text-white text-[9px] font-bold px-1 rounded-sm z-10 -mb-1 shadow-sm whitespace-nowrap">
+                        ${labelText}
+                    </div>
+                    <div class="w-full ${barColorClass} rounded-t-sm transition-all duration-300 min-h-[4px]" style="height: ${Math.max(heightPct, 5)}%;"></div>
+                </div>
+                `;
+            };
+
+            let cellClass = "bg-white border border-slate-200 p-2 min-h-[160px] flex flex-col hover:border-blue-400 hover:shadow-lg transition-all cursor-pointer relative";
+            if (isToday) cellClass += " ring-2 ring-amber-400 bg-amber-50/10";
+
+            html += `
+            <div class="${cellClass}" onclick="openCalendarModal('${dateStr}')">
+                
+                <!-- แถว 1: วันที่ + แจ้งเตือน -->
+                <div class="flex justify-between items-start mb-1 px-1">
+                    <span class="text-sm font-black ${isToday ? 'text-amber-600' : 'text-slate-600'}">${current.getDate()}</span>
+                    ${isOverloaded ? `<i class="fa-solid fa-circle-exclamation text-red-400 text-xs"></i>` : ''}
+                </div>
+                
+                <!-- แถว 2: ชิ้นส่วน หลัก/รอง -->
+                <div class="space-y-1 mb-2">
+                    <div class="flex justify-between items-center bg-blue-50/50 border border-blue-100 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                        <span class="text-blue-600">หลัก:</span>
+                        <span class="text-blue-700">${mainCount}</span>
+                    </div>
+                    <div class="flex justify-between items-center bg-orange-50/50 border border-orange-100 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                        <span class="text-orange-600">รอง:</span>
+                        <span class="text-orange-700">${subCount}</span>
+                    </div>
+                </div>
+
+                <!-- แถว 3: กราฟแท่งแนวตั้ง 3 แท่ง (เข้าจอด, เป้าเสร็จ, ส่งมอบ) -->
+                <div class="flex-1 flex items-end justify-center gap-1.5 h-[60px] mt-auto border-t border-slate-100 pt-2">
+                    ${renderVerticalBar(countIn, limitIn, hIn, 'bg-blue-600', 'bg-blue-400')}
+                    ${renderVerticalBar(countTar, limitTar, hTar, 'bg-emerald-500', 'bg-emerald-400')}
+                    ${renderVerticalBar(countDel, limitDel, hDel, 'bg-purple-500', 'bg-purple-400')}
+                </div>
+
+            </div>`;
+        }
+        current.setDate(current.getDate() + 1);
+    }
+    grid.innerHTML = html;
+}
 // 🎯 ฟังก์ชันสำหรับคลิกดูรายละเอียดรถทุกประเภทในวันนั้น
 function openCalendarModal(dateStr) {
     if(document.getElementById('modal_status_name')) {
