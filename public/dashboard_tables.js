@@ -254,7 +254,7 @@ function renderParkedCars() {
 
 
 // ==========================================
-// 🗓️ ปฏิทินปฏิบัติงาน (พร้อมหลอดโควต้ารถเข้า + โควต้าอะไหล่ + เป้าเสร็จ + ส่งมอบ)
+// 🗓️ ปฏิทินปฏิบัติงาน (Progress Bar ครบชุด: เข้าจอด / เป้าเสร็จ / ส่งมอบ / อะไหล่)
 // ==========================================
 function renderCalendarByRange(startStr, endStr) {
     const grid = document.getElementById('calendar_grid');
@@ -282,8 +282,34 @@ function renderCalendarByRange(startStr, endStr) {
     let current = new Date(startCalendar);
     const todayStr = new Date().toISOString().split('T')[0];
 
-    // ฟังก์ชันช่วยตัดรูปแบบวันที่ให้อยู่ในฟอร์แมต YYYY-MM-DD แบบปลอดภัย
     const cleanDate = (dStr) => dStr ? String(dStr).split('T')[0].trim() : '';
+
+    // 🛠️ ฟังก์ชันย่อยสำหรับสร้าง "หลอดพลัง"
+    const createProgressBar = (label, currentCount, limitCount, baseBgColor, iconHTML) => {
+        let percent = Math.min(Math.round((currentCount / limitCount) * 100), 100);
+        let barBg = baseBgColor;
+        let textCol = 'text-slate-600';
+        
+        // ถ้ายอดจองเต็มโควต้าหรือเกิน (>= 100%) ให้กลายเป็นสีแดง
+        if (percent >= 100) {
+            barBg = 'bg-rose-500 shadow-[0_0_5px_rgba(244,63,94,0.6)]'; // แดง (เต็ม)
+            textCol = 'text-rose-600';
+        } else if (percent >= 80) {
+            barBg = 'bg-orange-500'; // ส้ม (ใกล้เต็ม)
+            textCol = 'text-orange-600';
+        }
+
+        return `
+        <div class="mb-1.5">
+            <div class="flex justify-between items-center text-[9px] font-bold mb-0.5 px-0.5">
+                <span class="text-slate-600 flex items-center gap-1">${iconHTML} ${label}</span>
+                <span class="${textCol} font-black text-[10px] tracking-tight">${currentCount}/${limitCount}</span>
+            </div>
+            <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden shadow-inner">
+                <div class="${barBg} h-1.5 rounded-full transition-all duration-300" style="width: ${percent}%"></div>
+            </div>
+        </div>`;
+    };
 
     while (current <= endCalendar) {
         const dateStr = current.toISOString().split('T')[0];
@@ -291,90 +317,62 @@ function renderCalendarByRange(startStr, endStr) {
         const isToday = dateStr === todayStr;
 
         if (isOutOfRange) {
-            html += `<div class="bg-slate-100/60 border border-slate-200/60 rounded-xl p-2 min-h-[140px] opacity-40"></div>`;
+            html += `<div class="bg-slate-50 border border-slate-100 rounded-xl p-2 min-h-[150px] opacity-40"></div>`;
         } else {
-            // 1. ดึงข้อมูลรายการรถในแต่ละประเภทประจำวัน
+            // 1. นับจำนวนรถของแต่ละกิจกรรมในวันนั้น
             const arrivedJobs = (filteredJobs || []).filter(j => cleanDate(j.arrived_date) === dateStr || cleanDate(j.appointment_date) === dateStr);
             const targetJobs = (filteredJobs || []).filter(j => cleanDate(j.target_finish_date) === dateStr);
             const deliveredJobs = (filteredJobs || []).filter(j => cleanDate(j.delivery_date) === dateStr);
             
-            // 2. ดึงข้อมูลโควต้ารับรถและโควต้าอะไหล่
             const quotasArray = Array.isArray(allQuotas) ? allQuotas : [];
-            const quotaData = quotasArray.find(q => cleanDate(q.quota_date) === dateStr) || {};
+            const q = quotasArray.find(x => cleanDate(x.quota_date) === dateStr) || {};
             
-            const intakeLimit = parseInt(quotaData.intake_quota || 5, 10); 
-            const partsLimit = parseInt(quotaData.parts_quota || 10, 10);  
-            
-            // 3. คำนวณหลอดพลัง/หลอดโควต้ารถเข้า (Intake Progress Bar)
-            const arrivedCount = arrivedJobs.length;
-            let intakePercent = Math.min(Math.round((arrivedCount / intakeLimit) * 100), 100);
-            
-            let intakeColor = 'bg-blue-500';
-            let intakeText = 'text-blue-600';
-            if (arrivedCount >= intakeLimit) {
-                intakeColor = 'bg-rose-500'; // สีแดงเมื่อเต็มโควต้า
-                intakeText = 'text-rose-600';
-            } else if (arrivedCount >= intakeLimit - 1) {
-                intakeColor = 'bg-amber-500'; // สีส้มเมื่อใกล้เต็ม
-                intakeText = 'text-amber-600';
-            }
+            // 2. ดึงโควต้า (ถ้าไม่มีให้ใช้ค่า Default: รับ 5, เสร็จ 5, ส่ง 5, ชิ้นส่วน 15)
+            const limitIn = parseInt(q.intake_quota || 5, 10);
+            const limitTar = parseInt(q.target_quota || 5, 10);
+            const limitDel = parseInt(q.delivery_quota || 5, 10);
+            const limitParts = parseInt(q.parts_quota || 15, 10);
 
-            // 4. คำนวณโควต้าอะไหล่
+            const countIn = arrivedJobs.length;
+            const countTar = targetJobs.length;
+            const countDel = deliveredJobs.length;
+            
+            // 3. นับจำนวนชิ้นส่วนที่สั่งในวันนั้น
             const partOrdersArray = Array.isArray(filteredPartOrders) ? filteredPartOrders : [];
-            const partsCount = partOrdersArray.filter(p => cleanDate(p.order_date) === dateStr).length;
-            const partsText = partsCount >= partsLimit ? 'text-rose-600' : 'text-purple-600';
+            const countParts = partOrdersArray.filter(p => cleanDate(p.order_date) === dateStr).length;
 
-            // ตกแต่งสไตล์กล่องเซลล์ในปฏิทิน
-            let cellClass = "bg-white border border-slate-200 rounded-xl p-2 min-h-[140px] flex flex-col justify-between hover:border-amber-400 hover:shadow-md transition-all cursor-pointer relative overflow-hidden";
+            let cellClass = "bg-white border border-slate-200 rounded-xl p-2 min-h-[150px] flex flex-col hover:border-blue-400 hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer relative overflow-hidden";
             if (isToday) cellClass += " ring-2 ring-amber-500 bg-amber-50/20";
 
             html += `
             <div class="${cellClass}" onclick="openCalendarModal('${dateStr}')">
-                <div>
-                    <!-- วันที่ -->
-                    <div class="flex justify-between items-center mb-1.5 px-0.5">
-                        <span class="text-xs font-black ${isToday ? 'text-amber-700 bg-amber-100 px-2 py-0.5 rounded shadow-sm' : 'text-slate-400'}">${current.getDate()}</span>
+                <!-- วันที่ -->
+                <div class="flex justify-between items-center mb-2 px-0.5">
+                    <span class="text-xs font-black ${isToday ? 'text-amber-700 bg-amber-100 px-2 py-0.5 rounded shadow-sm' : 'text-slate-500'}">${current.getDate()}</span>
+                </div>
+                
+                <!-- กล่องรวมหลอดพลัง -->
+                <div class="flex-1 flex flex-col w-full bg-slate-50/80 p-1.5 rounded-lg border border-slate-100 shadow-inner justify-between">
+                    
+                    <div>
+                        ${createProgressBar('เข้าจอด', countIn, limitIn, 'bg-blue-500', '<i class="fa-solid fa-arrow-right-to-bracket text-blue-500"></i>')}
+                        ${createProgressBar('เป้าเสร็จ', countTar, limitTar, 'bg-amber-500', '<i class="fa-solid fa-flag-checkered text-amber-500"></i>')}
+                        ${createProgressBar('ส่งมอบ', countDel, limitDel, 'bg-emerald-500', '<i class="fa-solid fa-car-side text-emerald-500"></i>')}
                     </div>
                     
-                    <div class="flex flex-col gap-1.5 w-full">
-                        <!-- 🚘 หลอดพลังโควต้ารับรถเข้า -->
-                        <div class="bg-slate-50 p-1.5 rounded-lg border border-slate-100 shadow-inner">
-                            <div class="flex justify-between items-center text-[10px] font-bold mb-1">
-                                <span class="text-slate-600 flex items-center gap-1"><i class="fa-solid fa-arrow-right-to-bracket text-blue-500"></i> รถเข้า</span>
-                                <span class="${intakeText} font-black">${arrivedCount}/${intakeLimit}</span>
-                            </div>
-                            <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                                <div class="${intakeColor} h-1.5 rounded-full transition-all duration-300" style="width: ${intakePercent}%"></div>
-                            </div>
-                        </div>
+                    <!-- โควต้าชิ้นส่วน (อะไหล่/หลัก/รอง) -->
+                    <div class="mt-1 pt-1 border-t border-slate-200 flex justify-between items-center text-[9px] font-bold">
+                        <span class="text-slate-500 flex items-center gap-1"><i class="fa-solid fa-puzzle-piece text-purple-500"></i> ชิ้นส่วนหลัก/รอง</span>
+                        <span class="${countParts >= limitParts ? 'text-rose-600 bg-rose-100 px-1 rounded' : 'text-purple-600'} font-black text-[10px] tracking-tight">${countParts}/${limitParts}</span>
+                    </div>
 
-                        <!-- 📦 โควต้าสั่งอะไหล่ -->
-                        <div class="flex justify-between items-center text-[10px] font-bold bg-slate-50 p-1.5 rounded-lg border border-slate-100 shadow-inner">
-                            <span class="text-slate-600 flex items-center gap-1"><i class="fa-solid fa-boxes-stacked text-purple-500"></i> อะไหล่</span>
-                            <span class="${partsText} font-black">${partsCount}/${partsLimit}</span>
-                        </div>
-                    </div>
                 </div>
-
-                <!-- 🎯 สรุปเป้าเสร็จ & ส่งมอบ -->
-                <div class="grid grid-cols-2 gap-1 mt-2">
-                    <div class="bg-amber-50/80 text-amber-800 py-0.5 px-1 rounded border border-amber-200/60 flex flex-col items-center">
-                        <span class="text-[9px] font-bold opacity-80">เป้าเสร็จ</span>
-                        <span class="text-xs font-black">${targetJobs.length}</span>
-                    </div>
-                    <div class="bg-emerald-50/80 text-emerald-800 py-0.5 px-1 rounded border border-emerald-200/60 flex flex-col items-center">
-                        <span class="text-[9px] font-bold opacity-80">ส่งมอบ</span>
-                        <span class="text-xs font-black">${deliveredJobs.length}</span>
-                    </div>
-                </div>
-            </div>
-            `;
+            </div>`;
         }
         current.setDate(current.getDate() + 1);
     }
     grid.innerHTML = html;
 }
-
 // 🎯 ฟังก์ชันสำหรับคลิกดูรายละเอียดรถทุกประเภทในวันนั้น
 function openCalendarModal(dateStr) {
     if(document.getElementById('modal_status_name')) {
