@@ -570,6 +570,33 @@ function cancelEditMode() {
 async function submitSaForm(event) {
     event.preventDefault(); 
     
+    // 🎯 [เพิ่มใหม่] ตรวจสอบเงื่อนไขบังคับใส่วันที่เข้าจอด (arrived_date)
+    const jobStatusCheck = document.getElementById('job_status')?.value || '';
+    const arrivedDateCheck = document.getElementById('arrived_date')?.value || '';
+
+    const mandatoryArrivedStatuses = [
+        '09.จอดรอเข้าซ่อม', 
+        '10.กำลังซ่อม', 
+        '11.รถซ่อมเสร็จรอส่งมอบ', 
+        '12.ส่งมอบ', 
+        '23.รื้อตรวจสอบความเสียหาย'
+    ];
+
+    const requiresArrivedDate = mandatoryArrivedStatuses.some(st => jobStatusCheck.includes(st) || jobStatusCheck === st);
+
+    if (requiresArrivedDate && !arrivedDateCheck) {
+        alert(`❌ ไม่สามารถบันทึกได้:\nเมื่อรถอยู่ในสถานะ "${jobStatusCheck}"\nกรุณาระบุ "วันที่รถเข้าจอดอู่" (ในข้อ 7) ให้ครบถ้วนด้วยครับ!`);
+        
+        const arrInput = document.getElementById('arrived_date');
+        if (arrInput) {
+            arrInput.focus();
+            // เด้งกรอบสีแดงแจ้งเตือนให้เห็นชัดๆ
+            arrInput.classList.add('ring-4', 'ring-red-500/50', 'border-red-500');
+            setTimeout(() => arrInput.classList.remove('ring-4', 'ring-red-500/50', 'border-red-500'), 3000);
+        }
+        return; // สั่งหยุดการทำงาน ไม่ส่งข้อมูลไปบันทึก
+    }
+
     // 🌟 ดึงข้อมูลจากทุกชุดเอกสารมารวมกันคั่นด้วย (,) 🌟
     let claimArr = [], qtArr = [], soArr = [], blArr = [];
     document.querySelectorAll('.pipeline-set').forEach(row => {
@@ -585,6 +612,8 @@ async function submitSaForm(event) {
             blArr.push(bl);
         }
     });
+
+    // ... โค้ดส่วนที่เหลือของฟังก์ชัน submitSaForm ปล่อยไว้เหมือนเดิมยาวลงไปเลยครับ ...
 
     const requiredFields = [
         { id: 'contact_date', name: '1. วันที่ติดต่อ' },
