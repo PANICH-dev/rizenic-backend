@@ -501,3 +501,57 @@ function exportToExcel() {
     
     showToast('ดาวน์โหลดไฟล์ Excel เรียบร้อยแล้ว!');
 }
+
+// ==========================================
+// ⭐️ Personal Highlights (สี & โน้ตรายบุคคล)
+// ==========================================
+let activeHighlightColor = '';
+
+function openHighlightModal(jobId) {
+    document.getElementById('hl_job_id').value = jobId;
+    const current = (typeof userRowHighlights !== 'undefined') ? userRowHighlights[jobId] || { color: '', note: '' } : { color: '', note: '' };
+    
+    activeHighlightColor = current.color || '';
+    document.getElementById('hl_note').value = current.note || '';
+    
+    updateHighlightUI();
+    document.getElementById('highlightModal').classList.replace('hidden', 'flex');
+}
+
+function closeHighlightModal() {
+    document.getElementById('highlightModal').classList.replace('flex', 'hidden');
+}
+
+function selectHighlightColor(color) {
+    activeHighlightColor = color;
+    updateHighlightUI();
+}
+
+function updateHighlightUI() {
+    document.querySelectorAll('.hl-color-btn').forEach(btn => {
+        const c = btn.getAttribute('data-color');
+        if (c === activeHighlightColor) {
+            btn.classList.add('ring-4', 'ring-[#00320D]/30', 'scale-110');
+            if(c === '') btn.querySelector('i').classList.remove('hidden');
+        } else {
+            btn.classList.remove('ring-4', 'ring-[#00320D]/30', 'scale-110');
+            if(c === '') btn.querySelector('i').classList.add('hidden');
+        }
+    });
+}
+
+function saveHighlight() {
+    const jobId = document.getElementById('hl_job_id').value;
+    const note = document.getElementById('hl_note').value.trim();
+    
+    if (activeHighlightColor === '' && note === '') {
+        delete userRowHighlights[jobId];
+    } else {
+        userRowHighlights[jobId] = { color: activeHighlightColor, note: note };
+    }
+    
+    saveUserPreferences(); // ยิง API เซฟเก็บไว้ใน DB
+    closeHighlightModal();
+    applyFilters(); // รีเฟรชตารางเพื่อโชว์สีใหม่
+    showToast('อัปเดตไฮไลท์ส่วนตัวเรียบร้อย!');
+}

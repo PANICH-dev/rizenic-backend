@@ -925,23 +925,52 @@ app.get('/api/parts-inventory', async (req, res) => {
 });
 
 // ==========================================
-// 🎨 API บันทึก/ดึง ค่าการเลือกคอลัมน์รายบุคคล
+// 🎨 API บันทึก/ดึง ค่าการเลือกคอลัมน์และสีไฮไลท์
 // ==========================================
 app.get('/api/user-preferences/:empName', async (req, res) => {
   try {
     const { empName } = req.params;
     const result = await pool.query(
-      'SELECT hidden_columns FROM user_column_preferences WHERE emp_name = $1',
+      'SELECT hidden_columns, row_highlights FROM user_column_preferences WHERE emp_name = $1',
       [empName]
     );
 
     if (result.rows.length > 0) {
-      res.json({ hidden_columns: result.rows[0].hidden_columns });
+      let pref = result.rows[0];
+      // แปลงค่า JSON ให้ใช้งานได้ง่ายขึ้น
+      if (typeof pref.hidden_columns === 'string') pref.hidden_columns = JSON.parse(pref.hidden_columns);
+      if (typeof pref.row_highlights === 'string') pref.row_highlights = JSON.parse(pref.row_highlights);
+      res.json(pref);
     } else {
-      res.json({ hidden_columns: null });
+      res.json({ hidden_columns: null, row_highlights: null });
     }
   } catch (error) {
     console.error('Error fetching user preferences:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/user-preferences', async (req, res) => {
+  try {
+    const { emp_name, hidden_columns, row_highlights } = req.body;
+    
+    const jsonCols = JSON.stringify(hidden_columns || { hidden: [], order: [] });
+    const jsonHl = JSON.stringify(row_highlights || {});
+
+    const queryText = `
+      INSERT INTO user_column_preferences (emp_name, hidden_columns, row_highlights, updated_at) 
+      VALUES ($1, $2, $3, CURRENT_TIMESTAMP) 
+      ON CONFLICT (emp_name) 
+      DO UPDATE SET 
+        hidden_columns = EXCLUDED.hidden_columns,
+        row_highlights = EXCLUDED.row_highlights,
+        updated_at = CURRENT_TIMESTAMP;
+    `;
+    await pool.query(queryText, [emp_name, jsonCols, jsonHl]);
+
+    res.json({ success: true, message: 'บันทึกการตั้งค่าตารางเรียบร้อยครับนาย!' });
+  } catch (error) {
+    console.error('Error saving user preferences:', error);
     res.status(500).json({ error: error.message });
   }
 });

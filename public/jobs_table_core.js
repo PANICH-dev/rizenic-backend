@@ -10,6 +10,7 @@ let currentFilteredData = [];
 let allPartOrders = [];
 let allMasterParts = [];
 
+let userRowHighlights = {}; // 🌟 เก็บข้อมูลไฮไลท์สีและโน้ตส่วนตัวของ User
 let allCustomerTypes = [];
 let allInsurances = [];
 let allEmployees = [];
@@ -183,6 +184,9 @@ async function loadUserColumnPreferences() {
         const res = await fetch(`${API_BASE_URL}/api/user-preferences/${encodeURIComponent(empName)}`);
         if (res.ok) {
             const data = await res.json();
+            // 🌟 ดึงข้อมูลไฮไลท์ส่วนตัวมาใช้งาน
+            if (data.row_highlights) { userRowHighlights = data.row_highlights; }
+
             if (data.hidden_columns && typeof data.hidden_columns === 'object') {
                 if (data.hidden_columns.hidden) hiddenCols = new Set(data.hidden_columns.hidden);
                 if (data.hidden_columns.order && Array.isArray(data.hidden_columns.order)) {
@@ -194,6 +198,21 @@ async function loadUserColumnPreferences() {
                 }
             }
         }
+    } catch (err) {}
+}
+
+async function saveUserPreferences() {
+    const empName = sessionStorage.getItem('emp_name'); if (!empName) return;
+    try {
+        await fetch(`${API_BASE_URL}/api/user-preferences`, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ 
+                emp_name: empName, 
+                hidden_columns: { hidden: Array.from(hiddenCols), order: columnsDef.map(c => c.key) },
+                row_highlights: userRowHighlights // 🌟 ส่งข้อมูลไฮไลท์ไปเซฟด้วย
+            }) 
+        });
     } catch (err) {}
 }
 
@@ -312,14 +331,9 @@ async function fastUpdateStationDropdown(id, selectedLevel) {
 async function fastUpdateJob(jobId, field, value, silent = false) {
     let formattedValue = value;
 
-    // 🌟 ระบบเซฟตี้: ตัดความยาวข้อความหากยาวเกินไป ป้องกัน DB Crash
+    // 🌟 ระบบเซฟตี้: ตัดความยาวข้อความหากยาวเกินไป
     if (typeof formattedValue === 'string') {
-        const textLimits = {
-            'main_part_name': 250,
-            'sub_part_name': 250,
-            'customer_name': 100,
-            'car_plate': 50
-        };
+        const textLimits = { 'main_part_name': 250, 'sub_part_name': 250, 'customer_name': 100, 'car_plate': 50 };
         if (textLimits[field] && formattedValue.length > textLimits[field]) {
             formattedValue = formattedValue.substring(0, textLimits[field]);
         }
@@ -333,6 +347,19 @@ async function fastUpdateJob(jobId, field, value, silent = false) {
     const job = allJobsData.find(j => String(j.id) === String(jobId));
     if (!job) return;
 
+    // 🎯 [เพิ่มใหม่] บังคับให้ใส่วันที่เข้าจอดอู่ หากเปลี่ยนสถานะเป็นกลุ่มรถจอด
+    if (field === 'job_status') {
+        const parkedStatuses = ['09.จอดรอเข้าซ่อม', '10.กำลังซ่อม', '11.รถซ่อมเสร็จรอส่งมอบ', '12.ส่งมอบ', '23.รื้อตรวจสอบความเสียหาย'];
+        const requiresArrivedDate = parkedStatuses.some(st => formattedValue.includes(st) || formattedValue === st);
+        
+        if (requiresArrivedDate && (!job.arrived_date || String(job.arrived_date).trim() === '')) {
+            alert(`❌ ไม่สามารถเปลี่ยนสถานะเป็น "${formattedValue}" ได้\nกรุณาระบุ "วันที่รถเข้าจอดอู่" ในคอลัมน์ให้เรียบร้อยก่อนครับ!`);
+            if(!silent && typeof applyFilters === 'function') applyFilters(); // รีเฟรชตารางกลับค่าเดิม
+            return;
+        }
+    }
+
+    // ตรวจสอบโควต้ากรณีแก้ช่องวันที่
     if (formattedValue && (field === 'arrived_date' || field === 'target_finish_date' || field === 'delivery_date')) {
         const reqCount = { 
             main: parseInt(job.main_part_qty) || 0, 
