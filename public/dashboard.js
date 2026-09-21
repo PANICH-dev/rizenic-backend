@@ -62,13 +62,6 @@ function getLastDayOfMonth() {
     return `${end.getFullYear()}-${String(end.getMonth()+1).padStart(2,'0')}-${String(end.getDate()).padStart(2,'0')}`;
 }
 
-function getCellValue(cell) {
-    if(!cell) return '';
-    const input = cell.querySelector('input, select');
-    if (input) return input.tagName === 'SELECT' ? input.options[input.selectedIndex].text.trim() : input.value.trim();
-    return cell.innerText.trim();
-}
-
 function isDateInRange(dateStr, start, end) {
     if(!dateStr || String(dateStr).trim() === '') return false;
     const dStr = dateStr.split('T')[0];
@@ -77,34 +70,14 @@ function isDateInRange(dateStr, start, end) {
     return true;
 }
 
-function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
-
-function goToEditJob(jobId) { 
-    sessionStorage.setItem('edit_job_id', jobId); 
-    window.location.href = 'index.html'; 
+function closeModal(modalId) { 
+    const el = document.getElementById(modalId);
+    if(el) el.classList.add('hidden'); 
 }
 
 function logout() { 
     sessionStorage.clear(); 
     window.location.href = 'index.html'; 
-}
-
-async function fastUpdateJob(jobId, field, value) {
-    try {
-        const res = await fetch(`${API_BASE_URL}/api/report/${jobId}/fast-date`, {
-            method: 'PUT', 
-            headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({ field, value })
-        });
-        if (res.ok) {
-            const jobIndex = allJobs.findIndex(j => j.id === jobId);
-            if(jobIndex > -1) allJobs[jobIndex][field] = value;
-            applyFilters(); 
-        } else throw new Error();
-    } catch (err) { 
-        alert('บันทึกข้อมูลไม่สำเร็จ'); 
-        fetchDashboardData(); 
-    }
 }
 
 function computeHighestStationIFS(j) {
@@ -179,29 +152,23 @@ function setupBranchDropdown() {
 async function fetchDashboardData() {
     try {
         const resJobs = await fetch(`${API_BASE_URL}/api/reports`);
-        if(!resJobs.ok) throw new Error("ดึงข้อมูลใบงานไม่สำเร็จ");
-        const rawJobs = await resJobs.json();
-        const jobsArray = Array.isArray(rawJobs) ? rawJobs : (rawJobs.data || []);
-        
-        allJobs = jobsArray.map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
-        
+        if (resJobs.ok) {
+            const rawJobs = await resJobs.json();
+            const jobsArray = Array.isArray(rawJobs) ? rawJobs : (rawJobs.data || []);
+            allJobs = jobsArray.map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
+        }
+
         const resParts = await fetch(`${API_BASE_URL}/api/part-orders`).catch(() => null);
-        if(resParts && resParts.ok) { 
+        if (resParts && resParts.ok) { 
             const rawParts = await resParts.json(); 
             allPartOrders = Array.isArray(rawParts) ? rawParts : (rawParts.data || []);
         }
 
         const statRes = await fetch(`${API_BASE_URL}/api/statuses`).catch(() => null);
-        if(statRes && statRes.ok) { 
+        if (statRes && statRes.ok) { 
             const rawStat = await statRes.json();
             allStatuses = Array.isArray(rawStat) ? rawStat : (rawStat.data || []);
             globalStatusOptionsHtml = allStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
-        }
-
-        const resQuotas = await fetch(`${API_BASE_URL}/api/quotas`).catch(() => null);
-        if(resQuotas && resQuotas.ok) { 
-            const rawQuotas = await resQuotas.json();
-            allQuotas = Array.isArray(rawQuotas) ? rawQuotas : (rawQuotas.data || []);
         }
 
         const rStr = String(userRole).toLowerCase();
@@ -215,10 +182,11 @@ async function fetchDashboardData() {
                 if(savedVal && (savedVal === 'all' || uniqueBranches.includes(savedVal))) filterSelect.value = savedVal;
             }
         }
-
-        applyFilters(); 
     } catch (err) { 
         console.error("โหลดข้อมูลแดชบอร์ดพัง:", err); 
+    } finally {
+        // บังคับเรียก applyFilters เสมอ ไม่ว่าดึงข้อมูลผ่านหรือล้มเหลว
+        applyFilters(); 
     }
 }
 
@@ -242,7 +210,7 @@ function applyFilters() {
         filteredPartOrders = allPartOrders.filter(o => isSameBranch(o.branch_name, selectedBranch));
     }
 
-    // เรียกฟังก์ชันวาดผล
+    // เรียก Render ปลอดภัย
     if(typeof renderERPStatuses === 'function') renderERPStatuses(filteredJobs);
     if(typeof renderStationSummary === 'function') renderStationSummary(filteredJobs);
     if(typeof renderPartsTracking === 'function') renderPartsTracking(filteredPartOrders);
@@ -264,12 +232,9 @@ function applyFilters() {
     if(typeof renderCalendarByRange === 'function') renderCalendarByRange(startDate, endDate);
 }
 
-// =====================================
-// 🚀 4. NEW REQUESTED FEATURES (Dashboard)
-// =====================================
+// 🎯 ฟีเจอร์เสริม
 function renderERPStatuses(jobs) {
     const statusCounts = {};
-    
     jobs.forEach(job => {
         const st = job.job_status || "ไม่ระบุสถานะ";
         const excluded = ['14.ชำระเงินสด', '18.ลูกค้ายกเลิก', '19.ออกบิลแล้ว'];
@@ -292,21 +257,17 @@ function renderERPStatuses(jobs) {
         const cleanStatus = st.replace(/^[0-9.]+\s*/, '');
         return `
         <div class="bg-white border border-slate-200 shadow-sm rounded-lg p-3 flex flex-col justify-between hover:border-blue-400 hover:shadow-md transition cursor-pointer">
-            <span class="text-[10px] sm:text-xs font-bold text-slate-600 truncate mb-2" title="${st}">
-                ${cleanStatus}
-            </span>
+            <span class="text-[10px] sm:text-xs font-bold text-slate-600 truncate mb-2" title="${st}">${cleanStatus}</span>
             <div class="flex justify-between items-end">
                 <i class="fa-solid fa-car-side text-slate-300 text-lg"></i>
                 <span class="text-xl sm:text-2xl font-black text-blue-700 leading-none">${statusCounts[st]}</span>
             </div>
-        </div>
-        `;
+        </div>`;
     }).join('');
 }
 
 function renderStationSummary(jobs) {
     const repairingJobs = jobs.filter(job => (job.job_status || '').includes('กำลังซ่อม'));
-
     const stationCounts = {
         '01.เคาะ': 0, '02.โป๊ว': 0, '03.เตรียมพื้น': 0, '04.พ่นสี': 0, 
         '05.ประกอบ': 0, '06.ขัดสี': 0, '07.QC': 0, '08.แม็ก': 0, 
@@ -350,11 +311,7 @@ function renderPartsTracking(partOrders) {
     if(elReady) elReady.innerText = poReadyCount;
     if(elWaiting) {
         elWaiting.innerText = poWaitingCount;
-        if(poWaitingCount > 0) {
-            elWaiting.classList.add('text-rose-600', 'animate-pulse');
-        } else {
-            elWaiting.classList.remove('text-rose-600', 'animate-pulse');
-            elWaiting.classList.add('text-amber-600');
-        }
+        if(poWaitingCount > 0) elWaiting.classList.add('text-rose-600', 'animate-pulse');
+        else { elWaiting.classList.remove('text-rose-600', 'animate-pulse'); elWaiting.classList.add('text-amber-600'); }
     }
 }
