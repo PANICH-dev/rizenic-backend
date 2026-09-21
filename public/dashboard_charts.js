@@ -678,29 +678,38 @@ function openPaymentModal(paymentType, start, end) {
 }
 
 // ==========================================
-// 🍩 4. กราฟสถานะอะไหล่ (ใช้ Job ID ผูกเพื่อความแม่นยำ 100% ไม่ดึงประวัติเก่า)
+// 🍩 4. กราฟสถานะอะไหล่ (ล็อกเป้าเฉพาะ "06.สั่งอะไหล่" ไม่กรองวันที่)
 // ==========================================
 function renderPartsStatusChart() {
     const counts = {};
-    const orderingJobs = filteredJobs.filter(j => (j.job_status || '').includes('สั่งอะไหล่'));
     
-    // 1. ใช้ ID ของใบงานเป็นตัวจับคู่หลัก (แม่นยำที่สุด ป้องกันการดึงประวัติเก่าของทะเบียนนี้)
+    // 1. ดึงเฉพาะงานที่ "กำลังอยู่ในสถานะ 06.สั่งอะไหล่" เท่านั้น (ไม่กรองวันที่)
+    const orderingJobs = filteredJobs.filter(j => {
+        const st = (j.job_status || '').trim();
+        return st.includes('06.สั่งอะไหล่') || st.includes('06. สั่งอะไหล่');
+    });
+    
+    // 2. ดึง Job ID ออกมาทั้งหมด (แปลงเป็น String เพื่อเทียบง่าย)
     const orderingJobIds = new Set(orderingJobs.map(j => String(j.id)));
+    
+    // 3. ทะเบียนรถ (เผื่อใช้อ้างอิงกรณีฐานข้อมูลไม่มี Job ID)
     const cleanPlate = str => String(str || '').replace(/\s+/g, '').toLowerCase();
     const orderingPlates = new Set(orderingJobs.map(j => cleanPlate(j.car_plate)).filter(Boolean));
 
-    // 2. ดึงรายการอะไหล่เฉพาะของใบงานรอบนี้
+    // 4. กรองรายการอะไหล่ให้ตรงกับใบงานที่อยู่ในสถานะ "06.สั่งอะไหล่" เท่านั้น
     const pendingParts = filteredPartOrders.filter(o => {
         if (o.order_status === 'ยกเลิก') return false;
         
-        // ถ้าออเดอร์นี้มี job_id ผูกอยู่ ให้เช็คจาก job_id ตรงๆ (แม่น 100%)
-        if (o.job_id) {
-            return orderingJobIds.has(String(o.job_id));
-        }
-        // ถ้าเป็นออเดอร์เก่ามากที่ระบบไม่เคยบันทึก job_id ไว้ ให้เช็คจากทะเบียนรถแทน
+        const oJobId = String(o.job_id || o.report_id || '');
+        if (oJobId && oJobId !== 'undefined' && oJobId !== 'null' && oJobId !== '') {
+            return orderingJobIds.has(oJobId); // ถ้ามี Job ID บังคับเทียบจาก ID ชัวร์สุด
+        } 
+        
+        // ถ้าข้อมูลเก่าไม่มี Job ID ให้เช็คด้วยทะเบียนรถแทน
         return orderingPlates.has(cleanPlate(o.car_plate));
     });
     
+    // 5. นับจำนวนแยกตามสถานะของอะไหล่
     pendingParts.forEach(o => {
         let st = (o.order_status || 'รออัปเดต').trim();
         if (st.includes('ครบ') || st.includes('มีของ')) st = 'มีของ/ครบ';
@@ -733,7 +742,11 @@ function renderPartsStatusChart() {
 function openPartsStatusModal(statusLabel) {
     document.getElementById('modal_status_name').innerText = `รถที่รออะไหล่: ${statusLabel}`;
     
-    const orderingJobs = filteredJobs.filter(j => (j.job_status || '').includes('สั่งอะไหล่'));
+    const orderingJobs = filteredJobs.filter(j => {
+        const st = (j.job_status || '').trim();
+        return st.includes('06.สั่งอะไหล่') || st.includes('06. สั่งอะไหล่');
+    });
+    
     const orderingJobIds = new Set(orderingJobs.map(j => String(j.id)));
     const cleanPlate = str => String(str || '').replace(/\s+/g, '').toLowerCase();
     const orderingPlates = new Set(orderingJobs.map(j => cleanPlate(j.car_plate)).filter(Boolean));
@@ -743,8 +756,9 @@ function openPartsStatusModal(statusLabel) {
     
     filteredPartOrders.forEach(o => {
         let isMatch = false;
-        if (o.job_id) {
-            isMatch = orderingJobIds.has(String(o.job_id));
+        const oJobId = String(o.job_id || o.report_id || '');
+        if (oJobId && oJobId !== 'undefined' && oJobId !== 'null' && oJobId !== '') {
+            isMatch = orderingJobIds.has(oJobId);
         } else {
             isMatch = orderingPlates.has(cleanPlate(o.car_plate));
         }
@@ -754,19 +768,19 @@ function openPartsStatusModal(statusLabel) {
             if (st.includes('ครบ') || st.includes('มีของ')) st = 'มีของ/ครบ';
             
             if (st === statusLabel) {
-                if (o.job_id) matchedJobIds.add(String(o.job_id));
-                matchedPlates.add(cleanPlate(o.car_plate));
+                if (oJobId && oJobId !== 'undefined' && oJobId !== 'null' && oJobId !== '') {
+                    matchedJobIds.add(oJobId);
+                } else {
+                    matchedPlates.add(cleanPlate(o.car_plate));
+                }
             }
         }
     });
 
-    // แสดงเฉพาะรถที่มีอะไหล่ตรงกับสถานะที่คลิก
     const jobsToShow = orderingJobs.filter(j => matchedJobIds.has(String(j.id)) || matchedPlates.has(cleanPlate(j.car_plate)));
     renderJobTableInModalGroupedBySA(jobsToShow);
     document.getElementById('jobListModal').classList.remove('hidden');
 }
-
-
 // ==========================================
 // 🍩 5. กราฟสถานะช่าง (สีตัดกันชัดเจน พร้อม Pop-up)
 // ==========================================
