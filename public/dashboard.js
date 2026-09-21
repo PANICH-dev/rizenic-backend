@@ -40,6 +40,17 @@ function isTrue(val) {
     return strVal === 'TRUE' || strVal === '1' || val === true || val === 1;
 }
 
+function isSameBranch(jobBranch, selectedBranch) {
+    if (!selectedBranch || selectedBranch === 'all') return true;
+    if (!jobBranch) return false;
+    const jb = String(jobBranch).trim().toLowerCase();
+    const sb = String(selectedBranch).trim().toLowerCase();
+    if (jb === sb) return true;
+    if ((sb.includes('navamin') || sb.includes('นวมินทร์')) && (jb.includes('navamin') || jb.includes('นวมินทร์'))) return true;
+    if ((sb.includes('rangsit') || sb.includes('รังสิต')) && (jb.includes('rangsit') || jb.includes('รังสิต'))) return true;
+    return false;
+}
+
 function getFirstDayOfMonth() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
@@ -134,14 +145,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name') || 'ไม่ระบุชื่อ';
-    document.getElementById('display_branch').innerText = userBranch;
+    if(document.getElementById('display_emp_name')) document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name') || 'ไม่ระบุชื่อ';
+    if(document.getElementById('display_branch')) document.getElementById('display_branch').innerText = userBranch;
     
     const today = new Date();
-    document.getElementById('current_date_display').innerText = today.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+    if(document.getElementById('current_date_display')) {
+        document.getElementById('current_date_display').innerText = today.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+    }
     
-    document.getElementById('dash_start_date').value = getFirstDayOfMonth();
-    document.getElementById('dash_end_date').value = getLastDayOfMonth();
+    if(document.getElementById('dash_start_date')) document.getElementById('dash_start_date').value = getFirstDayOfMonth();
+    if(document.getElementById('dash_end_date')) document.getElementById('dash_end_date').value = getLastDayOfMonth();
     if(document.getElementById('report_start_date')) document.getElementById('report_start_date').value = getFirstDayOfMonth();
     if(document.getElementById('report_end_date')) document.getElementById('report_end_date').value = getLastDayOfMonth();
 
@@ -166,31 +179,41 @@ function setupBranchDropdown() {
 async function fetchDashboardData() {
     try {
         const resJobs = await fetch(`${API_BASE_URL}/api/reports`);
+        if(!resJobs.ok) throw new Error("ดึงข้อมูลใบงานไม่สำเร็จ");
         const rawJobs = await resJobs.json();
+        const jobsArray = Array.isArray(rawJobs) ? rawJobs : (rawJobs.data || []);
         
-        // คำนวณสถานีอัตโนมัติรอไว้เลย
-        allJobs = rawJobs.map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
+        allJobs = jobsArray.map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
         
         const resParts = await fetch(`${API_BASE_URL}/api/part-orders`).catch(() => null);
-        if(resParts && resParts.ok) { allPartOrders = await resParts.json(); }
+        if(resParts && resParts.ok) { 
+            const rawParts = await resParts.json(); 
+            allPartOrders = Array.isArray(rawParts) ? rawParts : (rawParts.data || []);
+        }
 
         const statRes = await fetch(`${API_BASE_URL}/api/statuses`).catch(() => null);
         if(statRes && statRes.ok) { 
-            allStatuses = await statRes.json(); 
+            const rawStat = await statRes.json();
+            allStatuses = Array.isArray(rawStat) ? rawStat : (rawStat.data || []);
             globalStatusOptionsHtml = allStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
         }
 
         const resQuotas = await fetch(`${API_BASE_URL}/api/quotas`).catch(() => null);
-        if(resQuotas && resQuotas.ok) { allQuotas = await resQuotas.json(); }
+        if(resQuotas && resQuotas.ok) { 
+            const rawQuotas = await resQuotas.json();
+            allQuotas = Array.isArray(rawQuotas) ? rawQuotas : (rawQuotas.data || []);
+        }
 
         const rStr = String(userRole).toLowerCase();
         if (rStr.includes('admin') || rStr.includes('แอดมิน') || rStr.includes('manager') || rStr.includes('ba')) {
             const uniqueBranches = [...new Set(allJobs.map(j => j.branch_name).filter(b => b))];
             const filterSelect = document.getElementById('branchFilter');
-            const savedVal = filterSelect.value;
-            filterSelect.innerHTML = `<option value="all">-- ทุกสาขา --</option>`;
-            uniqueBranches.forEach(b => filterSelect.innerHTML += `<option value="${b}">${b}</option>`);
-            if(uniqueBranches.includes(savedVal)) filterSelect.value = savedVal;
+            if (filterSelect) {
+                const savedVal = filterSelect.value;
+                filterSelect.innerHTML = `<option value="all">-- ทุกสาขา --</option>`;
+                uniqueBranches.forEach(b => filterSelect.innerHTML += `<option value="${b}">${b}</option>`);
+                if(savedVal && (savedVal === 'all' || uniqueBranches.includes(savedVal))) filterSelect.value = savedVal;
+            }
         }
 
         applyFilters(); 
@@ -203,8 +226,8 @@ function applyFilters() {
     const filterSelect = document.getElementById('branchFilter');
     const selectedBranch = filterSelect ? filterSelect.value : 'all';
     
-    const startDate = document.getElementById('dash_start_date').value;
-    const endDate = document.getElementById('dash_end_date').value;
+    const startDate = document.getElementById('dash_start_date')?.value || getFirstDayOfMonth();
+    const endDate = document.getElementById('dash_end_date')?.value || getLastDayOfMonth();
     
     const chartBranchLabel = document.getElementById('chartBranchLabel');
     if (chartBranchLabel) {
@@ -215,11 +238,11 @@ function applyFilters() {
         filteredJobs = [...allJobs];
         filteredPartOrders = [...allPartOrders];
     } else {
-        filteredJobs = allJobs.filter(j => j.branch_name === selectedBranch);
-        filteredPartOrders = allPartOrders.filter(o => o.branch_name === selectedBranch);
+        filteredJobs = allJobs.filter(j => isSameBranch(j.branch_name, selectedBranch));
+        filteredPartOrders = allPartOrders.filter(o => isSameBranch(o.branch_name, selectedBranch));
     }
 
-    // 🌟 ปลดคอมเมนต์ออกทั้งหมด เพื่อให้กราฟและข้อมูลทุกส่วนถูกวาดลงหน้าจอ 🌟
+    // เรียกฟังก์ชันวาดผล
     if(typeof renderERPStatuses === 'function') renderERPStatuses(filteredJobs);
     if(typeof renderStationSummary === 'function') renderStationSummary(filteredJobs);
     if(typeof renderPartsTracking === 'function') renderPartsTracking(filteredPartOrders);
@@ -235,7 +258,6 @@ function applyFilters() {
     if(typeof renderMechanicChart === 'function') renderMechanicChart();                    
     if(typeof renderFinanceChart === 'function') renderFinanceChart(startDate, endDate);
     
-    // สำหรับส่วนตารางและปฏิทิน (จากไฟล์ dashboard_tables.js)
     if(typeof renderSASection === 'function') renderSASection();
     if(typeof renderStationTable === 'function') renderStationTable(); 
     if(typeof renderParkedCars === 'function') renderParkedCars();
@@ -245,14 +267,11 @@ function applyFilters() {
 // =====================================
 // 🚀 4. NEW REQUESTED FEATURES (Dashboard)
 // =====================================
-
-// 🎯 1. ปริมาณรถจำแนกตามสถานะ (ERP) แบบ Responsive
 function renderERPStatuses(jobs) {
     const statusCounts = {};
     
     jobs.forEach(job => {
         const st = job.job_status || "ไม่ระบุสถานะ";
-        // ละเว้นสถานะที่ยกเลิกหรือปิดบิลไปแล้วถ้าต้องการ
         const excluded = ['14.ชำระเงินสด', '18.ลูกค้ายกเลิก', '19.ออกบิลแล้ว'];
         if (!excluded.some(ex => st.includes(ex))) {
             statusCounts[st] = (statusCounts[st] || 0) + 1;
@@ -260,19 +279,17 @@ function renderERPStatuses(jobs) {
     });
 
     const grid = document.getElementById('erp_status_grid');
-    if(!grid) return; // ถ้าหน้า HTML ไม่มีกล่องนี้ให้ข้ามไป
+    if(!grid) return;
 
     const sortedStatuses = Object.keys(statusCounts).sort();
 
     if(sortedStatuses.length === 0) {
-        grid.innerHTML = `<div class="col-span-full text-center text-slate-400 py-6">ไม่มีงานค้าง</div>`;
+        grid.innerHTML = `<div class="col-span-full text-center text-slate-400 py-6 font-bold">ไม่มีงานค้าง</div>`;
         return;
     }
 
     grid.innerHTML = sortedStatuses.map(st => {
-        // ตัดตัวเลขนำหน้าออกให้ดูคลีนขึ้นบนหน้าจอมือถือ (เช่น 01.ติดต่อสอบถาม -> ติดต่อสอบถาม)
         const cleanStatus = st.replace(/^[0-9.]+\s*/, '');
-        
         return `
         <div class="bg-white border border-slate-200 shadow-sm rounded-lg p-3 flex flex-col justify-between hover:border-blue-400 hover:shadow-md transition cursor-pointer">
             <span class="text-[10px] sm:text-xs font-bold text-slate-600 truncate mb-2" title="${st}">
@@ -287,10 +304,7 @@ function renderERPStatuses(jobs) {
     }).join('');
 }
 
-
-// 🎯 2. ปริมาณงานแยกสถานีช่าง (เอาเฉพาะคันที่กำลังซ่อม)
 function renderStationSummary(jobs) {
-    // กรองเฉพาะสถานะที่มีคำว่ากำลังซ่อม
     const repairingJobs = jobs.filter(job => (job.job_status || '').includes('กำลังซ่อม'));
 
     const stationCounts = {
@@ -304,37 +318,28 @@ function renderStationSummary(jobs) {
         if (stationCounts[st] !== undefined) stationCounts[st]++;
     });
 
-    // สมมติว่ามี Element รอรับตัวเลขอยู่แล้ว เช่น <span id="stat_01"></span>
-    // อันนี้คือนำไปใส่ในจุดที่นายต้องการให้แสดงผลครับ
     for (const [station, count] of Object.entries(stationCounts)) {
-        // ดึงแค่ตัวเลข เช่น '01' ไปเชื่อมกับ ID 'stat_01'
         const prefix = station.substring(0, 2); 
         const el = document.getElementById(`stat_${prefix}`);
         if(el) {
             el.innerText = count;
-            // ใส่สีแดงถ้างานล้นสถานี
             if(count >= 10) el.classList.add('text-red-500', 'animate-pulse');
             else el.classList.remove('text-red-500', 'animate-pulse');
         }
     }
 }
 
-
-// 🎯 3. แจ้งเตือนใบสั่งอะไหล่ (จัดกลุ่ม 2 หมวด)
 function renderPartsTracking(partOrders) {
-    let poReadyCount = 0;   // มีของ/ครบ + มีสต๊อค
-    let poWaitingCount = 0; // รอสั่ง + ติด Back Order + สั่งแล้วรอเข้า
+    let poReadyCount = 0;   
+    let poWaitingCount = 0; 
 
     partOrders.forEach(po => {
         const st = po.order_status || '';
-        if (st === 'ยกเลิก') return; // ข้ามของยกเลิก
+        if (st === 'ยกเลิก') return;
 
-        // กลุ่ม 1: มีของพร้อมลุย
         if (st.includes('ครบ') || st.includes('มีของ') || st.includes('สต๊อค')) {
             poReadyCount++;
-        } 
-        // กลุ่ม 2: กำลังรอ/สั่งอยู่
-        else if (st.includes('รอ') || st.includes('สั่ง') || st.includes('Back Order')) {
+        } else if (st.includes('รอ') || st.includes('สั่ง') || st.includes('Back Order')) {
             poWaitingCount++;
         }
     });
