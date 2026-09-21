@@ -402,7 +402,7 @@ function renderTable(data) {
                     if (col.key === 'delivery_date') colorClass = 'text-emerald-600 font-bold';
                     
                     if (['arrived_date', 'target_finish_date', 'delivery_date'].includes(col.key)) {
-                        cellData = `<div class="flex items-center justify-between w-full h-full bg-white">
+                        cellData = `<div class="flex items-center justify-between w-full h-full">
                             <input type="date" id="date_${job.id}_${col.key}" value="${job[col.key] ? String(job[col.key]).split('T')[0] : ''}" onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input font-mono text-center ${colorClass}" style="width:calc(100% - 26px);">
                             <button type="button" onclick="event.stopPropagation(); openScheduleCalendar('${job.id}', '${col.key}')" class="text-blue-500 hover:text-blue-700 flex items-center justify-center w-[26px] h-[26px] border-l border-slate-200 bg-slate-50 transition-colors cursor-pointer" title="ดูโควต้าปฏิทิน"><i class="fa-solid fa-calendar-check text-[11px]"></i></button>
                         </div>`;
@@ -466,7 +466,7 @@ function renderTable(data) {
 
                 default: cellData = `<div class="px-3 py-2 truncate" title="${job[col.key]}">${job[col.key] || '-'}</div>`; break;
             }
-            rowHtml += `<td class="${cellClass} p-0">${cellData}</td>`;
+           rowHtml += `<td class="${cellClass} p-0" style="${rowBgStyle}">${cellData}</td>`;
         });
         allRowsHtml += rowHtml + '</tr>';
     });
