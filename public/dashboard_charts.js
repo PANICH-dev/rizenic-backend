@@ -129,7 +129,7 @@ function openReportModal(cat, itemIdx) {
     if(document.getElementById('jobListModal')) document.getElementById('jobListModal').classList.remove('hidden');
 }
 
-// 🎯 กราฟแท่งสถานะ: เรียงตามลำดับที่นายสั่งเป๊ะๆ
+// 🎯 กราฟแท่งสถานะ: เรียงตามลำดับที่นายสั่งเป๊ะๆ และขยายให้รองรับมือถือ
 function renderStatusChart() {
     const canvas = document.getElementById('statusChart');
     if (!canvas) return;
@@ -137,7 +137,7 @@ function renderStatusChart() {
     const start = document.getElementById('dash_start_date')?.value;
     const end = document.getElementById('dash_end_date')?.value;
 
-    // 🌟 ลำดับเป๊ะๆ ตามที่สั่งมา
+    // 🌟 ลำดับเป๊ะๆ ตามที่สั่งมา 01-23
     const targetStatuses = [
         '01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ', 
         '04.รอลูกค้าอนุมัติ', '05.อนุมัติแล้ว', '06.สั่งอะไหล่', 
@@ -175,13 +175,11 @@ function renderStatusChart() {
         }
     });
 
-    // 🌟 เรียงตามลำดับ targetStatuses ที่เราวนลูปไว้ (เอา sort ออก)
-
     const activeLabels = activeDataPairs.map(item => item.label);
     const activeData = activeDataPairs.map(item => item.count);
     const originalLabels = activeDataPairs.map(item => item.originalLabel);
 
-    const barColors = activeData.map(val => val >= 10 ? '#ef4444' : (val >= 5 ? '#f97316' : '#3b82f6'));
+    const barColors = activeData.map(val => val >= 10 ? '#ef4444' : (val >= 5 ? '#f97316' : '#00320D'));
 
     if (statusChartInstance) statusChartInstance.destroy();
     
@@ -195,27 +193,39 @@ function renderStatusChart() {
                 label: 'จำนวน (คัน)', 
                 data: activeData, 
                 backgroundColor: barColors, 
-                borderRadius: 4, 
-                barPercentage: 0.7
+                borderRadius: 6, 
+                barPercentage: 0.65 // ขนาดความหนาของแท่ง
             }]
         },
         options: { 
             indexAxis: 'y',
             responsive: true, 
             maintainAspectRatio: false, 
+            layout: {
+                padding: { right: 40 } // 🌟 เว้นระยะขอบขวาให้ตัวเลขไม่ตกขอบมือถือ
+            },
             plugins: { 
                 legend: { display: false },
                 datalabels: { 
-                    color: '#334155',
-                    font: { family: 'Kanit', weight: 'bold', size: 10 }, 
+                    color: '#1e293b',
+                    font: { family: 'Kanit', weight: '900', size: 13 }, // 🌟 ฟอนต์ตัวเลขหนาและใหญ่ขึ้น
                     anchor: 'end', 
                     align: 'right', 
-                    formatter: (val) => val > 0 ? val : '' 
+                    formatter: (val) => val > 0 ? val + ' คัน' : '' // 🌟 เติมคำว่า "คัน" ให้อ่านง่าย
                 }
             }, 
             scales: { 
-                y: { grid: { display: false }, ticks: { font: { family: 'Kanit', size: 10 } } }, 
-                x: { beginAtZero: true, ticks: { stepSize: 1, font: { family: 'Kanit', size: 10 } } } 
+                y: { 
+                    grid: { display: false }, 
+                    ticks: { 
+                        font: { family: 'Kanit', size: 12, weight: '600' }, // 🌟 ฟอนต์แกน Y ใหญ่ขึ้น
+                        color: '#334155' 
+                    } 
+                }, 
+                x: { 
+                    beginAtZero: true, 
+                    ticks: { stepSize: 1, font: { family: 'Kanit', size: 10 } } 
+                } 
             },
             onClick: (evt, elements) => {
                 if(elements.length > 0) openStatusModal(originalLabels[elements[0].index]);
@@ -223,7 +233,6 @@ function renderStatusChart() {
         }
     });
 }
-
 function openStatusModal(statusName) {
     const start = document.getElementById('dash_start_date')?.value;
     const end = document.getElementById('dash_end_date')?.value;
