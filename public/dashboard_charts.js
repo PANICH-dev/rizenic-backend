@@ -584,17 +584,27 @@ function renderPaymentChart(start, end) {
 }
 
 // ==========================================
-// 🍩 4. กราฟสถานะอะไหล่ (คลิกเพื่อดูรายละเอียดรถ)
+// 🍩 4. กราฟสถานะอะไหล่ (ใช้ Job ID ผูกเพื่อความแม่นยำ 100% ไม่ดึงประวัติเก่า)
 // ==========================================
 function renderPartsStatusChart() {
     const counts = {};
     const orderingJobs = filteredJobs.filter(j => (j.job_status || '').includes('สั่งอะไหล่'));
+    
+    // 1. ใช้ ID ของใบงานเป็นตัวจับคู่หลัก (แม่นยำที่สุด ป้องกันการดึงประวัติเก่าของทะเบียนนี้)
+    const orderingJobIds = new Set(orderingJobs.map(j => String(j.id)));
     const cleanPlate = str => String(str || '').replace(/\s+/g, '').toLowerCase();
     const orderingPlates = new Set(orderingJobs.map(j => cleanPlate(j.car_plate)).filter(Boolean));
 
+    // 2. ดึงรายการอะไหล่เฉพาะของใบงานรอบนี้
     const pendingParts = filteredPartOrders.filter(o => {
-        const plate = cleanPlate(o.car_plate);
-        return o.order_status !== 'ยกเลิก' && orderingPlates.has(plate);
+        if (o.order_status === 'ยกเลิก') return false;
+        
+        // ถ้าออเดอร์นี้มี job_id ผูกอยู่ ให้เช็คจาก job_id ตรงๆ (แม่น 100%)
+        if (o.job_id) {
+            return orderingJobIds.has(String(o.job_id));
+        }
+        // ถ้าเป็นออเดอร์เก่ามากที่ระบบไม่เคยบันทึก job_id ไว้ ให้เช็คจากทะเบียนรถแทน
+        return orderingPlates.has(cleanPlate(o.car_plate));
     });
     
     pendingParts.forEach(o => {
@@ -603,7 +613,8 @@ function renderPartsStatusChart() {
         counts[st] = (counts[st] || 0) + 1;
     });
 
-    const labels = Object.keys(counts); const data = Object.values(counts);
+    const labels = Object.keys(counts); 
+    const data = Object.values(counts);
     const statusColorMap = { 'มีของ/ครบ': '#10b981', 'รอสั่งซื้อ': '#ef4444', 'รออะไหล่': '#f59e0b', 'ติด Back Order': '#9333ea', 'รออัปเดต': '#94a3b8' };
     const colors = labels.map(l => statusColorMap[l] || '#64748b');
 
@@ -629,20 +640,34 @@ function openPartsStatusModal(statusLabel) {
     document.getElementById('modal_status_name').innerText = `รถที่รออะไหล่: ${statusLabel}`;
     
     const orderingJobs = filteredJobs.filter(j => (j.job_status || '').includes('สั่งอะไหล่'));
+    const orderingJobIds = new Set(orderingJobs.map(j => String(j.id)));
     const cleanPlate = str => String(str || '').replace(/\s+/g, '').toLowerCase();
     const orderingPlates = new Set(orderingJobs.map(j => cleanPlate(j.car_plate)).filter(Boolean));
 
+    const matchedJobIds = new Set();
     const matchedPlates = new Set();
+    
     filteredPartOrders.forEach(o => {
-        const plate = cleanPlate(o.car_plate);
-        if (o.order_status !== 'ยกเลิก' && orderingPlates.has(plate)) {
+        let isMatch = false;
+        if (o.job_id) {
+            isMatch = orderingJobIds.has(String(o.job_id));
+        } else {
+            isMatch = orderingPlates.has(cleanPlate(o.car_plate));
+        }
+
+        if (o.order_status !== 'ยกเลิก' && isMatch) {
             let st = (o.order_status || 'รออัปเดต').trim();
             if (st.includes('ครบ') || st.includes('มีของ')) st = 'มีของ/ครบ';
-            if (st === statusLabel) matchedPlates.add(plate);
+            
+            if (st === statusLabel) {
+                if (o.job_id) matchedJobIds.add(String(o.job_id));
+                matchedPlates.add(cleanPlate(o.car_plate));
+            }
         }
     });
 
-    const jobsToShow = orderingJobs.filter(j => matchedPlates.has(cleanPlate(j.car_plate)));
+    // แสดงเฉพาะรถที่มีอะไหล่ตรงกับสถานะที่คลิก
+    const jobsToShow = orderingJobs.filter(j => matchedJobIds.has(String(j.id)) || matchedPlates.has(cleanPlate(j.car_plate)));
     renderJobTableInModalGroupedBySA(jobsToShow);
     document.getElementById('jobListModal').classList.remove('hidden');
 }
