@@ -35,6 +35,21 @@ function getSafeJobsData() {
     return [];
 }
 
+function checkOverdue(job) {
+    if (!job.target_finish_date) return false; 
+    if (job.repair_finish_date) return false; 
+    const targetDate = new Date(job.target_finish_date); 
+    const today = new Date();
+    targetDate.setHours(0,0,0,0); today.setHours(0,0,0,0); 
+    return targetDate < today; 
+}
+
+function isJobDone(status) {
+    if (!status) return false;
+    const prefixes = ['11', '12', '13', '14', '15', '16', '17', '19', '20', '21'];
+    return prefixes.some(p => String(status).startsWith(p));
+}
+
 // =====================================
 // 📋 TABLES, CALENDAR & LISTS
 // =====================================
@@ -148,17 +163,13 @@ function sortTable(tableId, colIndex) {
     rows.forEach(row => tbody.appendChild(row));
 }
 
-// ==========================================
-// 🛠️ 1. ตารางรายการรถในสถานีซ่อม (กำลังดำเนินการ) 
-// ==========================================
 function renderStationTable() {
     const tbody = document.getElementById('station_table_body');
     if(!tbody) return;
-    const activeStations = ["01.เคาะ", "02.โป๊ว", "03.เตรียมพื้น", "04.พ่นสี", "05.ประกอบ", "06.ขัดสี", "08.เก็บงาน", "09.ซ่อมแม็ก", "10.กระจก", "11.ฟิล์ม"];
+    const activeStations = ["01.เคาะ", "02.โป๊ว", "03.เตรียมพื้น", "04.พ่นสี", "05.ประกอบ", "06.ขัดสี", "07.QC", "08.เก็บงาน", "08.แม็ก", "09.ซ่อมแม็ก", "09.กระจก", "10.กระจก", "10.ฟิล์ม", "11.ฟิล์ม"];
     
     const safeJobs = getSafeJobsData();
     
-    // 🎯 กรองเฉพาะรถที่เข้าสถานีซ่อม โดยเอาเฉพาะรถที่ยังไม่ถูกส่งมอบ
     const inRepairCars = safeJobs.filter(j => {
         const st = (j.job_status || '').trim();
         if(st.includes('ส่งมอบแล้ว') || st.includes('12.ส่งมอบ') || st.includes('ปิดงาน')) return false;
@@ -171,7 +182,6 @@ function renderStationTable() {
     }
 
     inRepairCars.sort((a,b) => new Date(a.target_finish_date||'9999') - new Date(b.target_finish_date||'9999'));
-
     const today = new Date(); today.setHours(0,0,0,0);
 
     tbody.innerHTML = inRepairCars.map(j => {
@@ -203,23 +213,19 @@ function renderStationTable() {
     }).join('');
 }
 
-// ==========================================
-// 🚗 2. รายการรถกำลังจอดซ่อมในศูนย์ (ตามสถานะ ERP)
-// ==========================================
 function renderParkedCars() {
     const tbody = document.getElementById('parked_cars_body');
     if(!tbody) return;
+    const parkedStatuses = ["08.", "09.", "10.", "11.", "20.", "21.", "จอด", "ซ่อม"];
     
     const safeJobs = getSafeJobsData();
-    
-    // 🎯 กรองเอาเฉพาะรถที่มีฟิลด์ is_parked ระบุว่า "จอดซ่อม" (หรือมีคำว่าจอดซ่อม)
     const parkedCars = safeJobs.filter(j => {
-        const pk = String(j.is_parked || '').trim();
-        return pk === 'จอดซ่อม' || pk.includes('จอด');
+        const st = j.job_status || '';
+        return parkedStatuses.some(p => st.includes(p)) || isTrue(j.is_parked) || j.is_parked === 'จอดซ่อม';
     });
     
     if(parkedCars.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="10" class="text-center py-10 text-slate-400 font-bold bg-slate-50"><i class="fa-solid fa-car-tunnel text-3xl mb-3 block opacity-50"></i>ไม่มีรถจอดซ่อมในศูนย์ขณะนี้ 🎉</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" class="text-center py-10 text-slate-400 font-bold bg-slate-50">ไม่มีรถจอดซ่อมในศูนย์ขณะนี้ 🎉</td></tr>`;
         return;
     }
 
@@ -242,14 +248,14 @@ function renderParkedCars() {
                 <td class="font-mono text-xs text-emerald-600 text-center font-bold px-4 py-3">${j.repair_finish_date ? cleanDate(j.repair_finish_date) : '-'}</td>
                 <td class="font-mono text-xs text-purple-600 text-center font-bold px-4 py-3">${j.delivery_date ? cleanDate(j.delivery_date) : '-'}</td>
                 <td class="font-bold text-slate-600 text-[11px] px-4 py-3"><span class="bg-slate-100 border border-slate-200 px-2 py-1 rounded shadow-sm">${j.job_status || '-'}</span></td>
-                <td class="text-center px-4 py-3"><button class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-sm w-full whitespace-nowrap"><i class="fa-solid fa-pen"></i> ดูข้อมูล</button></td>
+                <td class="text-center px-4 py-3"><button class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full whitespace-nowrap"><i class="fa-solid fa-pen"></i> ดูข้อมูล</button></td>
             </tr>
         `;
     }).join('');
 }
 
 // ==========================================
-// 🗓️ 3. ปฏิทินปฏิบัติงาน (ดึงโควต้าเป๊ะๆ 100% ตาม repair.js)
+// 🗓️ ปฏิทินปฏิบัติงาน (เอฟเฟคเต็มแน่นๆ 100%)
 // ==========================================
 function renderCalendarByRange(startDate, endDate) {
     const grid = document.getElementById('calendar_grid'); 
@@ -295,10 +301,7 @@ function renderCalendarByRange(startDate, endDate) {
             
             if(d.arrJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[20px]" onclick="openJobListModalCalendar('${d.dateStr}', 'arrived')" title="รถเข้าจอด: ${d.arrJobs.length}"><span class="text-[9px] font-black text-blue-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-blue-200">${d.arrJobs.length}</span><div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-blue-700/20" style="height: ${Math.max(20, (d.arrJobs.length/maxCount)*100)}%;"></div></div>`;
             
-            const doneQty = d.tarJobs.filter(j => {
-                const st = j.job_status || '';
-                return ['11', '12', '13', '14', '15', '16', '17', '19', '20', '21'].some(p => String(st).startsWith(p));
-            }).length;
+            const doneQty = d.tarJobs.filter(j => isJobDone(j.job_status)).length;
             const isAllDone = doneQty === d.tarJobs.length && d.tarJobs.length > 0;
             const pctDone = d.tarJobs.length > 0 ? (doneQty / d.tarJobs.length) * 100 : 0;
 
@@ -310,40 +313,44 @@ function renderCalendarByRange(startDate, endDate) {
             barBlock = `<div class="flex items-center justify-center h-[60px] w-full mt-auto"><span class="text-[10px] font-bold text-slate-300">ว่าง</span></div>`;
         }
 
-        // 🎯 ดึงโควต้าชิ้นหลัก ชิ้นรอง ตามตรรกะของ repair_3.js เป๊ะๆ
         let maxMain = 0; let maxSub = 0;
         branchesToCheck.forEach(b => {
-            const branchQuotas = safeAllQuotas.filter(q => q.branch_name === b);
+            const branchQuotas = safeAllQuotas.filter(q => q.branch_name === b || !q.branch_name);
             const specialQ = branchQuotas.find(q => q.quota_type === 'special' && q.quota_date && cleanDate(q.quota_date) === d.dateStr);
-            const defaultQ = branchQuotas.find(q => q.quota_type === 'default');
+            const defaultQ = branchQuotas.find(q => q.quota_type === 'default' || !q.quota_type);
             
-            maxMain += specialQ ? (parseInt(specialQ.quota_main_parts)||0) : (defaultQ ? (parseInt(defaultQ.quota_main_parts)||0) : 0);
-            maxSub += specialQ ? (parseInt(specialQ.quota_sub_parts)||0) : (defaultQ ? (parseInt(defaultQ.quota_sub_parts)||0) : 0);
+            const getQMain = (obj) => parseInt(obj.quota_main_parts || obj.parts_quota || obj.max_main_parts || 0, 10);
+            const getQSub = (obj) => parseInt(obj.quota_sub_parts || obj.sub_parts_quota || obj.max_sub_parts || 0, 10);
+
+            if (specialQ) { maxMain += getQMain(specialQ); maxSub += getQSub(specialQ); } 
+            else if (defaultQ) { maxMain += getQMain(defaultQ); maxSub += getQSub(defaultQ); }
         });
 
-        // คำนวณชิ้นส่วนของงานซ่อม
+        if (maxMain === 0) maxMain = 50;
+        if (maxSub === 0) maxSub = 30;
+
         const mainSum = d.tarJobs.reduce((sum, j) => sum + (parseInt(j.main_part_qty) || ((j.main_part_name && String(j.main_part_name).trim() !== '-' && String(j.main_part_name).trim() !== '') ? String(j.main_part_name).split(',').filter(Boolean).length : 0)), 0);
         const subSum = d.tarJobs.reduce((sum, j) => sum + (parseInt(j.sub_part_qty) || ((j.sub_part_name && String(j.sub_part_name).trim() !== '-' && String(j.sub_part_name).trim() !== '') ? String(j.sub_part_name).split(',').filter(Boolean).length : 0)), 0);
 
-        let quotaHTML = '';
-        if (maxMain > 0 || maxSub > 0) {
-            quotaHTML = `<div class="w-full mt-1 pt-1 border-t border-slate-100 flex flex-col gap-1">`;
-            if (maxMain > 0) {
-                let pct = Math.min((mainSum / maxMain) * 100, 100);
-                quotaHTML += `<div title="เป้าหมายชิ้นส่วนหลัก"><div class="flex justify-between text-[9px] font-bold text-slate-500 mb-0.5"><span>ชิ้นหลัก</span><span class="${pct>=100?'text-rose-600':''}">${mainSum}/${maxMain}</span></div><div class="h-1.5 rounded-full bg-slate-200"><div class="h-full rounded-full ${pct>=100?'bg-rose-500':(pct>=80?'bg-amber-500':'bg-blue-500')} transition-all" style="width: ${pct}%"></div></div></div>`;
-            }
-            if (maxSub > 0) {
-                let pct = Math.min((subSum / maxSub) * 100, 100);
-                quotaHTML += `<div title="เป้าหมายชิ้นส่วนรอง"><div class="flex justify-between text-[9px] font-bold text-slate-500 mb-0.5"><span>ชิ้นรอง</span><span class="${pct>=100?'text-rose-600':''}">${subSum}/${maxSub}</span></div><div class="h-1.5 rounded-full bg-slate-200"><div class="h-full rounded-full ${pct>=100?'bg-rose-500':(pct>=80?'bg-amber-500':'bg-amber-400')} transition-all" style="width: ${pct}%"></div></div></div>`;
-            }
-            quotaHTML += `</div>`;
-        }
+        let pctMain = Math.min((mainSum / maxMain) * 100, 100);
+        let pctSub = Math.min((subSum / maxSub) * 100, 100);
+
+        // 🌟 1. เอฟเฟคโควต้าเต็มแน่นๆ (หลอดสีแดงเรืองแสง) 🌟
+        let barColorMain = pctMain >= 100 ? 'bg-rose-600 shadow-[0_0_8px_rgba(225,29,72,0.6)]' : (pctMain >= 80 ? 'bg-amber-500' : 'bg-blue-500');
+        let barColorSub = pctSub >= 100 ? 'bg-rose-600 shadow-[0_0_8px_rgba(225,29,72,0.6)]' : (pctSub >= 80 ? 'bg-amber-500' : 'bg-amber-400');
+
+        let quotaHTML = `<div class="w-full mt-1 pt-1 border-t border-slate-100 flex flex-col gap-1.5">`;
+        quotaHTML += `<div title="เป้าหมายชิ้นส่วนหลัก"><div class="flex justify-between text-[9px] font-bold text-slate-500 mb-0.5"><span>ชิ้นหลัก</span><span class="${pctMain>=100?'text-rose-600 font-black':''}">${mainSum}/${maxMain}</span></div><div class="h-1.5 rounded-full bg-slate-200"><div class="h-full rounded-full ${barColorMain} transition-all" style="width: ${pctMain}%"></div></div></div>`;
+        quotaHTML += `<div title="เป้าหมายชิ้นส่วนรอง"><div class="flex justify-between text-[9px] font-bold text-slate-500 mb-0.5"><span>ชิ้นรอง</span><span class="${pctSub>=100?'text-rose-600 font-black':''}">${subSum}/${maxSub}</span></div><div class="h-1.5 rounded-full bg-slate-200"><div class="h-full rounded-full ${barColorSub} transition-all" style="width: ${pctSub}%"></div></div></div>`;
+        quotaHTML += `</div>`;
 
         const todayObj = new Date();
         const todayStrLocal = `${todayObj.getFullYear()}-${String(todayObj.getMonth()+1).padStart(2,'0')}-${String(todayObj.getDate()).padStart(2,'0')}`;
         const isToday = d.dateStr === todayStrLocal;
-        const isFull = (maxMain > 0 && mainSum >= maxMain) || (maxSub > 0 && subSum >= maxSub);
-
+        
+        // 🌟 2. เอฟเฟคกรอบเรืองแสงวันเต็มแน่นๆ 🌟
+        const isFull = (mainSum >= maxMain) || (subSum >= maxSub);
+        
         const hasOverdue = d.tarJobs.some(j => {
             if (j.repair_finish_date) return false;
             const targetDate = new Date(j.target_finish_date);
@@ -352,13 +359,25 @@ function renderCalendarByRange(startDate, endDate) {
             return targetDate < today;
         });
 
+        // คลาสของ Cell ถ้าเต็มให้แสดงแดงเดือดแบบ Glow Effect
+        let cellClass = "rounded-xl p-3 flex flex-col transition-all duration-300 relative min-h-[160px] cursor-pointer ";
+        if (isFull) {
+            cellClass += " border-2 border-rose-500 bg-rose-50 shadow-[0_0_15px_rgba(225,29,72,0.3)] hover:shadow-[0_0_25px_rgba(225,29,72,0.5)] hover:-translate-y-1";
+        } else if (isToday) {
+            cellClass += " border-2 border-amber-500 bg-amber-50/30 hover:shadow-lg hover:-translate-y-1 hover:border-amber-400";
+        } else {
+            cellClass += " border border-slate-200 bg-white hover:border-amber-400 hover:shadow-lg hover:-translate-y-1";
+        }
+        
+        if (hasOverdue && !isFull && !isToday) cellClass += " bg-red-50/30";
+
         grid.innerHTML += `
-            <div class="calendar-cell ${isToday ? 'today ring-2 ring-amber-400 bg-amber-50/20' : 'bg-white'} border border-slate-200 rounded-xl p-3 flex flex-col hover:border-amber-400 hover:shadow-lg transition-all relative min-h-[150px] ${isFull ? 'border-rose-300 bg-rose-50/20' : ''} ${hasOverdue ? 'bg-red-50/20' : ''}">
+            <div class="${cellClass}" onclick="openCalendarModal('${d.dateStr}')">
                 <div class="flex justify-between items-start w-full mb-1">
-                    <span class="text-sm font-black text-slate-600 ${isToday ? 'text-amber-600 bg-amber-100 px-1.5 rounded' : ''} font-mono">${d.day}</span>
-                    <div class="flex gap-1">
-                        ${hasOverdue ? `<i class="fa-solid fa-circle-exclamation text-red-500 animate-pulse text-[10px]" title="มีรถดีเลย์!"></i>` : ''}
-                        ${isFull ? `<span class="text-[9px] font-black bg-rose-500 text-white px-1 py-0.5 rounded shadow-sm animate-pulse border border-rose-600">เต็ม</span>` : ''}
+                    <span class="text-sm font-black text-slate-600 ${isToday ? 'text-amber-600 bg-amber-100 px-2 py-0.5 rounded shadow-sm' : ''} ${isFull ? 'text-rose-700 bg-rose-200 px-2 py-0.5 rounded shadow-sm' : ''} font-mono">${d.day}</span>
+                    <div class="flex gap-1.5 items-center">
+                        ${hasOverdue ? `<i class="fa-solid fa-circle-exclamation text-red-500 animate-pulse text-xs" title="มีรถดีเลย์!"></i>` : ''}
+                        ${isFull ? `<span class="text-[10px] font-black bg-rose-600 text-white px-2 py-0.5 rounded shadow-md animate-pulse border border-rose-700 tracking-wider">🔥 โควต้าเต็ม!</span>` : ''}
                     </div>
                 </div>
                 <div class="flex-1 flex flex-col justify-end w-full">${barBlock}${quotaHTML}</div>
@@ -366,15 +385,15 @@ function renderCalendarByRange(startDate, endDate) {
     });
 }
 
-function openJobListModalCalendar(dateStr, type) {
-    let typeLabel = ""; let jobsToShow = [];
+function openCalendarModal(dateStr) {
     const safeFilteredJobs = getSafeJobsData();
-    
-    if(type === 'arrived') { typeLabel = "รถเข้าจอด"; jobsToShow = safeFilteredJobs.filter(j => j.arrived_date && cleanDate(j.arrived_date) === dateStr); }
-    else if(type === 'target') { typeLabel = "กำหนดเสร็จ"; jobsToShow = safeFilteredJobs.filter(j => j.target_finish_date && cleanDate(j.target_finish_date) === dateStr); }
-    else if(type === 'delivery') { typeLabel = "วันส่งมอบ"; jobsToShow = safeFilteredJobs.filter(j => j.delivery_date && cleanDate(j.delivery_date) === dateStr); }
+    const jobsToShow = safeFilteredJobs.filter(j => {
+        return (j.arrived_date && cleanDate(j.arrived_date) === dateStr) || 
+               (j.target_finish_date && cleanDate(j.target_finish_date) === dateStr) || 
+               (j.delivery_date && cleanDate(j.delivery_date) === dateStr);
+    });
 
-    if(document.getElementById('modal_status_name')) document.getElementById('modal_status_name').innerText = `วันที่ ${new Date(dateStr).toLocaleDateString('th-TH')} (${typeLabel})`;
+    if(document.getElementById('modal_status_name')) document.getElementById('modal_status_name').innerText = `รายการรถประจำวันที่ ${new Date(dateStr).toLocaleDateString('th-TH')} (${jobsToShow.length} คัน)`;
     if(typeof renderJobTableInModalGroupedBySA === 'function') renderJobTableInModalGroupedBySA(jobsToShow);
     if(document.getElementById('jobListModal')) document.getElementById('jobListModal').classList.remove('hidden');
 }
@@ -421,9 +440,18 @@ function renderJobTableInModalGroupedBySA(jobs) {
             if(!safeOptions.includes(`value="${safeStatus}"`)) { safeOptions = `<option value="${safeStatus}">${safeStatus}</option>` + safeOptions; } 
             safeOptions = safeOptions.replace(`value="${safeStatus}"`, `value="${safeStatus}" selected`); 
 
+            // 🌟 3. ป้ายแยกรถที่ซ่อมเสร็จแล้ว กับ กำลังซ่อม 🌟
+            const isDone = isJobDone(safeStatus);
+            const statusBadge = isDone 
+                ? `<span class="inline-block mt-1.5 bg-emerald-100 text-emerald-700 border border-emerald-300 px-2 py-0.5 rounded text-[9px] font-black shadow-sm"><i class="fa-solid fa-check"></i> ซ่อมเสร็จแล้ว</span>`
+                : `<span class="inline-block mt-1.5 bg-amber-100 text-amber-700 border border-amber-300 px-2 py-0.5 rounded text-[9px] font-black shadow-sm animate-pulse"><i class="fa-solid fa-spinner fa-spin"></i> กำลังซ่อม</span>`;
+
             finalHtml += `
                 <tr class="hover:bg-emerald-50/50 transition cursor-pointer" onclick="goToEditJob('${j.id}')">
-                    <td class="px-4 py-3 font-bold text-[#00320D] align-top"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded font-mono text-xs shadow-inner whitespace-nowrap">${j.car_plate || '-'}</span></td>
+                    <td class="px-4 py-3 font-bold text-[#00320D] align-top">
+                        <span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded font-mono text-xs shadow-inner whitespace-nowrap">${j.car_plate || '-'}</span>
+                        <div class="mt-1">${statusBadge}</div>
+                    </td>
                     <td class="px-4 py-3 align-top"><div class="font-bold text-slate-800 text-[11px] leading-tight mb-1">${j.car_brand || ''} <span class="text-slate-500 font-medium">${j.car_model || ''}</span></div><div class="text-[11px] font-bold text-slate-700 truncate max-w-[150px]">${j.customer_name || '-'}</div></td>
                     <td class="px-4 py-3 text-[11px] font-bold text-slate-700 align-top"><div class="text-blue-600 mb-0.5"><i class="fa-solid fa-layer-group text-blue-400 mr-1"></i> หลัก: ${j.main_part_name || '-'}</div><div class="text-amber-600 mb-1"><i class="fa-solid fa-puzzle-piece text-amber-400 mr-1"></i> รอง: ${j.sub_part_name || '-'}</div><div class="text-purple-600 pt-1 border-t border-slate-100"><i class="fa-solid fa-box text-purple-400 mr-1"></i> อะไหล่: <span class="bg-purple-50 px-1.5 py-0.5 rounded shadow-sm border border-purple-200">${j.part_status || '-'}</span></div></td>
                     <td class="px-4 py-3 text-[10px] font-bold text-slate-700 align-top"><select onclick="event.stopPropagation()" onchange="if(typeof fastUpdateJob === 'function') fastUpdateJob('${j.id}', 'job_status', this.value)" class="bg-slate-50 border border-slate-300 rounded px-2 py-1 outline-none focus:border-amber-500 w-full cursor-pointer font-bold text-[#00320D]">${safeOptions}</select></td>
