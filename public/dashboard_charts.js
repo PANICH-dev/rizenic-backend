@@ -377,7 +377,7 @@ function renderFinanceChart(start, end) {
 }
 
 // ==========================================
-// 📈 1. กราฟเส้นรายวัน (กรองตามปฏิทิน)
+// 📈 1. กราฟเส้นรายวัน (คลิกดูรถเข้าจอด / เป้าเสร็จ / ส่งมอบ แบบเจาะจงวัน)
 // ==========================================
 function renderDailyLineChart(start, end) {
     if (!start || !end) return;
@@ -386,25 +386,24 @@ function renderDailyLineChart(start, end) {
     const endDate = new Date(end);
     
     const labels = [];
+    const fullDates = []; // เก็บวันที่เต็มไว้ส่งให้ Modal
     const dataArrived = [];
     const dataTarget = [];
     const dataDelivered = [];
 
-    // วนลูปสร้างวันที่
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
         const dateStr = d.toISOString().split('T')[0];
         const dayLabel = `${d.getDate()}/${d.getMonth()+1}`;
+        
         labels.push(dayLabel);
+        fullDates.push(dateStr);
 
-        // นับจำนวนรถเข้าจอด (arrived_date)
         const arrCount = filteredJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length;
         dataArrived.push(arrCount);
 
-        // นับจำนวนเป้าเสร็จ (target_finish_date)
         const tarCount = filteredJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).length;
         dataTarget.push(tarCount);
 
-        // นับจำนวนรถส่งมอบ (delivery_date)
         const delCount = filteredJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
         dataDelivered.push(delCount);
     }
@@ -427,16 +426,143 @@ function renderDailyLineChart(start, end) {
                 legend: { position: 'top', labels: { font: { family: 'Kanit' } } },
                 datalabels: { 
                     color: '#334155', font: { family: 'Kanit', weight: 'bold', size: 10 },
-                    align: 'top', offset: 2,
-                    formatter: (val) => val > 0 ? val : '' // โชว์ค่าเฉพาะที่มีค่ามากกว่า 0
+                    align: 'top', offset: 2, formatter: (val) => val > 0 ? val : '' 
                 }
             },
             scales: {
                 y: { beginAtZero: true, ticks: { stepSize: 1, font: { family: 'Kanit' } } },
                 x: { ticks: { font: { family: 'Kanit', size: 10 } } }
+            },
+            // 🖱️ เพิ่ม Event คลิกบนจุดกราฟ
+            onClick: (evt, elements) => {
+                if (elements.length > 0) {
+                    const datasetIndex = elements[0].datasetIndex;
+                    const dataIndex = elements[0].index;
+                    const dateStr = fullDates[dataIndex];
+                    const labelName = dailyLineChartInstance.data.datasets[datasetIndex].label;
+                    openDailyLineModal(labelName, dateStr);
+                }
             }
         }
     });
+}
+
+function openDailyLineModal(type, dateStr) {
+    document.getElementById('modal_status_name').innerText = `รายการ ${type} ประจำวันที่: ${dateStr}`;
+    const jobsToShow = filteredJobs.filter(j => {
+        if (type === 'รถเข้าจอด') {
+            return j.arrived_date && j.arrived_date.split('T')[0] === dateStr;
+        } else if (type === 'เป้าเสร็จ') {
+            return j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr;
+        } else if (type === 'ส่งมอบ') {
+            return j.delivery_date && j.delivery_date.split('T')[0] === dateStr;
+        }
+        return false;
+    });
+    renderJobTableInModalGroupedBySA(jobsToShow);
+    document.getElementById('jobListModal').classList.remove('hidden');
+}
+
+// ==========================================
+// 🍩 3. กราฟ Payment Type (พร้อม Pop-up)
+// ==========================================
+function renderPaymentChart(start, end) {
+    const counts = {};
+    filteredJobs.filter(j => isDateInRange(j.arrived_date || j.contact_date, start, end)).forEach(j => {
+        const type = (j.payment_type || 'ไม่ระบุ').trim();
+        counts[type] = (counts[type] || 0) + 1;
+    });
+
+    const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
+    const labels = sorted.map(i => i[0]); 
+    const data = sorted.map(i => i[1]);
+    const colors = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899', '#64748b'];
+
+    const canvas = document.getElementById('paymentChart');
+    if (!canvas) return;
+
+    if (paymentChartInstance) paymentChartInstance.destroy();
+    const ctx = canvas.getContext('2d');
+    paymentChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderWidth: 0 }] },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '50%',
+            plugins: { 
+                legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
+                datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? v : '' }
+            },
+            // 🖱️ เพิ่ม Event คลิก
+            onClick: (evt, elements) => {
+                if (elements.length > 0) openPaymentModal(labels[elements[0].index], start, end);
+            }
+        }
+    });
+}
+
+function openPaymentModal(paymentType, start, end) {
+    document.getElementById('modal_status_name').innerText = `ประเภทการชำระเงิน: ${paymentType}`;
+    const jobsToShow = filteredJobs.filter(j => {
+        const pType = (j.payment_type || 'ไม่ระบุ').trim();
+        return pType === paymentType && isDateInRange(j.arrived_date || j.contact_date, start, end);
+    });
+    renderJobTableInModalGroupedBySA(jobsToShow);
+    document.getElementById('jobListModal').classList.remove('hidden');
+}
+
+// ==========================================
+// 🍩 5. กราฟสถานะช่าง (สีตัดกันชัดเจน พร้อม Pop-up)
+// ==========================================
+function renderMechanicChart() {
+    const activeStations = ["01.เคาะ", "02.โป๊ว", "03.เตรียมพื้น", "04.พ่นสี", "05.ประกอบ", "06.ขัดสี", "08.เก็บงาน", "09.ซ่อมแม็ก", "10.กระจก", "11.ฟิล์ม"];
+    const counts = {};
+    
+    filteredJobs.filter(j => !j.job_status?.includes('ส่งมอบแล้ว')).forEach(j => {
+        const s = computeHighestStationIFS(j);
+        if(activeStations.includes(s)) {
+            const shortName = s.replace(/[0-9.]/g, ''); 
+            counts[shortName] = (counts[shortName] || 0) + 1;
+        }
+    });
+
+    const labels = Object.keys(counts); 
+    const data = Object.values(counts);
+    
+    // 🎨 แม่สีหลักเน้นความคมชัด
+    const stationColors = [
+        '#ef4444', '#f97316', '#eab308', '#10b981', '#06b6d4', 
+        '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#6366f1'
+    ];
+    
+    if (mechanicChartInstance) mechanicChartInstance.destroy();
+    const ctx = document.getElementById('mechanicChart').getContext('2d');
+    mechanicChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels: labels, datasets: [{ data: data, backgroundColor: stationColors.slice(0, labels.length), borderWidth: 2, borderColor: '#ffffff' }] },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '50%',
+            plugins: { 
+                legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
+                datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? v : '' }
+            },
+            // 🖱️ เพิ่ม Event คลิก
+            onClick: (evt, elements) => {
+                if (elements.length > 0) openMechanicModal(labels[elements[0].index]);
+            }
+        }
+    });
+}
+
+function openMechanicModal(stationName) {
+    document.getElementById('modal_status_name').innerText = `รถกำลังดำเนินการในสถานีช่าง: ${stationName}`;
+    const jobsToShow = filteredJobs.filter(j => {
+        if ((j.job_status || '').includes('ส่งมอบแล้ว')) return false;
+        const s = computeHighestStationIFS(j);
+        const shortName = s.replace(/[0-9.]/g, '');
+        return shortName === stationName;
+    });
+    renderJobTableInModalGroupedBySA(jobsToShow);
+    document.getElementById('jobListModal').classList.remove('hidden');
 }
 // ==========================================
 // 🍩 2. กราฟ Damage Level (คลิกเพื่อดูรายละเอียดรถ)
@@ -505,7 +631,7 @@ function openDamageModal(dmgLevel, start, end) {
 
 
 // ==========================================
-// 🍩 3. กราฟ Payment Type (คลิกเพื่อดูรายละเอียดรถ)
+// 🍩 3. กราฟ Payment Type (พร้อม Pop-up)
 // ==========================================
 function renderPaymentChart(start, end) {
     const counts = {};
@@ -515,53 +641,7 @@ function renderPaymentChart(start, end) {
     });
 
     const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
-    const labels = sorted.map(i => i[0]); const data = sorted.map(i => i[1]);
-    const colors = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899', '#64748b'];
-
-    const canvas = document.getElementById('paymentChart');
-    if (!canvas) return;
-
-    if (paymentChartInstance) paymentChartInstance.destroy();
-    const ctx = canvas.getContext('2d');
-    paymentChartInstance = new Chart(ctx, {
-        type: 'doughnut',
-        data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderWidth: 0 }] },
-        options: {
-            responsive: true, maintainAspectRatio: false, cutout: '50%',
-            plugins: { 
-                legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
-                datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? v : '' }
-            },
-            onClick: (evt, elements) => {
-                if (elements.length > 0) openPaymentModal(labels[elements[0].index], start, end);
-            }
-        }
-    });
-}
-
-function openPaymentModal(paymentType, start, end) {
-    document.getElementById('modal_status_name').innerText = `ประเภทการชำระเงิน: ${paymentType}`;
-    const jobsToShow = filteredJobs.filter(j => {
-        const pType = (j.payment_type || 'ไม่ระบุ').trim();
-        return pType === paymentType && isDateInRange(j.arrived_date || j.contact_date, start, end);
-    });
-    renderJobTableInModalGroupedBySA(jobsToShow);
-    document.getElementById('jobListModal').classList.remove('hidden');
-}
-
-// ==========================================
-// 🍩 3. อัปเดต Payment Chart (รับค่า Start/End เพื่อกรองปฏิทิน)
-// ==========================================
-function renderPaymentChart(start, end) {
-    const counts = {};
-    // กรองรถที่เข้าจอดหรือติดต่อ ในช่วงเวลาปฏิทิน
-    filteredJobs.filter(j => isDateInRange(j.arrived_date || j.contact_date, start, end)).forEach(j => {
-        const type = (j.payment_type || 'ไม่ระบุ').trim();
-        counts[type] = (counts[type] || 0) + 1;
-    });
-
-    const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
-    const labels = sorted.map(i => i[0]);
+    const labels = sorted.map(i => i[0]); 
     const data = sorted.map(i => i[1]);
     const colors = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899', '#64748b'];
 
@@ -578,9 +658,23 @@ function renderPaymentChart(start, end) {
             plugins: { 
                 legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
                 datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? v : '' }
+            },
+            // 🖱️ เพิ่ม Event คลิก
+            onClick: (evt, elements) => {
+                if (elements.length > 0) openPaymentModal(labels[elements[0].index], start, end);
             }
         }
     });
+}
+
+function openPaymentModal(paymentType, start, end) {
+    document.getElementById('modal_status_name').innerText = `ประเภทการชำระเงิน: ${paymentType}`;
+    const jobsToShow = filteredJobs.filter(j => {
+        const pType = (j.payment_type || 'ไม่ระบุ').trim();
+        return pType === paymentType && isDateInRange(j.arrived_date || j.contact_date, start, end);
+    });
+    renderJobTableInModalGroupedBySA(jobsToShow);
+    document.getElementById('jobListModal').classList.remove('hidden');
 }
 
 // ==========================================
@@ -674,7 +768,7 @@ function openPartsStatusModal(statusLabel) {
 
 
 // ==========================================
-// 🍩 5. กราฟสถานะช่าง (คลิกเพื่อดูรายละเอียดรถ)
+// 🍩 5. กราฟสถานะช่าง (สีตัดกันชัดเจน พร้อม Pop-up)
 // ==========================================
 function renderMechanicChart() {
     const activeStations = ["01.เคาะ", "02.โป๊ว", "03.เตรียมพื้น", "04.พ่นสี", "05.ประกอบ", "06.ขัดสี", "08.เก็บงาน", "09.ซ่อมแม็ก", "10.กระจก", "11.ฟิล์ม"];
@@ -688,8 +782,14 @@ function renderMechanicChart() {
         }
     });
 
-    const labels = Object.keys(counts); const data = Object.values(counts);
-    const stationColors = ['#ef4444', '#f97316', '#eab308', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#6366f1'];
+    const labels = Object.keys(counts); 
+    const data = Object.values(counts);
+    
+    // 🎨 แม่สีหลักเน้นความคมชัด
+    const stationColors = [
+        '#ef4444', '#f97316', '#eab308', '#10b981', '#06b6d4', 
+        '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#6366f1'
+    ];
     
     if (mechanicChartInstance) mechanicChartInstance.destroy();
     const ctx = document.getElementById('mechanicChart').getContext('2d');
@@ -702,6 +802,7 @@ function renderMechanicChart() {
                 legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
                 datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? v : '' }
             },
+            // 🖱️ เพิ่ม Event คลิก
             onClick: (evt, elements) => {
                 if (elements.length > 0) openMechanicModal(labels[elements[0].index]);
             }
@@ -719,95 +820,4 @@ function openMechanicModal(stationName) {
     });
     renderJobTableInModalGroupedBySA(jobsToShow);
     document.getElementById('jobListModal').classList.remove('hidden');
-}
-
-// ==========================================
-// 🍩 5. กราฟสถานะช่าง (ดึงจากรถที่กำลังซ่อม)
-// ==========================================
-function renderMechanicChart() {
-    const activeStations = ["01.เคาะ", "02.โป๊ว", "03.เตรียมพื้น", "04.พ่นสี", "05.ประกอบ", "06.ขัดสี", "08.เก็บงาน", "09.ซ่อมแม็ก", "10.กระจก", "11.ฟิล์ม"];
-    const counts = {};
-    
-    // อาศัยฟังก์ชัน computeHighestStationIFS จากไฟล์ dashboard_tables.js
-    filteredJobs.filter(j => !j.job_status?.includes('ส่งมอบแล้ว')).forEach(j => {
-        const s = computeHighestStationIFS(j);
-        if(activeStations.includes(s)) {
-            const shortName = s.replace(/[0-9.]/g, ''); // ตัดตัวเลขข้างหน้าออก
-            counts[shortName] = (counts[shortName] || 0) + 1;
-        }
-    });
-
-    const labels = Object.keys(counts);
-    const data = Object.values(counts);
-    
-    if (mechanicChartInstance) mechanicChartInstance.destroy();
-    const ctx = document.getElementById('mechanicChart').getContext('2d');
-    mechanicChartInstance = new Chart(ctx, {
-        type: 'doughnut',
-        data: { labels: labels, datasets: [{ data: data, backgroundColor: '#f97316', borderWidth: 1, borderColor: '#fff' }] },
-        options: {
-            responsive: true, maintainAspectRatio: false, cutout: '50%',
-            plugins: { 
-                legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
-                datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? v : '' }
-            },
-            // สุ่มสีโทนส้ม-เหลือง-แดง ให้สถานีช่าง
-            elements: { arc: { backgroundColor: ['#ea580c', '#f97316', '#fb923c', '#fdba74', '#f59e0b', '#d97706', '#b45309'] } }
-        }
-    });
-}
-
-// ==========================================
-// 🍩 5. กราฟสถานะช่าง (ดึงจากรถที่กำลังซ่อม)
-// ==========================================
-function renderMechanicChart() {
-    const activeStations = ["01.เคาะ", "02.โป๊ว", "03.เตรียมพื้น", "04.พ่นสี", "05.ประกอบ", "06.ขัดสี", "08.เก็บงาน", "09.ซ่อมแม็ก", "10.กระจก", "11.ฟิล์ม"];
-    const counts = {};
-    
-    // อาศัยฟังก์ชัน computeHighestStationIFS จากไฟล์ dashboard_tables.js
-    filteredJobs.filter(j => !j.job_status?.includes('ส่งมอบแล้ว')).forEach(j => {
-        const s = computeHighestStationIFS(j);
-        if(activeStations.includes(s)) {
-            const shortName = s.replace(/[0-9.]/g, ''); // ตัดตัวเลขข้างหน้าออก
-            counts[shortName] = (counts[shortName] || 0) + 1;
-        }
-    });
-
-    const labels = Object.keys(counts);
-    const data = Object.values(counts);
-    // 🎨 แม่สีหลักเน้นความคมชัดและตัดกันสูง (High Contrast Palette)
-    const stationColors = [
-        '#ef4444', // 🔴 เคาะ (แดง)
-        '#f97316', // 🟠 โป๊ว (ส้ม)
-        '#eab308', // 🟡 เตรียมพื้น (เหลือง)
-        '#10b981', // 🟢 พ่นสี (เขียว)
-        '#06b6d4', // 🩵 ประกอบ (ฟ้า)
-        '#3b82f6', // 🔵 ขัดสี (น้ำเงิน)
-        '#8b5cf6', // 🟣 เก็บงาน (ม่วง)
-        '#ec4899', // 🩷 ซ่อมแม็ก (ชมพู)
-        '#14b8a6', // 💚 กระจก (เขียวเทอร์ควอยซ์)
-        '#6366f1'  // 💙 ฟิล์ม (อินดิโก้)
-    ];
-    
-    if (mechanicChartInstance) mechanicChartInstance.destroy();
-    const ctx = document.getElementById('mechanicChart').getContext('2d');
-    mechanicChartInstance = new Chart(ctx, {
-        type: 'doughnut',
-        data: { 
-            labels: labels, 
-            datasets: [{ 
-                data: data, 
-                backgroundColor: stationColors.slice(0, labels.length), // ดึงสีมาใช้ตามจำนวนข้อมูลที่มี
-                borderWidth: 1, 
-                borderColor: '#fff' 
-            }] 
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false, cutout: '50%',
-            plugins: { 
-                legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
-                datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? v : '' }
-            }
-        }
-    });
 }
