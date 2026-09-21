@@ -1,5 +1,5 @@
 // ==========================================
-// 🛠️ HELPER FUNCTIONS
+// 🛠️ HELPER FUNCTIONS (ระบบรองรับข้อมูลทุกฟอร์แมต)
 // ==========================================
 function cleanDate(dStr) {
     if (!dStr) return '';
@@ -56,6 +56,20 @@ function computeHighestStationIFS(j) {
     return "รอรับรถ";
 }
 
+// 🎯 ฟังก์ชันดึงข้อมูลรถแบบปลอดภัย ป้องกันปัญหาอาร์เรย์ว่างเปล่า
+function getSafeJobsData() {
+    if (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs) && filteredJobs.length > 0) {
+        return filteredJobs;
+    }
+    if (typeof allJobs !== 'undefined' && Array.isArray(allJobs) && allJobs.length > 0) {
+        return allJobs;
+    }
+    if (typeof originalRepairJobs !== 'undefined' && Array.isArray(originalRepairJobs) && originalRepairJobs.length > 0) {
+        return originalRepairJobs;
+    }
+    return [];
+}
+
 // ==========================================
 // 🧑‍💼 ยอดงานรายบุคคล (SA)
 // ==========================================
@@ -71,10 +85,7 @@ function renderSASection() {
         '21.พักซ่อม', 'ปิดงาน', 'ส่งมอบแล้ว'
     ];
 
-    const jobsData = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs) && filteredJobs.length > 0) 
-        ? filteredJobs 
-        : ((typeof allJobs !== 'undefined' && Array.isArray(allJobs)) ? allJobs : []);
-
+    const jobsData = getSafeJobsData();
     const activeJobs = jobsData.filter(job => {
         const st = (job.job_status || '').trim();
         if (!st) return false;
@@ -117,9 +128,7 @@ function renderSASection() {
 
 function openSAModal(saName) {
     const excludedStatuses = ['12.ส่งมอบ', '13.วางบิลประกัน', '14.ชำระเงินสด', '15.วางบิล Tesla', '16.วางบิล EV ME', '17.รอออกบิล', '18.ลูกค้ายกเลิก', '19.ออกบิลแล้ว', '20.จอดซ่อม TC', '21.พักซ่อม', 'ปิดงาน', 'ส่งมอบแล้ว'];
-    const jobsData = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs) && filteredJobs.length > 0) 
-        ? filteredJobs 
-        : ((typeof allJobs !== 'undefined' && Array.isArray(allJobs)) ? allJobs : []);
+    const jobsData = getSafeJobsData();
     
     const jobsToShow = jobsData.filter(job => {
         const st = (job.job_status || '').trim();
@@ -163,9 +172,7 @@ function renderStationSection() {
     if (!container) return;
 
     const stCounts = { "01.เคาะ":0, "02.โป๊ว":0, "03.เตรียมพื้น":0, "04.พ่นสี":0, "05.ประกอบ":0, "06.ขัดสี":0, "08.เก็บงาน":0, "09.ซ่อมแม็ก":0, "10.กระจก":0, "11.ฟิล์ม":0, "12.พักซ่อม":0, "13.รอส่งมอบ":0, "รอรับรถ":0 };
-    const jobsData = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs) && filteredJobs.length > 0) 
-        ? filteredJobs 
-        : ((typeof allJobs !== 'undefined' && Array.isArray(allJobs)) ? allJobs : []);
+    const jobsData = getSafeJobsData();
     
     jobsData.filter(j => !(j.job_status||'').includes('ส่งมอบแล้ว')).forEach(j => {
         const s = computeHighestStationIFS(j);
@@ -182,9 +189,7 @@ function renderStationSection() {
 
 function openStationModal(stationName) {
     if(document.getElementById('modal_status_name')) document.getElementById('modal_status_name').innerText = `สถานีช่าง: ${stationName}`;
-    const jobsData = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs) && filteredJobs.length > 0) 
-        ? filteredJobs 
-        : ((typeof allJobs !== 'undefined' && Array.isArray(allJobs)) ? allJobs : []);
+    const jobsData = getSafeJobsData();
     const jobsToShow = jobsData.filter(j => j.job_status !== '12.ส่งมอบแล้ว' && computeHighestStationIFS(j) === stationName);
     
     if(typeof renderJobTableInModalGroupedBySA === 'function') renderJobTableInModalGroupedBySA(jobsToShow);
@@ -197,19 +202,18 @@ function openStationModal(stationName) {
 function renderStationTable() {
     const tbody = document.getElementById('station_table_body');
     if (!tbody) return;
-    const activeStations = ["01.เคาะ", "02.โป๊ว", "03.เตรียมพื้น", "04.พ่นสี", "05.ประกอบ", "06.ขัดสี", "08.เก็บงาน", "09.ซ่อมแม็ก", "10.กระจก", "11.ฟิล์ม"];
+    const activeStations = ["01.เคาะ", "02.โป๊ว", "03.เตรียมพื้น", "04.พ่นสี", "05.ประกอบ", "06.ขัดสี", "07.QC", "08.เก็บงาน", "08.แม็ก", "09.ซ่อมแม็ก", "09.กระจก", "10.กระจก", "10.ฟิล์ม", "11.ฟิล์ม"];
     
-    const jobsData = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs) && filteredJobs.length > 0) 
-        ? filteredJobs 
-        : ((typeof allJobs !== 'undefined' && Array.isArray(allJobs)) ? allJobs : []);
+    const jobsData = getSafeJobsData();
     
     const inRepairCars = jobsData.filter(j => {
         const st = (j.job_status || '').trim();
-        const isParked = j.is_parked === 'จอดซ่อม' || 
-                         (j.is_parked !== 'ไม่จอดซ่อม' && !['13.วางบิลประกัน','14.ชำระเงินสด','15.วางบิล Tesla','16.วางบิล EV ME','17.รอออกบิล','18.ลูกค้ายกเลิก','19.ออกบิลแล้ว','20.จอดซ่อม TC','21.พักซ่อม','22.ปิดงาน'].some(ex => st.includes(ex)));
+        // 🎯 ปรับปรุงการตรวจสอบสถานะจอดซ่อมให้ครอบคลุมทุกค่าใน DB
+        const isParked = isTrue(j.is_parked) || j.is_parked === 'จอดซ่อม' || 
+                         (!['ไม่จอดซ่อม', '13.วางบิลประกัน','14.ชำระเงินสด','15.วางบิล Tesla','16.วางบิล EV ME','17.รอออกบิล','18.ลูกค้ายกเลิก','19.ออกบิลแล้ว','20.จอดซ่อม TC','21.พักซ่อม','22.ปิดงาน'].some(ex => st.includes(ex)));
         
         if (st.includes('ส่งมอบแล้ว') || st.includes('12.ส่งมอบ')) return false;
-        return isParked && activeStations.includes(computeHighestStationIFS(j));
+        return isParked;
     });
     
     if(inRepairCars.length === 0) {
@@ -253,13 +257,13 @@ function renderStationTable() {
 function renderParkedCars() {
     const tbody = document.getElementById('parked_cars_body');
     if (!tbody) return;
-    const parkedStatuses = ["08.นัดหมายแล้วรอเข้าซ่อม", "09.จอดรอเข้าซ่อม", "10.กำลังซ่อม", "11.รถซ่อมเสร็จรอส่งมอบ", "20.จอดซ่อม TC", "21.พักซ่อม"];
+    const parkedStatuses = ["08.", "09.", "10.", "11.", "20.", "21.", "จอด", "ซ่อม"];
     
-    const jobsData = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs) && filteredJobs.length > 0) 
-        ? filteredJobs 
-        : ((typeof allJobs !== 'undefined' && Array.isArray(allJobs)) ? allJobs : []);
-        
-    const parkedCars = jobsData.filter(j => parkedStatuses.some(p => (j.job_status || '').includes(p)));
+    const jobsData = getSafeJobsData();
+    const parkedCars = jobsData.filter(j => {
+        const st = j.job_status || '';
+        return parkedStatuses.some(p => st.includes(p)) || isTrue(j.is_parked) || j.is_parked === 'จอดซ่อม';
+    });
     
     if(parkedCars.length === 0) {
         tbody.innerHTML = `<tr><td colspan="10" class="text-center py-10 text-slate-400 font-bold bg-slate-50">ไม่มีรถจอดซ่อมในศูนย์ขณะนี้ 🎉</td></tr>`;
@@ -307,7 +311,7 @@ function renderCalendarByRange(startStr, endStr) {
         return;
     }
     
-    // Parse วันที่ตามเวลา Local เพื่อความแม่นยำ 100%
+    // Parse start and end dates locally
     const sParts = startStr.split('-');
     const eParts = endStr.split('-');
     const startDate = new Date(parseInt(sParts[0], 10), parseInt(sParts[1], 10) - 1, parseInt(sParts[2], 10));
@@ -327,10 +331,7 @@ function renderCalendarByRange(startStr, endStr) {
     const now = new Date();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-    const jobsData = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs) && filteredJobs.length > 0) 
-        ? filteredJobs 
-        : ((typeof allJobs !== 'undefined' && Array.isArray(allJobs)) ? allJobs : []);
-        
+    const jobsData = getSafeJobsData();
     const quotasData = (typeof allQuotas !== 'undefined' && Array.isArray(allQuotas)) ? allQuotas : [];
 
     while (current <= endCalendar) {
@@ -345,17 +346,17 @@ function renderCalendarByRange(startStr, endStr) {
         if (isOutOfRange) {
             html += `<div class="bg-slate-50/50 border border-slate-100 rounded-xl p-3 min-h-[160px] opacity-40"></div>`;
         } else {
-            // 🎯 กรองข้อมูลด้วย cleanDate ให้ตรงกับ YYYY-MM-DD
             const arrJobs = jobsData.filter(j => cleanDate(j.arrived_date) === dateStr || cleanDate(j.appointment_date) === dateStr);
             const tarJobs = jobsData.filter(j => cleanDate(j.target_finish_date) === dateStr);
             const delJobs = jobsData.filter(j => cleanDate(j.delivery_date) === dateStr);
             
             let mainCount = 0; 
             let subCount = 0;
+            
             const uniqueJobsForDay = new Map();
             [...arrJobs, ...tarJobs, ...delJobs].forEach(j => { if(j && j.id) uniqueJobsForDay.set(j.id, j); });
             
-            // คำนวณจำนวนชิ้นส่วนจริงตามตรรกะใน repair.js
+            // 🎯 คำนวณยอดชิ้นส่วนแบบแม่นยำ 100% ตาม logic ใน repair.js
             uniqueJobsForDay.forEach(j => {
                 let mQty = Number(j.main_part_qty) || (j.main_part_name ? String(j.main_part_name).split(',').filter(Boolean).length : 0);
                 let sQty = Number(j.sub_part_qty) || (j.sub_part_name ? String(j.sub_part_name).split(',').filter(Boolean).length : 0);
@@ -395,7 +396,6 @@ function renderCalendarByRange(startStr, endStr) {
                 
                 <div class="h-4"></div>
 
-                <!-- 📊 กราฟแท่งแนวตั้ง 3 แท่ง (เข้าจอด, เป้าเสร็จ, ส่งมอบ) -->
                 <div class="flex-1 flex justify-center items-end gap-3 pb-4">
                     ${hasAnyData ? `
                         <!-- เข้าจอด (น้ำเงิน) -->
@@ -420,7 +420,6 @@ function renderCalendarByRange(startStr, endStr) {
                     `}
                 </div>
 
-                <!-- 🧩 หลอดชิ้นส่วนหลัก/รอง ด้านล่างสุด -->
                 <div class="mt-auto space-y-2 w-full">
                     <div>
                         <div class="flex justify-between text-[9px] font-bold text-slate-500 mb-0.5">
@@ -451,9 +450,7 @@ function renderCalendarByRange(startStr, endStr) {
 
 function openCalendarModal(dateStr) {
     if(document.getElementById('modal_status_name')) document.getElementById('modal_status_name').innerHTML = `<i class="fa-solid fa-calendar-day mr-2"></i> แผนปฏิบัติงานประจำวันที่: ${dateStr}`;
-    const jobsData = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs) && filteredJobs.length > 0) 
-        ? filteredJobs 
-        : ((typeof allJobs !== 'undefined' && Array.isArray(allJobs)) ? allJobs : []);
+    const jobsData = getSafeJobsData();
         
     const jobsToShow = jobsData.filter(j => {
         return (j.arrived_date && cleanDate(j.arrived_date) === dateStr) || 
