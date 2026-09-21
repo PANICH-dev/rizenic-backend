@@ -678,57 +678,114 @@ function openPaymentModal(paymentType, start, end) {
 }
 
 // ==========================================
-// 🍩 4. กราฟสถานะอะไหล่ (ล็อกสถานะ "06.สั่งอะไหล่" และ "สั่งอะไหล่" ไม่กรองวันที่)
+// 🍩 4. กราฟสถานะอะไหล่ (แสดงทั้งจำนวนคัน และ จำนวนชิ้น)
 // ==========================================
 function renderPartsStatusChart() {
-    const counts = {};
-    
-    // 1. ดึงเฉพาะงานที่ "กำลังอยู่ในสถานะสั่งอะไหล่" (คลุมทั้งมี "06." และไม่มี "06.")
+    const statusSummary = {
+        'รอสั่งซื้อ': { cars: 0, parts: 0 },
+        'รออะไหล่': { cars: 0, parts: 0 },
+        'ติด Back Order': { cars: 0, parts: 0 },
+        'มีของ/ครบ': { cars: 0, parts: 0 },
+        'รออัปเดต': { cars: 0, parts: 0 }
+    };
+
+    // 1. ดึงเฉพาะรถที่อยู่ในสถานะ "สั่งอะไหล่" (ไม่ติดกรอบวันที่)
     const orderingJobs = filteredJobs.filter(j => {
         const st = (j.job_status || '').trim();
-        return st.includes('สั่งอะไหล่'); 
+        return st.includes('สั่งอะไหล่');
     });
-    
-    // 2. ดึง Job ID ออกมาทั้งหมด (แปลงเป็น String เพื่อเทียบง่าย)
-    const orderingJobIds = new Set(orderingJobs.map(j => String(j.id)));
-    
-    // 3. ทะเบียนรถ (เผื่อใช้อ้างอิงกรณีฐานข้อมูลไม่มี Job ID)
+
     const cleanPlate = str => String(str || '').replace(/\s+/g, '').toLowerCase();
-    const orderingPlates = new Set(orderingJobs.map(j => cleanPlate(j.car_plate)).filter(Boolean));
 
-    // 4. กรองรายการอะไหล่ให้ตรงกับใบงานที่อยู่ในสถานะสั่งอะไหล่เท่านั้น
-    const pendingParts = filteredPartOrders.filter(o => {
-        if (o.order_status === 'ยกเลิก') return false;
-        
-        const oJobId = String(o.job_id || o.report_id || '');
-        if (oJobId && oJobId !== 'undefined' && oJobId !== 'null' && oJobId !== '') {
-            return orderingJobIds.has(oJobId); 
-        } 
-        return orderingPlates.has(cleanPlate(o.car_plate));
-    });
-    
-    // 5. นับจำนวนแยกตามสถานะของอะไหล่
-    pendingParts.forEach(o => {
-        let st = (o.order_status || 'รออัปเดต').trim();
-        if (st.includes('ครบ') || st.includes('มีของ')) st = 'มีของ/ครบ';
-        counts[st] = (counts[st] || 0) + 1;
+    // 2. วนลูปประเมินสถานะอะไหล่รายคัน พร้อมนับจำนวนชิ้นอะไหล่รวม
+    orderingJobs.forEach(job => {
+        const jobIdStr = String(job.id);
+        const jobPlate = cleanPlate(job.car_plate);
+
+        // ดึงรายการอะไหล่ทั้งหมดของรถคันนี้
+        const carParts = filteredPartOrders.filter(o => {
+            if (o.order_status === 'ยกเลิก') return false;
+            const oJobId = String(o.job_id || o.report_id || '');
+            if (oJobId && oJobId !== 'undefined' && oJobId !== 'null' && oJobId !== '') {
+                return oJobId === jobIdStr;
+            }
+            return jobPlate && cleanPlate(o.car_plate) === jobPlate;
+        });
+
+        // 3. สรุปสถานะภาพรวมของรถคันนี้
+        let carStatus = 'รอสั่งซื้อ';
+        if (carParts.length > 0) {
+            const statuses = carParts.map(p => (p.order_status || '').trim());
+            
+            if (statuses.some(s => s.includes('รอสั่งซื้อ'))) {
+                carStatus = 'รอสั่งซื้อ';
+            } else if (statuses.some(s => s.includes('Back Order') || s.includes('ติด Back Order'))) {
+                carStatus = 'ติด Back Order';
+            } else if (statuses.some(s => s.includes('รออะไหล่'))) {
+                carStatus = 'รออะไหล่';
+            } else if (statuses.every(s => s.includes('ครบ') || s.includes('มีของ'))) {
+                carStatus = 'มีของ/ครบ';
+            } else {
+                carStatus = 'รออัปเดต';
+            }
+        }
+
+        statusSummary[carStatus].cars += 1;
+        statusSummary[carStatus].parts += carParts.length;
     });
 
-    const labels = Object.keys(counts); 
-    const data = Object.values(counts);
-    const statusColorMap = { 'มีของ/ครบ': '#10b981', 'รอสั่งซื้อ': '#ef4444', 'รออะไหล่': '#f59e0b', 'ติด Back Order': '#9333ea', 'รออัปเดต': '#94a3b8' };
+    const labels = [];
+    const carData = [];
+    const partsData = [];
+
+    Object.keys(statusSummary).forEach(st => {
+        if (statusSummary[st].cars > 0) {
+            labels.push(st);
+            carData.push(statusSummary[st].cars);
+            partsData.push(statusSummary[st].parts);
+        }
+    });
+
+    const statusColorMap = {
+        'มีของ/ครบ': '#10b981',   // 🟢 เขียว
+        'รอสั่งซื้อ': '#ef4444',   // 🔴 แดง
+        'รออะไหล่': '#f59e0b',    // 🟠 ส้ม
+        'ติด Back Order': '#9333ea', // 🟣 ม่วง
+        'รออัปเดต': '#94a3b8'     // ⚪ เทา
+    };
     const colors = labels.map(l => statusColorMap[l] || '#64748b');
 
     if (partsStatusChartInstance) partsStatusChartInstance.destroy();
     const ctx = document.getElementById('partsStatusChart').getContext('2d');
     partsStatusChartInstance = new Chart(ctx, {
         type: 'doughnut',
-        data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderWidth: 0 }] },
+        data: { labels: labels, datasets: [{ data: carData, backgroundColor: colors, borderWidth: 0 }] },
         options: {
             responsive: true, maintainAspectRatio: false, cutout: '50%',
             plugins: { 
                 legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
-                datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? v : '' }
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const idx = context.dataIndex;
+                            const label = context.label || '';
+                            const c = carData[idx];
+                            const p = partsData[idx];
+                            return ` ${label}: ${c} คัน (${p} ชิ้น)`;
+                        }
+                    }
+                },
+                datalabels: { 
+                    color: '#fff', 
+                    font: { family: 'Kanit', weight: 'bold', size: 10 },
+                    textAlign: 'center',
+                    formatter: (v, ctx) => {
+                        const idx = ctx.dataIndex;
+                        const c = carData[idx];
+                        const p = partsData[idx];
+                        return c > 0 ? `${c} คัน\n(${p} ชิ้น)` : ''; // 👈 แสดงทั้งจำนวนคัน และ จำนวนชิ้น
+                    }
+                }
             },
             onClick: (evt, elements) => {
                 if (elements.length > 0) openPartsStatusModal(labels[elements[0].index]);
@@ -738,45 +795,53 @@ function renderPartsStatusChart() {
 }
 
 function openPartsStatusModal(statusLabel) {
-    document.getElementById('modal_status_name').innerText = `รถที่รออะไหล่: ${statusLabel}`;
-    
-    // ดึงสถานะสั่งอะไหล่ทั้งหมด
     const orderingJobs = filteredJobs.filter(j => {
         const st = (j.job_status || '').trim();
-        return st.includes('สั่งอะไหล่'); 
+        return st.includes('สั่งอะไหล่');
     });
-    
-    const orderingJobIds = new Set(orderingJobs.map(j => String(j.id)));
+
     const cleanPlate = str => String(str || '').replace(/\s+/g, '').toLowerCase();
-    const orderingPlates = new Set(orderingJobs.map(j => cleanPlate(j.car_plate)).filter(Boolean));
 
-    const matchedJobIds = new Set();
-    const matchedPlates = new Set();
-    
-    filteredPartOrders.forEach(o => {
-        let isMatch = false;
-        const oJobId = String(o.job_id || o.report_id || '');
-        if (oJobId && oJobId !== 'undefined' && oJobId !== 'null' && oJobId !== '') {
-            isMatch = orderingJobIds.has(oJobId);
-        } else {
-            isMatch = orderingPlates.has(cleanPlate(o.car_plate));
-        }
+    let totalPartsInModal = 0;
 
-        if (o.order_status !== 'ยกเลิก' && isMatch) {
-            let st = (o.order_status || 'รออัปเดต').trim();
-            if (st.includes('ครบ') || st.includes('มีของ')) st = 'มีของ/ครบ';
-            
-            if (st === statusLabel) {
-                if (oJobId && oJobId !== 'undefined' && oJobId !== 'null' && oJobId !== '') {
-                    matchedJobIds.add(oJobId);
-                } else {
-                    matchedPlates.add(cleanPlate(o.car_plate));
-                }
+    const jobsToShow = orderingJobs.filter(job => {
+        const jobIdStr = String(job.id);
+        const jobPlate = cleanPlate(job.car_plate);
+
+        const carParts = filteredPartOrders.filter(o => {
+            if (o.order_status === 'ยกเลิก') return false;
+            const oJobId = String(o.job_id || o.report_id || '');
+            if (oJobId && oJobId !== 'undefined' && oJobId !== 'null' && oJobId !== '') {
+                return oJobId === jobIdStr;
+            }
+            return jobPlate && cleanPlate(o.car_plate) === jobPlate;
+        });
+
+        let carStatus = 'รอสั่งซื้อ';
+        if (carParts.length > 0) {
+            const statuses = carParts.map(p => (p.order_status || '').trim());
+            if (statuses.some(s => s.includes('รอสั่งซื้อ'))) {
+                carStatus = 'รอสั่งซื้อ';
+            } else if (statuses.some(s => s.includes('Back Order') || s.includes('ติด Back Order'))) {
+                carStatus = 'ติด Back Order';
+            } else if (statuses.some(s => s.includes('รออะไหล่'))) {
+                carStatus = 'รออะไหล่';
+            } else if (statuses.every(s => s.includes('ครบ') || s.includes('มีของ'))) {
+                carStatus = 'มีของ/ครบ';
+            } else {
+                carStatus = 'รออัปเดต';
             }
         }
+
+        if (carStatus === statusLabel) {
+            totalPartsInModal += carParts.length;
+            return true;
+        }
+        return false;
     });
 
-    const jobsToShow = orderingJobs.filter(j => matchedJobIds.has(String(j.id)) || matchedPlates.has(cleanPlate(j.car_plate)));
+    document.getElementById('modal_status_name').innerText = `รายการรถที่สถานะอะไหล่: ${statusLabel} (${jobsToShow.length} คัน / รวม ${totalPartsInModal} ชิ้น)`;
+
     renderJobTableInModalGroupedBySA(jobsToShow);
     document.getElementById('jobListModal').classList.remove('hidden');
 }
