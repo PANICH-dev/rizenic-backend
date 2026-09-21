@@ -233,11 +233,13 @@ function applyFilters() {
 }
 
 // 🎯 ฟีเจอร์เสริม
+// 🎯 กล่อง ERP: เรียงลำดับคอขวด (มากไปน้อย) + ใส่สี Heatmap + กดดู Pop-up ได้
 function renderERPStatuses(jobs) {
     const statusCounts = {};
     jobs.forEach(job => {
         const st = job.job_status || "ไม่ระบุสถานะ";
-        const excluded = ['14.ชำระเงินสด', '18.ลูกค้ายกเลิก', '19.ออกบิลแล้ว'];
+        // ละเว้นสถานะที่จบงานแล้ว
+        const excluded = ['14.ชำระเงินสด', '18.ลูกค้ายกเลิก', '19.ออกบิลแล้ว', '12.ส่งมอบ', '12.ส่งมอบแล้ว'];
         if (!excluded.some(ex => st.includes(ex))) {
             statusCounts[st] = (statusCounts[st] || 0) + 1;
         }
@@ -246,21 +248,41 @@ function renderERPStatuses(jobs) {
     const grid = document.getElementById('erp_status_grid');
     if(!grid) return;
 
-    const sortedStatuses = Object.keys(statusCounts).sort();
+    // 🌟 เปลี่ยนมา "เรียงจากจำนวนมากไปน้อย" เพื่อหาคอขวด
+    const sortedStatuses = Object.entries(statusCounts).sort((a, b) => b[1] - a[1]);
 
     if(sortedStatuses.length === 0) {
         grid.innerHTML = `<div class="col-span-full text-center text-slate-400 py-6 font-bold">ไม่มีงานค้าง</div>`;
         return;
     }
 
-    grid.innerHTML = sortedStatuses.map(st => {
+    grid.innerHTML = sortedStatuses.map(([st, count]) => {
         const cleanStatus = st.replace(/^[0-9.]+\s*/, '');
+        
+        // 🔴 Heatmap Logic: สีกองงาน
+        let bgClass = "bg-white border-slate-200";
+        let textClass = "text-blue-700";
+        let iconClass = "text-slate-300";
+        let pulse = "";
+
+        if (count >= 10) {
+            bgClass = "bg-rose-50 border-rose-300"; // แดง (วิกฤต)
+            textClass = "text-rose-700";
+            iconClass = "text-rose-500";
+            pulse = "animate-pulse";
+        } else if (count >= 5) {
+            bgClass = "bg-orange-50 border-orange-300"; // ส้ม (เฝ้าระวัง)
+            textClass = "text-orange-700";
+            iconClass = "text-orange-500";
+        }
+
+        // 🖱️ เพิ่มฟังก์ชัน onclick="openStatusModal('${st}')" กดปุ๊บ Pop-up เด้งปั๊บ
         return `
-        <div class="bg-white border border-slate-200 shadow-sm rounded-lg p-3 flex flex-col justify-between hover:border-blue-400 hover:shadow-md transition cursor-pointer">
+        <div onclick="openStatusModal('${st}')" class="${bgClass} border shadow-sm rounded-lg p-3 flex flex-col justify-between hover:shadow-md transition cursor-pointer transform hover:-translate-y-1">
             <span class="text-[10px] sm:text-xs font-bold text-slate-600 truncate mb-2" title="${st}">${cleanStatus}</span>
             <div class="flex justify-between items-end">
-                <i class="fa-solid fa-car-side text-slate-300 text-lg"></i>
-                <span class="text-xl sm:text-2xl font-black text-blue-700 leading-none">${statusCounts[st]}</span>
+                <i class="fa-solid fa-car-side ${iconClass} text-lg"></i>
+                <span class="text-xl sm:text-2xl font-black ${textClass} leading-none ${pulse}">${count}</span>
             </div>
         </div>`;
     }).join('');
@@ -290,28 +312,48 @@ function renderStationSummary(jobs) {
     }
 }
 
+// 🎯 จัดกลุ่มใบสั่งอะไหล่ (นับตาม "คันรถ")
 function renderPartsTracking(partOrders) {
-    let poReadyCount = 0;   
-    let poWaitingCount = 0; 
+    const carStatusMap = {};
 
     partOrders.forEach(po => {
         const st = po.order_status || '';
         if (st === 'ยกเลิก') return;
 
-        if (st.includes('ครบ') || st.includes('มีของ') || st.includes('สต๊อค')) {
-            poReadyCount++;
-        } else if (st.includes('รอ') || st.includes('สั่ง') || st.includes('Back Order')) {
-            poWaitingCount++;
+        // ใช้ ทะเบียนรถ เป็นคีย์หลักในการจัดกลุ่ม
+        const plate = (po.car_plate || 'ไม่ระบุ').trim();
+        if (!carStatusMap[plate]) {
+            carStatusMap[plate] = { statuses: [] };
+        }
+        carStatusMap[plate].statuses.push(st);
+    });
+
+    let readyCarsCount = 0;   
+    let waitingCarsCount = 0; 
+
+    Object.values(carStatusMap).forEach(car => {
+        // เช็คว่ามีอะไหล่ชิ้นไหนในรถคันนี้ที่ยัง "รอ" หรือไม่
+        const isWaiting = car.statuses.some(st => st.includes('รอ') || st.includes('สั่ง') || st.includes('Back Order'));
+        
+        if (isWaiting) {
+            waitingCarsCount++; // คันนี้ยังมีของไม่ครบ
+        } else if (car.statuses.length > 0) {
+            readyCarsCount++; // คันนี้ของครบทุกชิ้นแล้ว พร้อมลุย!
         }
     });
 
     const elReady = document.getElementById('dash_po_ready');
     const elWaiting = document.getElementById('dash_po_waiting');
 
-    if(elReady) elReady.innerText = poReadyCount;
+    // อัปเดตแสดงผลโดยเติมคำว่า "คัน"
+    if(elReady) elReady.innerText = `${readyCarsCount} คัน`;
     if(elWaiting) {
-        elWaiting.innerText = poWaitingCount;
-        if(poWaitingCount > 0) elWaiting.classList.add('text-rose-600', 'animate-pulse');
-        else { elWaiting.classList.remove('text-rose-600', 'animate-pulse'); elWaiting.classList.add('text-amber-600'); }
+        elWaiting.innerText = `${waitingCarsCount} คัน`;
+        if(waitingCarsCount > 0) {
+            elWaiting.classList.add('text-rose-600', 'animate-pulse');
+        } else {
+            elWaiting.classList.remove('text-rose-600', 'animate-pulse');
+            elWaiting.classList.add('text-amber-600');
+        }
     }
 }

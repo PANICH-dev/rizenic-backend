@@ -1,38 +1,108 @@
-// =====================================
-// 📋 TABLES, CALENDAR & LISTS
-// =====================================
-
+// ==========================================
+// 🧑‍💼 ยอดงานรายบุคคล (SA) - เฉพาะงานที่กำลังดำเนินการ
+// ==========================================
 function renderSASection() {
+    const container = document.getElementById('sa_list_container');
+    if (!container) return;
+
     const saCounts = {};
-    filteredJobs.forEach(job => {
-        const sa = job.sa_owner || "ไม่ระบุ SA";
+    
+    // 🎯 รายการสถานะที่ "ไม่เอา" (ตัดออกจากการคำนวณงานปัจจุบัน)
+    const excludedStatuses = [
+        '12.ส่งมอบ', '13.วางบิลประกัน', '14.ชำระเงินสด', 
+        '15.วางบิล Tesla', '16.วางบิล EV ME', '17.รอออกบิล', 
+        '18.ลูกค้ายกเลิก', '19.ออกบิลแล้ว', '20.จอดซ่อม TC', 
+        '21.พักซ่อม', 'ปิดงาน', 'ส่งมอบแล้ว'
+    ];
+
+    // 1. กรองเอาเฉพาะงานที่กำลังดำเนินการจริงๆ
+    const activeJobs = filteredJobs.filter(job => {
+        const st = (job.job_status || '').trim();
+        if (!st) return false; // ถ้าไม่มีสถานะ ไม่นับ
+        // เช็กว่าสถานะของรถคันนี้ อยู่ในกลุ่มที่ถูกตัดออกหรือไม่
+        const isExcluded = excludedStatuses.some(ex => st.includes(ex));
+        return !isExcluded; // ถ้าไม่ถูกตัดออก ถึงจะนับเป็นงาน Active
+    });
+
+    // 2. นับยอดงานให้ SA แต่ละคน
+    activeJobs.forEach(job => {
+        const sa = (job.sa_owner || 'ไม่ระบุ').trim();
         saCounts[sa] = (saCounts[sa] || 0) + 1;
     });
 
-    const sortedSAs = Object.keys(saCounts).sort((a, b) => saCounts[b] - saCounts[a]);
-    const container = document.getElementById('sa_list_container');
-    container.innerHTML = sortedSAs.map(sa => `
-        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 flex justify-between items-center hover:border-amber-500 hover:shadow-md transition-all">
+    // 3. เรียงลำดับคนที่มีงานเยอะสุดขึ้นก่อน
+    const sortedSA = Object.entries(saCounts).sort((a, b) => b[1] - a[1]);
+
+    if (sortedSA.length === 0) {
+        container.innerHTML = `<div class="text-center text-slate-400 py-6 font-bold">ไม่มีงานกำลังดำเนินการ</div>`;
+        return;
+    }
+
+    // 4. วาดกล่องรายชื่อ (พร้อมกำหนดสีแจ้งเตือนถ้างานล้นมือ)
+    container.innerHTML = sortedSA.map(([sa, count]) => {
+        let textClass = 'text-blue-600';
+        let bgClass = 'bg-blue-50';
+        let borderClass = 'border-slate-100 hover:border-blue-300';
+
+        // Heatmap แจ้งเตือน SA งานล้น
+        if (count >= 15) {
+            textClass = 'text-rose-600';
+            bgClass = 'bg-rose-50';
+            borderClass = 'border-rose-200 hover:border-rose-400';
+        } else if (count >= 10) {
+            textClass = 'text-orange-500';
+            bgClass = 'bg-orange-50';
+            borderClass = 'border-orange-200 hover:border-orange-400';
+        }
+
+        return `
+        <div onclick="openSAModal('${sa}')" class="flex justify-between items-center bg-white border ${borderClass} p-2.5 rounded-lg shadow-sm hover:shadow-md transition cursor-pointer transform hover:-translate-y-0.5">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-black shadow-inner"><i class="fa-solid fa-user-tie"></i></div>
-                <div>
-                    <p class="text-sm font-bold text-slate-800">${sa}</p>
-                    <p class="text-[10px] text-slate-500">จำนวน: <span class="text-amber-600 font-black">${saCounts[sa]}</span> คัน</p>
+                <div class="w-8 h-8 rounded-full ${bgClass} ${textClass} flex items-center justify-center font-bold text-sm shadow-inner">
+                    <i class="fa-solid fa-user-tie"></i>
                 </div>
+                <span class="font-bold text-slate-700 text-sm">${sa}</span>
             </div>
-            <button onclick="openSAModal('${sa}')" class="px-3 py-1.5 bg-amber-100 text-amber-700 hover:bg-amber-500 hover:text-white rounded-lg text-xs font-bold transition shadow-sm border border-amber-200 whitespace-nowrap">
-                <i class="fa-solid fa-list-ul"></i> ดูรายการ
-            </button>
-        </div>
-    `).join('');
+            <div class="text-right flex items-baseline gap-1">
+                <span class="text-xl font-black ${textClass}">${count}</span>
+                <span class="text-[10px] text-slate-400 font-bold">คัน</span>
+            </div>
+        </div>`;
+    }).join('');
 }
 
+// 🎯 ฟังก์ชันสำหรับคลิกดู Pop-up รถของ SA คนนั้นๆ (ใช้ตัวกรองเดียวกัน)
 function openSAModal(saName) {
-    document.getElementById('modal_status_name').innerText = `รถทั้งหมดของ SA: ${saName}`;
-    const jobsToShow = filteredJobs.filter(j => (j.sa_owner || "ไม่ระบุ SA") === saName);
-    renderJobTableInModalGroupedBySA(jobsToShow);
-    document.getElementById('jobListModal').classList.remove('hidden');
+    const excludedStatuses = [
+        '12.ส่งมอบ', '13.วางบิลประกัน', '14.ชำระเงินสด', 
+        '15.วางบิล Tesla', '16.วางบิล EV ME', '17.รอออกบิล', 
+        '18.ลูกค้ายกเลิก', '19.ออกบิลแล้ว', '20.จอดซ่อม TC', 
+        '21.พักซ่อม', 'ปิดงาน', 'ส่งมอบแล้ว'
+    ];
+
+    const jobsToShow = filteredJobs.filter(job => {
+        const st = (job.job_status || '').trim();
+        const sa = (job.sa_owner || 'ไม่ระบุ').trim();
+        
+        if (sa !== saName) return false;
+        if (!st) return false;
+        return !excludedStatuses.some(ex => st.includes(ex));
+    });
+
+    if(document.getElementById('modal_status_name')) {
+        document.getElementById('modal_status_name').innerHTML = `<i class="fa-solid fa-user-tie mr-2"></i> งานที่กำลังดำเนินการของ SA: ${saName}`;
+    }
+    
+    if(typeof renderJobTableInModalGroupedBySA === 'function') {
+        renderJobTableInModalGroupedBySA(jobsToShow);
+    }
+    
+    if(document.getElementById('jobListModal')) {
+        document.getElementById('jobListModal').classList.remove('hidden');
+    }
 }
+
+
 
 function computeHighestStationIFS(j) {
     if(isTrue(j.station_ready)) return "13.รอส่งมอบ";
@@ -182,103 +252,144 @@ function renderParkedCars() {
     }).join('');
 }
 
-function renderCalendarByRange(startDate, endDate) {
-    const grid = document.getElementById('calendar_grid'); grid.innerHTML = '';
-    if(!startDate || !endDate) return;
 
-    const start = new Date(startDate); const end = new Date(endDate);
-    if(isNaN(start) || isNaN(end) || start > end) {
-        grid.innerHTML = `<div class="col-span-7 text-center py-10 text-slate-400 font-bold bg-slate-50 rounded-xl">วันที่ไม่ถูกต้อง</div>`; return;
+// ==========================================
+// 🗓️ ปฏิทินปฏิบัติงาน (แสดงหลอดโควต้ารถเข้า + อะไหล่ + เป้าเสร็จ + ส่งมอบ)
+// ==========================================
+function renderCalendarByRange(startStr, endStr) {
+    const grid = document.getElementById('calendar_grid');
+    if (!grid) return;
+
+    if (!startStr || !endStr) {
+        grid.innerHTML = `<div class="col-span-7 text-center py-10 text-slate-400 font-bold">กรุณาเลือกช่วงเวลา</div>`;
+        return;
     }
-    if(Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)) > 31) {
-        grid.innerHTML = `<div class="col-span-7 text-center py-10 text-slate-400 font-bold bg-slate-50 rounded-xl">รองรับสูงสุด 31 วัน</div>`; return;
+    
+    const startDate = new Date(startStr);
+    const endDate = new Date(endStr);
+    
+    // ปรับให้เริ่มที่วันอาทิตย์ (เพื่อให้ลง Grid 7 ช่องพอดี)
+    const startCalendar = new Date(startDate);
+    startCalendar.setDate(startCalendar.getDate() - startCalendar.getDay());
+    
+    // ปรับให้จบที่วันเสาร์
+    const endCalendar = new Date(endDate);
+    if (endCalendar.getDay() !== 6) {
+        endCalendar.setDate(endCalendar.getDate() + (6 - endCalendar.getDay()));
     }
 
-    for(let i = 0; i < start.getDay(); i++) grid.innerHTML += `<div class="bg-slate-50/50 rounded-xl border border-transparent"></div>`; 
+    let html = '';
+    let current = new Date(startCalendar);
+    const todayStr = new Date().toISOString().split('T')[0];
 
-    let maxCount = 1; const daysData = [];
-    let currentDay = new Date(start);
-    while(currentDay <= end) {
-        const dateStr = `${currentDay.getFullYear()}-${String(currentDay.getMonth()+1).padStart(2,'0')}-${String(currentDay.getDate()).padStart(2,'0')}`;
-        const arr = filteredJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr);
-        const tar = filteredJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr);
-        const del = filteredJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr);
-        
-        maxCount = Math.max(maxCount, arr.length, tar.length, del.length);
-        daysData.push({ day: currentDay.getDate(), dateStr, arrJobs: arr, tarJobs: tar, delJobs: del });
-        currentDay.setDate(currentDay.getDate() + 1);
-    }
+    while (current <= endCalendar) {
+        const dateStr = current.toISOString().split('T')[0];
+        const isOutOfRange = current < startDate || current > endDate;
+        const isToday = dateStr === todayStr;
 
-    const branchesToCheck = document.getElementById('branchFilter').value === 'all' ? [...new Set(allJobs.map(j => j.branch_name).filter(b => b))] : [document.getElementById('branchFilter').value];
-
-    daysData.forEach(d => {
-        let barBlock = '';
-        if(d.arrJobs.length > 0 || d.tarJobs.length > 0 || d.delJobs.length > 0) {
-            barBlock = `<div class="flex items-end justify-center gap-2 w-full h-[60px] mt-auto pb-1">`;
-            if(d.arrJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[18px]" onclick="openJobListModalCalendar('${d.dateStr}', 'arrived')"><span class="text-[9px] font-black text-blue-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-blue-200">${d.arrJobs.length}</span><div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-blue-700/20" style="height: ${Math.max(20, (d.arrJobs.length/maxCount)*100)}%;"></div></div>`;
-            if(d.tarJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[18px]" onclick="openJobListModalCalendar('${d.dateStr}', 'target')"><span class="text-[9px] font-black text-amber-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-amber-200">${d.tarJobs.length}</span><div class="w-full bg-gradient-to-t from-amber-500 to-amber-300 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-amber-600/20" style="height: ${Math.max(20, (d.tarJobs.length/maxCount)*100)}%;"></div></div>`;
-            if(d.delJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[18px]" onclick="openJobListModalCalendar('${d.dateStr}', 'delivery')"><span class="text-[9px] font-black text-emerald-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-emerald-200">${d.delJobs.length}</span><div class="w-full bg-gradient-to-t from-emerald-500 to-emerald-300 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-emerald-600/20" style="height: ${Math.max(20, (d.delJobs.length/maxCount)*100)}%;"></div></div>`;
-            barBlock += `</div>`;
+        if (isOutOfRange) {
+            html += `<div class="bg-slate-100 border border-slate-200 rounded-xl p-2 opacity-50"></div>`;
         } else {
-            barBlock = `<div class="flex items-center justify-center h-[60px] w-full mt-auto"><span class="text-[10px] font-bold text-slate-300">ว่าง</span></div>`;
-        }
-
-        let maxMain = 0; let maxSub = 0;
-        branchesToCheck.forEach(b => {
-            const branchQuotas = allQuotas.filter(q => q.branch_name === b);
-            const specialQ = branchQuotas.find(q => q.quota_type === 'special' && q.quota_date && q.quota_date.split('T')[0] === d.dateStr);
-            const defaultQ = branchQuotas.find(q => q.quota_type === 'default');
-            maxMain += specialQ ? (parseInt(specialQ.quota_main_parts)||0) : (defaultQ ? (parseInt(defaultQ.quota_main_parts)||0) : 0);
-            maxSub += specialQ ? (parseInt(specialQ.quota_sub_parts)||0) : (defaultQ ? (parseInt(defaultQ.quota_sub_parts)||0) : 0);
-        });
-
-        const mainSum = filteredJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === d.dateStr).reduce((sum, j) => sum + (parseInt(j.main_part_qty) || ((j.main_part_name && j.main_part_name.trim() !== '-' && j.main_part_name.trim() !== '') ? 1 : 0)), 0);
-        const subSum = filteredJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === d.dateStr).reduce((sum, j) => sum + (parseInt(j.sub_part_qty) || ((j.sub_part_name && j.sub_part_name.trim() !== '-' && j.sub_part_name.trim() !== '') ? 1 : 0)), 0);
-
-        let quotaHTML = '';
-        if (maxMain > 0 || maxSub > 0) {
-            quotaHTML = `<div class="w-full mt-2 pt-1 border-t border-slate-100 flex flex-col gap-1">`;
-            if (maxMain > 0) {
-                let pct = Math.min((mainSum / maxMain) * 100, 100);
-                quotaHTML += `<div title="เป้าหมายชิ้นส่วนหลัก"><div class="flex justify-between text-[9px] font-bold text-slate-500 mb-0.5"><span>ชิ้นหลัก</span><span class="${pct>=100?'text-rose-600':''}">${mainSum}/${maxMain}</span></div><div class="h-1.5 rounded-full bg-slate-200"><div class="h-full rounded-full ${pct>=100?'bg-rose-500':(pct>=80?'bg-amber-500':'bg-blue-500')} transition-all" style="width: ${pct}%"></div></div></div>`;
+            // ดึงข้อมูลรถของวันนี้
+            const arrivedJobs = filteredJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr);
+            const targetJobs = filteredJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr);
+            const deliveredJobs = filteredJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr);
+            
+            // 🎯 จำลองข้อมูลโควต้า (ดึงจาก allQuotas ถ้ามี หรือใช้ค่าเริ่มต้น: รถ 5 คัน / อะไหล่ 10 ชิ้น)
+            const quotaData = allQuotas.find(q => q.quota_date && q.quota_date.split('T')[0] === dateStr) || {};
+            const intakeLimit = parseInt(quotaData.intake_quota || 5); 
+            const partsLimit = parseInt(quotaData.parts_quota || 10);  
+            
+            // 1. คำนวณหลอด Progress Bar รถเข้า
+            const arrivedCount = arrivedJobs.length;
+            let intakePercent = (arrivedCount / intakeLimit) * 100;
+            if (intakePercent > 100) intakePercent = 100;
+            
+            // เปลี่ยนสีหลอดตามความหนาแน่น
+            let intakeColor = 'bg-blue-500';
+            let intakeText = 'text-blue-600';
+            if (arrivedCount >= intakeLimit) {
+                intakeColor = 'bg-rose-500'; // เต็มโควต้า
+                intakeText = 'text-rose-600';
+            } else if (arrivedCount >= intakeLimit - 1) {
+                intakeColor = 'bg-orange-500'; // ใกล้เต็ม
+                intakeText = 'text-orange-600';
             }
-            if (maxSub > 0) {
-                let pct = Math.min((subSum / maxSub) * 100, 100);
-                quotaHTML += `<div title="เป้าหมายชิ้นส่วนรอง"><div class="flex justify-between text-[9px] font-bold text-slate-500 mb-0.5"><span>ชิ้นรอง</span><span class="${pct>=100?'text-rose-600':''}">${subSum}/${maxSub}</span></div><div class="h-1.5 rounded-full bg-slate-200"><div class="h-full rounded-full ${pct>=100?'bg-rose-500':(pct>=80?'bg-amber-500':'bg-amber-400')} transition-all" style="width: ${pct}%"></div></div></div>`;
-            }
-            quotaHTML += `</div>`;
-        }
 
-        const isToday = d.dateStr === new Date().toISOString().split('T')[0];
-        const isFull = (maxMain > 0 && mainSum >= maxMain) || (maxSub > 0 && subSum >= maxSub);
+            // 2. คำนวณยอดอะไหล่
+            const partsCount = filteredPartOrders.filter(p => p.order_date && p.order_date.split('T')[0] === dateStr).length;
+            const partsText = partsCount >= partsLimit ? 'text-rose-600' : 'text-purple-600';
 
-        grid.innerHTML += `
-            <div class="calendar-cell ${isToday ? 'today' : ''} ${isFull ? 'border-rose-300 bg-rose-50/20' : ''}">
-                <div class="flex justify-between items-start w-full mb-2">
-                    <span class="calendar-day-label !mb-0">${d.day}</span>
-                    ${isFull ? `<span class="text-[9px] font-black bg-rose-500 text-white px-1.5 py-0.5 rounded shadow-sm animate-pulse border border-rose-600">🔥 เต็ม</span>` : ''}
+            // ตกแต่งช่องปฏิทิน
+            let cellClass = "bg-white border border-slate-200 rounded-xl p-2 min-h-[140px] flex flex-col justify-start hover:border-blue-400 hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer relative";
+            if (isToday) cellClass += " ring-2 ring-amber-400 bg-amber-50/20";
+
+            html += `
+            <div class="${cellClass}" onclick="openCalendarModal('${dateStr}')">
+                <div class="flex justify-between items-start mb-1.5 px-1">
+                    <span class="text-sm font-black ${isToday ? 'text-amber-600 bg-amber-100 px-2 py-0.5 rounded shadow-sm' : 'text-slate-400'}">${current.getDate()}</span>
                 </div>
-                <div class="flex-1 flex flex-col justify-end w-full">${barBlock}${quotaHTML}</div>
-            </div>`;
+                
+                <div class="flex-1 flex flex-col gap-1.5 w-full">
+                    
+                    <!-- 🚘 หลอดรับรถเข้า (Intake Quota) -->
+                    <div class="bg-slate-50 p-1.5 rounded-lg border border-slate-100 shadow-inner">
+                        <div class="flex justify-between items-center text-[10px] font-bold mb-1">
+                            <span class="text-slate-600 flex items-center gap-1"><i class="fa-solid fa-arrow-right-to-bracket text-blue-500"></i> รถเข้า</span>
+                            <span class="${intakeText} font-black">${arrivedCount}/${intakeLimit}</span>
+                        </div>
+                        <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                            <div class="${intakeColor} h-1.5 rounded-full transition-all duration-500" style="width: ${intakePercent}%"></div>
+                        </div>
+                    </div>
+
+                    <!-- 📦 โควต้าสั่งอะไหล่ (Parts Quota) -->
+                    <div class="flex justify-between items-center text-[10px] font-bold bg-slate-50 p-1.5 rounded-lg border border-slate-100 shadow-inner">
+                        <span class="text-slate-600 flex items-center gap-1"><i class="fa-solid fa-boxes-stacked text-purple-500"></i> อะไหล่</span>
+                        <span class="${partsText} font-black">${partsCount}/${partsLimit}</span>
+                    </div>
+
+                    <!-- 🎯 เป้าเสร็จ & ส่งมอบ -->
+                    <div class="grid grid-cols-2 gap-1.5 mt-auto">
+                        <div class="bg-gradient-to-b from-amber-50 to-white text-amber-700 py-1 rounded-lg border border-amber-200 flex flex-col items-center shadow-sm">
+                            <span class="text-[9px] font-bold opacity-80">เป้าเสร็จ</span>
+                            <span class="text-sm font-black">${targetJobs.length}</span>
+                        </div>
+                        <div class="bg-gradient-to-b from-emerald-50 to-white text-emerald-700 py-1 rounded-lg border border-emerald-200 flex flex-col items-center shadow-sm">
+                            <span class="text-[9px] font-bold opacity-80">ส่งมอบ</span>
+                            <span class="text-sm font-black">${deliveredJobs.length}</span>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            `;
+        }
+        current.setDate(current.getDate() + 1);
+    }
+    grid.innerHTML = html;
+}
+
+// 🎯 ฟังก์ชันสำหรับคลิกดูรายละเอียดรถทุกประเภทในวันนั้น
+function openCalendarModal(dateStr) {
+    if(document.getElementById('modal_status_name')) {
+        document.getElementById('modal_status_name').innerHTML = `<i class="fa-solid fa-calendar-day mr-2"></i> แผนปฏิบัติงานประจำวันที่: ${dateStr}`;
+    }
+    
+    // ดึงงานที่มีความเคลื่อนไหวในวันนั้นมาโชว์ทั้งหมด (รถเข้า, เป้าเสร็จ, ส่งมอบ)
+    const jobsToShow = filteredJobs.filter(j => {
+        const arr = j.arrived_date && j.arrived_date.split('T')[0] === dateStr;
+        const tar = j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr;
+        const del = j.delivery_date && j.delivery_date.split('T')[0] === dateStr;
+        return arr || tar || del;
     });
-}
 
-function openJobListModalCalendar(dateStr, type) {
-    let typeLabel = ""; let jobsToShow = [];
-    if(type === 'arrived') { typeLabel = "รถเข้าจอด"; jobsToShow = filteredJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr); }
-    else if(type === 'target') { typeLabel = "กำหนดเสร็จ"; jobsToShow = filteredJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr); }
-    else if(type === 'delivery') { typeLabel = "วันส่งมอบ"; jobsToShow = filteredJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr); }
-
-    document.getElementById('modal_status_name').innerText = `วันที่ ${new Date(dateStr).toLocaleDateString('th-TH')} (${typeLabel})`;
-    renderJobTableInModalGroupedBySA(jobsToShow);
-    document.getElementById('jobListModal').classList.remove('hidden');
-}
-
-window.toggleSAAccordion = function(id) {
-    const el = document.getElementById(id);
-    const icon = document.getElementById('icon_' + id);
-    if(el.classList.contains('hidden')) { el.classList.remove('hidden'); icon.classList.add('rotate-90'); } 
-    else { el.classList.add('hidden'); icon.classList.remove('rotate-90'); }
+    if(typeof renderJobTableInModalGroupedBySA === 'function') {
+        renderJobTableInModalGroupedBySA(jobsToShow);
+    }
+    if(document.getElementById('jobListModal')) {
+        document.getElementById('jobListModal').classList.remove('hidden');
+    }
 }
 
 function renderJobTableInModalGroupedBySA(jobs) {

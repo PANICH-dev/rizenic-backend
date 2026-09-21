@@ -129,6 +129,7 @@ function openReportModal(cat, itemIdx) {
     if(document.getElementById('jobListModal')) document.getElementById('jobListModal').classList.remove('hidden');
 }
 
+// 🎯 กราฟวิเคราะห์คอขวด (แนวนอน, เรียงมากไปน้อย, แท่งสีแดงอัตโนมัติเมื่อทะลุเป้า)
 function renderStatusChart() {
     const canvas = document.getElementById('statusChart');
     if (!canvas) return;
@@ -162,20 +163,30 @@ function renderStatusChart() {
         }
     });
 
-    const activeLabels = [];
-    const activeData = [];
-    
+    const activeDataPairs = [];
     targetStatuses.forEach(s => {
         if(statusCounts[s] > 0) {
-            activeLabels.push(s.replace(/^[0-9]+\./, ''));
-            activeData.push(statusCounts[s]);
+            activeDataPairs.push({
+                label: s.replace(/^[0-9]+\./, ''),
+                originalLabel: s,
+                count: statusCounts[s]
+            });
         }
     });
+
+    // 🌟 เรียงข้อมูลจากงานเยอะสุด ไปน้อยสุด
+    activeDataPairs.sort((a, b) => b.count - a.count);
+
+    const activeLabels = activeDataPairs.map(item => item.label);
+    const activeData = activeDataPairs.map(item => item.count);
+    const originalLabels = activeDataPairs.map(item => item.originalLabel);
+
+    // 🌟 แท่งสีตามความรุนแรง: แดง(>10) -> ส้ม(>5) -> น้ำเงิน(ปกติ)
+    const barColors = activeData.map(val => val >= 10 ? '#ef4444' : (val >= 5 ? '#f97316' : '#3b82f6'));
 
     if (statusChartInstance) statusChartInstance.destroy();
     
     const ctx = canvas.getContext('2d');
-    const isMobile = window.innerWidth < 768;
     
     statusChartInstance = new Chart(ctx, {
         type: 'bar',
@@ -184,32 +195,31 @@ function renderStatusChart() {
             datasets: [{ 
                 label: 'จำนวน (คัน)', 
                 data: activeData, 
-                backgroundColor: '#00320D', 
+                backgroundColor: barColors, 
                 borderRadius: 4, 
-                barPercentage: 0.7, 
-                hoverBackgroundColor: '#f59e0b' 
+                barPercentage: 0.7
             }]
         },
         options: { 
-            indexAxis: isMobile ? 'y' : 'x',
+            indexAxis: 'y', // บังคับเป็นแนวนอนเสมอเพื่อให้อ่านง่าย
             responsive: true, 
             maintainAspectRatio: false, 
             plugins: { 
                 legend: { display: false },
                 datalabels: { 
-                    color: isMobile ? '#334155' : '#ffffff',
+                    color: '#334155',
                     font: { family: 'Kanit', weight: 'bold', size: 10 }, 
-                    anchor: isMobile ? 'end' : 'end', 
-                    align: isMobile ? 'right' : 'bottom', 
+                    anchor: 'end', 
+                    align: 'right', 
                     formatter: (val) => val > 0 ? val : '' 
                 }
             }, 
             scales: { 
-                y: { beginAtZero: true, ticks: { stepSize: 1, font: { family: 'Kanit', size: 10 } }, grid: { display: !isMobile } }, 
-                x: { grid: { display: isMobile }, ticks: { font: { family: 'Kanit', size: 10 } } } 
+                y: { grid: { display: false }, ticks: { font: { family: 'Kanit', size: 10 } } }, 
+                x: { beginAtZero: true, ticks: { stepSize: 1, font: { family: 'Kanit', size: 10 } } } 
             },
             onClick: (evt, elements) => {
-                if(elements.length > 0) openStatusModal(activeLabels[elements[0].index]);
+                if(elements.length > 0) openStatusModal(originalLabels[elements[0].index]);
             }
         }
     });
