@@ -1,4 +1,62 @@
 // ==========================================
+// 🛠️ HELPER: แปลงวันที่ทุกรูปแบบเป็น YYYY-MM-DD
+// ==========================================
+function toYYYYMMDD(val) {
+    if (!val) return '';
+    let s = String(val).trim();
+    if (!s || s === 'null' || s === 'undefined' || s === '-') return '';
+    
+    if (s.includes('T')) s = s.split('T')[0];
+    if (s.includes(' ')) s = s.split(' ')[0];
+    
+    if (s.includes('/')) {
+        const parts = s.split('/');
+        if (parts.length === 3) {
+            let d = parts[0].padStart(2, '0');
+            let m = parts[1].padStart(2, '0');
+            let y = parseInt(parts[2], 10);
+            if (y > 2500) y -= 543; // แปลง พ.ศ. เป็น ค.ศ.
+            return `${y}-${m}-${d}`;
+        }
+    }
+    
+    if (s.includes('-')) {
+        const parts = s.split('-');
+        if (parts.length === 3) {
+            let y = parseInt(parts[0], 10);
+            if (y > 2500) y -= 543;
+            let m = parts[1].padStart(2, '0');
+            let d = parts[2].padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+    }
+    return '';
+}
+
+function isTrue(val) {
+    if (val === null || val === undefined) return false;
+    const strVal = String(val).trim().toUpperCase();
+    return strVal === 'TRUE' || strVal === '1' || val === true || val === 1;
+}
+
+function computeHighestStationIFS(j) {
+    if (!j) return "รอรับรถ";
+    if(isTrue(j.station_ready)) return "13.รอส่งมอบ";
+    if(isTrue(j.station_pak)) return "12.พักซ่อม";
+    if(isTrue(j.station_film)) return "11.ฟิล์ม";
+    if(isTrue(j.station_kraj)) return "10.กระจก";
+    if(isTrue(j.station_mag)) return "09.ซ่อมแม็ก";
+    if(isTrue(j.station_qc)) return "08.เก็บงาน";
+    if(isTrue(j.station_kat)) return "06.ขัดสี";
+    if(isTrue(j.station_prak)) return "05.ประกอบ";
+    if(isTrue(j.station_pon)) return "04.พ่นสี";
+    if(isTrue(j.station_puan)) return "03.เตรียมพื้น";
+    if(isTrue(j.station_pou)) return "02.โป๊ว";
+    if(isTrue(j.station_kho)) return "01.เคาะ";
+    return "รอรับรถ";
+}
+
+// ==========================================
 // 🧑‍💼 ยอดงานรายบุคคล (SA)
 // ==========================================
 function renderSASection() {
@@ -13,7 +71,7 @@ function renderSASection() {
         '21.พักซ่อม', 'ปิดงาน', 'ส่งมอบแล้ว'
     ];
 
-    const jobsData = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs)) ? filteredJobs : [];
+    const jobsData = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs)) ? filteredJobs : (typeof allJobs !== 'undefined' && Array.isArray(allJobs) ? allJobs : []);
     const activeJobs = jobsData.filter(job => {
         const st = (job.job_status || '').trim();
         if (!st) return false;
@@ -56,7 +114,7 @@ function renderSASection() {
 
 function openSAModal(saName) {
     const excludedStatuses = ['12.ส่งมอบ', '13.วางบิลประกัน', '14.ชำระเงินสด', '15.วางบิล Tesla', '16.วางบิล EV ME', '17.รอออกบิล', '18.ลูกค้ายกเลิก', '19.ออกบิลแล้ว', '20.จอดซ่อม TC', '21.พักซ่อม', 'ปิดงาน', 'ส่งมอบแล้ว'];
-    const jobsData = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs)) ? filteredJobs : [];
+    const jobsData = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs)) ? filteredJobs : (typeof allJobs !== 'undefined' && Array.isArray(allJobs) ? allJobs : []);
     
     const jobsToShow = jobsData.filter(job => {
         const st = (job.job_status || '').trim();
@@ -95,35 +153,12 @@ function sortTable(tableId, colIndex) {
     rows.forEach(row => tbody.appendChild(row));
 }
 
-function isTrue(val) {
-    if (val === null || val === undefined) return false;
-    const strVal = String(val).trim().toUpperCase();
-    return strVal === 'TRUE' || strVal === '1' || val === true || val === 1;
-}
-
-function computeHighestStationIFS(j) {
-    if (!j) return "รอรับรถ";
-    if(isTrue(j.station_ready)) return "13.รอส่งมอบ";
-    if(isTrue(j.station_pak)) return "12.พักซ่อม";
-    if(isTrue(j.station_film)) return "11.ฟิล์ม";
-    if(isTrue(j.station_kraj)) return "10.กระจก";
-    if(isTrue(j.station_mag)) return "09.ซ่อมแม็ก";
-    if(isTrue(j.station_qc)) return "08.เก็บงาน";
-    if(isTrue(j.station_kat)) return "06.ขัดสี";
-    if(isTrue(j.station_prak)) return "05.ประกอบ";
-    if(isTrue(j.station_pon)) return "04.พ่นสี";
-    if(isTrue(j.station_puan)) return "03.เตรียมพื้น";
-    if(isTrue(j.station_pou)) return "02.โป๊ว";
-    if(isTrue(j.station_kho)) return "01.เคาะ";
-    return "รอรับรถ";
-}
-
 function renderStationSection() {
     const container = document.getElementById('station_list_container');
     if (!container) return;
 
     const stCounts = { "01.เคาะ":0, "02.โป๊ว":0, "03.เตรียมพื้น":0, "04.พ่นสี":0, "05.ประกอบ":0, "06.ขัดสี":0, "08.เก็บงาน":0, "09.ซ่อมแม็ก":0, "10.กระจก":0, "11.ฟิล์ม":0, "12.พักซ่อม":0, "13.รอส่งมอบ":0, "รอรับรถ":0 };
-    const jobsData = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs)) ? filteredJobs : [];
+    const jobsData = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs)) ? filteredJobs : (typeof allJobs !== 'undefined' && Array.isArray(allJobs) ? allJobs : []);
     
     jobsData.filter(j => !(j.job_status||'').includes('ส่งมอบแล้ว')).forEach(j => {
         const s = computeHighestStationIFS(j);
@@ -140,7 +175,7 @@ function renderStationSection() {
 
 function openStationModal(stationName) {
     if(document.getElementById('modal_status_name')) document.getElementById('modal_status_name').innerText = `สถานีช่าง: ${stationName}`;
-    const jobsData = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs)) ? filteredJobs : [];
+    const jobsData = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs)) ? filteredJobs : (typeof allJobs !== 'undefined' && Array.isArray(allJobs) ? allJobs : []);
     const jobsToShow = jobsData.filter(j => j.job_status !== '12.ส่งมอบแล้ว' && computeHighestStationIFS(j) === stationName);
     
     if(typeof renderJobTableInModalGroupedBySA === 'function') renderJobTableInModalGroupedBySA(jobsToShow);
@@ -155,7 +190,7 @@ function renderStationTable() {
     if (!tbody) return;
     const activeStations = ["01.เคาะ", "02.โป๊ว", "03.เตรียมพื้น", "04.พ่นสี", "05.ประกอบ", "06.ขัดสี", "08.เก็บงาน", "09.ซ่อมแม็ก", "10.กระจก", "11.ฟิล์ม"];
     
-    const jobsData = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs)) ? filteredJobs : [];
+    const jobsData = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs)) ? filteredJobs : (typeof allJobs !== 'undefined' && Array.isArray(allJobs) ? allJobs : []);
     
     const inRepairCars = jobsData.filter(j => {
         const st = (j.job_status || '').trim();
@@ -175,9 +210,9 @@ function renderStationTable() {
     const today = new Date(); today.setHours(0,0,0,0);
 
     tbody.innerHTML = inRepairCars.map(j => {
-        const target = j.target_finish_date ? j.target_finish_date.split('T')[0] : '-';
-        const actual = j.repair_finish_date ? j.repair_finish_date.split('T')[0] : '-';
-        const delivery = j.delivery_date ? j.delivery_date.split('T')[0] : '-';
+        const target = j.target_finish_date ? toYYYYMMDD(j.target_finish_date) : '-';
+        const actual = j.repair_finish_date ? toYYYYMMDD(j.repair_finish_date) : '-';
+        const delivery = j.delivery_date ? toYYYYMMDD(j.delivery_date) : '-';
         const station = computeHighestStationIFS(j);
         
         let overdueWarning = '';
@@ -209,7 +244,7 @@ function renderParkedCars() {
     if (!tbody) return;
     const parkedStatuses = ["08.นัดหมายแล้วรอเข้าซ่อม", "09.จอดรอเข้าซ่อม", "10.กำลังซ่อม", "11.รถซ่อมเสร็จรอส่งมอบ", "20.จอดซ่อม TC", "21.พักซ่อม"];
     
-    const jobsData = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs)) ? filteredJobs : [];
+    const jobsData = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs)) ? filteredJobs : (typeof allJobs !== 'undefined' && Array.isArray(allJobs) ? allJobs : []);
     const parkedCars = jobsData.filter(j => parkedStatuses.some(p => (j.job_status || '').includes(p)));
     
     if(parkedCars.length === 0) {
@@ -232,9 +267,9 @@ function renderParkedCars() {
                 <td class="font-bold text-slate-800 px-4 py-3 text-xs">${j.car_brand || ''} ${j.car_model || ''}</td>
                 <td class="truncate max-w-[150px] font-medium text-slate-700 px-4 py-3 text-xs">${j.customer_name || '-'}</td>
                 <td class="font-bold text-orange-600 text-xs px-4 py-3"><i class="fa-solid fa-wrench"></i> ${computeHighestStationIFS(j).replace(/[0-9.]/g, '')}</td>
-                <td class="font-mono text-xs text-blue-600 text-center font-bold px-4 py-3">${j.target_finish_date ? j.target_finish_date.split('T')[0] : '-'}</td>
-                <td class="font-mono text-xs text-emerald-600 text-center font-bold px-4 py-3">${j.repair_finish_date ? j.repair_finish_date.split('T')[0] : '-'}</td>
-                <td class="font-mono text-xs text-purple-600 text-center font-bold px-4 py-3">${j.delivery_date ? j.delivery_date.split('T')[0] : '-'}</td>
+                <td class="font-mono text-xs text-blue-600 text-center font-bold px-4 py-3">${j.target_finish_date ? toYYYYMMDD(j.target_finish_date) : '-'}</td>
+                <td class="font-mono text-xs text-emerald-600 text-center font-bold px-4 py-3">${j.repair_finish_date ? toYYYYMMDD(j.repair_finish_date) : '-'}</td>
+                <td class="font-mono text-xs text-purple-600 text-center font-bold px-4 py-3">${j.delivery_date ? toYYYYMMDD(j.delivery_date) : '-'}</td>
                 <td class="font-bold text-slate-600 text-[11px] px-4 py-3"><span class="bg-slate-100 border border-slate-200 px-2 py-1 rounded shadow-sm">${j.job_status || '-'}</span></td>
                 <td class="text-center px-4 py-3">
                     <button class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full whitespace-nowrap" onclick="event.stopPropagation(); sessionStorage.setItem('edit_job_id', '${j.id}'); window.location.href='index.html';">
@@ -247,7 +282,7 @@ function renderParkedCars() {
 }
 
 // ==========================================
-// 🗓️ ปฏิทินปฏิบัติงาน (ดีไซน์ ds3_3.jpg กราฟแท่งแนวตั้ง)
+// 🗓️ ปฏิทินปฏิบัติงาน (กราฟแท่งแนวตั้ง 3 สี + หลอดชิ้นส่วนหลัก/รอง ด้านล่าง)
 // ==========================================
 function renderCalendarByRange(startStr, endStr) {
     const grid = document.getElementById('calendar_grid');
@@ -273,16 +308,10 @@ function renderCalendarByRange(startStr, endStr) {
     let current = new Date(startCalendar);
     const todayStr = new Date().toISOString().split('T')[0];
 
-    const cleanDate = (dStr) => {
-        if (!dStr) return '';
-        try {
-            return String(dStr).split('T')[0].trim();
-        } catch(e) {
-            return '';
-        }
-    };
-
-    const jobsData = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs)) ? filteredJobs : (typeof allJobs !== 'undefined' && Array.isArray(allJobs) ? allJobs : []);
+    const jobsData = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs) && filteredJobs.length > 0) 
+        ? filteredJobs 
+        : ((typeof allJobs !== 'undefined' && Array.isArray(allJobs)) ? allJobs : []);
+        
     const quotasData = (typeof allQuotas !== 'undefined' && Array.isArray(allQuotas)) ? allQuotas : [];
 
     while (current <= endCalendar) {
@@ -293,9 +322,10 @@ function renderCalendarByRange(startStr, endStr) {
         if (isOutOfRange) {
             html += `<div class="bg-slate-50/50 border border-slate-100 rounded-xl p-3 min-h-[160px] opacity-40"></div>`;
         } else {
-            const arrJobs = jobsData.filter(j => cleanDate(j.arrived_date) === dateStr || cleanDate(j.appointment_date) === dateStr);
-            const tarJobs = jobsData.filter(j => cleanDate(j.target_finish_date) === dateStr);
-            const delJobs = jobsData.filter(j => cleanDate(j.delivery_date) === dateStr);
+            // 🎯 กรองข้อมูลโดยใช้ toYYYYMMDD ให้ตรงเป๊ะทุกฟอร์แมต
+            const arrJobs = jobsData.filter(j => toYYYYMMDD(j.arrived_date) === dateStr || toYYYYMMDD(j.appointment_date) === dateStr);
+            const tarJobs = jobsData.filter(j => toYYYYMMDD(j.target_finish_date) === dateStr);
+            const delJobs = jobsData.filter(j => toYYYYMMDD(j.delivery_date) === dateStr);
             
             let mainCount = 0; 
             let subCount = 0;
@@ -307,21 +337,22 @@ function renderCalendarByRange(startStr, endStr) {
                 if (j.sub_part_name && j.sub_part_name !== '-' && String(j.sub_part_name).trim() !== '') subCount++;
             });
 
-            const q = quotasData.find(x => cleanDate(x.quota_date) === dateStr) || {};
+            const q = quotasData.find(x => toYYYYMMDD(x.quota_date) === dateStr) || {};
             
-            const limitIn = parseInt(q.intake_quota || 10, 10);
-            const limitTar = parseInt(q.target_quota || 10, 10);
-            const limitDel = parseInt(q.delivery_quota || 10, 10);
+            const limitIn = parseInt(q.intake_quota || 50, 10);
+            const limitTar = parseInt(q.target_quota || 30, 10);
+            const limitDel = parseInt(q.delivery_quota || 30, 10);
             const limitParts = parseInt(q.parts_quota || 50, 10);
-            const limitSubParts = parseInt(q.sub_parts_quota || q.parts_quota || 30, 10); 
+            const limitSubParts = parseInt(q.sub_parts_quota || 30, 10); 
 
             const countIn = arrJobs.length;
             const countTar = tarJobs.length;
             const countDel = delJobs.length;
 
-            const hIn = countIn > 0 ? Math.max(Math.min((countIn / limitIn) * 100, 100), 12) : 0;
-            const hTar = countTar > 0 ? Math.max(Math.min((countTar / limitTar) * 100, 100), 12) : 0;
-            const hDel = countDel > 0 ? Math.max(Math.min((countDel / limitDel) * 100, 100), 12) : 0;
+            // คำนวณความสูงกราฟแนวตั้ง
+            const hIn = countIn > 0 ? Math.max(Math.min((countIn / limitIn) * 100, 100), 15) : 0;
+            const hTar = countTar > 0 ? Math.max(Math.min((countTar / limitTar) * 100, 100), 15) : 0;
+            const hDel = countDel > 0 ? Math.max(Math.min((countDel / limitDel) * 100, 100), 15) : 0;
             
             const pctMain = limitParts > 0 ? Math.min((mainCount / limitParts) * 100, 100) : 0;
             const pctSub = limitSubParts > 0 ? Math.min((subCount / limitSubParts) * 100, 100) : 0;
@@ -339,6 +370,7 @@ function renderCalendarByRange(startStr, endStr) {
                 
                 <div class="h-4"></div>
 
+                <!-- 📊 กราฟแท่งแนวตั้ง 3 แท่ง (เข้าจอด, เป้าเสร็จ, ส่งมอบ) -->
                 <div class="flex-1 flex justify-center items-end gap-3 pb-4">
                     ${hasAnyData ? `
                         <!-- เข้าจอด (น้ำเงิน) -->
@@ -359,10 +391,11 @@ function renderCalendarByRange(startStr, endStr) {
                             <div class="w-full bg-emerald-400 rounded-t-sm transition-all duration-300" style="height: ${hDel}%;"></div>
                         </div>
                     ` : `
-                        <div class="h-[65px] flex items-center justify-center text-slate-300 text-xs font-bold">ว่าง</div>
+                        <div class="h-[65px] flex items-center justify-center text-slate-300 text-xs font-bold opacity-60">ว่าง</div>
                     `}
                 </div>
 
+                <!-- 🧩 หลอดชิ้นส่วนหลัก/รอง ด้านล่างสุด -->
                 <div class="mt-auto space-y-2 w-full">
                     <div>
                         <div class="flex justify-between text-[9px] font-bold text-slate-500 mb-0.5">
@@ -393,11 +426,11 @@ function renderCalendarByRange(startStr, endStr) {
 
 function openCalendarModal(dateStr) {
     if(document.getElementById('modal_status_name')) document.getElementById('modal_status_name').innerHTML = `<i class="fa-solid fa-calendar-day mr-2"></i> แผนปฏิบัติงานประจำวันที่: ${dateStr}`;
-    const jobsData = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs)) ? filteredJobs : [];
+    const jobsData = (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs)) ? filteredJobs : (typeof allJobs !== 'undefined' && Array.isArray(allJobs) ? allJobs : []);
     const jobsToShow = jobsData.filter(j => {
-        return (j.arrived_date && j.arrived_date.split('T')[0] === dateStr) || 
-               (j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr) || 
-               (j.delivery_date && j.delivery_date.split('T')[0] === dateStr);
+        return (j.arrived_date && toYYYYMMDD(j.arrived_date) === dateStr) || 
+               (j.target_finish_date && toYYYYMMDD(j.target_finish_date) === dateStr) || 
+               (j.delivery_date && toYYYYMMDD(j.delivery_date) === dateStr);
     });
     if(typeof renderJobTableInModalGroupedBySA === 'function') renderJobTableInModalGroupedBySA(jobsToShow);
     if(document.getElementById('jobListModal')) document.getElementById('jobListModal').classList.remove('hidden');
