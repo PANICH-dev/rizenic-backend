@@ -336,19 +336,31 @@ function renderTable(data) {
             });
         }
         
-        let rowHtml = `<tr id="row_${job.id}" ondblclick="goToEditJob('${job.id}')" title="ดับเบิ้ลคลิกเพื่อเปิดใบงานนี้">`;
+        // 🌟 1. ดึงข้อมูลไฮไลท์ส่วนตัวมาลงสี <tr>
+        const highlight = (typeof userRowHighlights !== 'undefined') ? userRowHighlights[job.id] : null;
+        const rowBgStyle = (highlight && highlight.color) ? `background-color: ${highlight.color} !important;` : '';
+        
+        let rowHtml = `<tr id="row_${job.id}" ondblclick="goToEditJob('${job.id}')" title="${highlight && highlight.note ? 'โน้ตส่วนตัว: ' + highlight.note : 'ดับเบิ้ลคลิกเพื่อเปิดใบงานนี้'}" style="${rowBgStyle}">`;
         
         columnsDef.forEach(col => {
             let cellData = ''; let cellClass = '';
             
             switch(col.key) {
                 case 'action': 
+                    // 🌟 2. ดึงโน้ตมาเช็กว่ามีไหม ถ้ามีจะโชว์จุดแจ้งเตือนสีแดง
+                    let hlNoteIcon = (highlight && highlight.note) ? `<div class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white animate-pulse"></div>` : '';
+                    
                     cellData = `
-                    <div class="flex items-center justify-center gap-1 w-full h-full p-0.5">
-                        <button onclick="event.stopPropagation(); goToEditJob('${job.id}')" class="bg-blue-600 hover:bg-blue-700 text-white p-1 rounded transition flex items-center justify-center w-6 h-6 shadow-2xs" title="อัปเดต/แก้ไข">
+                    <div class="flex items-center justify-center gap-1 w-full h-full p-0.5 relative">
+                        <!-- 🎯 ปุ่มไฮไลท์สีเหลือง -->
+                        <button onclick="event.stopPropagation(); openHighlightModal('${job.id}')" class="bg-amber-400 hover:bg-amber-500 text-slate-800 p-1 rounded transition flex items-center justify-center w-6 h-6 shadow-sm relative" title="ไฮไลท์ / โน้ตส่วนตัว">
+                            <i class="fa-solid fa-highlighter text-[11px]"></i>
+                            ${hlNoteIcon}
+                        </button>
+                        <button onclick="event.stopPropagation(); goToEditJob('${job.id}')" class="bg-blue-600 hover:bg-blue-700 text-white p-1 rounded transition flex items-center justify-center w-6 h-6 shadow-sm" title="อัปเดต/แก้ไข">
                             <i class="fa-solid fa-pen-to-square text-[11px]"></i>
                         </button>
-                        <button onclick="event.stopPropagation(); deleteJobRow('${job.id}', '${job.car_plate || '-'}')" class="bg-red-500 hover:bg-red-600 text-white p-1 rounded transition flex items-center justify-center w-6 h-6 shadow-2xs" title="ลบใบงาน">
+                        <button onclick="event.stopPropagation(); deleteJobRow('${job.id}', '${job.car_plate || '-'}')" class="bg-red-500 hover:bg-red-600 text-white p-1 rounded transition flex items-center justify-center w-6 h-6 shadow-sm" title="ลบใบงาน">
                             <i class="fa-solid fa-trash-can text-[11px]"></i>
                         </button>
                     </div>`; 
