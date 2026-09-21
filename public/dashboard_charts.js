@@ -129,7 +129,7 @@ function openReportModal(cat, itemIdx) {
     if(document.getElementById('jobListModal')) document.getElementById('jobListModal').classList.remove('hidden');
 }
 
-// 🎯 กราฟวิเคราะห์คอขวด (แนวนอน, เรียงมากไปน้อย, แท่งสีแดงอัตโนมัติเมื่อทะลุเป้า)
+// 🎯 กราฟแท่งสถานะ: เรียงตามลำดับที่นายสั่งเป๊ะๆ
 function renderStatusChart() {
     const canvas = document.getElementById('statusChart');
     if (!canvas) return;
@@ -137,14 +137,15 @@ function renderStatusChart() {
     const start = document.getElementById('dash_start_date')?.value;
     const end = document.getElementById('dash_end_date')?.value;
 
+    // 🌟 ลำดับเป๊ะๆ ตามที่สั่งมา
     const targetStatuses = [
         '01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ', 
         '04.รอลูกค้าอนุมัติ', '05.อนุมัติแล้ว', '06.สั่งอะไหล่', 
         '07.รอนัดหมายเข้าซ่อม', '08.นัดหมายแล้วรอเข้าซ่อม', '09.จอดรอเข้าซ่อม', 
-        '10.กำลังซ่อม', '11.รถซ่อมเสร็จรอส่งมอบ', 
-        '12.ส่งมอบ', '17.รอออกบิล', '19.ออกบิลแล้ว', 
-        '13.วางบิลประกัน', '14.ชำระเงินสด', '15.วางบิล Tesla', 
-        '16.วางบิล EV ME', '18.ลูกค้ายกเลิก', '20.จอดซ่อม TC', '21.พักซ่อม'
+        '23.รื้อตรวจสอบความเสียหาย', '10.กำลังซ่อม', '11.รถซ่อมเสร็จรอส่งมอบ', 
+        '12.ส่งมอบ', '13.วางบิลประกัน', '14.ชำระเงินสด', '15.วางบิล Tesla', 
+        '16.วางบิล EV ME', '17.รอออกบิล', '18.ลูกค้ายกเลิก', '19.ออกบิลแล้ว', 
+        '20.จอดซ่อม TC', '21.พักซ่อม', '22.ปิดงาน'
     ];
     
     const statusCounts = {};
@@ -152,14 +153,14 @@ function renderStatusChart() {
 
     filteredJobs.forEach(job => {
         const st = (job.job_status || "").trim();
-        if (!st.includes('ปิดงานแล้ว')) {
-            const matchedStatus = targetStatuses.find(t => st === t || st.includes(t));
-            if (matchedStatus) {
-                if (matchedStatus.includes('วางบิล') || matchedStatus.includes('ชำระเงินสด') || matchedStatus.includes('ออกบิลแล้ว')) {
-                    if (!isDateInRange(job.billing_date, start, end)) return;
-                }
-                statusCounts[matchedStatus]++;
+        const prefix = st.substring(0, 2);
+        const matchedStatus = targetStatuses.find(t => t.startsWith(prefix));
+        
+        if (matchedStatus) {
+            if (matchedStatus.includes('วางบิล') || matchedStatus.includes('ชำระเงินสด') || matchedStatus.includes('ออกบิลแล้ว') || matchedStatus.includes('ส่งมอบ')) {
+                if (!isDateInRange(job.billing_date || job.delivery_date || job.repair_finish_date, start, end)) return;
             }
+            statusCounts[matchedStatus]++;
         }
     });
 
@@ -167,21 +168,19 @@ function renderStatusChart() {
     targetStatuses.forEach(s => {
         if(statusCounts[s] > 0) {
             activeDataPairs.push({
-                label: s.replace(/^[0-9]+\./, ''),
+                label: s.replace(/^[0-9.]+\s*/, ''),
                 originalLabel: s,
                 count: statusCounts[s]
             });
         }
     });
 
-    // 🌟 เรียงข้อมูลจากงานเยอะสุด ไปน้อยสุด
-    activeDataPairs.sort((a, b) => b.count - a.count);
+    // 🌟 เรียงตามลำดับ targetStatuses ที่เราวนลูปไว้ (เอา sort ออก)
 
     const activeLabels = activeDataPairs.map(item => item.label);
     const activeData = activeDataPairs.map(item => item.count);
     const originalLabels = activeDataPairs.map(item => item.originalLabel);
 
-    // 🌟 แท่งสีตามความรุนแรง: แดง(>10) -> ส้ม(>5) -> น้ำเงิน(ปกติ)
     const barColors = activeData.map(val => val >= 10 ? '#ef4444' : (val >= 5 ? '#f97316' : '#3b82f6'));
 
     if (statusChartInstance) statusChartInstance.destroy();
@@ -201,7 +200,7 @@ function renderStatusChart() {
             }]
         },
         options: { 
-            indexAxis: 'y', // บังคับเป็นแนวนอนเสมอเพื่อให้อ่านง่าย
+            indexAxis: 'y',
             responsive: true, 
             maintainAspectRatio: false, 
             plugins: { 
@@ -247,12 +246,21 @@ function openStatusModal(statusName) {
     if(document.getElementById('jobListModal')) document.getElementById('jobListModal').classList.remove('hidden');
 }
 
+// 🎯 โดนัทสัดส่วนลูกค้า (เพิ่ม Filter วันที่แล้ว)
 function renderInsuranceChart() {
     const canvas = document.getElementById('insuranceChart');
     if (!canvas) return;
 
+    const start = document.getElementById('dash_start_date')?.value;
+    const end = document.getElementById('dash_end_date')?.value;
+
     const customerTypes = {};
     filteredJobs.forEach(j => {
+        // 🌟 กรองข้อมูลตามวันที่เลือก (arrived, contact หรือ appointment)
+        if (start && end && !isDateInRange(j.arrived_date || j.contact_date || j.appointment_date, start, end)) {
+            return;
+        }
+
         const type = (j.customer_type || 'ไม่มีข้อมูล').trim();
         customerTypes[type] = (customerTypes[type] || 0) + 1;
     });

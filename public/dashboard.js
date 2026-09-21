@@ -185,7 +185,6 @@ async function fetchDashboardData() {
     } catch (err) { 
         console.error("โหลดข้อมูลแดชบอร์ดพัง:", err); 
     } finally {
-        // บังคับเรียก applyFilters เสมอ ไม่ว่าดึงข้อมูลผ่านหรือล้มเหลว
         applyFilters(); 
     }
 }
@@ -210,7 +209,6 @@ function applyFilters() {
         filteredPartOrders = allPartOrders.filter(o => isSameBranch(o.branch_name, selectedBranch));
     }
 
-    // เรียก Render ปลอดภัย
     if(typeof renderERPStatuses === 'function') renderERPStatuses(filteredJobs);
     if(typeof renderStationSummary === 'function') renderStationSummary(filteredJobs);
     if(typeof renderPartsTracking === 'function') renderPartsTracking(filteredPartOrders);
@@ -232,24 +230,32 @@ function applyFilters() {
     if(typeof renderCalendarByRange === 'function') renderCalendarByRange(startDate, endDate);
 }
 
-// 🎯 ฟีเจอร์เสริม
-// 🎯 กล่อง ERP: เรียงลำดับคอขวด (มากไปน้อย) + ใส่สี Heatmap + กดดู Pop-up ได้
+// 🎯 กล่อง ERP: เรียงลำดับตามที่กำหนด (01 - 23)
 function renderERPStatuses(jobs) {
     const statusCounts = {};
     jobs.forEach(job => {
         const st = job.job_status || "ไม่ระบุสถานะ";
-        // ละเว้นสถานะที่จบงานแล้ว
-        const excluded = ['14.ชำระเงินสด', '18.ลูกค้ายกเลิก', '19.ออกบิลแล้ว', '12.ส่งมอบ', '12.ส่งมอบแล้ว'];
-        if (!excluded.some(ex => st.includes(ex))) {
-            statusCounts[st] = (statusCounts[st] || 0) + 1;
-        }
+        statusCounts[st] = (statusCounts[st] || 0) + 1;
     });
 
     const grid = document.getElementById('erp_status_grid');
     if(!grid) return;
 
-    // 🌟 เปลี่ยนมา "เรียงจากจำนวนมากไปน้อย" เพื่อหาคอขวด
-    const sortedStatuses = Object.entries(statusCounts).sort((a, b) => b[1] - a[1]);
+    // 🌟 ลำดับที่นายต้องการแบบเป๊ะๆ 🌟
+    const exactOrder = [
+        "01", "02", "03", "04", "05", "06", "07", "08", "09", "23", 
+        "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", 
+        "20", "21", "22"
+    ];
+
+    const getSortIndex = (st) => {
+        const prefix = st.substring(0, 2);
+        const idx = exactOrder.indexOf(prefix);
+        return idx !== -1 ? idx : 999;
+    };
+
+    // 🌟 เรียงลำดับตาม exactOrder
+    const sortedStatuses = Object.entries(statusCounts).sort((a, b) => getSortIndex(a[0]) - getSortIndex(b[0]));
 
     if(sortedStatuses.length === 0) {
         grid.innerHTML = `<div class="col-span-full text-center text-slate-400 py-6 font-bold">ไม่มีงานค้าง</div>`;
@@ -259,24 +265,22 @@ function renderERPStatuses(jobs) {
     grid.innerHTML = sortedStatuses.map(([st, count]) => {
         const cleanStatus = st.replace(/^[0-9.]+\s*/, '');
         
-        // 🔴 Heatmap Logic: สีกองงาน
         let bgClass = "bg-white border-slate-200";
         let textClass = "text-blue-700";
         let iconClass = "text-slate-300";
         let pulse = "";
 
         if (count >= 10) {
-            bgClass = "bg-rose-50 border-rose-300"; // แดง (วิกฤต)
+            bgClass = "bg-rose-50 border-rose-300"; 
             textClass = "text-rose-700";
             iconClass = "text-rose-500";
             pulse = "animate-pulse";
         } else if (count >= 5) {
-            bgClass = "bg-orange-50 border-orange-300"; // ส้ม (เฝ้าระวัง)
+            bgClass = "bg-orange-50 border-orange-300"; 
             textClass = "text-orange-700";
             iconClass = "text-orange-500";
         }
 
-        // 🖱️ เพิ่มฟังก์ชัน onclick="openStatusModal('${st}')" กดปุ๊บ Pop-up เด้งปั๊บ
         return `
         <div onclick="openStatusModal('${st}')" class="${bgClass} border shadow-sm rounded-lg p-3 flex flex-col justify-between hover:shadow-md transition cursor-pointer transform hover:-translate-y-1">
             <span class="text-[10px] sm:text-xs font-bold text-slate-600 truncate mb-2" title="${st}">${cleanStatus}</span>
@@ -312,7 +316,6 @@ function renderStationSummary(jobs) {
     }
 }
 
-// 🎯 จัดกลุ่มใบสั่งอะไหล่ (นับตาม "คันรถ")
 function renderPartsTracking(partOrders) {
     const carStatusMap = {};
 
@@ -320,7 +323,6 @@ function renderPartsTracking(partOrders) {
         const st = po.order_status || '';
         if (st === 'ยกเลิก') return;
 
-        // ใช้ ทะเบียนรถ เป็นคีย์หลักในการจัดกลุ่ม
         const plate = (po.car_plate || 'ไม่ระบุ').trim();
         if (!carStatusMap[plate]) {
             carStatusMap[plate] = { statuses: [] };
@@ -332,20 +334,18 @@ function renderPartsTracking(partOrders) {
     let waitingCarsCount = 0; 
 
     Object.values(carStatusMap).forEach(car => {
-        // เช็คว่ามีอะไหล่ชิ้นไหนในรถคันนี้ที่ยัง "รอ" หรือไม่
         const isWaiting = car.statuses.some(st => st.includes('รอ') || st.includes('สั่ง') || st.includes('Back Order'));
         
         if (isWaiting) {
-            waitingCarsCount++; // คันนี้ยังมีของไม่ครบ
+            waitingCarsCount++; 
         } else if (car.statuses.length > 0) {
-            readyCarsCount++; // คันนี้ของครบทุกชิ้นแล้ว พร้อมลุย!
+            readyCarsCount++; 
         }
     });
 
     const elReady = document.getElementById('dash_po_ready');
     const elWaiting = document.getElementById('dash_po_waiting');
 
-    // อัปเดตแสดงผลโดยเติมคำว่า "คัน"
     if(elReady) elReady.innerText = `${readyCarsCount} คัน`;
     if(elWaiting) {
         elWaiting.innerText = `${waitingCarsCount} คัน`;
