@@ -347,7 +347,7 @@ function renderParkedCars() {
 }
 
 // ==========================================
-// 🗓️ ปฏิทินปฏิบัติงาน (ดีไซน์ดั้งเดิม กราฟหลอดแนวนอน 3 แถว)
+// 🗓️ ปฏิทินปฏิบัติงาน (กราฟแนวตั้ง + ชิ้นส่วนแนวนอน + หลอดสีแดงเมื่อเต็มโควต้า)
 // ==========================================
 function renderCalendarByRange(startStr, endStr) {
     const grid = document.getElementById('calendar_grid');
@@ -375,90 +375,101 @@ function renderCalendarByRange(startStr, endStr) {
 
     const cleanDate = (dStr) => dStr ? String(dStr).split('T')[0].trim() : '';
 
-    // 🎯 ฟังก์ชันสร้างหลอดกราฟแนวนอนแบบดั้งเดิม
-    const createBar = (label, iconHTML, count, limit, defaultColorClass, defaultTextClass) => {
-        const isFull = count >= limit && limit > 0;
-        const isAlmostFull = count >= limit - 1 && limit > 0 && !isFull;
-        
-        let barColor = defaultColorClass;
-        let txtColor = defaultTextClass;
-        
-        // กฎการเปลี่ยนสี (แดง = ล้น/เต็ม, ส้ม = ใกล้เต็ม)
-        if (isFull) {
-            barColor = 'bg-rose-500';
-            txtColor = 'text-rose-600';
-        } else if (isAlmostFull) {
-            barColor = 'bg-orange-500';
-            txtColor = 'text-orange-500';
-        }
-
-        const pct = Math.min(Math.round((count / (limit || 1)) * 100), 100);
-
-        return `
-        <div class="mb-2.5">
-            <div class="flex justify-between items-center mb-1">
-                <div class="text-[10px] font-bold text-slate-600 flex items-center gap-1.5">
-                    ${iconHTML} <span>${label}</span>
-                </div>
-                <div class="text-[10px] font-black ${txtColor}">${count}/${limit}</div>
-            </div>
-            <div class="w-full bg-slate-200/70 rounded-full h-1.5">
-                <div class="${barColor} h-1.5 rounded-full transition-all duration-300" style="width: ${pct}%"></div>
-            </div>
-        </div>`;
-    };
-
     while (current <= endCalendar) {
         const dateStr = current.toISOString().split('T')[0];
         const isOutOfRange = current < startDate || current > endDate;
         const isToday = dateStr === todayStr;
 
         if (isOutOfRange) {
-            html += `<div class="bg-slate-50 border border-slate-100 rounded-xl p-3 min-h-[160px] opacity-40"></div>`;
+            html += `<div class="bg-slate-100/50 border border-slate-200/50 rounded-xl p-2 min-h-[160px] opacity-40"></div>`;
         } else {
-            const arrivedJobs = (filteredJobs || []).filter(j => cleanDate(j.arrived_date) === dateStr || cleanDate(j.appointment_date) === dateStr);
-            const targetJobs = (filteredJobs || []).filter(j => cleanDate(j.target_finish_date) === dateStr);
-            const deliveredJobs = (filteredJobs || []).filter(j => cleanDate(j.delivery_date) === dateStr);
+            const arrJobs = (window.filteredJobs || []).filter(j => cleanDate(j.arrived_date) === dateStr || cleanDate(j.appointment_date) === dateStr);
+            const tarJobs = (window.filteredJobs || []).filter(j => cleanDate(j.target_finish_date) === dateStr);
+            const delJobs = (window.filteredJobs || []).filter(j => cleanDate(j.delivery_date) === dateStr);
             
-            const partOrdersArray = Array.isArray(filteredPartOrders) ? filteredPartOrders : [];
-            const countParts = partOrdersArray.filter(p => cleanDate(p.order_date) === dateStr).length;
+            // นับชิ้นส่วน
+            let mainCount = 0; let subCount = 0;
+            const uniqueJobs = new Map();
+            [...arrJobs, ...tarJobs, ...delJobs].forEach(j => uniqueJobs.set(j.id, j));
+            
+            uniqueJobs.forEach(j => {
+                if (j.main_part_name && j.main_part_name !== '-' && j.main_part_name.trim() !== '') mainCount++;
+                if (j.sub_part_name && j.sub_part_name !== '-' && j.sub_part_name.trim() !== '') subCount++;
+            });
 
-            const quotasArray = Array.isArray(allQuotas) ? allQuotas : [];
+            // ดึงโควต้า
+            const quotasArray = Array.isArray(window.allQuotas) ? window.allQuotas : [];
             const q = quotasArray.find(x => cleanDate(x.quota_date) === dateStr) || {};
             
             const limitIn = parseInt(q.intake_quota || 5, 10);
             const limitTar = parseInt(q.target_quota || 5, 10);
             const limitDel = parseInt(q.delivery_quota || 5, 10);
             const limitParts = parseInt(q.parts_quota || 15, 10);
+            const limitSubParts = parseInt(q.parts_quota || 15, 10);
 
-            const countIn = arrivedJobs.length;
-            const countTar = targetJobs.length;
-            const countDel = deliveredJobs.length;
+            const cIn = arrJobs.length;
+            const cTar = tarJobs.length;
+            const cDel = delJobs.length;
 
-            const isPartsFull = countParts >= limitParts && limitParts > 0;
-            const partsTxtColor = isPartsFull ? 'text-rose-600' : 'text-purple-600';
+            // 🎯 ฟังก์ชันวาดกราฟแนวตั้ง
+            const renderVertBar = (count, limit, defaultText, defaultBar) => {
+                const isFull = count >= limit && limit > 0;
+                const hPct = limit > 0 ? Math.min((count / limit) * 100, 100) : 0;
+                
+                const textColor = isFull ? 'text-rose-600' : defaultText;
+                const borderColor = isFull ? 'border-rose-300' : 'border-slate-200';
+                const barColor = isFull ? 'bg-rose-500 shadow-[0_0_5px_rgba(244,63,94,0.5)]' : defaultBar;
 
-            let cellClass = "bg-white border border-slate-200 rounded-xl p-3 min-h-[160px] flex flex-col hover:border-amber-400 hover:shadow-lg transition-all cursor-pointer relative";
-            if (isToday) cellClass += " ring-2 ring-amber-400 bg-amber-50/10";
+                return `
+                <div class="flex flex-col items-center justify-end h-full w-[28%] relative">
+                    <div class="bg-white border ${borderColor} ${textColor} text-[9px] font-black px-1 rounded shadow-sm z-10 -mb-1 transition-all whitespace-nowrap">
+                        ${count}/${limit}
+                    </div>
+                    <div class="w-full ${barColor} rounded-t-sm transition-all duration-300 min-h-[4px]" style="height: ${Math.max(hPct, 5)}%;"></div>
+                </div>`;
+            };
+
+            // 🎯 ฟังก์ชันวาดหลอดแนวนอน
+            const renderHorizBar = (label, count, limit, defaultText, defaultFill, defaultBg) => {
+                const isFull = count >= limit && limit > 0;
+                const wPct = limit > 0 ? Math.min((count / limit) * 100, 100) : 0;
+                
+                const textColor = isFull ? 'text-rose-700' : defaultText;
+                const fillClass = isFull ? 'bg-rose-500' : defaultFill;
+                const bgClass = isFull ? 'bg-rose-50 border-rose-200' : defaultBg;
+
+                return `
+                <div class="relative w-full ${bgClass} rounded-full mb-1 overflow-hidden border">
+                    <div class="absolute top-0 left-0 h-full ${fillClass} opacity-30 transition-all duration-300" style="width: ${wPct}%"></div>
+                    <div class="relative flex justify-between items-center px-2 py-0.5 text-[9px] font-bold">
+                        <span class="${textColor}">${label}</span>
+                        <span class="${textColor}">${count}/${limit}</span>
+                    </div>
+                </div>`;
+            };
+
+            let cellClass = "bg-white border border-slate-200 rounded-xl p-2 min-h-[160px] flex flex-col hover:border-blue-400 hover:shadow-lg transition-all cursor-pointer relative";
+            if (isToday) cellClass += " ring-2 ring-blue-500 bg-blue-50/10";
 
             html += `
             <div class="${cellClass}" onclick="openCalendarModal('${dateStr}')">
-                <div class="text-xs font-black text-slate-700 mb-3 ${isToday ? 'text-amber-600' : ''}">
+                <div class="absolute top-2 right-3 text-xs font-black ${isToday ? 'text-blue-600' : 'text-slate-400'}">
                     ${current.getDate()}
                 </div>
                 
-                <div class="flex-1 flex flex-col">
-                    ${createBar('เข้าจอด', '<i class="fa-solid fa-arrow-right-to-bracket text-blue-500 w-3"></i>', countIn, limitIn, 'bg-blue-500', 'text-blue-600')}
-                    ${createBar('เป้าเสร็จ', '<i class="fa-solid fa-flag-checkered text-amber-500 w-3"></i>', countTar, limitTar, 'bg-amber-500', 'text-amber-600')}
-                    ${createBar('ส่งมอบ', '<i class="fa-solid fa-car-side text-emerald-500 w-3"></i>', countDel, limitDel, 'bg-emerald-500', 'text-emerald-600')}
-                    
-                    <!-- ส่วนชิ้นส่วนหลัก/รอง อยู่ล่างสุดตามรูป -->
-                    <div class="mt-auto pt-2 border-t border-slate-100 flex justify-between items-center">
-                        <div class="text-[10px] font-bold text-slate-600 flex items-center gap-1.5">
-                            <i class="fa-solid fa-puzzle-piece text-purple-500 w-3"></i> ชิ้นส่วนหลัก/รอง
-                        </div>
-                        <div class="text-[10px] font-black ${partsTxtColor}">${countParts}/${limitParts}</div>
-                    </div>
+                <div class="h-5"></div>
+
+                <!-- กราฟแท่งแนวตั้ง (เข้าจอด, เป้าเสร็จ, ส่งมอบ) -->
+                <div class="flex-1 flex justify-center items-end gap-1.5 pb-3 pt-2">
+                    ${renderVertBar(cIn, limitIn, 'text-blue-600', 'bg-blue-500')}
+                    ${renderVertBar(cTar, limitTar, 'text-amber-500', 'bg-amber-400')}
+                    ${renderVertBar(cDel, limitDel, 'text-emerald-500', 'bg-emerald-400')}
+                </div>
+
+                <!-- หลอดแนวนอน ชิ้นส่วนหลัก/รอง -->
+                <div class="mt-auto w-full pt-1 border-t border-slate-100">
+                    ${renderHorizBar('ชิ้นหลัก', mainCount, limitParts, 'text-blue-700', 'bg-blue-500', 'bg-blue-50 border-blue-100')}
+                    ${renderHorizBar('ชิ้นรอง', subCount, limitSubParts, 'text-amber-700', 'bg-amber-500', 'bg-amber-50 border-amber-100')}
                 </div>
             </div>`;
         }
@@ -467,30 +478,20 @@ function renderCalendarByRange(startStr, endStr) {
     grid.innerHTML = html;
 }
 
-// 🎯 ฟังก์ชันสำหรับคลิกดูรายละเอียดรถทุกประเภทในวันนั้น
 function openCalendarModal(dateStr) {
-    if(document.getElementById('modal_status_name')) {
-        document.getElementById('modal_status_name').innerHTML = `<i class="fa-solid fa-calendar-day mr-2"></i> แผนปฏิบัติงานประจำวันที่: ${dateStr}`;
-    }
-    
-    // ดึงงานที่มีความเคลื่อนไหวในวันนั้นมาโชว์ทั้งหมด (รถเข้า, เป้าเสร็จ, ส่งมอบ)
-    const jobsToShow = filteredJobs.filter(j => {
-        const arr = j.arrived_date && j.arrived_date.split('T')[0] === dateStr;
-        const tar = j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr;
-        const del = j.delivery_date && j.delivery_date.split('T')[0] === dateStr;
-        return arr || tar || del;
+    if(document.getElementById('modal_status_name')) document.getElementById('modal_status_name').innerHTML = `<i class="fa-solid fa-calendar-day mr-2"></i> แผนปฏิบัติงานประจำวันที่: ${dateStr}`;
+    const jobsToShow = (window.filteredJobs || []).filter(j => {
+        return (j.arrived_date && j.arrived_date.split('T')[0] === dateStr) || 
+               (j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr) || 
+               (j.delivery_date && j.delivery_date.split('T')[0] === dateStr);
     });
-
-    if(typeof renderJobTableInModalGroupedBySA === 'function') {
-        renderJobTableInModalGroupedBySA(jobsToShow);
-    }
-    if(document.getElementById('jobListModal')) {
-        document.getElementById('jobListModal').classList.remove('hidden');
-    }
+    if(typeof renderJobTableInModalGroupedBySA === 'function') renderJobTableInModalGroupedBySA(jobsToShow);
+    if(document.getElementById('jobListModal')) document.getElementById('jobListModal').classList.remove('hidden');
 }
 
 function renderJobTableInModalGroupedBySA(jobs) {
     const container = document.getElementById('modal_job_container');
+    if (!container) return;
     if (jobs.length === 0) { container.innerHTML = `<div class="text-center py-10 text-slate-500 font-bold bg-white m-4 rounded-xl shadow-sm">ไม่มีข้อมูล</div>`; return; }
 
     const groupedBySA = {};
@@ -504,11 +505,11 @@ function renderJobTableInModalGroupedBySA(jobs) {
     Object.keys(groupedBySA).sort().forEach((sa, index) => {
         const groupId = `sa_group_${index}`;
         finalHtml += `
-            <div class="bg-slate-100 px-4 py-3 border-y border-slate-300 flex items-center justify-between sticky top-0 z-10 shadow-sm cursor-pointer hover:bg-slate-200 transition" onclick="toggleSAAccordion('${groupId}')">
-                <span class="font-black text-[#00320D] text-sm flex items-center gap-2"><i class="fa-solid fa-chevron-right transition-transform duration-200 text-slate-400" id="icon_${groupId}"></i> <i class="fa-solid fa-user-tie text-amber-500"></i> SA: ${sa}</span>
+            <div class="bg-slate-100 px-4 py-3 border-y border-slate-300 flex items-center justify-between sticky top-0 z-10 shadow-sm cursor-pointer hover:bg-slate-200 transition" onclick="document.getElementById('${groupId}').classList.toggle('hidden')">
+                <span class="font-black text-[#00320D] text-sm flex items-center gap-2"><i class="fa-solid fa-chevron-down text-slate-400"></i> <i class="fa-solid fa-user-tie text-amber-500"></i> SA: ${sa}</span>
                 <span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-xs font-bold border border-amber-300">${groupedBySA[sa].length} คัน</span>
             </div>
-            <div id="${groupId}" class="hidden">
+            <div id="${groupId}">
                 <table class="excel-table w-full border-none mb-2">
                     <thead class="bg-white text-slate-500 text-[10px] uppercase border-b border-slate-200">
                         <tr><th class="px-4 py-2 font-bold text-left w-32">ทะเบียนรถ</th><th class="px-4 py-2 font-bold text-left w-48">ลูกค้า</th><th class="px-4 py-2 font-bold text-left w-48">ชิ้นส่วนที่ทำสี / สถานะอะไหล่</th><th class="px-4 py-2 font-bold text-left w-40">สถานะซ่อม (ERP)</th><th class="px-4 py-2 font-bold text-center w-20">จัดการ</th></tr>
@@ -516,17 +517,17 @@ function renderJobTableInModalGroupedBySA(jobs) {
         `;
         groupedBySA[sa].forEach(j => {
             let safeStatus = j.job_status || '';
-            let safeOptions = globalStatusOptionsHtml;
+            let safeOptions = window.globalStatusOptionsHtml || '';
             if(!safeOptions.includes(`value="${safeStatus}"`)) { safeOptions = `<option value="${safeStatus}">${safeStatus}</option>` + safeOptions; } 
             safeOptions = safeOptions.replace(`value="${safeStatus}"`, `value="${safeStatus}" selected`); 
 
             finalHtml += `
-                <tr class="hover:bg-emerald-50/50 transition cursor-pointer" onclick="goToEditJob('${j.id}')">
+                <tr class="hover:bg-emerald-50/50 transition cursor-pointer" onclick="sessionStorage.setItem('edit_job_id', '${j.id}'); window.location.href='index.html';">
                     <td class="px-4 py-3 font-bold text-[#00320D] align-top"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded font-mono text-xs shadow-inner whitespace-nowrap">${j.car_plate || '-'}</span></td>
-                    <td class="px-4 py-3 align-top"><div class="font-bold text-slate-800 text-[11px] leading-tight mb-1">${j.car_brand} <span class="text-slate-500 font-medium">${j.car_model || ''}</span></div><div class="text-[11px] font-bold text-slate-700 truncate max-w-[150px]" title="${j.customer_name}">${j.customer_name || '-'}</div></td>
+                    <td class="px-4 py-3 align-top"><div class="font-bold text-slate-800 text-[11px] leading-tight mb-1">${j.car_brand} <span class="text-slate-500 font-medium">${j.car_model || ''}</span></div><div class="text-[11px] font-bold text-slate-700 truncate max-w-[150px]">${j.customer_name || '-'}</div></td>
                     <td class="px-4 py-3 text-[11px] font-bold text-slate-700 align-top"><div class="text-blue-600 mb-0.5"><i class="fa-solid fa-layer-group text-blue-400 mr-1"></i> หลัก: ${j.main_part_name || '-'}</div><div class="text-amber-600 mb-1"><i class="fa-solid fa-puzzle-piece text-amber-400 mr-1"></i> รอง: ${j.sub_part_name || '-'}</div><div class="text-purple-600 pt-1 border-t border-slate-100"><i class="fa-solid fa-box text-purple-400 mr-1"></i> อะไหล่: <span class="bg-purple-50 px-1.5 py-0.5 rounded shadow-sm border border-purple-200">${j.part_status || '-'}</span></div></td>
-                    <td class="px-4 py-3 text-[10px] font-bold text-slate-700 align-top"><select onclick="event.stopPropagation()" onchange="fastUpdateJob('${j.id}', 'job_status', this.value)" class="bg-slate-50 border border-slate-300 rounded px-2 py-1 outline-none focus:border-amber-500 w-full cursor-pointer font-bold text-[#00320D]">${safeOptions}</select></td>
-                    <td class="px-4 py-3 text-center align-top"><button onclick="event.stopPropagation(); goToEditJob('${j.id}')" class="bg-[#00320D] text-[#ffffff] px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full whitespace-nowrap"><i class="fa-solid fa-pen"></i> เปิด</button></td>
+                    <td class="px-4 py-3 text-[10px] font-bold text-slate-700 align-top"><select onclick="event.stopPropagation()" onchange="if(typeof fastUpdateJob === 'function') fastUpdateJob('${j.id}', 'job_status', this.value)" class="bg-slate-50 border border-slate-300 rounded px-2 py-1 outline-none focus:border-amber-500 w-full cursor-pointer font-bold text-[#00320D]">${safeOptions}</select></td>
+                    <td class="px-4 py-3 text-center align-top"><button onclick="event.stopPropagation(); sessionStorage.setItem('edit_job_id', '${j.id}'); window.location.href='index.html';" class="bg-[#00320D] text-[#ffffff] px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full whitespace-nowrap"><i class="fa-solid fa-pen"></i> เปิด</button></td>
                 </tr>`;
         });
         finalHtml += `</tbody></table></div>`;
