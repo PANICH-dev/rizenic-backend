@@ -595,7 +595,19 @@ function renderMechanicChart() {
 
     const labels = Object.keys(counts);
     const data = Object.values(counts);
-    const stationColors = ['#ea580c', '#f97316', '#fb923c', '#fdba74', '#f59e0b', '#d97706', '#b45309', '#ca8a04', '#eab308', '#facc15'];
+    // 🎨 แม่สีหลักเน้นความคมชัดและตัดกันสูง (High Contrast Palette)
+    const stationColors = [
+        '#ef4444', // 🔴 เคาะ (แดง)
+        '#f97316', // 🟠 โป๊ว (ส้ม)
+        '#eab308', // 🟡 เตรียมพื้น (เหลือง)
+        '#10b981', // 🟢 พ่นสี (เขียว)
+        '#06b6d4', // 🩵 ประกอบ (ฟ้า)
+        '#3b82f6', // 🔵 ขัดสี (น้ำเงิน)
+        '#8b5cf6', // 🟣 เก็บงาน (ม่วง)
+        '#ec4899', // 🩷 ซ่อมแม็ก (ชมพู)
+        '#14b8a6', // 💚 กระจก (เขียวเทอร์ควอยซ์)
+        '#6366f1'  // 💙 ฟิล์ม (อินดิโก้)
+    ];
     
     if (mechanicChartInstance) mechanicChartInstance.destroy();
     const ctx = document.getElementById('mechanicChart').getContext('2d');
