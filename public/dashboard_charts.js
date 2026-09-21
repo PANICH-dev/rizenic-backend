@@ -438,27 +438,43 @@ function renderDailyLineChart(start, end) {
         }
     });
 }
-
-// // ==========================================
-// 🍩 2. กราฟ Damage Level (ระดับความเสียหาย สีตามกำหนด)
+// ==========================================
+// 🍩 2. กราฟ Damage Level (ล็อกสีตามชื่อ: เบา=เขียว, กลาง=เหลือง, หนัก=แดง)
 // ==========================================
 function renderDamageChart(start, end) {
-    const counts = {};
+    // 1. กำหนดโครงสร้างล็อกลำดับและสีไว้ล่วงหน้า
+    const damageMap = {
+        'เบา': { count: 0, color: '#10b981' },   // 🟢 สีเขียว
+        'กลาง': { count: 0, color: '#facc15' },  // 🟡 สีเหลือง
+        'หนัก': { count: 0, color: '#ef4444' },  // 🔴 สีแดง
+        'ไม่ระบุ': { count: 0, color: '#94a3b8' } // ⚪ สีเทา
+    };
+
+    // 2. นับจำนวนตามระดับความเสียหาย
     filteredJobs.filter(j => isDateInRange(j.arrived_date || j.contact_date, start, end)).forEach(j => {
         const dmg = (j.damage_level || 'ไม่ระบุ').trim();
-        counts[dmg] = (counts[dmg] || 0) + 1;
+        if (damageMap[dmg]) {
+            damageMap[dmg].count++;
+        } else {
+            let matched = false;
+            if (dmg.includes('เบา')) { damageMap['เบา'].count++; matched = true; }
+            else if (dmg.includes('กลาง')) { damageMap['กลาง'].count++; matched = true; }
+            else if (dmg.includes('หนัก')) { damageMap['หนัก'].count++; matched = true; }
+            if (!matched) damageMap['ไม่ระบุ'].count++;
+        }
     });
 
-    const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
-    const labels = sorted.map(i => i[0]);
-    const data = sorted.map(i => i[1]);
+    // 3. กรองเอาเฉพาะรายการที่มีข้อมูลมากกว่า 0
+    const labels = [];
+    const data = [];
+    const colors = [];
 
-    // 🎯 แมปสีตามระดับความเสียหาย: เบา=เขียว, กลาง=เหลือง, หนัก=แดง
-    const colors = labels.map(l => {
-        if (l.includes('เบา')) return '#10b981';   // 🟢 สีเขียว
-        if (l.includes('กลาง')) return '#facc15';  // 🟡 สีเหลือง
-        if (l.includes('หนัก')) return '#ef4444';  // 🔴 สีแดง
-        return '#94a3b8';                          // ⚪ สีเทา (ไม่ระบุ)
+    Object.keys(damageMap).forEach(key => {
+        if (damageMap[key].count > 0) {
+            labels.push(key);
+            data.push(damageMap[key].count);
+            colors.push(damageMap[key].color);
+        }
     });
 
     if (damageChartInstance) damageChartInstance.destroy();
@@ -475,8 +491,6 @@ function renderDamageChart(start, end) {
         }
     });
 }
-
-
 
 // ==========================================
 // 🍩 3. อัปเดต Payment Chart (รับค่า Start/End เพื่อกรองปฏิทิน)
@@ -513,20 +527,20 @@ function renderPaymentChart(start, end) {
 }
 
 // ==========================================
-// 🍩 4. กราฟสถานะอะไหล่ (เฉพาะคันที่อยู่สถานะ "06.สั่งอะไหล่" และไม่สนปฏิทิน)
+// 🍩 4. กราฟสถานะอะไหล่ (เฉพาะสถานะ "06.สั่งอะไหล่" + ไม่สนกรอบปฏิทิน/เดือน)
 // ==========================================
 function renderPartsStatusChart() {
-    const counts = {};
-    
-    // 1. ดึงเฉพาะคันที่สถานะหลักคือ "06.สั่งอะไหล่" (และทะลุกรอบปฏิทิน ไม่ใช้ isDateInRange)
+    // 1. ดึงเฉพาะคันที่อยู่ในสถานะหลัก "06.สั่งอะไหล่" (ใช้ allJobs หรือ filteredJobs แบบไม่เช็คปฏิทิน)
     const orderingJobs = filteredJobs.filter(j => (j.job_status || '').includes('06.สั่งอะไหล่'));
     
-    // สร้างลิสต์ทะเบียนรถที่อยู่ในสถานะสั่งอะไหล่
-    const orderingPlates = new Set(orderingJobs.map(j => j.car_plate));
+    // สร้างลิสต์ทะเบียนรถที่เข้าเงื่อนไข
+    const orderingPlates = new Set(orderingJobs.map(j => (j.car_plate || '').trim().toLowerCase()));
 
-    // 2. ดึงเฉพาะชิ้นส่วนที่รถคันนั้นสั่งอยู่ และยังไม่ถูกยกเลิก
-    const pendingParts = filteredPartOrders.filter(o => {
-        return o.order_status !== 'ยกเลิก' && orderingPlates.has(o.car_plate);
+    // 2. ดึงรายการอะไหล่เฉพาะของรถกลุ่มนี้
+    const counts = {};
+    const pendingParts = allPartOrders.filter(o => {
+        const plate = (o.car_plate || '').trim().toLowerCase();
+        return o.order_status !== 'ยกเลิก' && orderingPlates.has(plate);
     });
     
     pendingParts.forEach(o => {
@@ -537,13 +551,17 @@ function renderPartsStatusChart() {
 
     const labels = Object.keys(counts);
     const data = Object.values(counts);
-    const colors = labels.map(l => {
-        if(l === 'มีของ/ครบ') return '#10b981'; // เขียว
-        if(l === 'รอสั่งซื้อ') return '#ef4444'; // แดง
-        if(l === 'รออะไหล่') return '#f59e0b'; // ส้ม
-        if(l === 'ติด Back Order') return '#9333ea'; // ม่วง
-        return '#94a3b8'; // เทา
-    });
+
+    // กำหนดสีประจำแต่ละสถานะ
+    const statusColorMap = {
+        'มีของ/ครบ': '#10b981',   // 🟢 เขียว
+        'รอสั่งซื้อ': '#ef4444',   // 🔴 แดง
+        'รออะไหล่': '#f59e0b',    // 🟠 ส้ม
+        'ติด Back Order': '#9333ea', // 🟣 ม่วง
+        'รออัปเดต': '#94a3b8'     // ⚪ เทา
+    };
+
+    const colors = labels.map(l => statusColorMap[l] || '#64748b');
 
     if (partsStatusChartInstance) partsStatusChartInstance.destroy();
     const ctx = document.getElementById('partsStatusChart').getContext('2d');
