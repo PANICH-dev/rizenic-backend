@@ -254,7 +254,7 @@ function renderParkedCars() {
 
 
 // ==========================================
-// 🗓️ ปฏิทินปฏิบัติงาน (แสดงหลอดโควต้ารถเข้า + อะไหล่ + เป้าเสร็จ + ส่งมอบ)
+// 🗓️ ปฏิทินปฏิบัติงาน (พร้อมหลอดโควต้ารถเข้า + โควต้าอะไหล่ + เป้าเสร็จ + ส่งมอบ)
 // ==========================================
 function renderCalendarByRange(startStr, endStr) {
     const grid = document.getElementById('calendar_grid');
@@ -268,11 +268,11 @@ function renderCalendarByRange(startStr, endStr) {
     const startDate = new Date(startStr);
     const endDate = new Date(endStr);
     
-    // ปรับให้เริ่มที่วันอาทิตย์ (เพื่อให้ลง Grid 7 ช่องพอดี)
+    // ปรับวันเริ่มต้นปฏิทินให้ตรงกับวันอาทิตย์
     const startCalendar = new Date(startDate);
     startCalendar.setDate(startCalendar.getDate() - startCalendar.getDay());
     
-    // ปรับให้จบที่วันเสาร์
+    // ปรับวันสิ้นสุดปฏิทินให้ตรงกับวันเสาร์
     const endCalendar = new Date(endDate);
     if (endCalendar.getDay() !== 6) {
         endCalendar.setDate(endCalendar.getDate() + (6 - endCalendar.getDay()));
@@ -282,85 +282,90 @@ function renderCalendarByRange(startStr, endStr) {
     let current = new Date(startCalendar);
     const todayStr = new Date().toISOString().split('T')[0];
 
+    // ฟังก์ชันช่วยตัดรูปแบบวันที่ให้อยู่ในฟอร์แมต YYYY-MM-DD แบบปลอดภัย
+    const cleanDate = (dStr) => dStr ? String(dStr).split('T')[0].trim() : '';
+
     while (current <= endCalendar) {
         const dateStr = current.toISOString().split('T')[0];
         const isOutOfRange = current < startDate || current > endDate;
         const isToday = dateStr === todayStr;
 
         if (isOutOfRange) {
-            html += `<div class="bg-slate-100 border border-slate-200 rounded-xl p-2 opacity-50"></div>`;
+            html += `<div class="bg-slate-100/60 border border-slate-200/60 rounded-xl p-2 min-h-[140px] opacity-40"></div>`;
         } else {
-            // ดึงข้อมูลรถของวันนี้
-            const arrivedJobs = filteredJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr);
-            const targetJobs = filteredJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr);
-            const deliveredJobs = filteredJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr);
+            // 1. ดึงข้อมูลรายการรถในแต่ละประเภทประจำวัน
+            const arrivedJobs = (filteredJobs || []).filter(j => cleanDate(j.arrived_date) === dateStr || cleanDate(j.appointment_date) === dateStr);
+            const targetJobs = (filteredJobs || []).filter(j => cleanDate(j.target_finish_date) === dateStr);
+            const deliveredJobs = (filteredJobs || []).filter(j => cleanDate(j.delivery_date) === dateStr);
             
-            // 🎯 จำลองข้อมูลโควต้า (ดึงจาก allQuotas ถ้ามี หรือใช้ค่าเริ่มต้น: รถ 5 คัน / อะไหล่ 10 ชิ้น)
-            const quotaData = allQuotas.find(q => q.quota_date && q.quota_date.split('T')[0] === dateStr) || {};
-            const intakeLimit = parseInt(quotaData.intake_quota || 5); 
-            const partsLimit = parseInt(quotaData.parts_quota || 10);  
+            // 2. ดึงข้อมูลโควต้ารับรถและโควต้าอะไหล่
+            const quotasArray = Array.isArray(allQuotas) ? allQuotas : [];
+            const quotaData = quotasArray.find(q => cleanDate(q.quota_date) === dateStr) || {};
             
-            // 1. คำนวณหลอด Progress Bar รถเข้า
+            const intakeLimit = parseInt(quotaData.intake_quota || 5, 10); 
+            const partsLimit = parseInt(quotaData.parts_quota || 10, 10);  
+            
+            // 3. คำนวณหลอดพลัง/หลอดโควต้ารถเข้า (Intake Progress Bar)
             const arrivedCount = arrivedJobs.length;
-            let intakePercent = (arrivedCount / intakeLimit) * 100;
-            if (intakePercent > 100) intakePercent = 100;
+            let intakePercent = Math.min(Math.round((arrivedCount / intakeLimit) * 100), 100);
             
-            // เปลี่ยนสีหลอดตามความหนาแน่น
             let intakeColor = 'bg-blue-500';
             let intakeText = 'text-blue-600';
             if (arrivedCount >= intakeLimit) {
-                intakeColor = 'bg-rose-500'; // เต็มโควต้า
+                intakeColor = 'bg-rose-500'; // สีแดงเมื่อเต็มโควต้า
                 intakeText = 'text-rose-600';
             } else if (arrivedCount >= intakeLimit - 1) {
-                intakeColor = 'bg-orange-500'; // ใกล้เต็ม
-                intakeText = 'text-orange-600';
+                intakeColor = 'bg-amber-500'; // สีส้มเมื่อใกล้เต็ม
+                intakeText = 'text-amber-600';
             }
 
-            // 2. คำนวณยอดอะไหล่
-            const partsCount = filteredPartOrders.filter(p => p.order_date && p.order_date.split('T')[0] === dateStr).length;
+            // 4. คำนวณโควต้าอะไหล่
+            const partOrdersArray = Array.isArray(filteredPartOrders) ? filteredPartOrders : [];
+            const partsCount = partOrdersArray.filter(p => cleanDate(p.order_date) === dateStr).length;
             const partsText = partsCount >= partsLimit ? 'text-rose-600' : 'text-purple-600';
 
-            // ตกแต่งช่องปฏิทิน
-            let cellClass = "bg-white border border-slate-200 rounded-xl p-2 min-h-[140px] flex flex-col justify-start hover:border-blue-400 hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer relative";
-            if (isToday) cellClass += " ring-2 ring-amber-400 bg-amber-50/20";
+            // ตกแต่งสไตล์กล่องเซลล์ในปฏิทิน
+            let cellClass = "bg-white border border-slate-200 rounded-xl p-2 min-h-[140px] flex flex-col justify-between hover:border-amber-400 hover:shadow-md transition-all cursor-pointer relative overflow-hidden";
+            if (isToday) cellClass += " ring-2 ring-amber-500 bg-amber-50/20";
 
             html += `
             <div class="${cellClass}" onclick="openCalendarModal('${dateStr}')">
-                <div class="flex justify-between items-start mb-1.5 px-1">
-                    <span class="text-sm font-black ${isToday ? 'text-amber-600 bg-amber-100 px-2 py-0.5 rounded shadow-sm' : 'text-slate-400'}">${current.getDate()}</span>
-                </div>
-                
-                <div class="flex-1 flex flex-col gap-1.5 w-full">
+                <div>
+                    <!-- วันที่ -->
+                    <div class="flex justify-between items-center mb-1.5 px-0.5">
+                        <span class="text-xs font-black ${isToday ? 'text-amber-700 bg-amber-100 px-2 py-0.5 rounded shadow-sm' : 'text-slate-400'}">${current.getDate()}</span>
+                    </div>
                     
-                    <!-- 🚘 หลอดรับรถเข้า (Intake Quota) -->
-                    <div class="bg-slate-50 p-1.5 rounded-lg border border-slate-100 shadow-inner">
-                        <div class="flex justify-between items-center text-[10px] font-bold mb-1">
-                            <span class="text-slate-600 flex items-center gap-1"><i class="fa-solid fa-arrow-right-to-bracket text-blue-500"></i> รถเข้า</span>
-                            <span class="${intakeText} font-black">${arrivedCount}/${intakeLimit}</span>
+                    <div class="flex flex-col gap-1.5 w-full">
+                        <!-- 🚘 หลอดพลังโควต้ารับรถเข้า -->
+                        <div class="bg-slate-50 p-1.5 rounded-lg border border-slate-100 shadow-inner">
+                            <div class="flex justify-between items-center text-[10px] font-bold mb-1">
+                                <span class="text-slate-600 flex items-center gap-1"><i class="fa-solid fa-arrow-right-to-bracket text-blue-500"></i> รถเข้า</span>
+                                <span class="${intakeText} font-black">${arrivedCount}/${intakeLimit}</span>
+                            </div>
+                            <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                                <div class="${intakeColor} h-1.5 rounded-full transition-all duration-300" style="width: ${intakePercent}%"></div>
+                            </div>
                         </div>
-                        <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                            <div class="${intakeColor} h-1.5 rounded-full transition-all duration-500" style="width: ${intakePercent}%"></div>
+
+                        <!-- 📦 โควต้าสั่งอะไหล่ -->
+                        <div class="flex justify-between items-center text-[10px] font-bold bg-slate-50 p-1.5 rounded-lg border border-slate-100 shadow-inner">
+                            <span class="text-slate-600 flex items-center gap-1"><i class="fa-solid fa-boxes-stacked text-purple-500"></i> อะไหล่</span>
+                            <span class="${partsText} font-black">${partsCount}/${partsLimit}</span>
                         </div>
                     </div>
+                </div>
 
-                    <!-- 📦 โควต้าสั่งอะไหล่ (Parts Quota) -->
-                    <div class="flex justify-between items-center text-[10px] font-bold bg-slate-50 p-1.5 rounded-lg border border-slate-100 shadow-inner">
-                        <span class="text-slate-600 flex items-center gap-1"><i class="fa-solid fa-boxes-stacked text-purple-500"></i> อะไหล่</span>
-                        <span class="${partsText} font-black">${partsCount}/${partsLimit}</span>
+                <!-- 🎯 สรุปเป้าเสร็จ & ส่งมอบ -->
+                <div class="grid grid-cols-2 gap-1 mt-2">
+                    <div class="bg-amber-50/80 text-amber-800 py-0.5 px-1 rounded border border-amber-200/60 flex flex-col items-center">
+                        <span class="text-[9px] font-bold opacity-80">เป้าเสร็จ</span>
+                        <span class="text-xs font-black">${targetJobs.length}</span>
                     </div>
-
-                    <!-- 🎯 เป้าเสร็จ & ส่งมอบ -->
-                    <div class="grid grid-cols-2 gap-1.5 mt-auto">
-                        <div class="bg-gradient-to-b from-amber-50 to-white text-amber-700 py-1 rounded-lg border border-amber-200 flex flex-col items-center shadow-sm">
-                            <span class="text-[9px] font-bold opacity-80">เป้าเสร็จ</span>
-                            <span class="text-sm font-black">${targetJobs.length}</span>
-                        </div>
-                        <div class="bg-gradient-to-b from-emerald-50 to-white text-emerald-700 py-1 rounded-lg border border-emerald-200 flex flex-col items-center shadow-sm">
-                            <span class="text-[9px] font-bold opacity-80">ส่งมอบ</span>
-                            <span class="text-sm font-black">${deliveredJobs.length}</span>
-                        </div>
+                    <div class="bg-emerald-50/80 text-emerald-800 py-0.5 px-1 rounded border border-emerald-200/60 flex flex-col items-center">
+                        <span class="text-[9px] font-bold opacity-80">ส่งมอบ</span>
+                        <span class="text-xs font-black">${deliveredJobs.length}</span>
                     </div>
-
                 </div>
             </div>
             `;
