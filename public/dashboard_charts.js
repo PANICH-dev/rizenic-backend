@@ -246,7 +246,7 @@ function openStatusModal(statusName) {
     if(document.getElementById('jobListModal')) document.getElementById('jobListModal').classList.remove('hidden');
 }
 
-// 🎯 โดนัทสัดส่วนลูกค้า (เพิ่ม Filter วันที่แล้ว)
+// 🎯 โดนัทสัดส่วนลูกค้า (Filter ตามวันที่เลือกด้านบน)
 function renderInsuranceChart() {
     const canvas = document.getElementById('insuranceChart');
     if (!canvas) return;
@@ -256,7 +256,7 @@ function renderInsuranceChart() {
 
     const customerTypes = {};
     filteredJobs.forEach(j => {
-        // 🌟 กรองข้อมูลตามวันที่เลือก (arrived, contact หรือ appointment)
+        // 🌟 กรองข้อมูลตามวันที่ (ถ้ารถไม่ได้เข้าหรือติดต่อในช่วงเวลานี้ ให้ข้ามไปเลย)
         if (start && end && !isDateInRange(j.arrived_date || j.contact_date || j.appointment_date, start, end)) {
             return;
         }

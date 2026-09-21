@@ -68,15 +68,25 @@ function moveCalendarUp() {
     }
 }
 
-// =====================================
-// 📋 TABLES, CALENDAR & LISTS
-// =====================================
 
+// =====================================
+// 🧑‍💼 ยอดงานรายบุคคล (SA) - เฉพาะ 01 ถึง 12
+// =====================================
 function renderSASection() {
     const saCounts = {};
     const safeJobs = getSafeJobsData();
     
-    safeJobs.forEach(job => {
+    // 🎯 ล็อกให้ดึงเฉพาะงานที่อยู่ในโปรเจกต์ (01 - 12)
+    const targetPrefixes = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+    
+    const activeJobs = safeJobs.filter(job => {
+        const st = String(job.job_status || '').trim();
+        if (!st) return false;
+        // เช็กว่าสถานะขึ้นต้นด้วยเลข 01 ถึง 12 หรือไม่
+        return targetPrefixes.some(p => st.startsWith(p));
+    });
+
+    activeJobs.forEach(job => {
         const sa = job.sa_owner || "ไม่ระบุ SA";
         saCounts[sa] = (saCounts[sa] || 0) + 1;
     });
@@ -85,6 +95,11 @@ function renderSASection() {
     const container = document.getElementById('sa_list_container');
     if(!container) return;
     
+    if (sortedSAs.length === 0) {
+        container.innerHTML = `<div class="text-center text-slate-400 py-6 font-bold">ไม่มีงานที่กำลังดำเนินการ</div>`;
+        return;
+    }
+
     container.innerHTML = sortedSAs.map(sa => `
         <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 flex justify-between items-center hover:border-amber-500 hover:shadow-md transition-all">
             <div class="flex items-center gap-3">
@@ -104,7 +119,13 @@ function renderSASection() {
 function openSAModal(saName) {
     if(document.getElementById('modal_status_name')) document.getElementById('modal_status_name').innerText = `รถทั้งหมดของ SA: ${saName}`;
     const safeJobs = getSafeJobsData();
-    const jobsToShow = safeJobs.filter(j => (j.sa_owner || "ไม่ระบุ SA") === saName);
+    const targetPrefixes = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+    
+    const jobsToShow = safeJobs.filter(j => {
+        const st = String(j.job_status || '').trim();
+        return (j.sa_owner || "ไม่ระบุ SA") === saName && targetPrefixes.some(p => st.startsWith(p));
+    });
+    
     if(typeof renderJobTableInModalGroupedBySA === 'function') renderJobTableInModalGroupedBySA(jobsToShow);
     if(document.getElementById('jobListModal')) document.getElementById('jobListModal').classList.remove('hidden');
 }
