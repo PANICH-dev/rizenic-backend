@@ -1,5 +1,5 @@
 // ==========================================
-// 🛠️ HELPER FUNCTIONS (ระบบรองรับข้อมูลทุกฟอร์แมต)
+// 🛠️ HELPER FUNCTIONS
 // ==========================================
 function cleanDate(dStr) {
     if (!dStr) return '';
@@ -56,18 +56,26 @@ function computeHighestStationIFS(j) {
     return "รอรับรถ";
 }
 
-// 🎯 ฟังก์ชันดึงข้อมูลรถแบบปลอดภัย ป้องกันปัญหาอาร์เรย์ว่างเปล่า
 function getSafeJobsData() {
-    if (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs) && filteredJobs.length > 0) {
-        return filteredJobs;
-    }
-    if (typeof allJobs !== 'undefined' && Array.isArray(allJobs) && allJobs.length > 0) {
-        return allJobs;
-    }
-    if (typeof originalRepairJobs !== 'undefined' && Array.isArray(originalRepairJobs) && originalRepairJobs.length > 0) {
-        return originalRepairJobs;
-    }
+    if (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs) && filteredJobs.length > 0) return filteredJobs;
+    if (typeof allJobs !== 'undefined' && Array.isArray(allJobs) && allJobs.length > 0) return allJobs;
+    if (typeof originalRepairJobs !== 'undefined' && Array.isArray(originalRepairJobs) && originalRepairJobs.length > 0) return originalRepairJobs;
     return [];
+}
+
+function checkOverdue(job) {
+    if (!job.target_finish_date) return false; 
+    if (job.repair_finish_date) return false; 
+    const targetDate = new Date(job.target_finish_date); 
+    const today = new Date();
+    targetDate.setHours(0,0,0,0); today.setHours(0,0,0,0); 
+    return targetDate < today; 
+}
+
+function isJobDone(status) {
+    if (!status) return false;
+    const prefixes = ['11', '12', '13', '14', '15', '16', '17', '19', '20', '21'];
+    return prefixes.some(p => String(status).startsWith(p));
 }
 
 // ==========================================
@@ -167,6 +175,9 @@ function sortTable(tableId, colIndex) {
     rows.forEach(row => tbody.appendChild(row));
 }
 
+// ==========================================
+// 🛠️ ตารางรายการรถในสถานีซ่อม (กำลังดำเนินการ)
+// ==========================================
 function renderStationSection() {
     const container = document.getElementById('station_list_container');
     if (!container) return;
@@ -196,9 +207,6 @@ function openStationModal(stationName) {
     if(document.getElementById('jobListModal')) document.getElementById('jobListModal').classList.remove('hidden');
 }
 
-// ==========================================
-// 🛠️ ตารางรายการรถในสถานีซ่อม (กำลังดำเนินการ)
-// ==========================================
 function renderStationTable() {
     const tbody = document.getElementById('station_table_body');
     if (!tbody) return;
@@ -208,7 +216,6 @@ function renderStationTable() {
     
     const inRepairCars = jobsData.filter(j => {
         const st = (j.job_status || '').trim();
-        // 🎯 ปรับปรุงการตรวจสอบสถานะจอดซ่อมให้ครอบคลุมทุกค่าใน DB
         const isParked = isTrue(j.is_parked) || j.is_parked === 'จอดซ่อม' || 
                          (!['ไม่จอดซ่อม', '13.วางบิลประกัน','14.ชำระเงินสด','15.วางบิล Tesla','16.วางบิล EV ME','17.รอออกบิล','18.ลูกค้ายกเลิก','19.ออกบิลแล้ว','20.จอดซ่อม TC','21.พักซ่อม','22.ปิดงาน'].some(ex => st.includes(ex)));
         
@@ -300,7 +307,7 @@ function renderParkedCars() {
 }
 
 // ==========================================
-// 🗓️ ปฏิทินปฏิบัติงาน (ดีไซน์ ds3_3.jpg / ds3_2.jpg กราฟแท่งแนวตั้ง)
+// 🗓️ ปฏิทินปฏิบัติงาน (ถอดแบบสมบูรณ์จาก repair.js)
 // ==========================================
 function renderCalendarByRange(startStr, endStr) {
     const grid = document.getElementById('calendar_grid');
@@ -311,7 +318,6 @@ function renderCalendarByRange(startStr, endStr) {
         return;
     }
     
-    // Parse start and end dates locally
     const sParts = startStr.split('-');
     const eParts = endStr.split('-');
     const startDate = new Date(parseInt(sParts[0], 10), parseInt(sParts[1], 10) - 1, parseInt(sParts[2], 10));
@@ -334,6 +340,25 @@ function renderCalendarByRange(startStr, endStr) {
     const jobsData = getSafeJobsData();
     const quotasData = (typeof allQuotas !== 'undefined' && Array.isArray(allQuotas)) ? allQuotas : [];
 
+    // 🎯 หาระดับสูงสุดของแท่งกราฟในเดือนนี้
+    let rangeMaxQty = 1;
+    let tempDate = new Date(startCalendar);
+    while (tempDate <= endCalendar) {
+        const y = tempDate.getFullYear();
+        const m = String(tempDate.getMonth() + 1).padStart(2, '0');
+        const d = String(tempDate.getDate()).padStart(2, '0');
+        const dateStr = `${y}-${m}-${d}`;
+
+        const aQty = jobsData.filter(j => j.arrived_date && cleanDate(j.arrived_date) === dateStr).length;
+        const tQty = jobsData.filter(j => j.target_finish_date && cleanDate(j.target_finish_date) === dateStr).length;
+        const dQty = jobsData.filter(j => j.delivery_date && cleanDate(j.delivery_date) === dateStr).length;
+        
+        const maxInDay = Math.max(aQty, tQty, dQty);
+        if (maxInDay > rangeMaxQty) rangeMaxQty = maxInDay;
+        
+        tempDate.setDate(tempDate.getDate() + 1);
+    }
+
     while (current <= endCalendar) {
         const y = current.getFullYear();
         const m = String(current.getMonth() + 1).padStart(2, '0');
@@ -344,104 +369,89 @@ function renderCalendarByRange(startStr, endStr) {
         const isToday = dateStr === todayStr;
 
         if (isOutOfRange) {
-            html += `<div class="bg-slate-50/50 border border-slate-100 rounded-xl p-3 min-h-[160px] opacity-40"></div>`;
+            html += `<div class="bg-slate-50 border border-slate-200 rounded-md p-2 min-h-[140px] opacity-50"></div>`;
         } else {
-            const arrJobs = jobsData.filter(j => cleanDate(j.arrived_date) === dateStr || cleanDate(j.appointment_date) === dateStr);
-            const tarJobs = jobsData.filter(j => cleanDate(j.target_finish_date) === dateStr);
-            const delJobs = jobsData.filter(j => cleanDate(j.delivery_date) === dateStr);
+            const arrivedQty = jobsData.filter(j => j.arrived_date && cleanDate(j.arrived_date) === dateStr).length;
+            const targetJobsInDay = jobsData.filter(j => j.target_finish_date && cleanDate(j.target_finish_date) === dateStr);
+            const targetQty = targetJobsInDay.length;
+            const deliveryQty = jobsData.filter(j => j.delivery_date && cleanDate(j.delivery_date) === dateStr).length;
             
-            let mainCount = 0; 
-            let subCount = 0;
-            
-            const uniqueJobsForDay = new Map();
-            [...arrJobs, ...tarJobs, ...delJobs].forEach(j => { if(j && j.id) uniqueJobsForDay.set(j.id, j); });
-            
-            // 🎯 คำนวณยอดชิ้นส่วนแบบแม่นยำ 100% ตาม logic ใน repair.js
-            uniqueJobsForDay.forEach(j => {
-                let mQty = Number(j.main_part_qty) || (j.main_part_name ? String(j.main_part_name).split(',').filter(Boolean).length : 0);
-                let sQty = Number(j.sub_part_qty) || (j.sub_part_name ? String(j.sub_part_name).split(',').filter(Boolean).length : 0);
-                mainCount += mQty;
-                subCount += sQty;
+            const doneQty = targetJobsInDay.filter(j => isJobDone(j.job_status)).length;
+
+            let sumMainDay = 0, sumSubDay = 0;
+            targetJobsInDay.forEach(j => {
+                sumMainDay += Number(j.main_part_qty) || (j.main_part_name ? String(j.main_part_name).split(',').filter(Boolean).length : 0);
+                sumSubDay += Number(j.sub_part_qty) || (j.sub_part_name ? String(j.sub_part_name).split(',').filter(Boolean).length : 0);
             });
 
+            const overdueJobsInDay = jobsData.filter(j => j.target_finish_date && cleanDate(j.target_finish_date) === dateStr && checkOverdue(j));
+            const hasOverdue = overdueJobsInDay.length > 0;
+
             const q = quotasData.find(x => cleanDate(x.quota_date) === dateStr) || {};
-            
-            const limitIn = parseInt(q.intake_quota || 50, 10);
-            const limitTar = parseInt(q.target_quota || 30, 10);
-            const limitDel = parseInt(q.delivery_quota || 30, 10);
-            const limitParts = parseInt(q.max_main_parts || q.parts_quota || 50, 10);
-            const limitSubParts = parseInt(q.max_sub_parts || q.sub_parts_quota || 30, 10); 
+            const maxMain = parseInt(q.max_main_parts || q.parts_quota || 50, 10);
+            const maxSub = parseInt(q.max_sub_parts || q.sub_parts_quota || 30, 10);
 
-            const countIn = arrJobs.length;
-            const countTar = tarJobs.length;
-            const countDel = delJobs.length;
+            const overMain = maxMain > 0 && sumMainDay > maxMain;
+            const overSub = maxSub > 0 && sumSubDay > maxSub;
 
-            const hIn = countIn > 0 ? Math.max(Math.min((countIn / limitIn) * 100, 100), 15) : 0;
-            const hTar = countTar > 0 ? Math.max(Math.min((countTar / limitTar) * 100, 100), 15) : 0;
-            const hDel = countDel > 0 ? Math.max(Math.min((countDel / limitDel) * 100, 100), 15) : 0;
-            
-            const pctMain = limitParts > 0 ? Math.min((mainCount / limitParts) * 100, 100) : 0;
-            const pctSub = limitSubParts > 0 ? Math.min((subCount / limitSubParts) * 100, 100) : 0;
+            let partsInfoHtml = '';
+            if(sumMainDay > 0 || sumSubDay > 0) {
+                partsInfoHtml = `<div class="text-[10px] font-bold mb-1 w-full space-y-1 mt-1">
+                    ${sumMainDay > 0 ? `<div class="flex justify-between items-center ${overMain ? 'bg-red-100 text-red-700 border-red-300' : 'bg-blue-50 text-blue-700 border-blue-200'} px-1.5 py-0.5 rounded border" title="ชิ้นส่วนหลัก"><span>หลัก:</span> <span>${sumMainDay}${maxMain > 0 ? '/' + maxMain : ''}</span></div>` : ''}
+                    ${sumSubDay > 0 ? `<div class="flex justify-between items-center ${overSub ? 'bg-red-100 text-red-700 border-red-300' : 'bg-amber-50 text-amber-700 border-amber-200'} px-1.5 py-0.5 rounded border" title="ชิ้นส่วนรอง"><span>รอง:</span> <span>${sumSubDay}${maxSub > 0 ? '/' + maxSub : ''}</span></div>` : ''}
+                </div>`;
+            }
 
-            let cellClass = "bg-white border border-slate-200 rounded-xl p-3 min-h-[180px] flex flex-col hover:border-blue-400 hover:shadow-lg transition-all cursor-pointer relative";
-            if (isToday) cellClass += " ring-2 ring-blue-500 bg-blue-50/10";
+            let barBlock = '';
+            if(arrivedQty > 0 || targetQty > 0 || deliveryQty > 0) {
+                barBlock = `<div class="flex items-end justify-center gap-1.5 w-full h-[55px] mt-auto">`;
+                
+                if(arrivedQty > 0) { 
+                    const h = Math.max(25, (arrivedQty / rangeMaxQty) * 100); 
+                    barBlock += `<div class="flex flex-col items-center justify-end h-full w-[22px] cursor-pointer group-hover:scale-105 transition-transform" onclick="event.stopPropagation(); openCalendarModal('${dateStr}')" title="รถเข้าจอด: ${arrivedQty} คัน">
+                        <span class="text-[10px] font-black text-white bg-blue-500 rounded-sm w-full text-center mb-0.5 shadow-sm py-0.5">${arrivedQty}</span>
+                        <div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-sm shadow-sm" style="height: ${h}%;"></div>
+                    </div>`; 
+                }
+                
+                if(targetQty > 0) { 
+                    const h = Math.max(25, (targetQty / rangeMaxQty) * 100); 
+                    const pctDone = targetQty > 0 ? (doneQty / targetQty) * 100 : 0;
+                    const isAllDone = doneQty === targetQty && targetQty > 0;
+                    
+                    barBlock += `<div class="flex flex-col items-center justify-end h-full w-[28px] cursor-pointer group-hover:scale-105 transition-transform" onclick="event.stopPropagation(); openCalendarModal('${dateStr}')" title="เป้าซ่อมเสร็จ: ${targetQty} คัน (เสร็จแล้ว ${doneQty} คัน)">
+                        <span class="text-[9px] font-black ${isAllDone ? 'text-emerald-700 bg-emerald-100 border-emerald-400' : 'text-amber-700 bg-amber-100 border-amber-400'} border rounded-sm w-full text-center mb-0.5 shadow-sm z-10 py-0.5">${doneQty}/${targetQty}</span>
+                        <div class="w-full bg-slate-200 rounded-sm shadow-inner relative overflow-hidden" style="height: ${h}%;">
+                            <div class="absolute bottom-0 left-0 w-full bg-gradient-to-t ${isAllDone ? 'from-emerald-500 to-emerald-400' : 'from-amber-500 to-amber-300'} transition-all duration-500 ease-in-out" style="height: ${pctDone}%;"></div>
+                        </div>
+                    </div>`; 
+                }
+                
+                if(deliveryQty > 0) { 
+                    const h = Math.max(25, (deliveryQty / rangeMaxQty) * 100); 
+                    barBlock += `<div class="flex flex-col items-center justify-end h-full w-[22px] cursor-pointer group-hover:scale-105 transition-transform" onclick="event.stopPropagation(); openCalendarModal('${dateStr}')" title="นัดส่งมอบ: ${deliveryQty} คัน">
+                        <span class="text-[10px] font-black text-white bg-indigo-500 rounded-sm w-full text-center mb-0.5 shadow-sm py-0.5">${deliveryQty}</span>
+                        <div class="w-full bg-gradient-to-t from-indigo-500 to-indigo-400 rounded-sm shadow-sm" style="height: ${h}%;"></div>
+                    </div>`; 
+                }
+                barBlock += `</div>`;
+            } else { 
+                barBlock = `<div class="flex items-center justify-center h-[55px] w-full mt-auto"><span class="text-[10px] font-bold text-slate-300">ว่าง</span></div>`; 
+            }
 
-            const hasAnyData = countIn > 0 || countTar > 0 || countDel > 0;
+            let cellClass = "bg-white border border-slate-200 rounded-xl p-2 min-h-[140px] flex flex-col hover:border-amber-400 hover:shadow-lg transition-all cursor-pointer relative group";
+            if (hasOverdue) cellClass += " bg-red-50/30";
+            if (isToday) cellClass += " ring-2 ring-amber-400 bg-amber-50/20";
 
             html += `
-            <div class="${cellClass}" onclick="openCalendarModal('${dateStr}')">
-                <div class="absolute top-2 right-3 text-xs font-bold ${isToday ? 'text-blue-600' : 'text-slate-600'}">
-                    ${current.getDate()}
-                </div>
-                
-                <div class="h-4"></div>
-
-                <div class="flex-1 flex justify-center items-end gap-3 pb-4">
-                    ${hasAnyData ? `
-                        <!-- เข้าจอด (น้ำเงิน) -->
-                        <div class="flex flex-col items-center justify-end h-[65px] w-3">
-                            ${countIn > 0 ? `<span class="text-[9px] font-bold text-blue-600 bg-white border border-blue-200 rounded px-1 mb-1 shadow-sm leading-tight z-10">${countIn}</span>` : ''}
-                            <div class="w-full bg-blue-500 rounded-t-sm transition-all duration-300" style="height: ${hIn}%;"></div>
-                        </div>
-                        
-                        <!-- เป้าเสร็จ (เหลือง/ส้ม) -->
-                        <div class="flex flex-col items-center justify-end h-[65px] w-3">
-                            ${countTar > 0 ? `<span class="text-[9px] font-bold text-amber-500 bg-white border border-amber-200 rounded px-1 mb-1 shadow-sm leading-tight z-10">${countTar}</span>` : ''}
-                            <div class="w-full bg-amber-400 rounded-t-sm transition-all duration-300" style="height: ${hTar}%;"></div>
-                        </div>
-                        
-                        <!-- ส่งมอบ (เขียว) -->
-                        <div class="flex flex-col items-center justify-end h-[65px] w-3">
-                            ${countDel > 0 ? `<span class="text-[9px] font-bold text-emerald-500 bg-white border border-emerald-200 rounded px-1 mb-1 shadow-sm leading-tight z-10">${countDel}</span>` : ''}
-                            <div class="w-full bg-emerald-400 rounded-t-sm transition-all duration-300" style="height: ${hDel}%;"></div>
-                        </div>
-                    ` : `
-                        <div class="h-[65px] flex items-center justify-center text-slate-300 text-xs font-bold opacity-60">ว่าง</div>
-                    `}
-                </div>
-
-                <div class="mt-auto space-y-2 w-full">
-                    <div>
-                        <div class="flex justify-between text-[9px] font-bold text-slate-500 mb-0.5">
-                            <span>ชิ้นหลัก</span>
-                            <span>${mainCount}/${limitParts}</span>
-                        </div>
-                        <div class="w-full bg-slate-100 rounded-full h-1">
-                            <div class="bg-blue-500 h-1 rounded-full transition-all duration-300" style="width: ${pctMain}%;"></div>
-                        </div>
+                <div class="${cellClass}" onclick="openCalendarModal('${dateStr}')">
+                    <div class="flex justify-between items-start z-10 w-full mb-1">
+                        <span class="text-sm font-black text-slate-700 ${isToday ? 'text-amber-600 bg-amber-100 px-1.5 rounded' : ''} font-mono">${current.getDate()}</span>
+                        ${hasOverdue ? `<i class="fa-solid fa-circle-exclamation text-red-500 animate-pulse text-xs" title="มีรถดีเลย์ ${overdueJobsInDay.length} คัน!"></i>` : ''}
                     </div>
-                    <div>
-                        <div class="flex justify-between text-[9px] font-bold text-slate-500 mb-0.5">
-                            <span>ชิ้นรอง</span>
-                            <span>${subCount}/${limitSubParts}</span>
-                        </div>
-                        <div class="w-full bg-slate-100 rounded-full h-1">
-                            <div class="bg-amber-400 h-1 rounded-full transition-all duration-300" style="width: ${pctSub}%;"></div>
-                        </div>
-                    </div>
-                </div>
-
-            </div>`;
+                    ${partsInfoHtml}
+                    <div class="w-full z-10 flex-1 flex flex-col justify-end mt-1">${barBlock}</div>
+                </div>`;
         }
         current.setDate(current.getDate() + 1);
     }
