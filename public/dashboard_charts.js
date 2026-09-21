@@ -518,12 +518,12 @@ function renderPartsStatusChart() {
 
     const labels = Object.keys(counts);
     const data = Object.values(counts);
+    // 🎯 แมปสีตามชื่อระดับความเสียหาย
     const colors = labels.map(l => {
-        if(l === 'มีของ/ครบ') return '#10b981'; // เขียว
-        if(l === 'รอสั่งซื้อ') return '#ef4444'; // แดง
-        if(l === 'รออะไหล่') return '#f59e0b'; // ส้ม
-        if(l === 'ติด Back Order') return '#9333ea'; // ม่วง
-        return '#94a3b8'; // เทา
+        if (l.includes('เบา')) return '#10b981';   // 🟢 สีเขียว
+        if (l.includes('กลาง')) return '#f59e0b';  // 🟡 สีเหลือง
+        if (l.includes('หนัก')) return '#ef4444';  // 🔴 สีแดง
+        return '#94a3b8';                         // ⚪ สีเทา (ไม่ระบุ/อื่นๆ)
     });
 
     if (partsStatusChartInstance) partsStatusChartInstance.destroy();
