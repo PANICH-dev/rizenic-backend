@@ -336,9 +336,16 @@ function renderTable(data) {
             });
         }
         
-        // 🌟 1. ดึงข้อมูลไฮไลท์ส่วนตัวมาลงสี <tr>
+        // 🌟 1. กำหนดสีพื้นหลัง: ถ้ามีไฮไลท์ให้ใช้สีไฮไลท์ ถ้าไม่มีให้ใช้เทาสลับขาว
         const highlight = (typeof userRowHighlights !== 'undefined') ? userRowHighlights[job.id] : null;
-        const rowBgStyle = (highlight && highlight.color) ? `background-color: ${highlight.color} !important;` : '';
+        const isEvenRow = data.indexOf(job) % 2 !== 0; 
+        
+        let rowBgStyle = '';
+        if (highlight && highlight.color) {
+            rowBgStyle = `background-color: ${highlight.color} !important;`;
+        } else {
+            rowBgStyle = isEvenRow ? `background-color: #f8fafc !important;` : `background-color: #ffffff !important;`;
+        }
         
         let rowHtml = `<tr id="row_${job.id}" ondblclick="goToEditJob('${job.id}')" title="${highlight && highlight.note ? 'โน้ตส่วนตัว: ' + highlight.note : 'ดับเบิ้ลคลิกเพื่อเปิดใบงานนี้'}" style="${rowBgStyle}">`;
         
@@ -352,7 +359,6 @@ function renderTable(data) {
                     
                     cellData = `
                     <div class="flex items-center justify-center gap-1 w-full h-full p-0.5 relative">
-                        <!-- 🎯 ปุ่มไฮไลท์สีเหลือง -->
                         <button onclick="event.stopPropagation(); openHighlightModal('${job.id}')" class="bg-amber-400 hover:bg-amber-500 text-slate-800 p-1 rounded transition flex items-center justify-center w-6 h-6 shadow-sm relative" title="ไฮไลท์ / โน้ตส่วนตัว">
                             <i class="fa-solid fa-highlighter text-[11px]"></i>
                             ${hlNoteIcon}
@@ -404,7 +410,7 @@ function renderTable(data) {
                     if (['arrived_date', 'target_finish_date', 'delivery_date'].includes(col.key)) {
                         cellData = `<div class="flex items-center justify-between w-full h-full">
                             <input type="date" id="date_${job.id}_${col.key}" value="${job[col.key] ? String(job[col.key]).split('T')[0] : ''}" onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input font-mono text-center ${colorClass}" style="width:calc(100% - 26px);">
-                            <button type="button" onclick="event.stopPropagation(); openScheduleCalendar('${job.id}', '${col.key}')" class="text-blue-500 hover:text-blue-700 flex items-center justify-center w-[26px] h-[26px] border-l border-slate-200 bg-slate-50 transition-colors cursor-pointer" title="ดูโควต้าปฏิทิน"><i class="fa-solid fa-calendar-check text-[11px]"></i></button>
+                            <button type="button" onclick="event.stopPropagation(); openScheduleCalendar('${job.id}', '${col.key}')" class="text-blue-500 hover:text-blue-700 flex items-center justify-center w-[26px] h-[26px] border-l border-slate-200 transition-colors cursor-pointer" title="ดูโควต้าปฏิทิน"><i class="fa-solid fa-calendar-check text-[11px]"></i></button>
                         </div>`;
                     } else {
                         cellData = `<input type="date" value="${job[col.key] ? String(job[col.key]).split('T')[0] : ''}" onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input font-mono text-center ${colorClass}">`; 
