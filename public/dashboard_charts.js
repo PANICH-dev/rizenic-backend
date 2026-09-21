@@ -216,14 +216,14 @@ async function sendReportToLine(targetBranch) {
     }
 }
 
-// 🎯 แก้ไข: กราฟสถานะให้กรองทุกสถานะที่เกี่ยวกับบิลด้วยวันที่ออกบิล
+// 🎯 ปรับปรุง: กราฟแท่งแสดงปริมาณรถจำแนกตามสถานะ (ERP)
 function renderStatusChart() {
     const start = document.getElementById('dash_start_date').value;
     const end = document.getElementById('dash_end_date').value;
 
     const targetStatuses = [
         '01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ', 
-        '04.รอลูกค้าอนุมัติ (เงินสด)', '05.อนุมัติแล้ว', '06.สั่งอะไหล่', 
+        '04.รอลูกค้าอนุมัติ', '05.อนุมัติแล้ว', '06.สั่งอะไหล่', 
         '07.รอนัดหมายเข้าซ่อม', '08.นัดหมายแล้วรอเข้าซ่อม', '09.จอดรอเข้าซ่อม', 
         '10.กำลังซ่อม', '11.รถซ่อมเสร็จรอส่งมอบ', 
         '12.ส่งมอบ', '17.รอออกบิล', '19.ออกบิลแล้ว', 
@@ -248,26 +248,64 @@ function renderStatusChart() {
         }
     });
 
-    const labels = targetStatuses;
-    const data = labels.map(l => statusCounts[l]);
+    // กรองเอาเฉพาะสถานะที่มีรถอยู่จริงๆ (Count > 0) เพื่อไม่ให้กราฟรกเกินไป
+    const activeLabels = [];
+    const activeData = [];
+    
+    targetStatuses.forEach(s => {
+        if(statusCounts[s] > 0) {
+            activeLabels.push(s.replace(/^[0-9]+\./, '')); // ลบตัวเลขนำหน้าออกให้ดูคลีนขึ้น
+            activeData.push(statusCounts[s]);
+        }
+    });
 
     if (statusChartInstance) statusChartInstance.destroy();
+    
     const ctx = document.getElementById('statusChart').getContext('2d');
+    
+    // ตรวจสอบขนาดหน้าจอ ถ้าเป็นมือถือให้เปลี่ยนเป็นแนวนอน
+    const isMobile = window.innerWidth < 768;
+    
     statusChartInstance = new Chart(ctx, {
-        type: 'bar',
+        type: isMobile ? 'bar' : 'bar', // ใช้ bar ทั้งคู่ แต่สลับแกน x/y ใน options
         data: {
-            labels: labels.map(l => l.replace(/^[0-9]+\./, '')), 
-            datasets: [{ label: 'จำนวน (คัน)', data: data, backgroundColor: '#00320D', borderRadius: 4, barPercentage: 0.6, hoverBackgroundColor: '#f59e0b' }]
+            labels: activeLabels, 
+            datasets: [{ 
+                label: 'จำนวน (คัน)', 
+                data: activeData, 
+                backgroundColor: '#3b82f6', // สีน้ำเงินอ่อน
+                borderRadius: 4, 
+                barPercentage: 0.7, 
+                hoverBackgroundColor: '#f59e0b' 
+            }]
         },
         options: { 
-            responsive: true, maintainAspectRatio: false, 
+            indexAxis: isMobile ? 'y' : 'x', // 🌟 แนวนอนสำหรับมือถือ, แนวตั้งสำหรับจอใหญ่
+            responsive: true, 
+            maintainAspectRatio: false, 
             plugins: { 
                 legend: { display: false },
-                datalabels: { color: '#ffffff', font: { family: 'Kanit', weight: 'bold', size: 10 }, anchor: 'end', align: 'bottom', formatter: (val) => val > 0 ? val : '' }
+                datalabels: { 
+                    color: isMobile ? '#334155' : '#ffffff', // มือถือตัวเลขอยู่นอกแท่งสีเข้ม
+                    font: { family: 'Kanit', weight: 'bold', size: 10 }, 
+                    anchor: isMobile ? 'end' : 'end', 
+                    align: isMobile ? 'right' : 'bottom', 
+                    formatter: (val) => val > 0 ? val : '' 
+                }
             }, 
-            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { grid: { display: false }, ticks: { font: { size: 9 } } } },
+            scales: { 
+                y: { 
+                    beginAtZero: true, 
+                    ticks: { stepSize: 1, font: { family: 'Kanit', size: 10 } },
+                    grid: { display: !isMobile } // ซ่อนเส้นกริดแนวนอนบนมือถือ
+                }, 
+                x: { 
+                    grid: { display: isMobile }, // โชว์เส้นกริดแนวตั้งบนมือถือ
+                    ticks: { font: { family: 'Kanit', size: 10 } } 
+                } 
+            },
             onClick: (evt, elements) => {
-                if(elements.length > 0) openStatusModal(labels[elements[0].index]);
+                if(elements.length > 0) openStatusModal(activeLabels[elements[0].index]);
             }
         }
     });
@@ -277,10 +315,10 @@ function openStatusModal(statusName) {
     const start = document.getElementById('dash_start_date').value;
     const end = document.getElementById('dash_end_date').value;
 
-    document.getElementById('modal_status_name').innerText = `รายการ: ${statusName.replace(/^[0-9]+\./, '')}`;
+    document.getElementById('modal_status_name').innerText = `รายการ: ${statusName}`;
     const jobsToShow = filteredJobs.filter(job => {
         const st = (job.job_status || "").trim();
-        const isMatch = (st === statusName || st.includes(statusName)) && !st.includes('ปิดงานแล้ว');
+        const isMatch = (st.includes(statusName)) && !st.includes('ปิดงานแล้ว');
 
         if (isMatch) {
             // บังคับให้ Modal แสดงข้อมูลตรงกับกราฟ (กรองด้วย Billing Date)
@@ -295,7 +333,6 @@ function openStatusModal(statusName) {
     renderJobTableInModalGroupedBySA(jobsToShow);
     document.getElementById('jobListModal').classList.remove('hidden');
 }
-
 function renderInsuranceChart() {
     const customerTypes = {};
     filteredJobs.forEach(j => {
