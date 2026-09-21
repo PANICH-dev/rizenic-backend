@@ -439,10 +439,9 @@ function renderDailyLineChart(start, end) {
     });
 }
 // ==========================================
-// 🍩 2. กราฟ Damage Level (ล็อกสีตามชื่อ: เบา=เขียว, กลาง=เหลือง, หนัก=แดง)
+// 🍩 2. กราฟ Damage Level (คลิกเพื่อดูรายละเอียดรถ)
 // ==========================================
 function renderDamageChart(start, end) {
-    // 1. กำหนดโครงสร้างล็อกลำดับและสีไว้ล่วงหน้า
     const damageMap = {
         'เบา': { count: 0, color: '#10b981' },   // 🟢 สีเขียว
         'กลาง': { count: 0, color: '#facc15' },  // 🟡 สีเหลือง
@@ -450,7 +449,6 @@ function renderDamageChart(start, end) {
         'ไม่ระบุ': { count: 0, color: '#94a3b8' } // ⚪ สีเทา
     };
 
-    // 2. นับจำนวนตามระดับความเสียหาย
     filteredJobs.filter(j => isDateInRange(j.arrived_date || j.contact_date, start, end)).forEach(j => {
         const dmg = (j.damage_level || 'ไม่ระบุ').trim();
         if (damageMap[dmg]) {
@@ -464,16 +462,10 @@ function renderDamageChart(start, end) {
         }
     });
 
-    // 3. กรองเอาเฉพาะรายการที่มีข้อมูลมากกว่า 0
-    const labels = [];
-    const data = [];
-    const colors = [];
-
+    const labels = []; const data = []; const colors = [];
     Object.keys(damageMap).forEach(key => {
         if (damageMap[key].count > 0) {
-            labels.push(key);
-            data.push(damageMap[key].count);
-            colors.push(damageMap[key].color);
+            labels.push(key); data.push(damageMap[key].count); colors.push(damageMap[key].color);
         }
     });
 
@@ -487,9 +479,74 @@ function renderDamageChart(start, end) {
             plugins: { 
                 legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
                 datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? v : '' }
+            },
+            onClick: (evt, elements) => {
+                if (elements.length > 0) openDamageModal(labels[elements[0].index], start, end);
             }
         }
     });
+}
+
+function openDamageModal(dmgLevel, start, end) {
+    document.getElementById('modal_status_name').innerText = `ระดับความเสียหาย: ${dmgLevel}`;
+    const jobsToShow = filteredJobs.filter(j => {
+        const jDmg = (j.damage_level || 'ไม่ระบุ').trim();
+        let isMatch = false;
+        if (dmgLevel === 'ไม่ระบุ') {
+            isMatch = !jDmg.includes('เบา') && !jDmg.includes('กลาง') && !jDmg.includes('หนัก');
+        } else {
+            isMatch = jDmg.includes(dmgLevel);
+        }
+        return isMatch && isDateInRange(j.arrived_date || j.contact_date, start, end);
+    });
+    renderJobTableInModalGroupedBySA(jobsToShow);
+    document.getElementById('jobListModal').classList.remove('hidden');
+}
+
+
+// ==========================================
+// 🍩 3. กราฟ Payment Type (คลิกเพื่อดูรายละเอียดรถ)
+// ==========================================
+function renderPaymentChart(start, end) {
+    const counts = {};
+    filteredJobs.filter(j => isDateInRange(j.arrived_date || j.contact_date, start, end)).forEach(j => {
+        const type = (j.payment_type || 'ไม่ระบุ').trim();
+        counts[type] = (counts[type] || 0) + 1;
+    });
+
+    const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
+    const labels = sorted.map(i => i[0]); const data = sorted.map(i => i[1]);
+    const colors = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899', '#64748b'];
+
+    const canvas = document.getElementById('paymentChart');
+    if (!canvas) return;
+
+    if (paymentChartInstance) paymentChartInstance.destroy();
+    const ctx = canvas.getContext('2d');
+    paymentChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderWidth: 0 }] },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '50%',
+            plugins: { 
+                legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
+                datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? v : '' }
+            },
+            onClick: (evt, elements) => {
+                if (elements.length > 0) openPaymentModal(labels[elements[0].index], start, end);
+            }
+        }
+    });
+}
+
+function openPaymentModal(paymentType, start, end) {
+    document.getElementById('modal_status_name').innerText = `ประเภทการชำระเงิน: ${paymentType}`;
+    const jobsToShow = filteredJobs.filter(j => {
+        const pType = (j.payment_type || 'ไม่ระบุ').trim();
+        return pType === paymentType && isDateInRange(j.arrived_date || j.contact_date, start, end);
+    });
+    renderJobTableInModalGroupedBySA(jobsToShow);
+    document.getElementById('jobListModal').classList.remove('hidden');
 }
 
 // ==========================================
@@ -527,19 +584,16 @@ function renderPaymentChart(start, end) {
 }
 
 // ==========================================
-// 🍩 4. กราฟสถานะอะไหล่ (เฉพาะสถานะ "06.สั่งอะไหล่" + ไม่สนกรอบปฏิทิน/เดือน)
+// 🍩 4. กราฟสถานะอะไหล่ (คลิกเพื่อดูรายละเอียดรถ)
 // ==========================================
 function renderPartsStatusChart() {
-    // 1. ดึงเฉพาะคันที่อยู่ในสถานะหลัก "06.สั่งอะไหล่" (ใช้ allJobs หรือ filteredJobs แบบไม่เช็คปฏิทิน)
-    const orderingJobs = filteredJobs.filter(j => (j.job_status || '').includes('06.สั่งอะไหล่'));
-    
-    // สร้างลิสต์ทะเบียนรถที่เข้าเงื่อนไข
-    const orderingPlates = new Set(orderingJobs.map(j => (j.car_plate || '').trim().toLowerCase()));
-
-    // 2. ดึงรายการอะไหล่เฉพาะของรถกลุ่มนี้
     const counts = {};
-    const pendingParts = allPartOrders.filter(o => {
-        const plate = (o.car_plate || '').trim().toLowerCase();
+    const orderingJobs = filteredJobs.filter(j => (j.job_status || '').includes('สั่งอะไหล่'));
+    const cleanPlate = str => String(str || '').replace(/\s+/g, '').toLowerCase();
+    const orderingPlates = new Set(orderingJobs.map(j => cleanPlate(j.car_plate)).filter(Boolean));
+
+    const pendingParts = filteredPartOrders.filter(o => {
+        const plate = cleanPlate(o.car_plate);
         return o.order_status !== 'ยกเลิก' && orderingPlates.has(plate);
     });
     
@@ -549,18 +603,8 @@ function renderPartsStatusChart() {
         counts[st] = (counts[st] || 0) + 1;
     });
 
-    const labels = Object.keys(counts);
-    const data = Object.values(counts);
-
-    // กำหนดสีประจำแต่ละสถานะ
-    const statusColorMap = {
-        'มีของ/ครบ': '#10b981',   // 🟢 เขียว
-        'รอสั่งซื้อ': '#ef4444',   // 🔴 แดง
-        'รออะไหล่': '#f59e0b',    // 🟠 ส้ม
-        'ติด Back Order': '#9333ea', // 🟣 ม่วง
-        'รออัปเดต': '#94a3b8'     // ⚪ เทา
-    };
-
+    const labels = Object.keys(counts); const data = Object.values(counts);
+    const statusColorMap = { 'มีของ/ครบ': '#10b981', 'รอสั่งซื้อ': '#ef4444', 'รออะไหล่': '#f59e0b', 'ติด Back Order': '#9333ea', 'รออัปเดต': '#94a3b8' };
     const colors = labels.map(l => statusColorMap[l] || '#64748b');
 
     if (partsStatusChartInstance) partsStatusChartInstance.destroy();
@@ -573,9 +617,83 @@ function renderPartsStatusChart() {
             plugins: { 
                 legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
                 datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? v : '' }
+            },
+            onClick: (evt, elements) => {
+                if (elements.length > 0) openPartsStatusModal(labels[elements[0].index]);
             }
         }
     });
+}
+
+function openPartsStatusModal(statusLabel) {
+    document.getElementById('modal_status_name').innerText = `รถที่รออะไหล่: ${statusLabel}`;
+    
+    const orderingJobs = filteredJobs.filter(j => (j.job_status || '').includes('สั่งอะไหล่'));
+    const cleanPlate = str => String(str || '').replace(/\s+/g, '').toLowerCase();
+    const orderingPlates = new Set(orderingJobs.map(j => cleanPlate(j.car_plate)).filter(Boolean));
+
+    const matchedPlates = new Set();
+    filteredPartOrders.forEach(o => {
+        const plate = cleanPlate(o.car_plate);
+        if (o.order_status !== 'ยกเลิก' && orderingPlates.has(plate)) {
+            let st = (o.order_status || 'รออัปเดต').trim();
+            if (st.includes('ครบ') || st.includes('มีของ')) st = 'มีของ/ครบ';
+            if (st === statusLabel) matchedPlates.add(plate);
+        }
+    });
+
+    const jobsToShow = orderingJobs.filter(j => matchedPlates.has(cleanPlate(j.car_plate)));
+    renderJobTableInModalGroupedBySA(jobsToShow);
+    document.getElementById('jobListModal').classList.remove('hidden');
+}
+
+
+// ==========================================
+// 🍩 5. กราฟสถานะช่าง (คลิกเพื่อดูรายละเอียดรถ)
+// ==========================================
+function renderMechanicChart() {
+    const activeStations = ["01.เคาะ", "02.โป๊ว", "03.เตรียมพื้น", "04.พ่นสี", "05.ประกอบ", "06.ขัดสี", "08.เก็บงาน", "09.ซ่อมแม็ก", "10.กระจก", "11.ฟิล์ม"];
+    const counts = {};
+    
+    filteredJobs.filter(j => !j.job_status?.includes('ส่งมอบแล้ว')).forEach(j => {
+        const s = computeHighestStationIFS(j);
+        if(activeStations.includes(s)) {
+            const shortName = s.replace(/[0-9.]/g, ''); 
+            counts[shortName] = (counts[shortName] || 0) + 1;
+        }
+    });
+
+    const labels = Object.keys(counts); const data = Object.values(counts);
+    const stationColors = ['#ef4444', '#f97316', '#eab308', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#6366f1'];
+    
+    if (mechanicChartInstance) mechanicChartInstance.destroy();
+    const ctx = document.getElementById('mechanicChart').getContext('2d');
+    mechanicChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels: labels, datasets: [{ data: data, backgroundColor: stationColors.slice(0, labels.length), borderWidth: 2, borderColor: '#ffffff' }] },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '50%',
+            plugins: { 
+                legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
+                datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? v : '' }
+            },
+            onClick: (evt, elements) => {
+                if (elements.length > 0) openMechanicModal(labels[elements[0].index]);
+            }
+        }
+    });
+}
+
+function openMechanicModal(stationName) {
+    document.getElementById('modal_status_name').innerText = `รถกำลังดำเนินการในสถานีช่าง: ${stationName}`;
+    const jobsToShow = filteredJobs.filter(j => {
+        if ((j.job_status || '').includes('ส่งมอบแล้ว')) return false;
+        const s = computeHighestStationIFS(j);
+        const shortName = s.replace(/[0-9.]/g, '');
+        return shortName === stationName;
+    });
+    renderJobTableInModalGroupedBySA(jobsToShow);
+    document.getElementById('jobListModal').classList.remove('hidden');
 }
 
 // ==========================================
