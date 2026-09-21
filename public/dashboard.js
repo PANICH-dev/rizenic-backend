@@ -199,7 +199,7 @@ async function fetchDashboardData() {
     }
 }
 
-function applyFilters() {
+ffunction applyFilters() {
     const filterSelect = document.getElementById('branchFilter');
     const selectedBranch = filterSelect ? filterSelect.value : 'all';
     
@@ -219,26 +219,27 @@ function applyFilters() {
         filteredPartOrders = allPartOrders.filter(o => o.branch_name === selectedBranch);
     }
 
-    /// เรียก renders ทั้งหมด
-    renderERPStatuses(filteredJobs);
-    renderStationSummary(filteredJobs);
-    renderPartsTracking(filteredPartOrders);
+    // 🌟 ปลดคอมเมนต์ออกทั้งหมด เพื่อให้กราฟและข้อมูลทุกส่วนถูกวาดลงหน้าจอ 🌟
+    if(typeof renderERPStatuses === 'function') renderERPStatuses(filteredJobs);
+    if(typeof renderStationSummary === 'function') renderStationSummary(filteredJobs);
+    if(typeof renderPartsTracking === 'function') renderPartsTracking(filteredPartOrders);
 
-    // ถ้ามีฟังก์ชันพวกกราฟอื่นๆ ในไฟล์นาย สามารถปลดคอมเมนต์ด้านล่างได้ครับ
-    // renderKPIs(startDate, endDate);
-    // renderDailyReport(); 
-    // renderDailyLineChart(startDate, endDate); 
-    // renderStatusChart();
-    // renderInsuranceChart();
-    // renderDamageChart(startDate, endDate);   
-    // renderPaymentChart(startDate, endDate);   
-    // renderPartsStatusChart();                 
-    // renderMechanicChart();                    
-    // renderFinanceChart(startDate, endDate);
-    // renderSASection();
-    // renderStationTable(); 
-    // renderParkedCars();
-    // renderCalendarByRange(startDate, endDate);
+    if(typeof renderKPIs === 'function') renderKPIs(startDate, endDate);
+    if(typeof renderDailyReport === 'function') renderDailyReport(); 
+    if(typeof renderDailyLineChart === 'function') renderDailyLineChart(startDate, endDate); 
+    if(typeof renderStatusChart === 'function') renderStatusChart();
+    if(typeof renderInsuranceChart === 'function') renderInsuranceChart();
+    if(typeof renderDamageChart === 'function') renderDamageChart(startDate, endDate);   
+    if(typeof renderPaymentChart === 'function') renderPaymentChart(startDate, endDate);   
+    if(typeof renderPartsStatusChart === 'function') renderPartsStatusChart();                 
+    if(typeof renderMechanicChart === 'function') renderMechanicChart();                    
+    if(typeof renderFinanceChart === 'function') renderFinanceChart(startDate, endDate);
+    
+    // สำหรับส่วนตารางและปฏิทิน (จากไฟล์ dashboard_tables.js)
+    if(typeof renderSASection === 'function') renderSASection();
+    if(typeof renderStationTable === 'function') renderStationTable(); 
+    if(typeof renderParkedCars === 'function') renderParkedCars();
+    if(typeof renderCalendarByRange === 'function') renderCalendarByRange(startDate, endDate);
 }
 
 // =====================================
