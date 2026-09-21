@@ -51,6 +51,24 @@ function isJobDone(status) {
 }
 
 // =====================================
+// 🔄 AUTO-REORDER LAYOUT (ดันปฏิทินขึ้นบน)
+// =====================================
+function moveCalendarUp() {
+    const opsHeader = Array.from(document.querySelectorAll('h2')).find(h => h.innerText.includes('ติดตามการปฏิบัติงาน'))?.parentElement;
+    const calHeader = Array.from(document.querySelectorAll('h2')).find(h => h.innerText.includes('ปฏิทินปฏิบัติงาน'))?.parentElement;
+    
+    if (opsHeader && calHeader) {
+        const calContent = calHeader.nextElementSibling;
+        const parent = opsHeader.parentNode;
+        // ถ้าย้ายยังไม่เกิด ให้ย้ายขึ้นไป
+        if (opsHeader.compareDocumentPosition(calHeader) & Node.DOCUMENT_POSITION_FOLLOWING) {
+            parent.insertBefore(calHeader, opsHeader);
+            if(calContent) parent.insertBefore(calContent, opsHeader);
+        }
+    }
+}
+
+// =====================================
 // 📋 TABLES, CALENDAR & LISTS
 // =====================================
 
@@ -163,21 +181,23 @@ function sortTable(tableId, colIndex) {
     rows.forEach(row => tbody.appendChild(row));
 }
 
+// ==========================================
+// 🛠️ 1. ตารางรายการรถในสถานีซ่อม (10.กำลังซ่อม เท่านั้น)
+// ==========================================
 function renderStationTable() {
     const tbody = document.getElementById('station_table_body');
     if(!tbody) return;
-    const activeStations = ["01.เคาะ", "02.โป๊ว", "03.เตรียมพื้น", "04.พ่นสี", "05.ประกอบ", "06.ขัดสี", "07.QC", "08.เก็บงาน", "08.แม็ก", "09.ซ่อมแม็ก", "09.กระจก", "10.กระจก", "10.ฟิล์ม", "11.ฟิล์ม"];
     
     const safeJobs = getSafeJobsData();
     
+    // 🎯 กรองเฉพาะ job_status ที่มีคำว่า '10.กำลังซ่อม' 
     const inRepairCars = safeJobs.filter(j => {
-        const st = (j.job_status || '').trim();
-        if(st.includes('ส่งมอบแล้ว') || st.includes('12.ส่งมอบ') || st.includes('ปิดงาน')) return false;
-        return activeStations.includes(computeHighestStationIFS(j));
+        const st = String(j.job_status || '').trim();
+        return st === '10.กำลังซ่อม' || st.includes('10.กำลังซ่อม');
     });
     
     if(inRepairCars.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-slate-400 font-bold bg-slate-50">ไม่มีรถกำลังดำเนินการในสถานีช่างขณะนี้ 🎉</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-slate-400 font-bold bg-slate-50">ไม่มีรถกำลังซ่อมในสถานีขณะนี้ 🎉</td></tr>`;
         return;
     }
 
@@ -213,19 +233,23 @@ function renderStationTable() {
     }).join('');
 }
 
+// ==========================================
+// 🚗 2. รายการรถกำลังจอดซ่อมในศูนย์ (is_parked === 'จอดซ่อม' เท่านั้น)
+// ==========================================
 function renderParkedCars() {
     const tbody = document.getElementById('parked_cars_body');
     if(!tbody) return;
-    const parkedStatuses = ["08.", "09.", "10.", "11.", "20.", "21.", "จอด", "ซ่อม"];
     
     const safeJobs = getSafeJobsData();
+    
+    // 🎯 กรองเฉพาะรถที่มี is_parked = 'จอดซ่อม' หรือมีคำว่า 'จอดซ่อม' 
     const parkedCars = safeJobs.filter(j => {
-        const st = j.job_status || '';
-        return parkedStatuses.some(p => st.includes(p)) || isTrue(j.is_parked) || j.is_parked === 'จอดซ่อม';
+        const pk = String(j.is_parked || '').trim();
+        return pk === 'จอดซ่อม' || pk.includes('จอดซ่อม');
     });
     
     if(parkedCars.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="10" class="text-center py-10 text-slate-400 font-bold bg-slate-50">ไม่มีรถจอดซ่อมในศูนย์ขณะนี้ 🎉</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" class="text-center py-10 text-slate-400 font-bold bg-slate-50"><i class="fa-solid fa-car-tunnel text-3xl mb-3 block opacity-50"></i>ไม่มีรถจอดซ่อมในศูนย์ขณะนี้ 🎉</td></tr>`;
         return;
     }
 
@@ -248,16 +272,18 @@ function renderParkedCars() {
                 <td class="font-mono text-xs text-emerald-600 text-center font-bold px-4 py-3">${j.repair_finish_date ? cleanDate(j.repair_finish_date) : '-'}</td>
                 <td class="font-mono text-xs text-purple-600 text-center font-bold px-4 py-3">${j.delivery_date ? cleanDate(j.delivery_date) : '-'}</td>
                 <td class="font-bold text-slate-600 text-[11px] px-4 py-3"><span class="bg-slate-100 border border-slate-200 px-2 py-1 rounded shadow-sm">${j.job_status || '-'}</span></td>
-                <td class="text-center px-4 py-3"><button class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full whitespace-nowrap"><i class="fa-solid fa-pen"></i> ดูข้อมูล</button></td>
+                <td class="text-center px-4 py-3"><button class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-sm w-full whitespace-nowrap"><i class="fa-solid fa-pen"></i> ดูข้อมูล</button></td>
             </tr>
         `;
     }).join('');
 }
 
 // ==========================================
-// 🗓️ ปฏิทินปฏิบัติงาน (เอฟเฟคเต็มแน่นๆ 100%)
+// 🗓️ 3. ปฏิทินปฏิบัติงาน (อัปเกรด โควต้าไทย/อังกฤษ + เอฟเฟคไฟลุก)
 // ==========================================
 function renderCalendarByRange(startDate, endDate) {
+    moveCalendarUp(); // 🎯 ดันปฏิทินขึ้นด้านบนเสมอ!
+    
     const grid = document.getElementById('calendar_grid'); 
     if(!grid) return;
     grid.innerHTML = '';
@@ -313,21 +339,39 @@ function renderCalendarByRange(startDate, endDate) {
             barBlock = `<div class="flex items-center justify-center h-[60px] w-full mt-auto"><span class="text-[10px] font-bold text-slate-300">ว่าง</span></div>`;
         }
 
+        // 🎯 ดึงโควต้าชิ้นหลัก/รอง โดยรองรับทั้งภาษาไทยและอังกฤษ
         let maxMain = 0; let maxSub = 0;
         branchesToCheck.forEach(b => {
-            const branchQuotas = safeAllQuotas.filter(q => q.branch_name === b || !q.branch_name);
-            const specialQ = branchQuotas.find(q => q.quota_type === 'special' && q.quota_date && cleanDate(q.quota_date) === d.dateStr);
-            const defaultQ = branchQuotas.find(q => q.quota_type === 'default' || !q.quota_type);
-            
-            const getQMain = (obj) => parseInt(obj.quota_main_parts || obj.parts_quota || obj.max_main_parts || 0, 10);
-            const getQSub = (obj) => parseInt(obj.quota_sub_parts || obj.sub_parts_quota || obj.max_sub_parts || 0, 10);
+            const branchQuotas = safeAllQuotas.filter(q => {
+                if (!q.branch_name) return true;
+                const qb = String(q.branch_name).toLowerCase();
+                const tb = String(b).toLowerCase();
+                return qb === tb || qb.includes(tb) || tb.includes(qb);
+            });
 
-            if (specialQ) { maxMain += getQMain(specialQ); maxSub += getQSub(specialQ); } 
-            else if (defaultQ) { maxMain += getQMain(defaultQ); maxSub += getQSub(defaultQ); }
+            // ค้นหาวันพิเศษ
+            const specialQ = branchQuotas.find(q => {
+                const t = String(q.quota_type || '').trim().toLowerCase();
+                return (t === 'special' || t === 'วันพิเศษ') && q.quota_date && cleanDate(q.quota_date) === d.dateStr;
+            });
+
+            // ค้นหาวันประจำวัน
+            const defaultQ = branchQuotas.find(q => {
+                const t = String(q.quota_type || '').trim().toLowerCase();
+                return t === 'default' || t === 'ประจำวัน' || t === '';
+            });
+            
+            const qToUse = specialQ || defaultQ;
+
+            if (qToUse) {
+                maxMain += parseInt(qToUse.quota_main_parts || qToUse.max_main_parts || qToUse.parts_quota || qToUse.main_quota || 0, 10);
+                maxSub += parseInt(qToUse.quota_sub_parts || qToUse.max_sub_parts || qToUse.sub_parts_quota || qToUse.sub_quota || 0, 10);
+            }
         });
 
-        if (maxMain === 0) maxMain = 50;
-        if (maxSub === 0) maxSub = 30;
+        // Fallback กัน UI ว่างเปล่า กรณีฐานข้อมูลไม่มีการตั้งค่า
+        if (maxMain === 0) maxMain = 20;
+        if (maxSub === 0) maxSub = 10;
 
         const mainSum = d.tarJobs.reduce((sum, j) => sum + (parseInt(j.main_part_qty) || ((j.main_part_name && String(j.main_part_name).trim() !== '-' && String(j.main_part_name).trim() !== '') ? String(j.main_part_name).split(',').filter(Boolean).length : 0)), 0);
         const subSum = d.tarJobs.reduce((sum, j) => sum + (parseInt(j.sub_part_qty) || ((j.sub_part_name && String(j.sub_part_name).trim() !== '-' && String(j.sub_part_name).trim() !== '') ? String(j.sub_part_name).split(',').filter(Boolean).length : 0)), 0);
@@ -335,7 +379,7 @@ function renderCalendarByRange(startDate, endDate) {
         let pctMain = Math.min((mainSum / maxMain) * 100, 100);
         let pctSub = Math.min((subSum / maxSub) * 100, 100);
 
-        // 🌟 1. เอฟเฟคโควต้าเต็มแน่นๆ (หลอดสีแดงเรืองแสง) 🌟
+        // 🌟 เอฟเฟคโควต้าเต็มแน่นๆ 🌟
         let barColorMain = pctMain >= 100 ? 'bg-rose-600 shadow-[0_0_8px_rgba(225,29,72,0.6)]' : (pctMain >= 80 ? 'bg-amber-500' : 'bg-blue-500');
         let barColorSub = pctSub >= 100 ? 'bg-rose-600 shadow-[0_0_8px_rgba(225,29,72,0.6)]' : (pctSub >= 80 ? 'bg-amber-500' : 'bg-amber-400');
 
@@ -348,7 +392,7 @@ function renderCalendarByRange(startDate, endDate) {
         const todayStrLocal = `${todayObj.getFullYear()}-${String(todayObj.getMonth()+1).padStart(2,'0')}-${String(todayObj.getDate()).padStart(2,'0')}`;
         const isToday = d.dateStr === todayStrLocal;
         
-        // 🌟 2. เอฟเฟคกรอบเรืองแสงวันเต็มแน่นๆ 🌟
+        // 🌟 เช็กว่าเต็มโควต้าไหม 🌟
         const isFull = (mainSum >= maxMain) || (subSum >= maxSub);
         
         const hasOverdue = d.tarJobs.some(j => {
@@ -359,7 +403,6 @@ function renderCalendarByRange(startDate, endDate) {
             return targetDate < today;
         });
 
-        // คลาสของ Cell ถ้าเต็มให้แสดงแดงเดือดแบบ Glow Effect
         let cellClass = "rounded-xl p-3 flex flex-col transition-all duration-300 relative min-h-[160px] cursor-pointer ";
         if (isFull) {
             cellClass += " border-2 border-rose-500 bg-rose-50 shadow-[0_0_15px_rgba(225,29,72,0.3)] hover:shadow-[0_0_25px_rgba(225,29,72,0.5)] hover:-translate-y-1";
@@ -377,7 +420,7 @@ function renderCalendarByRange(startDate, endDate) {
                     <span class="text-sm font-black text-slate-600 ${isToday ? 'text-amber-600 bg-amber-100 px-2 py-0.5 rounded shadow-sm' : ''} ${isFull ? 'text-rose-700 bg-rose-200 px-2 py-0.5 rounded shadow-sm' : ''} font-mono">${d.day}</span>
                     <div class="flex gap-1.5 items-center">
                         ${hasOverdue ? `<i class="fa-solid fa-circle-exclamation text-red-500 animate-pulse text-xs" title="มีรถดีเลย์!"></i>` : ''}
-                        ${isFull ? `<span class="text-[10px] font-black bg-rose-600 text-white px-2 py-0.5 rounded shadow-md animate-pulse border border-rose-700 tracking-wider">🔥 โควต้าเต็ม!</span>` : ''}
+                        ${isFull ? `<span class="text-[10px] font-black bg-rose-600 text-white px-2 py-0.5 rounded shadow-md animate-pulse border border-rose-700 tracking-wider">🔥 เต็ม</span>` : ''}
                     </div>
                 </div>
                 <div class="flex-1 flex flex-col justify-end w-full">${barBlock}${quotaHTML}</div>
@@ -440,7 +483,6 @@ function renderJobTableInModalGroupedBySA(jobs) {
             if(!safeOptions.includes(`value="${safeStatus}"`)) { safeOptions = `<option value="${safeStatus}">${safeStatus}</option>` + safeOptions; } 
             safeOptions = safeOptions.replace(`value="${safeStatus}"`, `value="${safeStatus}" selected`); 
 
-            // 🌟 3. ป้ายแยกรถที่ซ่อมเสร็จแล้ว กับ กำลังซ่อม 🌟
             const isDone = isJobDone(safeStatus);
             const statusBadge = isDone 
                 ? `<span class="inline-block mt-1.5 bg-emerald-100 text-emerald-700 border border-emerald-300 px-2 py-0.5 rounded text-[9px] font-black shadow-sm"><i class="fa-solid fa-check"></i> ซ่อมเสร็จแล้ว</span>`
