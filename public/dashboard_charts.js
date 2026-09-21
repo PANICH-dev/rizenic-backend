@@ -375,3 +375,204 @@ function renderFinanceChart(start, end) {
         }
     });
 }
+
+// ==========================================
+// 📈 1. กราฟเส้นรายวัน (กรองตามปฏิทิน)
+// ==========================================
+function renderDailyLineChart(start, end) {
+    if (!start || !end) return;
+    
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    
+    const labels = [];
+    const dataArrived = [];
+    const dataTarget = [];
+    const dataDelivered = [];
+
+    // วนลูปสร้างวันที่
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        const dateStr = d.toISOString().split('T')[0];
+        const dayLabel = `${d.getDate()}/${d.getMonth()+1}`;
+        labels.push(dayLabel);
+
+        // นับจำนวนรถเข้าจอด (arrived_date)
+        const arrCount = filteredJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length;
+        dataArrived.push(arrCount);
+
+        // นับจำนวนเป้าเสร็จ (target_finish_date)
+        const tarCount = filteredJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).length;
+        dataTarget.push(tarCount);
+
+        // นับจำนวนรถส่งมอบ (delivery_date)
+        const delCount = filteredJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
+        dataDelivered.push(delCount);
+    }
+
+    if (dailyLineChartInstance) dailyLineChartInstance.destroy();
+    const ctx = document.getElementById('dailyLineChart').getContext('2d');
+    dailyLineChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: 'รถเข้าจอด', data: dataArrived, borderColor: '#3b82f6', backgroundColor: '#3b82f6', tension: 0.3, borderWidth: 2 },
+                { label: 'เป้าเสร็จ', data: dataTarget, borderColor: '#f59e0b', backgroundColor: '#f59e0b', tension: 0.3, borderWidth: 2 },
+                { label: 'ส่งมอบ', data: dataDelivered, borderColor: '#10b981', backgroundColor: '#10b981', tension: 0.3, borderWidth: 2 }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top', labels: { font: { family: 'Kanit' } } },
+                datalabels: { 
+                    color: '#334155', font: { family: 'Kanit', weight: 'bold', size: 10 },
+                    align: 'top', offset: 2,
+                    formatter: (val) => val > 0 ? val : '' // โชว์ค่าเฉพาะที่มีค่ามากกว่า 0
+                }
+            },
+            scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1, font: { family: 'Kanit' } } },
+                x: { ticks: { font: { family: 'Kanit', size: 10 } } }
+            }
+        }
+    });
+}
+
+// ==========================================
+// 🍩 2. กราฟ Damage Level (กรองตามปฏิทินจากวันที่รถเข้า)
+// ==========================================
+function renderDamageChart(start, end) {
+    const counts = {};
+    filteredJobs.filter(j => isDateInRange(j.arrived_date || j.contact_date, start, end)).forEach(j => {
+        const dmg = (j.damage_level || 'ไม่ระบุ').trim();
+        counts[dmg] = (counts[dmg] || 0) + 1;
+    });
+
+    const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
+    const labels = sorted.map(i => i[0]);
+    const data = sorted.map(i => i[1]);
+    const colors = ['#ef4444', '#f97316', '#eab308', '#3b82f6', '#94a3b8'];
+
+    if (damageChartInstance) damageChartInstance.destroy();
+    const ctx = document.getElementById('damageChart').getContext('2d');
+    damageChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderWidth: 0 }] },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '50%',
+            plugins: { 
+                legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
+                datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? v : '' }
+            }
+        }
+    });
+}
+
+// ==========================================
+// 🍩 3. อัปเดต Payment Chart (รับค่า Start/End เพื่อกรองปฏิทิน)
+// ==========================================
+function renderPaymentChart(start, end) {
+    const counts = {};
+    // กรองรถที่เข้าจอดหรือติดต่อ ในช่วงเวลาปฏิทิน
+    filteredJobs.filter(j => isDateInRange(j.arrived_date || j.contact_date, start, end)).forEach(j => {
+        const type = (j.payment_type || 'ไม่ระบุ').trim();
+        counts[type] = (counts[type] || 0) + 1;
+    });
+
+    const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
+    const labels = sorted.map(i => i[0]);
+    const data = sorted.map(i => i[1]);
+    const colors = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899', '#64748b'];
+
+    const canvas = document.getElementById('paymentChart');
+    if (!canvas) return;
+
+    if (paymentChartInstance) paymentChartInstance.destroy();
+    const ctx = canvas.getContext('2d');
+    paymentChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderWidth: 0 }] },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '50%',
+            plugins: { 
+                legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
+                datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? v : '' }
+            }
+        }
+    });
+}
+
+// ==========================================
+// 🍩 4. กราฟสถานะอะไหล่ (ดึงจาก filteredPartOrders)
+// ==========================================
+function renderPartsStatusChart() {
+    const counts = {};
+    const pendingParts = filteredPartOrders.filter(o => o.order_status !== 'ยกเลิก');
+    
+    pendingParts.forEach(o => {
+        let st = (o.order_status || 'รออัปเดต').trim();
+        if (st.includes('ครบ') || st.includes('มีของ')) st = 'มีของ/ครบ';
+        counts[st] = (counts[st] || 0) + 1;
+    });
+
+    const labels = Object.keys(counts);
+    const data = Object.values(counts);
+    const colors = labels.map(l => {
+        if(l === 'มีของ/ครบ') return '#10b981'; // เขียว
+        if(l === 'รอสั่งซื้อ') return '#ef4444'; // แดง
+        if(l === 'รออะไหล่') return '#f59e0b'; // ส้ม
+        if(l === 'ติด Back Order') return '#9333ea'; // ม่วง
+        return '#94a3b8'; // เทา
+    });
+
+    if (partsStatusChartInstance) partsStatusChartInstance.destroy();
+    const ctx = document.getElementById('partsStatusChart').getContext('2d');
+    partsStatusChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderWidth: 0 }] },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '50%',
+            plugins: { 
+                legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
+                datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? v : '' }
+            }
+        }
+    });
+}
+
+// ==========================================
+// 🍩 5. กราฟสถานะช่าง (ดึงจากรถที่กำลังซ่อม)
+// ==========================================
+function renderMechanicChart() {
+    const activeStations = ["01.เคาะ", "02.โป๊ว", "03.เตรียมพื้น", "04.พ่นสี", "05.ประกอบ", "06.ขัดสี", "08.เก็บงาน", "09.ซ่อมแม็ก", "10.กระจก", "11.ฟิล์ม"];
+    const counts = {};
+    
+    // อาศัยฟังก์ชัน computeHighestStationIFS จากไฟล์ dashboard_tables.js
+    filteredJobs.filter(j => !j.job_status?.includes('ส่งมอบแล้ว')).forEach(j => {
+        const s = computeHighestStationIFS(j);
+        if(activeStations.includes(s)) {
+            const shortName = s.replace(/[0-9.]/g, ''); // ตัดตัวเลขข้างหน้าออก
+            counts[shortName] = (counts[shortName] || 0) + 1;
+        }
+    });
+
+    const labels = Object.keys(counts);
+    const data = Object.values(counts);
+    
+    if (mechanicChartInstance) mechanicChartInstance.destroy();
+    const ctx = document.getElementById('mechanicChart').getContext('2d');
+    mechanicChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels: labels, datasets: [{ data: data, backgroundColor: '#f97316', borderWidth: 1, borderColor: '#fff' }] },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '50%',
+            plugins: { 
+                legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
+                datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? v : '' }
+            },
+            // สุ่มสีโทนส้ม-เหลือง-แดง ให้สถานีช่าง
+            elements: { arc: { backgroundColor: ['#ea580c', '#f97316', '#fb923c', '#fdba74', '#f59e0b', '#d97706', '#b45309'] } }
+        }
+    });
+}

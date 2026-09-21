@@ -14,6 +14,10 @@ let statusChartInstance = null;
 let insuranceChartInstance = null;
 let financeChartInstance = null;
 let paymentChartInstance = null; 
+let dailyLineChartInstance = null;
+let damageChartInstance = null;
+let partsStatusChartInstance = null;
+let mechanicChartInstance = null;
 
 let userRole = '';
 let userBranch = '';
@@ -194,12 +198,16 @@ function applyFilters() {
         filteredPartOrders = allPartOrders.filter(o => o.branch_name === selectedBranch);
     }
 
-    // Call renders from module files
+    /// เรียก renders ทั้งหมด
     renderKPIs(startDate, endDate);
     renderDailyReport(); 
+    renderDailyLineChart(startDate, endDate); // <--- กราฟเส้นใหม่
     renderStatusChart();
     renderInsuranceChart();
-    renderPaymentChart(); 
+    renderDamageChart(startDate, endDate);    // <--- Damage Level ใหม่
+    renderPaymentChart(startDate, endDate);   // <--- อัปเดต Payment ให้กรองปฏิทิน
+    renderPartsStatusChart();                 // <--- กราฟโดนัทอะไหล่
+    renderMechanicChart();                    // <--- กราฟโดนัทสถานะช่าง
     renderFinanceChart(startDate, endDate);
     renderSASection();
     renderStationSection();
