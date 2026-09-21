@@ -6,10 +6,14 @@ Chart.register(ChartDataLabels);
 function renderKPIs(start, end) {
     const contacted = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end)).length;
     
+    // 🎯 แก้ไขตัวแปร parked ให้รองรับ appointment_date และมี arrived_date เป็นตัวสำรอง
     const parked = filteredJobs.filter(j => {
         const st = j.job_status || '';
         const inProcess = activeProcessStatuses.some(s => st.includes(s) || st.startsWith(s.substring(0, 2)));
-        return inProcess && isDateInRange(j.appointment_date, start, end);
+        
+        // ถ้ารถมีวันนัดหมาย ใช้วันนัดหมาย ถ้าไม่มีให้ใช้วันที่เข้าจอดสำรอง
+        const targetDate = j.appointment_date || j.arrived_date;
+        return inProcess && isDateInRange(targetDate, start, end);
     }).length;
 
     const billedJobs = filteredJobs.filter(j => isDateInRange(j.billing_date, start, end));
@@ -53,13 +57,14 @@ function openFilteredModal(type) {
     let title = "";
     if(type === 'contacted') { jobsToShow = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end)); title = "1. รถเข้ามาที่ศูนย์"; }
     
-    if(type === 'parked') { 
+ if(type === 'parked') { 
         jobsToShow = filteredJobs.filter(j => {
             const st = j.job_status || '';
             const inProcess = activeProcessStatuses.some(s => st.includes(s) || st.startsWith(s.substring(0, 2)));
-            return inProcess && isDateInRange(j.arrived_date, start, end);
+            const targetDate = j.appointment_date || j.arrived_date;
+            return inProcess && isDateInRange(targetDate, start, end);
         }); 
-        title = "2. รถที่เข้ามาจอดในศูนย์ (สถานะ 01-11)"; 
+        title = "2. รถที่เข้ามาจอดในศูนย์ (ตามวันนัดหมาย/วันเข้าจอด)"; 
     }
 
     if(type === 'delivered') { 
