@@ -9,7 +9,7 @@ function renderKPIs(start, end) {
     const parked = filteredJobs.filter(j => {
         const st = j.job_status || '';
         const inProcess = activeProcessStatuses.some(s => st.includes(s) || st.startsWith(s.substring(0, 2)));
-        return inProcess && isDateInRange(j.arrived_date, start, end);
+        return inProcess && isDateInRange(j.appointment_date, start, end);
     }).length;
 
     const billedJobs = filteredJobs.filter(j => isDateInRange(j.billing_date, start, end));
