@@ -169,13 +169,24 @@ function sortTable(tableId, colIndex) {
     rows.forEach(row => tbody.appendChild(row));
 }
 
+// ==========================================
+// 🛠️ ตารางรายการรถในสถานีซ่อม (กำลังดำเนินการ)
+// ==========================================
 function renderStationTable() {
     const tbody = document.getElementById('station_table_body');
     const activeStations = ["01.เคาะ", "02.โป๊ว", "03.เตรียมพื้น", "04.พ่นสี", "05.ประกอบ", "06.ขัดสี", "08.เก็บงาน", "09.ซ่อมแม็ก", "10.กระจก", "11.ฟิล์ม"];
     
+    // 🎯 กรองเฉพาะรถที่ "จอดซ่อม" และไม่ถูกส่งมอบแล้ว
     const inRepairCars = filteredJobs.filter(j => {
-        if((j.job_status||'').includes('ส่งมอบแล้ว') || (j.job_status||'').includes('12.ส่งมอบ')) return false;
-        return activeStations.includes(computeHighestStationIFS(j));
+        const st = (j.job_status || '').trim();
+        
+        // เช็กจากฟิลด์ is_parked ที่เราเพิ่งอัปเดต SQL ไป
+        const isParked = j.is_parked === 'จอดซ่อม' || 
+                         (j.is_parked !== 'ไม่จอดซ่อม' && !['13.วางบิลประกัน','14.ชำระเงินสด','15.วางบิล Tesla','16.วางบิล EV ME','17.รอออกบิล','18.ลูกค้ายกเลิก','19.ออกบิลแล้ว','20.จอดซ่อม TC','21.พักซ่อม','22.ปิดงาน'].some(ex => st.includes(ex)));
+        
+        if (st.includes('ส่งมอบแล้ว') || st.includes('12.ส่งมอบ')) return false;
+        
+        return isParked && activeStations.includes(computeHighestStationIFS(j));
     });
     
     if(inRepairCars.length === 0) {
@@ -210,7 +221,12 @@ function renderStationTable() {
                 <td class="px-4 py-3 font-mono text-xs text-blue-600 text-center font-bold">${target}</td>
                 <td class="px-4 py-3 font-mono text-xs text-emerald-600 text-center font-bold">${actual}</td>
                 <td class="px-4 py-3 font-mono text-xs text-purple-600 text-center font-bold">${delivery}</td>
-                <td class="px-4 py-3 text-center"><button class="bg-white text-orange-600 border border-orange-300 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-orange-500 hover:text-white transition shadow-sm whitespace-nowrap"><i class="fa-solid fa-folder-open"></i> ดูใบงาน</button></td>
+                <td class="px-4 py-3 text-center">
+                    <!-- 🎯 ปุ่มดูข้อมูล -->
+                    <button class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full whitespace-nowrap" onclick="event.stopPropagation(); goToEditJob('${j.id}')">
+                        <i class="fa-solid fa-pen"></i> ดูข้อมูล
+                    </button>
+                </td>
             </tr>
         `;
     }).join('');
@@ -252,9 +268,8 @@ function renderParkedCars() {
     }).join('');
 }
 
-
 // ==========================================
-// 🗓️ ปฏิทินปฏิบัติงาน (ดีไซน์กราฟแท่งแนวตั้ง + ชิ้นส่วนหลัก/รอง ด้านบน ตามต้นฉบับเป๊ะๆ)
+// 🗓️ ปฏิทินปฏิบัติงาน (ดีไซน์ดั้งเดิม กราฟหลอดแนวนอน 3 แถว)
 // ==========================================
 function renderCalendarByRange(startStr, endStr) {
     const grid = document.getElementById('calendar_grid');
@@ -282,101 +297,98 @@ function renderCalendarByRange(startStr, endStr) {
 
     const cleanDate = (dStr) => dStr ? String(dStr).split('T')[0].trim() : '';
 
+    // 🎯 ฟังก์ชันสร้างหลอดกราฟแนวนอนแบบดั้งเดิม
+    const createBar = (label, iconHTML, count, limit, defaultColorClass, defaultTextClass) => {
+        const isFull = count >= limit && limit > 0;
+        const isAlmostFull = count >= limit - 1 && limit > 0 && !isFull;
+        
+        let barColor = defaultColorClass;
+        let txtColor = defaultTextClass;
+        
+        // กฎการเปลี่ยนสี (แดง = ล้น/เต็ม, ส้ม = ใกล้เต็ม)
+        if (isFull) {
+            barColor = 'bg-rose-500';
+            txtColor = 'text-rose-600';
+        } else if (isAlmostFull) {
+            barColor = 'bg-orange-500';
+            txtColor = 'text-orange-500';
+        }
+
+        const pct = Math.min(Math.round((count / (limit || 1)) * 100), 100);
+
+        return `
+        <div class="mb-2.5">
+            <div class="flex justify-between items-center mb-1">
+                <div class="text-[10px] font-bold text-slate-600 flex items-center gap-1.5">
+                    ${iconHTML} <span>${label}</span>
+                </div>
+                <div class="text-[10px] font-black ${txtColor}">${count}/${limit}</div>
+            </div>
+            <div class="w-full bg-slate-200/70 rounded-full h-1.5">
+                <div class="${barColor} h-1.5 rounded-full transition-all duration-300" style="width: ${pct}%"></div>
+            </div>
+        </div>`;
+    };
+
     while (current <= endCalendar) {
         const dateStr = current.toISOString().split('T')[0];
         const isOutOfRange = current < startDate || current > endDate;
         const isToday = dateStr === todayStr;
 
         if (isOutOfRange) {
-            html += `<div class="bg-slate-100/50 border border-slate-200/50 rounded p-2 min-h-[160px] opacity-40"></div>`;
+            html += `<div class="bg-slate-50 border border-slate-100 rounded-xl p-3 min-h-[160px] opacity-40"></div>`;
         } else {
-            // ดึงจำนวนงานแต่ละหมวด
             const arrivedJobs = (filteredJobs || []).filter(j => cleanDate(j.arrived_date) === dateStr || cleanDate(j.appointment_date) === dateStr);
             const targetJobs = (filteredJobs || []).filter(j => cleanDate(j.target_finish_date) === dateStr);
             const deliveredJobs = (filteredJobs || []).filter(j => cleanDate(j.delivery_date) === dateStr);
             
-            // นับจำนวนชิ้นส่วน หลัก/รอง (ประยุกต์จากการนับอะไหล่และข้อมูลในใบงาน)
-            const activeJobsForParts = [...arrivedJobs, ...targetJobs];
-            let mainCount = 0;
-            let subCount = 0;
-            activeJobsForParts.forEach(j => {
-                if (j.main_part_name && j.main_part_name !== '-') mainCount++;
-                if (j.sub_part_name && j.sub_part_name !== '-') subCount++;
-            });
+            const partOrdersArray = Array.isArray(filteredPartOrders) ? filteredPartOrders : [];
+            const countParts = partOrdersArray.filter(p => cleanDate(p.order_date) === dateStr).length;
 
-            // ดึงโควต้า
             const quotasArray = Array.isArray(allQuotas) ? allQuotas : [];
             const q = quotasArray.find(x => cleanDate(x.quota_date) === dateStr) || {};
             
             const limitIn = parseInt(q.intake_quota || 5, 10);
             const limitTar = parseInt(q.target_quota || 5, 10);
             const limitDel = parseInt(q.delivery_quota || 5, 10);
+            const limitParts = parseInt(q.parts_quota || 15, 10);
 
             const countIn = arrivedJobs.length;
             const countTar = targetJobs.length;
             const countDel = deliveredJobs.length;
 
-            // ตรวจสอบสถานะงานล้นเพื่อแสดงไอคอน ❗️
-            const isOverloaded = (countIn > limitIn) || (countTar > limitTar) || (countDel > limitDel);
+            const isPartsFull = countParts >= limitParts && limitParts > 0;
+            const partsTxtColor = isPartsFull ? 'text-rose-600' : 'text-purple-600';
 
-            // คำนวณความสูงของกราฟแท่ง (Max 100%)
-            const hIn = limitIn > 0 ? Math.min((countIn / limitIn) * 100, 100) : 0;
-            const hTar = limitTar > 0 ? Math.min((countTar / limitTar) * 100, 100) : 0;
-            const hDel = limitDel > 0 ? Math.min((countDel / limitDel) * 100, 100) : 0;
-
-            // 🎯 ฟังก์ชันสร้างกราฟแท่งแนวตั้ง
-            const renderVerticalBar = (count, limit, heightPct, baseColorClass, barColorClass) => {
-                const labelText = limit > 0 ? `${count}/${limit}` : count;
-                // ถ้าเลขเยอะ (ล้น) ให้กล่องป้ายชื่อเป็นสีแดง
-                const labelBg = (count >= limit && limit > 0) ? 'bg-red-500' : baseColorClass;
-                
-                return `
-                <div class="flex flex-col items-center justify-end h-full w-[28%]">
-                    <div class="${labelBg} text-white text-[9px] font-bold px-1 rounded-sm z-10 -mb-1 shadow-sm whitespace-nowrap">
-                        ${labelText}
-                    </div>
-                    <div class="w-full ${barColorClass} rounded-t-sm transition-all duration-300 min-h-[4px]" style="height: ${Math.max(heightPct, 5)}%;"></div>
-                </div>
-                `;
-            };
-
-            let cellClass = "bg-white border border-slate-200 p-2 min-h-[160px] flex flex-col hover:border-blue-400 hover:shadow-lg transition-all cursor-pointer relative";
+            let cellClass = "bg-white border border-slate-200 rounded-xl p-3 min-h-[160px] flex flex-col hover:border-amber-400 hover:shadow-lg transition-all cursor-pointer relative";
             if (isToday) cellClass += " ring-2 ring-amber-400 bg-amber-50/10";
 
             html += `
             <div class="${cellClass}" onclick="openCalendarModal('${dateStr}')">
-                
-                <!-- แถว 1: วันที่ + แจ้งเตือน -->
-                <div class="flex justify-between items-start mb-1 px-1">
-                    <span class="text-sm font-black ${isToday ? 'text-amber-600' : 'text-slate-600'}">${current.getDate()}</span>
-                    ${isOverloaded ? `<i class="fa-solid fa-circle-exclamation text-red-400 text-xs"></i>` : ''}
+                <div class="text-xs font-black text-slate-700 mb-3 ${isToday ? 'text-amber-600' : ''}">
+                    ${current.getDate()}
                 </div>
                 
-                <!-- แถว 2: ชิ้นส่วน หลัก/รอง -->
-                <div class="space-y-1 mb-2">
-                    <div class="flex justify-between items-center bg-blue-50/50 border border-blue-100 px-1.5 py-0.5 rounded text-[10px] font-bold">
-                        <span class="text-blue-600">หลัก:</span>
-                        <span class="text-blue-700">${mainCount}</span>
-                    </div>
-                    <div class="flex justify-between items-center bg-orange-50/50 border border-orange-100 px-1.5 py-0.5 rounded text-[10px] font-bold">
-                        <span class="text-orange-600">รอง:</span>
-                        <span class="text-orange-700">${subCount}</span>
+                <div class="flex-1 flex flex-col">
+                    ${createBar('เข้าจอด', '<i class="fa-solid fa-arrow-right-to-bracket text-blue-500 w-3"></i>', countIn, limitIn, 'bg-blue-500', 'text-blue-600')}
+                    ${createBar('เป้าเสร็จ', '<i class="fa-solid fa-flag-checkered text-amber-500 w-3"></i>', countTar, limitTar, 'bg-amber-500', 'text-amber-600')}
+                    ${createBar('ส่งมอบ', '<i class="fa-solid fa-car-side text-emerald-500 w-3"></i>', countDel, limitDel, 'bg-emerald-500', 'text-emerald-600')}
+                    
+                    <!-- ส่วนชิ้นส่วนหลัก/รอง อยู่ล่างสุดตามรูป -->
+                    <div class="mt-auto pt-2 border-t border-slate-100 flex justify-between items-center">
+                        <div class="text-[10px] font-bold text-slate-600 flex items-center gap-1.5">
+                            <i class="fa-solid fa-puzzle-piece text-purple-500 w-3"></i> ชิ้นส่วนหลัก/รอง
+                        </div>
+                        <div class="text-[10px] font-black ${partsTxtColor}">${countParts}/${limitParts}</div>
                     </div>
                 </div>
-
-                <!-- แถว 3: กราฟแท่งแนวตั้ง 3 แท่ง (เข้าจอด, เป้าเสร็จ, ส่งมอบ) -->
-                <div class="flex-1 flex items-end justify-center gap-1.5 h-[60px] mt-auto border-t border-slate-100 pt-2">
-                    ${renderVerticalBar(countIn, limitIn, hIn, 'bg-blue-600', 'bg-blue-400')}
-                    ${renderVerticalBar(countTar, limitTar, hTar, 'bg-emerald-500', 'bg-emerald-400')}
-                    ${renderVerticalBar(countDel, limitDel, hDel, 'bg-purple-500', 'bg-purple-400')}
-                </div>
-
             </div>`;
         }
         current.setDate(current.getDate() + 1);
     }
     grid.innerHTML = html;
 }
+
 // 🎯 ฟังก์ชันสำหรับคลิกดูรายละเอียดรถทุกประเภทในวันนั้น
 function openCalendarModal(dateStr) {
     if(document.getElementById('modal_status_name')) {
