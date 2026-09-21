@@ -1,16 +1,16 @@
 // ==========================================
-// 🛠️ HELPER: แปลงวันที่ทุกรูปแบบเป็น YYYY-MM-DD แบบ Local
+// 🛠️ HELPER FUNCTIONS
 // ==========================================
-function formatDateKey(val) {
-    if (!val) return '';
-    let str = String(val).trim();
-    if (!str || str === 'null' || str === 'undefined' || str === '-') return '';
+function cleanDate(dStr) {
+    if (!dStr) return '';
+    let s = String(dStr).trim();
+    if (!s || s === 'null' || s === 'undefined' || s === '-') return '';
     
-    if (str.includes('T')) str = str.split('T')[0];
-    if (str.includes(' ')) str = str.split(' ')[0];
+    if (s.includes('T')) s = s.split('T')[0];
+    if (s.includes(' ')) s = s.split(' ')[0];
     
-    if (str.includes('/')) {
-        const parts = str.split('/');
+    if (s.includes('/')) {
+        const parts = s.split('/');
         if (parts.length === 3) {
             let d = parts[0].padStart(2, '0');
             let m = parts[1].padStart(2, '0');
@@ -20,8 +20,8 @@ function formatDateKey(val) {
         }
     }
     
-    if (str.includes('-')) {
-        const parts = str.split('-');
+    if (s.includes('-')) {
+        const parts = s.split('-');
         if (parts.length === 3) {
             let y = parseInt(parts[0], 10);
             if (y > 2500) y -= 543;
@@ -30,7 +30,7 @@ function formatDateKey(val) {
             return `${y}-${m}-${d}`;
         }
     }
-    return str;
+    return s;
 }
 
 function isTrue(val) {
@@ -221,9 +221,9 @@ function renderStationTable() {
     const today = new Date(); today.setHours(0,0,0,0);
 
     tbody.innerHTML = inRepairCars.map(j => {
-        const target = j.target_finish_date ? formatDateKey(j.target_finish_date) : '-';
-        const actual = j.repair_finish_date ? formatDateKey(j.repair_finish_date) : '-';
-        const delivery = j.delivery_date ? formatDateKey(j.delivery_date) : '-';
+        const target = j.target_finish_date ? cleanDate(j.target_finish_date) : '-';
+        const actual = j.repair_finish_date ? cleanDate(j.repair_finish_date) : '-';
+        const delivery = j.delivery_date ? cleanDate(j.delivery_date) : '-';
         const station = computeHighestStationIFS(j);
         
         let overdueWarning = '';
@@ -281,9 +281,9 @@ function renderParkedCars() {
                 <td class="font-bold text-slate-800 px-4 py-3 text-xs">${j.car_brand || ''} ${j.car_model || ''}</td>
                 <td class="truncate max-w-[150px] font-medium text-slate-700 px-4 py-3 text-xs">${j.customer_name || '-'}</td>
                 <td class="font-bold text-orange-600 text-xs px-4 py-3"><i class="fa-solid fa-wrench"></i> ${computeHighestStationIFS(j).replace(/[0-9.]/g, '')}</td>
-                <td class="font-mono text-xs text-blue-600 text-center font-bold px-4 py-3">${j.target_finish_date ? formatDateKey(j.target_finish_date) : '-'}</td>
-                <td class="font-mono text-xs text-emerald-600 text-center font-bold px-4 py-3">${j.repair_finish_date ? formatDateKey(j.repair_finish_date) : '-'}</td>
-                <td class="font-mono text-xs text-purple-600 text-center font-bold px-4 py-3">${j.delivery_date ? formatDateKey(j.delivery_date) : '-'}</td>
+                <td class="font-mono text-xs text-blue-600 text-center font-bold px-4 py-3">${j.target_finish_date ? cleanDate(j.target_finish_date) : '-'}</td>
+                <td class="font-mono text-xs text-emerald-600 text-center font-bold px-4 py-3">${j.repair_finish_date ? cleanDate(j.repair_finish_date) : '-'}</td>
+                <td class="font-mono text-xs text-purple-600 text-center font-bold px-4 py-3">${j.delivery_date ? cleanDate(j.delivery_date) : '-'}</td>
                 <td class="font-bold text-slate-600 text-[11px] px-4 py-3"><span class="bg-slate-100 border border-slate-200 px-2 py-1 rounded shadow-sm">${j.job_status || '-'}</span></td>
                 <td class="text-center px-4 py-3">
                     <button class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full whitespace-nowrap" onclick="event.stopPropagation(); sessionStorage.setItem('edit_job_id', '${j.id}'); window.location.href='index.html';">
@@ -307,7 +307,7 @@ function renderCalendarByRange(startStr, endStr) {
         return;
     }
     
-    // Parse วันที่แบบ Local ป้องกัน Timezone Shift
+    // Parse วันที่ตามเวลา Local เพื่อความแม่นยำ 100%
     const sParts = startStr.split('-');
     const eParts = endStr.split('-');
     const startDate = new Date(parseInt(sParts[0], 10), parseInt(sParts[1], 10) - 1, parseInt(sParts[2], 10));
@@ -345,28 +345,31 @@ function renderCalendarByRange(startStr, endStr) {
         if (isOutOfRange) {
             html += `<div class="bg-slate-50/50 border border-slate-100 rounded-xl p-3 min-h-[160px] opacity-40"></div>`;
         } else {
-            // 🎯 กรองข้อมูลโดยใช้ formatDateKey ให้ตรงเป๊ะทุกฟอร์แมต
-            const arrJobs = jobsData.filter(j => formatDateKey(j.arrived_date) === dateStr || formatDateKey(j.appointment_date) === dateStr);
-            const tarJobs = jobsData.filter(j => formatDateKey(j.target_finish_date) === dateStr);
-            const delJobs = jobsData.filter(j => formatDateKey(j.delivery_date) === dateStr);
+            // 🎯 กรองข้อมูลด้วย cleanDate ให้ตรงกับ YYYY-MM-DD
+            const arrJobs = jobsData.filter(j => cleanDate(j.arrived_date) === dateStr || cleanDate(j.appointment_date) === dateStr);
+            const tarJobs = jobsData.filter(j => cleanDate(j.target_finish_date) === dateStr);
+            const delJobs = jobsData.filter(j => cleanDate(j.delivery_date) === dateStr);
             
             let mainCount = 0; 
             let subCount = 0;
             const uniqueJobsForDay = new Map();
             [...arrJobs, ...tarJobs, ...delJobs].forEach(j => { if(j && j.id) uniqueJobsForDay.set(j.id, j); });
             
+            // คำนวณจำนวนชิ้นส่วนจริงตามตรรกะใน repair.js
             uniqueJobsForDay.forEach(j => {
-                if (j.main_part_name && j.main_part_name !== '-' && String(j.main_part_name).trim() !== '') mainCount++;
-                if (j.sub_part_name && j.sub_part_name !== '-' && String(j.sub_part_name).trim() !== '') subCount++;
+                let mQty = Number(j.main_part_qty) || (j.main_part_name ? String(j.main_part_name).split(',').filter(Boolean).length : 0);
+                let sQty = Number(j.sub_part_qty) || (j.sub_part_name ? String(j.sub_part_name).split(',').filter(Boolean).length : 0);
+                mainCount += mQty;
+                subCount += sQty;
             });
 
-            const q = quotasData.find(x => formatDateKey(x.quota_date) === dateStr) || {};
+            const q = quotasData.find(x => cleanDate(x.quota_date) === dateStr) || {};
             
             const limitIn = parseInt(q.intake_quota || 50, 10);
             const limitTar = parseInt(q.target_quota || 30, 10);
             const limitDel = parseInt(q.delivery_quota || 30, 10);
-            const limitParts = parseInt(q.parts_quota || 50, 10);
-            const limitSubParts = parseInt(q.sub_parts_quota || 30, 10); 
+            const limitParts = parseInt(q.max_main_parts || q.parts_quota || 50, 10);
+            const limitSubParts = parseInt(q.max_sub_parts || q.sub_parts_quota || 30, 10); 
 
             const countIn = arrJobs.length;
             const countTar = tarJobs.length;
@@ -453,9 +456,9 @@ function openCalendarModal(dateStr) {
         : ((typeof allJobs !== 'undefined' && Array.isArray(allJobs)) ? allJobs : []);
         
     const jobsToShow = jobsData.filter(j => {
-        return (j.arrived_date && formatDateKey(j.arrived_date) === dateStr) || 
-               (j.target_finish_date && formatDateKey(j.target_finish_date) === dateStr) || 
-               (j.delivery_date && formatDateKey(j.delivery_date) === dateStr);
+        return (j.arrived_date && cleanDate(j.arrived_date) === dateStr) || 
+               (j.target_finish_date && cleanDate(j.target_finish_date) === dateStr) || 
+               (j.delivery_date && cleanDate(j.delivery_date) === dateStr);
     });
     if(typeof renderJobTableInModalGroupedBySA === 'function') renderJobTableInModalGroupedBySA(jobsToShow);
     if(document.getElementById('jobListModal')) document.getElementById('jobListModal').classList.remove('hidden');
