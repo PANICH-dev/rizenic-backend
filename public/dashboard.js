@@ -199,7 +199,7 @@ async function fetchDashboardData() {
     }
 }
 
-ffunction applyFilters() {
+function applyFilters() {
     const filterSelect = document.getElementById('branchFilter');
     const selectedBranch = filterSelect ? filterSelect.value : 'all';
     
