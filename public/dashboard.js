@@ -358,7 +358,7 @@ function renderPartsTracking(partOrders) {
     }
 }
 // =====================================
-// 📱 LINE MESSAGING API REPORT SYSTEM (ยิงผ่าน Backend app.js)
+// 📱 LINE MESSAGING API REPORT SYSTEM (ยิงผ่าน Backend API 100%)
 // =====================================
 async function sendReportToLine(branchName) {
     const btnId = `btnSendLine_${branchName}`;
@@ -370,8 +370,6 @@ async function sendReportToLine(branchName) {
         btn.disabled = true;
     }
 
-    let msg = '';
-
     try {
         const start = document.getElementById('report_start_date')?.value || getFirstDayOfMonth();
         const end = document.getElementById('report_end_date')?.value || getLastDayOfMonth();
@@ -380,7 +378,7 @@ async function sendReportToLine(branchName) {
         const branchJobs = allJobs.filter(j => isSameBranch(j.branch_name, branchName));
 
         // 📝 1. สร้างหัวรายงานให้เป๊ะตามแบบที่ให้มา
-        msg += `📋 RIZENIC Report\n`;
+        let msg = `📋 RIZENIC Report\n`;
         msg += `🏢 สาขา: สาขา${branchName === 'Navamin' ? 'นวมินทร์' : 'รังสิต'}\n`;
         msg += `📅 ช่วงเวลา: ${start} ถึง ${end}\n\n`;
 
@@ -407,33 +405,27 @@ async function sendReportToLine(branchName) {
             });
         }
 
-        // 🚀 3. ยิงข้อความไปที่ Backend ของเรา (app.js) ให้มันจัดการยิง Push Message ให้
+        // 🚀 3. ยิงข้อความไปที่ Backend ของเรา (app.js) ตรงๆ 100%
         const res = await fetch(`${API_BASE_URL}/api/send-line-notify`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ 
-                branch: branchName, // ใช้คำว่า Navamin หรือ Rangsit ส่งไปให้ app.js เช็ก
+                branch: branchName, 
                 message: msg.trim() 
             })
         });
 
         if(res.ok) {
-            alert(`✅ ส่งรายงานสาขา ${branchName === 'Navamin' ? 'นวมินทร์' : 'รังสิต'} เข้ากลุ่ม LINE เรียบร้อยแล้ว!`);
+            alert(`✅ ส่งรายงานสาขา ${branchName === 'Navamin' ? 'นวมินทร์' : 'รังสิต'} เข้ากลุ่ม LINE สำเร็จแล้ว!`);
         } else {
             const err = await res.json();
-            throw new Error(err.error || "เกิดข้อผิดพลาดในการส่งข้อมูล");
+            alert(`❌ ไม่สามารถส่ง LINE ได้ (API Error): ${err.error || 'Unknown Error'}`);
         }
 
     } catch(e) {
-        // 🛡️ ระบบสำรอง กรณี API หลังบ้านตายหรือไม่ตอบสนอง
-        if (msg) {
-            await navigator.clipboard.writeText(msg.trim());
-            alert(`⚠️ ส่งข้อความเข้ากลุ่มไม่สำเร็จ: ${e.message}\n\n✅ แต่ระบบได้ทำการ Copy รายงานตามรูปแบบเป๊ะๆ ไว้ให้แล้ว!\nนายสามารถกด "วาง (Paste)" ลงในกลุ่ม LINE เพื่อส่งรายงานแบบ Manual ได้เลยครับ!`);
-        } else {
-            alert('เกิดข้อผิดพลาดในการสร้างรายงาน');
-        }
+        alert(`❌ เชื่อมต่อ API ไม่สำเร็จ: ${e.message}`);
     } finally {
         // 🔄 คืนค่าปุ่มให้กลับมาเหมือนเดิม
         if(btn) {
