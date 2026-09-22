@@ -357,3 +357,103 @@ function renderPartsTracking(partOrders) {
         }
     }
 }
+
+// =====================================
+// 📱 LINE NOTIFY REPORT SYSTEM
+// =====================================
+async function sendReportToLine(branchName) {
+    const btnId = `btnSendLine_${branchName}`;
+    const btn = document.getElementById(btnId);
+    const originalHtml = btn ? btn.innerHTML : '';
+    
+    // เปลี่ยนปุ่มเป็นสถานะโหลด
+    if(btn) {
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin text-base"></i> กำลังสรุปข้อมูล...';
+        btn.disabled = true;
+    }
+
+    try {
+        const start = document.getElementById('report_start_date')?.value || getFirstDayOfMonth();
+        const end = document.getElementById('report_end_date')?.value || getLastDayOfMonth();
+        const todayDate = new Date().toISOString().split('T')[0]; 
+        
+        // 🎯 กรองเฉพาะสาขาที่กดส่ง
+        const branchJobs = allJobs.filter(j => isSameBranch(j.branch_name, branchName));
+
+        // -- คำนวณ Today (วันนี้) --
+        const arrivedToday = branchJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === todayDate).length;
+        const repairDoneToday = branchJobs.filter(j => j.repair_finish_date && j.repair_finish_date.split('T')[0] === todayDate).length;
+        const deliveryToday = branchJobs.filter(j => (j.job_status||'').includes('ส่งมอบ') && !(j.job_status||'').includes('ซ่อมเสร็จรอส่งมอบ') && j.delivery_date && j.delivery_date.split('T')[0] === todayDate).length;
+
+        // -- คำนวณสถานะปัจจุบัน (ภาพรวม) --
+        const stWaitInsur = branchJobs.filter(j => (j.job_status||'').includes('รอเสนอประกัน')).length;
+        const stWaitApprove = branchJobs.filter(j => (j.job_status||'').includes('รอประกันอนุมัติ')).length;
+        const stWaitCust = branchJobs.filter(j => (j.job_status||'').includes('รอลูกค้าอนุมัติ')).length;
+        const stApproved = branchJobs.filter(j => (j.job_status||'').includes('อนุมัติแล้ว')).length;
+        const stParts = branchJobs.filter(j => (j.job_status||'').includes('สั่งอะไหล่')).length;
+        const stParked = branchJobs.filter(j => (j.job_status||'').includes('จอดรอเข้าซ่อม')).length;
+        const stRepairing = branchJobs.filter(j => (j.job_status||'').includes('กำลังซ่อม')).length;
+        const stDoneWait = branchJobs.filter(j => (j.job_status||'').includes('ซ่อมเสร็จรอส่งมอบ')).length;
+
+        // -- คำนวณการเงิน (ตามช่วงเวลาที่เลือก) --
+        const fInsur = branchJobs.filter(j => (j.job_status||'').includes('วางบิลประกัน') && isDateInRange(j.billing_date, start, end)).length;
+        const fCash = branchJobs.filter(j => (j.job_status||'').includes('ชำระเงินสด') && isDateInRange(j.billing_date, start, end)).length;
+        const fTesla = branchJobs.filter(j => (j.job_status||'').includes('วางบิล Tesla') && isDateInRange(j.billing_date, start, end)).length;
+        const fEvme = branchJobs.filter(j => ((j.job_status||'').includes('วางบิล EV ME') || (j.job_status||'').includes('วางบิล EVME')) && isDateInRange(j.billing_date, start, end)).length;
+
+        // แปลงวันที่ให้สวยงาม
+        const dStartStr = new Date(start).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+        const dEndStr = new Date(end).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+
+        // 📝 จัดหน้าตาข้อความที่จะส่งเข้า Line
+        let msg = `📊 *รายงาน RIZENIC ประจำวัน*\n`;
+        msg += `🏢 สาขา: ${branchName === 'Navamin' ? 'นวมินทร์' : 'รังสิต'}\n`;
+        msg += `📅 ประจำวันที่: ${new Date().toLocaleDateString('th-TH', {day: 'numeric', month:'long', year:'numeric'})}\n`;
+        msg += `--------------------------------------\n`;
+        msg += `🔥 *ผลงานวันนี้ (Today)*\n`;
+        msg += `📥 รถเข้าจอด: ${arrivedToday} คัน\n`;
+        msg += `🔧 ซ่อมเสร็จ: ${repairDoneToday} คัน\n`;
+        msg += `🎁 ส่งมอบ: ${deliveryToday} คัน\n\n`;
+
+        msg += `📌 *สถานะงานซ่อมปัจจุบัน*\n`;
+        msg += `- รอเสนอประกัน: ${stWaitInsur} คัน\n`;
+        msg += `- รอประกันอนุมัติ: ${stWaitApprove} คัน\n`;
+        msg += `- รอลูกค้าอนุมัติ: ${stWaitCust} คัน\n`;
+        msg += `- อนุมัติแล้ว: ${stApproved} คัน\n`;
+        msg += `- สั่งอะไหล่: ${stParts} คัน\n`;
+        msg += `- จอดรอเข้าซ่อม: ${stParked} คัน\n`;
+        msg += `- กำลังซ่อม: ${stRepairing} คัน\n`;
+        msg += `- ซ่อมเสร็จรอส่งมอบ: ${stDoneWait} คัน\n\n`;
+
+        msg += `💰 *การเงินและออกบิล (${dStartStr} - ${dEndStr})*\n`;
+        msg += `- วางบิลประกัน: ${fInsur} คัน\n`;
+        msg += `- ชำระเงินสด: ${fCash} คัน\n`;
+        msg += `- วางบิล Tesla: ${fTesla} คัน\n`;
+        msg += `- วางบิล EV ME: ${fEvme} คัน\n`;
+        msg += `--------------------------------------`;
+
+        // 🚀 ทดลองยิงเข้า API หลังบ้าน (ถ้านายมีเตรียมไว้)
+        const res = await fetch(`${API_BASE_URL}/api/send-line-notify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: msg, branch: branchName })
+        });
+
+        if(res.ok) {
+            alert(`✅ ส่งรายงานสาขา ${branchName === 'Navamin' ? 'นวมินทร์' : 'รังสิต'} เข้ากลุ่ม Line เรียบร้อยแล้ว!`);
+        } else {
+            throw new Error("API Line Notify Not Found");
+        }
+    } catch(e) {
+        // 🛡️ ระบบสำรอง (Fallback): ถ้าหลังบ้านไม่มี API ให้ Copy ลง Clipboard แทน
+        console.warn("Line API might not be configured, falling back to Clipboard.");
+        await navigator.clipboard.writeText(msg);
+        alert(`⚠️ ระบบเชื่อมต่อ Line อัตโนมัติอาจจะยังไม่ได้ตั้งค่า\n\n✅ แต่ระบบได้คัดลอกข้อความสรุปรายงาน (Copy) ไว้ให้แล้วครับ!\n\nนายสามารถกด "วาง (Paste)" ลงในกลุ่ม Line เพื่อส่งรายงานได้เลยครับ!`);
+    } finally {
+        // คืนค่าปุ่มกลับมาเหมือนเดิม
+        if(btn) {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+    }
+}
