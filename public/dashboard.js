@@ -358,7 +358,7 @@ function renderPartsTracking(partOrders) {
     }
 }
 // =====================================
-// 📱 LINE MESSAGING API REPORT SYSTEM
+// 📱 LINE MESSAGING API REPORT SYSTEM (ยิงผ่าน Backend app.js)
 // =====================================
 async function sendReportToLine(branchName) {
     const btnId = `btnSendLine_${branchName}`;
@@ -379,7 +379,7 @@ async function sendReportToLine(branchName) {
         // 🎯 ดึงข้อมูลเฉพาะสาขาที่กดส่ง
         const branchJobs = allJobs.filter(j => isSameBranch(j.branch_name, branchName));
 
-        // 📝 1. สร้างหัวรายงาน
+        // 📝 1. สร้างหัวรายงานให้เป๊ะตามแบบที่ให้มา
         msg += `📋 RIZENIC Report\n`;
         msg += `🏢 สาขา: สาขา${branchName === 'Navamin' ? 'นวมินทร์' : 'รังสิต'}\n`;
         msg += `📅 ช่วงเวลา: ${start} ถึง ${end}\n\n`;
@@ -407,40 +407,35 @@ async function sendReportToLine(branchName) {
             });
         }
 
-        // 🔑 3. Token สำหรับ LINE Messaging API (Broadcast)
-        const tokens = {
-            'Navamin': '5+CtgK2jCINRJW0Ddz/18TrLbE1hq68iVdOyZTvgwYeQWA2okMHoFfPYUK4MlKMf1Y+JqSn4Bodqk7i0DThvO+DTOmwzsyiNxwGqTctqo/QJBlbdYsb97BF981TiVnNO6ufvV6767mS0qkzJWGKgegdB04t89/1O/w1cDnyilFU=',
-            'Rangsit': 'uWGDH1BPHvILvBn7Hyeimv20W8ITfbUpGV2jfy1ujMUjvFxceSEtpM50S9vAcJmy05ybn6g/wHspfuTbfUuAI5UCB2RkifntfIeOT9EOo09FfQel63guAJgMs8zhAbbP0dq8fMENKirsWXoFzYMaXgdB04t89/1O/w1cDnyilFU='
-        };
-        const token = tokens[branchName];
-
-        // 🚀 4. ยิง API Line Broadcast เพื่อส่งให้ทุกคนที่ติดตามบอทนี้
-        const res = await fetch('https://api.line.me/v2/bot/message/broadcast', {
+        // 🚀 3. ยิงข้อความไปที่ Backend ของเรา (app.js) ให้มันจัดการยิง Push Message ให้
+        const res = await fetch(`${API_BASE_URL}/api/send-line-notify`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                messages: [{ type: 'text', text: msg.trim() }]
+            body: JSON.stringify({ 
+                branch: branchName, // ใช้คำว่า Navamin หรือ Rangsit ส่งไปให้ app.js เช็ก
+                message: msg.trim() 
             })
         });
 
         if(res.ok) {
-            alert(`✅ ส่งรายงานสาขา ${branchName === 'Navamin' ? 'นวมินทร์' : 'รังสิต'} เข้า LINE เรียบร้อยแล้ว!`);
+            alert(`✅ ส่งรายงานสาขา ${branchName === 'Navamin' ? 'นวมินทร์' : 'รังสิต'} เข้ากลุ่ม LINE เรียบร้อยแล้ว!`);
         } else {
-            throw new Error("CORS or API Error");
+            const err = await res.json();
+            throw new Error(err.error || "เกิดข้อผิดพลาดในการส่งข้อมูล");
         }
 
     } catch(e) {
-        // 🛡️ 5. ระบบสำรอง: เบราว์เซอร์บล็อก (CORS) ให้ก๊อปปี้แทน
+        // 🛡️ ระบบสำรอง กรณี API หลังบ้านตายหรือไม่ตอบสนอง
         if (msg) {
             await navigator.clipboard.writeText(msg.trim());
-            alert(`⚠️ ระบบความปลอดภัยของเบราว์เซอร์ (CORS) ป้องกันการยิง API ตรงๆ ครับ\n\n✅ แต่ระบบได้ทำการ Copy รายงานตามรูปแบบเป๊ะๆ ไว้ให้แล้ว!\n\nนายกด "วาง (Paste)" ลงในกลุ่ม LINE เพื่อส่งรายงานได้เลยครับ!`);
+            alert(`⚠️ ส่งข้อความเข้ากลุ่มไม่สำเร็จ: ${e.message}\n\n✅ แต่ระบบได้ทำการ Copy รายงานตามรูปแบบเป๊ะๆ ไว้ให้แล้ว!\nนายสามารถกด "วาง (Paste)" ลงในกลุ่ม LINE เพื่อส่งรายงานแบบ Manual ได้เลยครับ!`);
         } else {
-            alert('เกิดข้อผิดพลาดในการดึงข้อมูลรายงาน');
+            alert('เกิดข้อผิดพลาดในการสร้างรายงาน');
         }
     } finally {
+        // 🔄 คืนค่าปุ่มให้กลับมาเหมือนเดิม
         if(btn) {
             btn.innerHTML = originalHtml;
             btn.disabled = false;
