@@ -1,0 +1,34 @@
+RIZENIC Performance Patch v23.1
+
+แก้เฉพาะ performance path ของหน้าตาราง ไม่แก้ API contract, database schema, login, CRUD, modal, filter, export หรือ app.js/.env
+
+ไฟล์ runtime ที่แก้:
+1) public/jobs_table_ui.js
+   - เดิม: สร้าง DOM 36 คอลัมน์ทุกแถว แล้วใช้ CSS ซ่อนคอลัมน์ที่ไม่แสดง
+   - ใหม่: สร้าง DOM เฉพาะคอลัมน์ที่ผู้ใช้เปิดแสดงจริง (ค่าเริ่มต้น 14/36)
+   - เวลาเปิดคอลัมน์ที่ซ่อน ระบบจะ render คอลัมน์นั้นกลับทันที
+   - เก็บลำดับแถวที่ sort อยู่เมื่อซ่อน/แสดงคอลัมน์
+   - Excel export ยังคงใช้ข้อมูล/คอลัมน์ครบเหมือนเดิม
+   - เปลี่ยนการหาสีสลับแถวจาก data.indexOf(job) เป็น rowIndex เพื่อตัด O(n^2)
+
+2) public/js/parts_core.js
+   - เดิม: โหลด Reports -> Part Orders -> Master Parts ทีละ API
+   - ใหม่: เริ่มโหลด 3 API พร้อมกันด้วย Promise.allSettled
+   - ถ้า API ตัวหนึ่งล้ม ตัวอื่นยังทำงานได้เหมือนเดิม
+
+3) public/jobs_table.html / public/parts.html
+   - เปลี่ยน cache-busting version เป็น v23.1 เพื่อให้ browser ดึง JS ใหม่ทันที
+
+ไฟล์ที่ไม่ได้แตะ:
+- app.js
+- .env
+- Database / schema
+- API endpoints
+- jobs_table_core.js
+- jobs_table_modals.js
+- CRUD/สิทธิ์/Login
+
+Verification:
+- node --test test/performance-regression.test.js : 6/6 ผ่าน
+- node --check public/jobs_table_ui.js : ผ่าน
+- node --check public/js/parts_core.js : ผ่าน

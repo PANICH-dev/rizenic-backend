@@ -7,6 +7,7 @@
     <title>RIZENIC ERP - Job Tracking Board & SA Overview</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="table_scroll_fix.css?v=1.6">
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap');
@@ -38,6 +39,7 @@
         .modal-fade { animation: fadeInScale 0.2s ease-out forwards; }
         @keyframes fadeInScale { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
     </style>
+    <link rel="stylesheet" href="ui_global.css?v=1.1">
 </head>
 <body class="text-slate-800 h-screen flex flex-col selection:bg-[#00320D] selection:text-white">
 
@@ -106,7 +108,7 @@
                 <div class="flex items-center gap-2 w-full sm:w-auto">
                     <div class="relative flex-1 sm:w-64">
                         <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                        <input type="text" id="sa_search_plate_input" onkeypress="if(event.key==='Enter') searchCarByPlateFromSAView()" class="w-full pl-8 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:border-amber-500 shadow-sm" placeholder="🔍 ค้นหาทะเบียนในหน้านี้...">
+                        <input type="text" id="sa_search_plate_input" onkeypress="if(event.key==='Enter') searchCarByPlateFromSAView()" class="w-full pl-8 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:border-amber-500 shadow-sm" placeholder="ค้นหาทะเบียนในหน้านี้...">
                     </div>
                     <button onclick="loadJobsData()" class="px-4 py-2 bg-white text-slate-700 font-bold border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 transition text-xs flex items-center gap-1.5"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
                 </div>
@@ -212,7 +214,8 @@
                 <div class="bg-slate-50 px-5 py-3.5 border-b border-slate-200 flex justify-between items-center">
                     <h3 class="font-black text-[#00320D]"><i class="fa-solid fa-car text-amber-500"></i> รถกำลังจอดซ่อมในศูนย์</h3>
                 </div>
-                <div class="flex-1 overflow-auto custom-scrollbar p-1.5 bg-slate-100">
+                <div class="flex-1 min-h-0 overflow-hidden rz-table-clip-shell">
+                    <div class="h-full overflow-auto custom-scrollbar p-1.5 bg-slate-100 rz-table-scroll-surface">
                     <table class="excel-table-green" id="parkedTable">
                         <thead>
                             <tr>
@@ -227,6 +230,7 @@
                         <tbody id="sa_parked_body"></tbody>
                     </table>
                 </div>
+                </div>
             </div>
 
             <!-- PO Tracking (โฉมใหม่) -->
@@ -240,7 +244,8 @@
                         </div>
                     </div>
                 </div>
-                <div class="flex-1 overflow-auto custom-scrollbar p-1.5 bg-slate-100">
+                <div class="flex-1 min-h-0 overflow-hidden rz-table-clip-shell">
+                    <div class="h-full overflow-auto custom-scrollbar p-1.5 bg-slate-100 rz-table-scroll-surface">
                     <table class="excel-table-green w-full" id="poTable">
                         <thead>
                             <tr>
@@ -258,6 +263,7 @@
                         </thead>
                         <tbody id="sa_po_body" class="divide-y divide-slate-200"></tbody>
                     </table>
+                </div>
                 </div>
             </div>
         </div>
@@ -323,6 +329,8 @@
     </div>
 
     <datalist id="master_parts_datalist"></datalist>
-<script src="jobs.js?v=2.3"></script>
+    <script src="table_pagination.js?v=1.1"></script>
+    <script src="table_viewport_lock.js?v=1.0"></script>
+<script src="jobs.js?v=2.5"></script>
 </body>
 </html>

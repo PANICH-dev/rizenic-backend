@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIZENIC ERP - Parts Department</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="table_scroll_fix.css?v=1.5">
+    
+    <style type="text/tailwindcss">
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap');
+        body { font-family: 'Kanit', sans-serif; background-color: #f1f5f9; overflow: hidden; }
+        .bg-rizenic-green { background-color: #00320D; }
+        
+        .custom-scrollbar::-webkit-scrollbar { height: 10px; width: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; border: 2px solid #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
+        
+        .parts-tab-content { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .parts-tab-content.active { display: flex; flex-direction: column; height: 100%; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .minimal-input { @apply w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-lg outline-none transition-all duration-200 text-sm font-bold text-[#00320D] focus:border-[#00320D] focus:ring-4 focus:ring-green-500/10 focus:bg-white shadow-sm; }
+        .minimal-input[readonly] { @apply bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed shadow-none font-medium; }
+        .card-container { @apply bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-4 flex flex-col flex-1; }
+        .label-text { @apply flex items-center gap-1.5 text-[11px] font-bold text-slate-500 mb-1.5 tracking-wide uppercase; }
+        
+        .modern-table { @apply w-full text-left border-collapse whitespace-nowrap text-[12px] bg-white; table-layout: fixed; }
+        .modern-table thead th { @apply relative px-2 py-2.5 bg-[#00320D] text-white border border-slate-500 font-bold sticky top-0 z-10 shadow-md align-middle select-none; }
+        .modern-table tbody td { @apply p-1 border border-slate-200 text-slate-700 align-middle overflow-hidden; }
+        .modern-table tbody tr:hover td { @apply bg-green-50/40 transition-colors; }
+        
+        .inline-edit-input { @apply w-full h-full border-0 bg-transparent px-3 py-2 outline-none font-medium text-slate-900 transition-colors hover:bg-slate-50 focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-xs; }
+        .inline-edit-select { @apply w-full h-full border-0 bg-transparent px-2 py-2 outline-none font-bold text-slate-800 transition-colors cursor-pointer hover:bg-slate-50 focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-[11px]; }
+        .filter-icon.active { color: #f59e0b !important; }
+    </style>
+</head>
+<body class="text-slate-800 h-screen flex flex-col selection:bg-[#00320D] selection:text-white">
+
+    <!-- 🌟 Login Screen 🌟 -->
+    <div id="login-screen" class="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-[100] flex items-center justify-center">
+        <div class="bg-white p-10 rounded-3xl shadow-2xl w-full max-w-md text-center transform transition-all border border-slate-200">
+            <div class="flex items-center justify-center gap-3 mb-6"><div class="bg-gradient-to-tr from-[#00320D] to-green-600 w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg"><i class="fa-solid fa-boxes-stacked text-2xl text-white"></i></div></div>
+            <h1 class="text-2xl font-black tracking-widest text-slate-800 mb-1">RIZENIC <span class="text-amber-500">PARTS</span></h1>
+            <h2 class="text-slate-500 mb-8 font-bold text-xs tracking-wide uppercase">Workspace Login</h2>
+            <form onsubmit="handleLogin(event)" class="space-y-5">
+                <div class="text-left"><label class="label-text">Username</label><input type="text" id="login_user" required class="minimal-input" placeholder="Enter your ID"></div>
+                <div class="text-left mb-6"><label class="label-text">Password</label><input type="password" id="login_pass" required class="minimal-input font-mono" placeholder="••••••••"></div>
+                <button type="submit" class="w-full py-3.5 bg-[#00320D] hover:bg-black text-white font-bold rounded-xl shadow-lg shadow-green-900/30 transition-all duration-300 transform hover:-translate-y-1">เข้าสู่ระบบ <i class="fa-solid fa-arrow-right-to-bracket ml-2"></i></button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 🌟 Main App Wrapper 🌟 -->
+    <div id="main-app" class="hidden flex-col h-full w-full">
+
+        <div id="toastMsg" class="fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 translate-y-20 opacity-0 z-[200] flex items-center gap-2 border border-white/20">
+            <span id="toastContent"><i class="fa-solid fa-circle-check text-xl"></i> บันทึกข้อมูลสำเร็จ!</span>
+        </div>
+
+        <header class="bg-[#00320D] text-white shadow-lg z-50 shrink-0 border-b-4 border-amber-500">
+            <div class="px-6 py-3 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/20 shadow-inner">
+                        <i class="fa-solid fa-boxes-stacked text-amber-400 text-lg"></i>
+                    </div>
+                    <h1 class="text-xl font-bold tracking-widest">RIZENIC <span class="text-amber-400 font-black">PARTS</span></h1>
+                </div>
+                <nav class="flex items-center gap-4">
+                    <div class="text-right border-r border-white/20 pr-4">
+                        <p class="text-xs font-bold text-white flex items-center justify-end gap-2"><i class="fa-solid fa-circle-user text-amber-400"></i> <span id="display_emp_name">Parts Staff</span></p>
+                        <p class="text-[10px] text-green-300">สาขา: <span id="display_branch" class="font-bold">Branch</span></p>
+                    </div>
+                    <div class="flex gap-2">
+                        <a href="dashboard.html" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white hover:text-[#00320D] font-bold text-xs transition border border-white/20 shadow-sm"><i class="fa-solid fa-chart-line"></i> แดชบอร์ด</a>
+                        <a href="index.html" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white hover:text-[#00320D] font-bold text-xs transition border border-white/20 shadow-sm"><i class="fa-solid fa-house"></i> กลับหน้า SA</a>
+                        <button onclick="logout()" class="px-3 py-2 bg-red-500/80 hover:bg-red-500 rounded-lg text-white text-xs transition shadow-sm"><i class="fa-solid fa-power-off"></i></button>
+                    </div>
+                </nav>
+            </div>
+        </header>
+
+        <div class="bg-white border-b border-slate-200 z-40 shrink-0 shadow-sm">
+            <div class="flex overflow-x-auto custom-scrollbar px-2 pt-2">
+                <button onclick="switchTab('tab-alert')" id="btn-tab-alert" class="px-6 py-3.5 text-sm font-bold border-b-2 border-[#00320D] text-[#00320D] flex items-center gap-2 whitespace-nowrap bg-green-50/80 rounded-t-xl transition-all"><i class="fa-solid fa-bell text-amber-500 animate-bounce"></i> 1. แจ้งเตือนสั่งอะไหล่ (SA Alerts) <span id="alert_count" class="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full hidden shadow-sm">0</span></button>
+                <button onclick="switchTab('tab-master')" id="btn-tab-master" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 whitespace-nowrap rounded-t-xl transition-all"><i class="fa-solid fa-database text-slate-400"></i> 2. ข้อมูลมาสเตอร์ (Master Data)</button>
+            </div>
+        </div>
+
+        <main class="flex-1 overflow-y-auto p-4 flex flex-col h-full bg-slate-100">
+
+            <!-- 🔔 1. แจ้งเตือน SA -->
+            <section id="tab-alert" class="parts-tab-content active flex-col">
+                <div class="card-container">
+                    <div class="px-5 py-3.5 bg-gradient-to-r from-amber-50 to-white border-b flex flex-wrap justify-between items-center gap-3 shrink-0">
+                        <h3 class="font-black text-amber-900 flex items-center gap-2"><i class="fa-solid fa-bell text-amber-500"></i> รายการสั่งซื้ออะไหล่ที่ส่งเข้ามาจากทีมบริการ (SA)</h3>
+                        <div class="flex items-center gap-2">
+                            <div class="relative w-64">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                                <input type="text" onkeyup="searchSAAlerts(this.value)" class="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:border-amber-500" placeholder="🔍 ค้นหาทะเบียน, ชื่อลูกค้า...">
+                            </div>
+                            <button onclick="loadAllData()" class="text-xs bg-white border border-slate-200 px-4 py-2 rounded-lg shadow-sm font-bold text-slate-600 hover:bg-amber-50 hover:text-amber-700 transition flex items-center gap-2"><i class="fa-solid fa-rotate-right"></i> รีเฟรชข้อมูล</button>
+                        </div>
+                    </div>
+                    <div class="flex-1 overflow-auto custom-scrollbar">
+                        <table class="modern-table" id="saTable" style="table-layout: fixed; width: 100%;">
+    <thead class="bg-[#00320D] text-white sticky top-0 z-10 shadow-sm text-xs">
+        <tr>
+            <th class="w-28 px-2 py-3 text-left relative">
+                <div class="flex items-center justify-between"><span>ทะเบียนรถ</span><i class="fa-solid fa-filter filter-icon cursor-pointer text-slate-400 hover:text-amber-400" onclick="openExcelFilter(event, 0, 'ทะเบียนรถ', 'saTable')"></i></div>
+                <div class="resizer absolute right-0 top-0 w-1.5 h-full cursor-col-resize hover:bg-amber-400 z-20"></div>
+            </th>
+            <th class="w-24 px-2 py-3 text-center relative">
+                <div class="flex items-center justify-between"><span>วันที่รับงาน</span><i class="fa-solid fa-filter filter-icon cursor-pointer text-slate-400 hover:text-amber-400" onclick="openExcelFilter(event, 1, 'วันที่รับงาน', 'saTable')"></i></div>
+                <div class="resizer absolute right-0 top-0 w-1.5 h-full cursor-col-resize hover:bg-amber-400 z-20"></div>
+            </th>
+            <th class="w-24 px-2 py-3 text-left relative">
+                <div class="flex items-center justify-between"><span>รุ่นรถ</span><i class="fa-solid fa-filter filter-icon cursor-pointer text-slate-400 hover:text-amber-400" onclick="openExcelFilter(event, 2, 'รุ่นรถ', 'saTable')"></i></div>
+                <div class="resizer absolute right-0 top-0 w-1.5 h-full cursor-col-resize hover:bg-amber-400 z-20"></div>
+            </th>
+            <th class="w-32 px-2 py-3 text-left relative">
+                <div class="flex items-center justify-between"><span>หมายเลขเครื่อง/VIN</span><i class="fa-solid fa-filter filter-icon cursor-pointer text-slate-400 hover:text-amber-400" onclick="openExcelFilter(event, 3, 'หมายเลขเครื่อง', 'saTable')"></i></div>
+                <div class="resizer absolute right-0 top-0 w-1.5 h-full cursor-col-resize hover:bg-amber-400 z-20"></div>
+            </th>
+            <th class="w-32 px-2 py-3 text-left relative">
+                <div class="flex items-center justify-between"><span>ชื่อลูกค้า</span><i class="fa-solid fa-filter filter-icon cursor-pointer text-slate-400 hover:text-amber-400" onclick="openExcelFilter(event, 4, 'ชื่อลูกค้า', 'saTable')"></i></div>
+                <div class="resizer absolute right-0 top-0 w-1.5 h-full cursor-col-resize hover:bg-amber-400 z-20"></div>
+            </th>
+            <th class="w-28 px-2 py-3 text-left relative">
+                <div class="flex items-center justify-between"><span>QT</span><i class="fa-solid fa-filter filter-icon cursor-pointer text-slate-400 hover:text-amber-400" onclick="openExcelFilter(event, 5, 'ใบเสนอราคา', 'saTable')"></i></div>
+                <div class="resizer absolute right-0 top-0 w-1.5 h-full cursor-col-resize hover:bg-amber-400 z-20"></div>
+            </th>
+            <th class="w-28 px-2 py-3 text-left relative">
+                <div class="flex items-center justify-between"><span>SO</span><i class="fa-solid fa-filter filter-icon cursor-pointer text-slate-400 hover:text-amber-400" onclick="openExcelFilter(event, 6, 'ใบสั่งซ่อม', 'saTable')"></i></div>
+                <div class="resizer absolute right-0 top-0 w-1.5 h-full cursor-col-resize hover:bg-amber-400 z-20"></div>
+            </th>
+            <th class="w-[450px] px-2 py-3 text-left text-amber-300 relative">
+                <i class="fa-solid fa-list-check"></i> รายการสั่งซื้ออะไหล่ (PO) & สถานะคิว
+                <div class="resizer absolute right-0 top-0 w-1.5 h-full cursor-col-resize hover:bg-amber-400 z-20"></div>
+            </th>
+            <th class="w-20 px-2 py-3 text-center relative">จัดการ</th>
+        </tr>
+    </thead>
+    <tbody id="sa_alerts_body"><tr><td colspan="9" class="text-center py-10 text-slate-400 font-bold">กำลังดึงข้อมูล...</td></tr></tbody>
+</table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 🗄️ 2. ข้อมูลมาสเตอร์ -->
+            <section id="tab-master" class="parts-tab-content flex-col">
+                <div class="card-container border-t-4 border-slate-700">
+                    <div class="px-5 py-3.5 bg-slate-50 border-b flex justify-between items-center shrink-0">
+                        <span class="text-sm font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-database text-slate-500"></i> ฐานข้อมูลมาสเตอร์แม่แบบอะไหล่ตัวถัง</span>
+                        <div class="flex items-center gap-2">
+                            <div class="relative w-64">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                                <input type="text" onkeyup="searchMasterTable(this.value)" class="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:border-slate-500 shadow-sm" placeholder="ค้นหา บาร์โค้ด, ชิ้นส่วน...">
+                            </div>
+                            <button onclick="openMasterModal()" class="text-xs bg-slate-800 text-white px-4 py-1.5 rounded-lg shadow-sm font-bold hover:bg-slate-900 transition"><i class="fa-solid fa-plus"></i> เพิ่มอะไหล่มาสเตอร์</button>
+                        </div>
+                    </div>
+                    <div class="flex-1 overflow-auto custom-scrollbar">
+                        <table class="modern-table" id="masterTable">
+                            <thead>
+                                <tr>
+                                    <th style="width:140px;">หมายเลขอะไหล่ (Part No)</th>
+                                    <th style="width:200px;">ชื่อชิ้นส่วน</th>
+                                    <th style="width:120px;">MAIN No.</th>
+                                    <th style="width:150px;">รุ่นรถที่รองรับ</th>
+                                    <th style="width:100px;">หมวดหมู่</th>
+                                    <th style="width:100px;" class="text-right">ราคา/หน่วย</th>
+                                    <th style="width:100px;" class="text-center">Location</th>
+                                    <th style="width:80px;" class="text-center">จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="master_table_body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- 🌟 MODAL: โต๊ะคีย์อะไหล่ 🌟 -->
+    <div id="alertModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-7xl overflow-hidden border-t-4 border-t-amber-500 flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 border-b flex justify-between items-center bg-amber-50/50 shrink-0">
+                <h3 class="font-black text-amber-900 flex items-center gap-2 text-sm sm:text-base"><i class="fa-solid fa-table-cells text-amber-500"></i> โต๊ะคีย์อัปเดตสถานะให้ SA</h3>
+                <button type="button" onclick="closeAlertModal()" class="text-slate-400 hover:text-red-500 transition"><i class="fa-solid fa-xmark text-2xl"></i></button>
+            </div>
+            <form onsubmit="saveSAAlertUpdate(event)" class="flex flex-col flex-1 overflow-hidden bg-slate-50">
+                <div class="p-6 flex-1 overflow-y-auto custom-scrollbar" id="modal_dynamic_table_container"></div>
+                <div class="bg-white px-6 py-4 border-t flex justify-end gap-3 shrink-0 shadow-md">
+                    <button type="button" onclick="closeAlertModal()" class="px-5 py-2.5 bg-white text-slate-600 rounded-lg font-bold border border-slate-300 hover:bg-slate-100 transition shadow-sm">ปิดหน้าต่าง</button>
+                    <button type="submit" class="px-8 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-black rounded-lg shadow-md hover:from-amber-600 hover:to-amber-700 transition-all flex items-center gap-1.5">
+                        <i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูล
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 🌟 MODAL: ข้อมูลมาสเตอร์อะไหล่ 🌟 -->
+    <div id="masterModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden border-t-4 border-t-slate-700 flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 border-b flex justify-between items-center bg-slate-100 shrink-0">
+                <h3 class="font-black text-slate-800 flex items-center gap-2 text-sm sm:text-base"><i class="fa-solid fa-database text-slate-500"></i> จัดการข้อมูลมาสเตอร์แม่แบบอะไหล่ตัวถัง</h3>
+                <button type="button" onclick="closeMasterModal()" class="text-slate-400 hover:text-red-500 transition"><i class="fa-solid fa-xmark text-2xl"></i></button>
+            </div>
+            <div class="p-6 flex-1 overflow-y-auto custom-scrollbar">
+                <input type="hidden" id="edit_master_id">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                    <div class="space-y-4">
+                        <div><label class="label-text text-blue-700">หมายเลขอะไหล่ (Part No) *</label><input type="text" id="master_part_no" list="master_parts_datalist" class="minimal-input font-mono bg-blue-50 uppercase border-blue-200" required></div>
+                        <div><label class="label-text">ชื่อชิ้นส่วน *</label><input type="text" id="master_part_name" class="minimal-input" required></div>
+                        <div><label class="label-text">หมายเลข MAIN</label><input type="text" id="master_part_main" class="minimal-input font-mono uppercase"></div>
+                        <div><label class="label-text">ประเภทอะไหล่</label><select id="master_category" class="minimal-input"><option value="อะไหล่หลัก">อะไหล่หลัก</option><option value="อะไหล่รอง">อะไหล่รอง</option></select></div>
+                        <div><label class="label-text">ราคาต่อหน่วย</label><input type="number" id="master_price" class="minimal-input font-mono" value="0.00" step="0.01"></div>
+                        <div><label class="label-text">Location จัดเก็บ</label><input type="text" id="master_location" class="minimal-input font-mono"></div>
+                        <div><label class="label-text">จุดสั่งซื้อ (Safety Stock)</label><input type="number" id="master_safety" class="minimal-input text-center" value="0"></div>
+                    </div>
+                    
+                    <div class="border border-slate-200 rounded-xl p-4 bg-slate-50 h-full max-h-[55vh] flex flex-col overflow-hidden">
+                        <label class="label-text text-blue-800 font-black"><i class="fa-solid fa-car"></i> ติ๊กรุ่นรถที่อะไหล่ชิ้นนี้รองรับ</label>
+                        <div id="master_car_models_container" class="flex-1 overflow-y-auto custom-scrollbar mt-2 pr-1 space-y-4"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-slate-50 px-6 py-4 border-t flex justify-end gap-3 shrink-0">
+                <button type="button" onclick="closeMasterModal()" class="px-5 py-2.5 bg-white text-slate-600 rounded-lg font-bold border border-slate-300 hover:bg-slate-100 transition shadow-sm">ยกเลิก</button>
+                <button onclick="saveMasterPart()" class="px-8 py-2.5 bg-slate-800 text-white font-black rounded-lg shadow-md hover:bg-black transition flex items-center gap-2"><i class="fa-solid fa-save"></i> บันทึกข้อมูล</button>
+            </div>
+        </div>
+    </div>
+    
+    <datalist id="master_parts_datalist"></datalist>
+
+    <script src="table_pagination.js?v=1.1"></script>
+    <script src="table_viewport_lock.js?v=1.0"></script>
+    <script src="js/parts_core.js?v=23.1"></script>
+    <script src="js/parts_ui.js?v=23.2"></script>
+</body>
+</html>

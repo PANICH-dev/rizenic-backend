@@ -7,6 +7,7 @@
     <title>RIZENIC ERP - Finance Department</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="table_scroll_fix.css?v=1.6">
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -37,6 +38,7 @@
         .inline-edit-input { @apply w-full h-full border-0 bg-transparent px-3 py-2 outline-none font-medium text-slate-900 transition-colors hover:bg-slate-50 focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500; }
         .inline-edit-select { @apply w-full h-full border-0 bg-transparent px-2 py-2 outline-none font-bold text-slate-800 transition-colors cursor-pointer hover:bg-slate-50 focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500; }
     </style>
+    <link rel="stylesheet" href="ui_global.css?v=1.1">
 </head>
 <body class="text-slate-800 h-screen flex flex-col selection:bg-[#00320D] selection:text-white">
 
@@ -130,7 +132,7 @@
         </div>
     </div>
 
-    <main class="flex-1 overflow-auto custom-scrollbar bg-slate-100 p-4">
+    <main class="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar bg-slate-100 p-4">
 
         <section id="tab-dashboard" class="acc-tab-content active h-full flex flex-col justify-center items-center">
             <div class="w-full max-w-4xl bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row gap-8 items-center relative">
@@ -235,10 +237,13 @@
 
     </main>
 
+    <script src="table_pagination.js?v=1.1"></script>
+    <script src="table_viewport_lock.js?v=1.0"></script>
     <script>
         const API_BASE_URL = window.location.origin;
         let allAccJobs = [];
         let currentFilteredData = [];
+        const financePager = RizenicPagination.createState(50);
         let accStatuses = [];
         let userRole = '';
         let userBranch = '';
@@ -521,6 +526,24 @@
             applyFilters();
         }
 
+        async function readApiErrorMessage(response, fallback = 'เกิดข้อผิดพลาดในการบันทึกข้อมูล') {
+            try {
+                const text = await response.text();
+                if (text) {
+                    try {
+                        const data = JSON.parse(text);
+                        if (data?.error) return data.error;
+                        if (Array.isArray(data?.validationErrors) && data.validationErrors.length) {
+                            const messages = data.validationErrors.map(item => item?.message || item?.field).filter(Boolean);
+                            if (messages.length) return messages.join('\n');
+                        }
+                        if (data?.message) return data.message;
+                    } catch (_) { return text.trim() || fallback; }
+                }
+            } catch (_) {}
+            return fallback;
+        }
+
         async function fastUpdateAcc(jobId, field, value) {
             try {
                 let valToSend = value;
@@ -574,17 +597,17 @@
                     }
                     
                     if (['cost_labor', 'cost_part', 'cost_external'].includes(field)) {
-                        applyFilters(); 
+                        applyFilters(false); 
                     } else if (field === 'billing_date' || field === 'insurance_pay_date' || field === 'job_status') {
                         buildYearDropdown(); 
-                        applyFilters(); 
+                        applyFilters(false); 
                     }
                 } else {
-                    throw new Error('Server update failed');
+                    throw new Error(await readApiErrorMessage(res, 'บันทึกข้อมูลไม่สำเร็จ'));
                 }
             } catch (err) { 
                 console.error("fastUpdateAcc error:", err);
-                showToast('บันทึกข้อมูลไม่สำเร็จ!', 'error'); 
+                showToast(err?.message || 'บันทึกข้อมูลไม่สำเร็จ!', 'error'); 
                 loadAccountingData(); 
             }
         }
@@ -616,8 +639,18 @@
             }
         }
 
+        function goFinancePage(page) {
+            financePager.page = page;
+            renderTable(currentFilteredData);
+        }
+
         function renderTable(data) {
             const tbody = document.getElementById('acc_table_body');
+            const pageInfo = RizenicPagination.paginate(data || [], financePager);
+            RizenicPagination.renderControls({
+                anchorId: 'accTable', containerId: 'finance_table_pagination', pageInfo,
+                noun: 'งาน', onPageChange: goFinancePage
+            });
             if (!data || data.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-10 text-slate-400 font-mono bg-white">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td></tr>`; return;
             }
@@ -627,7 +660,7 @@
             if (!statusOpts.includes('ปิดงาน')) statusOpts.push('ปิดงาน'); 
             let optsHtml = statusOpts.map(s => `<option value="${s}">${s}</option>`).join('');
 
-            tbody.innerHTML = data.map(job => {
+            tbody.innerHTML = pageInfo.items.map(job => {
                 let rowHtml = '<tr>';
                 columnsDef.forEach(col => {
                     let cellData = ''; let cellClass = '';
@@ -792,7 +825,7 @@
             applyFilters();
         }
 
-        function applyFilters() {
+        function applyFilters(resetPage = true) {
             const searchTxt = document.getElementById('search_input').value.toLowerCase();
             const managedType = document.getElementById('managed_filter_select').value; 
             const branchFilter = document.getElementById('branch_filter_select').value; 
@@ -870,56 +903,48 @@
             document.getElementById('sum_ext').innerText = sumExt.toLocaleString('th-TH', { minimumFractionDigits: 2 });
             document.getElementById('sum_total').innerText = sumTotal.toLocaleString('th-TH', { minimumFractionDigits: 2 });
 
-            renderTable(filteredData);
+            currentFilteredData = filteredData;
+            if (resetPage) RizenicPagination.reset(financePager);
+            renderTable(currentFilteredData);
             document.getElementById('row_count').innerText = filteredData.length;
-            
-            currentFilteredData = filteredData; 
+        }
+
+        function compareFinanceValues(a, b, dir) {
+            const aStr = String(a ?? '').trim();
+            const bStr = String(b ?? '').trim();
+            const dateRe = /^\d{4}-\d{2}-\d{2}/;
+            if (dateRe.test(aStr) && dateRe.test(bStr)) {
+                const da = new Date(aStr).getTime();
+                const db = new Date(bStr).getTime();
+                if (!Number.isNaN(da) && !Number.isNaN(db)) return dir === 'asc' ? da - db : db - da;
+            }
+            const na = Number(aStr.replace(/,/g, ''));
+            const nb = Number(bStr.replace(/,/g, ''));
+            if (aStr !== '' && bStr !== '' && Number.isFinite(na) && Number.isFinite(nb)) return dir === 'asc' ? na - nb : nb - na;
+            return dir === 'asc' ? aStr.localeCompare(bStr, 'th') : bStr.localeCompare(aStr, 'th');
         }
 
         function sortTable(colIndex) {
             const table = document.getElementById('accTable');
-            const tbody = table.querySelector('tbody');
-            const rows = Array.from(tbody.querySelectorAll('tr'));
-            
-            if (rows.length === 0 || (rows.length === 1 && rows[0].cells.length === 1)) return;
+            if (!table || currentFilteredData.length <= 1) return;
 
             table.querySelectorAll('.fa-sort, .fa-sort-up, .fa-sort-down').forEach(icon => {
-                icon.className = "fa-solid fa-sort sort-icon";
+                icon.className = 'fa-solid fa-sort sort-icon';
             });
 
-            let dir = table.getAttribute(`data-dir-${colIndex}`) || 'asc';
+            const dir = table.getAttribute(`data-dir-${colIndex}`) || 'asc';
             table.setAttribute(`data-dir-${colIndex}`, dir === 'asc' ? 'desc' : 'asc');
-            
-            const clickedIcon = table.querySelectorAll('th')[colIndex]?.querySelector('.sort-icon');
-            if (clickedIcon) {
-                clickedIcon.className = dir === 'asc' ? "fa-solid fa-sort-down ml-1 text-amber-400 opacity-100" : "fa-solid fa-sort-up ml-1 text-amber-400 opacity-100";
-            }
+            const colDef = columnsDef.find(c => Number(c.idx) === Number(colIndex));
+            if (!colDef) return;
 
-            rows.sort((a, b) => {
-                let valA = getCellValue(a.cells[colIndex]);
-                let valB = getCellValue(b.cells[colIndex]);
-                
-                let isDateA = valA.match(/^\d{4}-\d{2}-\d{2}$/);
-                let isDateB = valB.match(/^\d{4}-\d{2}-\d{2}$/);
-                if (isDateA && isDateB) {
-                    let dateA = new Date(valA); let dateB = new Date(valB);
-                    if (!isNaN(dateA) && !isNaN(dateB)) return dir === 'asc' ? dateA - dateB : dateB - dateA;
-                }
+            currentFilteredData.sort((a, b) => compareFinanceValues(getJobColumnDisplayValue(a, colDef), getJobColumnDisplayValue(b, colDef), dir));
+            RizenicPagination.reset(financePager);
+            renderTable(currentFilteredData);
 
-                let numA = parseFloat(valA.replace(/,/g, ''));
-                let numB = parseFloat(valB.replace(/,/g, ''));
-                if (!isNaN(numA) && !isNaN(numB)) return dir === 'asc' ? numA - numB : numB - numA;
-
-                return dir === 'asc' ? valA.localeCompare(valB, 'th') : valB.localeCompare(valA, 'th');
-            });
-
-            rows.forEach(row => tbody.appendChild(row));
-            
-            const newOrderIds = rows.map(r => r.cells[0].innerText.replace(/[^A-Za-z0-9ก-๙]/g, '').trim());
-            currentFilteredData.sort((a,b) => {
-                return newOrderIds.indexOf(String(a.car_plate).replace(/[^A-Za-z0-9ก-๙]/g, '').trim()) - newOrderIds.indexOf(String(b.car_plate).replace(/[^A-Za-z0-9ก-๙]/g, '').trim());
-            });
+            const clickedIcon = document.querySelector(`#th_${colIndex} .sort-icon`) || table.querySelectorAll('th')[colIndex]?.querySelector('.sort-icon');
+            if (clickedIcon) clickedIcon.className = dir === 'asc' ? 'fa-solid fa-sort-down ml-1 text-amber-400 opacity-100' : 'fa-solid fa-sort-up ml-1 text-amber-400 opacity-100';
         }
+
     </script>
 </body>
 </html>

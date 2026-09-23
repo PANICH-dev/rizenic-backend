@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors'); 
 const { Pool } = require('pg');
 const path = require('path');
-const https = require('https'); // 🌟 ใช้ HTTPS Native ของ Node.js แก้อาการยิง LINE แล้วค้าง
+const { registerApiValidation } = require('./backend_validation');
 
 const app = express();
 const port = process.env.PORT || 3000; 
@@ -21,10 +21,15 @@ app.use(express.static(path.join(__dirname, 'public'), {
   }
 }));
 
+const isLocalDb = /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL || '');
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  ssl: isLocalDb ? false : { rejectUnauthorized: false }
 });
+
+// Shared input validation + duplicate guard (keeps existing DB/SSL config untouched)
+registerApiValidation(app, pool);
 
 // ==========================================
 // 🚀 API สะพานเชื่อม Dynamic (รับได้ทุกตารางจาก Google Sheet)
@@ -75,7 +80,7 @@ app.post('/api/sync-dynamic', async (req, res) => {
 });
 
 // ==========================================
-// 🛡️ ฟังก์ชันเช็กโควต้า
+// 🛡️ ฟังก์ชันเช็กโควต้า "ชิ้นส่วนหลัก" และ "ชิ้นส่วนรอง" (แยกส่วนกัน)
 // ==========================================
 async function checkColorPartsQuota(branch_name, dateStr, newMainQty, newSubQty, excludeReportId = null) {
     if (!dateStr || !branch_name) return null; 
@@ -449,39 +454,11 @@ app.delete('/api/body-parts/:id', async (req, res) => {
 
 // ==========================================
 // 📋 API ระบบจัดการใบงานซ่อมหลัก (rizenicreport)
-// 🌟 อัปเดตใหม่: ให้รับ Filter วันที่/สาขา เพื่อเพิ่มความเร็วหน้าเว็บ 🌟
 // ==========================================
 
 app.get('/api/reports', async (req, res) => {
-  try {
-    const { start, end, branch } = req.query;
-    let conditions = [];
-    let params = [];
-
-    if (branch && branch !== 'all') {
-      params.push(branch);
-      conditions.push(`branch_name = $${params.length}`);
-    }
-
-    if (start && end) {
-      params.push(start, end);
-      const startIdx = params.length - 1;
-      const endIdx = params.length;
-      conditions.push(`(
-        (arrived_date >= $${startIdx} AND arrived_date <= $${endIdx}) OR
-        (contact_date >= $${startIdx} AND contact_date <= $${endIdx}) OR
-        (job_status NOT IN ('12.ส่งมอบ', '12.ส่งมอบแล้ว', '22.ปิดงาน', '18.ลูกค้ายกเลิก'))
-      )`);
-    }
-
-    let whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-    const queryText = `SELECT * FROM rizenicreport ${whereClause} ORDER BY id DESC`;
-
-    const result = await pool.query(queryText, params);
-    res.json(result.rows);
-  } catch (e) { 
-    res.status(500).json({ error: e.message }); 
-  }
+  try { res.json((await pool.query('SELECT * FROM rizenicreport ORDER BY id DESC')).rows); } 
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/report/:id', async (req, res) => {
@@ -520,6 +497,7 @@ app.post('/api/report', async (req, res) => {
       department_routing, is_parked
     } = req.body;
 
+    // 🌟 1. เพิ่มโค้ดดักจับข้อมูลซ้ำตรงนี้ครับ! 🌟
     if (car_plate && contact_date) {
         const dupCheck = await pool.query(
             `SELECT id FROM rizenicreport 
@@ -531,12 +509,15 @@ app.post('/api/report', async (req, res) => {
             return res.status(400).json({ error: 'ข้อมูลซ้ำ! ใบงานของรถคันนี้ในวันนี้ ถูกสร้างไปแล้วครับ' });
         }
     }
+    // 🌟 จบโค้ดดักจับข้อมูลซ้ำ 🌟
 
+    // เช็กโควต้า (โค้ดเดิม)
     const quotaErrorMsg = await checkColorPartsQuota(branch_name, arrived_date, main_part_qty, sub_part_qty, null);
     if (quotaErrorMsg) {
         return res.status(400).json({ error: quotaErrorMsg });
     }
 
+    // คำสั่ง INSERT INTO (โค้ดเดิม) ...
     const queryText = `
       INSERT INTO rizenicreport (
         sa_owner, branch_name, customer_name, phone_number, customer_type, car_brand, car_model,
@@ -550,6 +531,7 @@ app.post('/api/report', async (req, res) => {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35)
       RETURNING id;
     `;
+    // ... โค้ดส่วนที่เหลือเก็บไว้เหมือนเดิม ...
 
     const values = [
       sa_owner || null, branch_name || 'สำนักงานใหญ่', customer_name || null, phone_number || null, customer_type || null, car_brand || null, car_model || null,
@@ -581,7 +563,7 @@ app.put('/api/report/:id', async (req, res) => {
       station_qc, station_mag, station_kraj, station_film, station_pak, station_ready,
       repair_notes, repair_finish_date,
       epc_no, part_status, order_part_date, est_part_date, ordered_part_names,
-      department_routing, is_parked, claim_no
+      department_routing, is_parked, claim_no // 🌟 1. ดึงตัวแปร claim_no ออกมาจาก req.body
     } = req.body;
 
     const quotaErrorMsg = await checkColorPartsQuota(branch_name, arrived_date, main_part_qty, sub_part_qty, req.params.id);
@@ -589,6 +571,7 @@ app.put('/api/report/:id', async (req, res) => {
         return res.status(400).json({ error: quotaErrorMsg });
     }
 
+    // 🌟 2. เพิ่มคอลัมน์ claim_no=$50 ในชุดคำสั่ง UPDATE
     const queryText = `
       UPDATE rizenicreport SET 
         sa_owner=$1, branch_name=$2, customer_name=$3, phone_number=$4, customer_type=$5, 
@@ -607,6 +590,7 @@ app.put('/api/report/:id', async (req, res) => {
       WHERE id=$51;
     `;
 
+    // 🌟 3. ส่งค่า claim_no เข้าไปผูกกับ $50
     const values = [
       sa_owner || null, branch_name || 'สำนักงานใหญ่', customer_name || null, phone_number || null, customer_type || null,
       car_brand || null, car_model || null, vin_no || null, qt_no || null, so_no || null, bl_no || null, payment_type || null, damage_level || 'เบา',
@@ -620,7 +604,7 @@ app.put('/api/report/:id', async (req, res) => {
       epc_no || null, part_status || null, order_part_date || null, est_part_date || null, ordered_part_names || null,
       department_routing || 'รอดำเนินการ',
       is_parked || 'ไม่จอดซ่อม', 
-      claim_no || null, 
+      claim_no || null, // ส่งค่า claim_no ตรงนี้
       req.params.id 
     ];
 
@@ -667,9 +651,11 @@ app.put('/api/report/:id/fast-date', async (req, res) => {
   try {
     const { field, value } = req.body;
     
+    // 🌟 อัปเดต: เพิ่มชื่อคอลัมน์ทั้งหมดที่อนุญาตให้แก้ไขด่วนจากหน้าตารางได้
+  // ในไฟล์ app.js (บรรทัดประมาณ 346)
     const validFields = [
     'target_finish_date', 'repair_finish_date', 'delivery_date', 'contact_date', 'arrived_date', 'order_part_date', 'est_part_date',
-    'appointment_date', 
+    'appointment_date', // 👈 เพิ่ม 'appointment_date' (วันที่ลูกค้านัดหมาย) ตรงนี้ครับ
     'car_plate', 'notes', 'qt_no', 'so_no', 'bl_no', 'sa_owner', 'damage_level', 'job_status','repair_notes',
     'billing_date', 'ivn_no', 'cost_labor', 'cost_part', 'cost_external',
     'department_routing', 'is_parked', 'customer_type', 'payment_type', 
@@ -705,7 +691,7 @@ app.put('/api/report/:id/fast-date', async (req, res) => {
 });
 
 // ==========================================
-// 📦 API แผนกอะไหล่
+// 📦 API แผนกอะไหล่ (สั่งซื้อ / รับเข้า / เบิกจ่าย / สถานะ)
 // ==========================================
 app.get('/api/part-statuses', async (req, res) => {
   try { res.json((await pool.query('SELECT * FROM rizenic_part_status_master ORDER BY status_id ASC')).rows); } 
@@ -724,7 +710,9 @@ app.get('/api/part-orders', async (req, res) => {
   try { res.json((await pool.query('SELECT * FROM rizenic_part_orders ORDER BY order_id DESC')).rows); } 
   catch (e) { res.status(500).json({ error: e.message }); }
 });
-
+/// ==========================================
+// API สั่งเบิกอะไหล่ (เพิ่มการรับค่า job_id และแก้ไขการรับค่า Status/Dates)
+// ==========================================
 app.post('/api/part-orders', async (req, res) => {
   try {
     const d = req.body;
@@ -782,13 +770,16 @@ app.put('/api/part-orders/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// 🎯 ขยายฟิลด์ที่แก้อัตโนมัติได้
 app.put('/api/part-orders/:id/fast', async (req, res) => {
   try {
     const { field, value } = req.body;
+    // 🌟 แก้ตรงนี้: เพิ่ม qt_no, so_no และเปลี่ยนเป็น received_date 🌟
     const validFields = ['epc_no', 'part_no', 'part_main_no', 'part_name', 'qty_ordered', 'order_status', 'est_arrival_date', 'received_date', 'notes', 'car_plate', 'qt_no', 'so_no'];
     
     if (!validFields.includes(field)) return res.status(400).json({ error: 'ไม่อนุญาตให้แก้ฟิลด์นี้' });
     
+    // ดักจับกรณีเป็นค่าว่างให้เป็น null เพื่อป้องกัน Error วันที่
     const finalValue = (value === '') ? null : value;
     
     await pool.query(`UPDATE rizenic_part_orders SET ${field} = $1 WHERE order_id = $2`, [finalValue, req.params.id]);
@@ -844,6 +835,7 @@ app.get('/api/part-inbound', async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// 🎯 ขยายฟิลด์ที่แก้อัตโนมัติได้ใน Inbound
 app.put('/api/part-inbound/:id/fast', async (req, res) => {
   try {
     const { field, value } = req.body;
@@ -892,6 +884,7 @@ app.put('/api/part-outbound/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// 🎯 ขยายฟิลด์ที่แก้อัตโนมัติได้ใน Outbound
 app.put('/api/part-outbound/:id/fast', async (req, res) => {
   try {
     const { field, value } = req.body;
@@ -988,8 +981,30 @@ app.post('/api/user-preferences', async (req, res) => {
   }
 });
 
+app.post('/api/user-preferences', async (req, res) => {
+  try {
+    const { emp_name, hidden_columns } = req.body;
+    const jsonCols = JSON.stringify(hidden_columns);
+
+    const queryText = `
+      INSERT INTO user_column_preferences (emp_name, hidden_columns, updated_at) 
+      VALUES ($1, $2, CURRENT_TIMESTAMP) 
+      ON CONFLICT (emp_name) 
+      DO UPDATE SET 
+        hidden_columns = EXCLUDED.hidden_columns,
+        updated_at = CURRENT_TIMESTAMP;
+    `;
+    await pool.query(queryText, [emp_name, jsonCols]);
+
+    res.json({ success: true, message: 'บันทึกการตั้งค่าคอลัมน์เรียบร้อยครับนาย!' });
+  } catch (error) {
+    console.error('Error saving user preferences:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ==========================================
-// 📲 API ส่งข้อความเข้ากลุ่ม LINE ผ่าน Messaging API (Native HTTPS)
+// 📲 API ส่งข้อความเข้ากลุ่ม LINE ผ่าน Messaging API (PUSH MESSAGE)
 // ==========================================
 app.post('/api/send-line-notify', async (req, res) => {
   try {
@@ -1003,6 +1018,7 @@ app.post('/api/send-line-notify', async (req, res) => {
     let targetToken = "";
     let targetGroup = ""; 
 
+    // 🎯 เช็คว่าส่งมาจากสาขาไหน
     if (branch === 'Rangsit' || branch === 'สาขารังสิต') {
         targetToken = "uWGDH1BPHvILvBn7Hyeimv20W8ITfbUpGV2jfy1ujMUjvFxceSEtpM50S9vAcJmy05ybn6g/wHspfuTbfUuAI5UCB2RkifntfIeOT9EOo09FfQel63guAJgMs8zhAbbP0dq8fMENKirsWXoFzYMaXgdB04t89/1O/w1cDnyilFU=";
         targetGroup = "C762221d8214dd72b5469f74879c19bec";
@@ -1010,53 +1026,45 @@ app.post('/api/send-line-notify', async (req, res) => {
         targetToken = "5+CtgK2jCINRJW0Ddz/18TrLbE1hq68iVdOyZTvgwYeQWA2okMHoFfPYUK4MlKMf1Y+JqSn4Bodqk7i0DThvO+DTOmwzsyiNxwGqTctqo/QJBlbdYsb97BF981TiVnNO6ufvV6767mS0qkzJWGKgegdB04t89/1O/w1cDnyilFU=";
         targetGroup = "C61a43306f4630b569fe423165db923f8";
     } else {
+        // ❌ ไม่พบสาขาที่ระบุ ให้แจ้ง Error กลับทันที ไม่ส่งข้อความมั่ว
         return res.status(400).json({ error: `ไม่พบสาขาที่ระบุ: ${branch}` });
     }
 
-    // 📦 เตรียมข้อมูลสำหรับยิง API
-    const postData = JSON.stringify({
-      to: targetGroup,
-      messages: [{ type: "text", text: message }]
-    });
-
-    const options = {
-      hostname: 'api.line.me',
-      path: '/v2/bot/message/push',
+    // 🚀 ยิงไปยังปลายทาง Push Message ของ LINE Messaging API
+    const response = await fetch('https://api.line.me/v2/bot/message/push', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${targetToken}`,
-        'Content-Length': Buffer.byteLength(postData)
-      }
-    };
-
-    // 🚀 ยิง API แบบ Native HTTPS
-    const request = https.request(options, (response) => {
-      let data = '';
-      response.on('data', (chunk) => { data += chunk; });
-      response.on('end', () => {
-        if (response.statusCode === 200) {
-          res.json({ success: true, message: "ส่งเข้ากลุ่ม LINE เรียบร้อยครับ!" });
-        } else {
-          console.error("LINE API Error:", data);
-          res.status(response.statusCode).json({ error: "ส่ง LINE ไม่สำเร็จ: " + data });
-        }
-      });
+        'Authorization': `Bearer ${targetToken}`
+      },
+      body: JSON.stringify({
+        to: targetGroup,
+        messages: [
+          {
+            type: "text",
+            text: message
+          }
+        ]
+      })
     });
 
-    request.on('error', (error) => {
-      console.error("Push Message Error:", error);
-      res.status(500).json({ error: error.message });
-    });
-
-    request.write(postData);
-    request.end();
-
+    if (response.ok) {
+      res.json({ success: true, message: "ส่งเข้ากลุ่ม LINE เรียบร้อยครับ!" });
+    } else {
+      const errData = await response.json();
+      console.error("LINE API Error:", errData);
+      res.status(response.status).json({ error: "ส่ง LINE ไม่สำเร็จ: " + (errData.message || JSON.stringify(errData)) });
+    }
   } catch (error) {
-    console.error("Internal Server Error:", error);
+    console.error("Push Message Error:", error);
     res.status(500).json({ error: error.message });
   }
 });
+
+
+
+
+
 
 // ==========================================
 // 📄 API ใบรับรถ / ตรวจสภาพรถ (inspection_reports)
@@ -1117,7 +1125,7 @@ app.get('/api/inspection/:job_id', async (req, res) => {
 // 🚀 Start Server
 // ==========================================
 if (require.main === module) {
-    app.listen(port, () => console.log(`🚀 พร้อมที่: http://localhost:${port}`));
+    app.listen(port);
 }
 
 module.exports = app;

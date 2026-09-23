@@ -239,10 +239,10 @@ async function submitEditPOModal(e) {
             await loadPartsTrackingTable(carPlate);
             if (typeof showToast === 'function') showToast('อัปเดตรายการอะไหล่สำเร็จ!', 'success');
         } else {
-            throw new Error('Update PO failed');
+            throw new Error(await readApiErrorMessage(res, 'ไม่สามารถอัปเดตข้อมูลอะไหล่ได้'));
         }
     } catch (err) {
-        alert('❌ ไม่สามารถอัปเดตข้อมูลอะไหล่ได้');
+        alert('❌ ' + (err?.message || 'ไม่สามารถอัปเดตข้อมูลอะไหล่ได้'));
     } finally {
         if (btn) { btn.innerHTML = oldHtml; btn.disabled = false; }
     }

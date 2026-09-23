@@ -6,7 +6,28 @@ const API_BASE_URL = window.location.origin;
 let allReports = []; 
 let allPartOrders = [];
 let allMasterPartsCache = []; 
+let partOrdersByJobKey = new Map();
 let userRole = '';
+
+function rebuildPartOrderIndexes() {
+    const next = new Map();
+    allPartOrders.forEach(order => {
+        const keys = new Set();
+        if (order && order.report_id != null && String(order.report_id) !== '') keys.add(String(order.report_id));
+        if (order && order.job_id != null && String(order.job_id) !== '') keys.add(String(order.job_id));
+        keys.forEach(key => {
+            if (!next.has(key)) next.set(key, []);
+            next.get(key).push(order);
+        });
+    });
+    partOrdersByJobKey = next;
+}
+
+function getPartOrdersForJob(jobId) {
+    if (jobId == null || String(jobId) === '') return [];
+    return partOrdersByJobKey.get(String(jobId)) || [];
+}
+
 let userBranch = '';
 
 let currentFilterCol = -1;
@@ -103,36 +124,30 @@ async function loadAllData() {
     const isManager = ['BA','Manager','Admin','แอดมิน'].includes(userRole);
 
     try {
-        // 1. ดึงข้อมูลใบงานหลัก (Reports)
-        try {
-            const resRep = await fetch(`${API_BASE_URL}/api/reports${nocache}`);
-            if(resRep.ok) {
-                const dataRep = await resRep.json();
-                allReports = Array.isArray(dataRep) ? dataRep : [];
-                if (!isManager) allReports = allReports.filter(d => d.branch_name === userBranch);
-            }
-        } catch(e) {}
+        // ทั้ง 3 API เป็นข้อมูลอิสระต่อกัน จึงเริ่มโหลดพร้อมกัน
+        // ยังคงใช้ allSettled เพื่อให้ API ตัวใดตัวหนึ่งล้มแล้วอีกส่วนยังใช้งานได้เหมือนเดิม
+        const [reportsResult, ordersResult, masterResult] = await Promise.allSettled([
+            fetch(`${API_BASE_URL}/api/reports${nocache}`).then(async res => res.ok ? res.json() : null),
+            fetch(`${API_BASE_URL}/api/part-orders${nocache}`).then(async res => res.ok ? res.json() : null),
+            fetch(`${API_BASE_URL}/api/parts?branch=${encodeURIComponent(userBranch)}&_t=${new Date().getTime()}`).then(async res => res.ok ? res.json() : null)
+        ]);
 
-        // 2. ดึงรายการสั่งซื้ออะไหล่ (Part Orders)
-        try {
-            const resPO = await fetch(`${API_BASE_URL}/api/part-orders${nocache}`);
-            if(resPO.ok) {
-                const dataPO = await resPO.json();
-                allPartOrders = Array.isArray(dataPO) ? dataPO : [];
-                if (!isManager) allPartOrders = allPartOrders.filter(d => d.branch_name === userBranch);
-            }
-        } catch(e) {}
+        if (reportsResult.status === 'fulfilled' && Array.isArray(reportsResult.value)) {
+            allReports = reportsResult.value;
+            if (!isManager) allReports = allReports.filter(d => d.branch_name === userBranch);
+        }
 
-        // 3. ดึงมาสเตอร์อะไหล่ (Master Parts)
-        try {
-            const resMaster = await fetch(`${API_BASE_URL}/api/parts?branch=${encodeURIComponent(userBranch)}&_t=${new Date().getTime()}`);
-            if(resMaster.ok) {
-                const dataMaster = await resMaster.json();
-                allMasterPartsCache = Array.isArray(dataMaster) ? dataMaster : [];
-            }
-        } catch(e) {}
+        if (ordersResult.status === 'fulfilled' && Array.isArray(ordersResult.value)) {
+            allPartOrders = ordersResult.value;
+            if (!isManager) allPartOrders = allPartOrders.filter(d => d.branch_name === userBranch);
+        }
+        rebuildPartOrderIndexes();
 
-        // เรนเดอร์เฉพาะ 2 ส่วนหลัก
+        if (masterResult.status === 'fulfilled' && Array.isArray(masterResult.value)) {
+            allMasterPartsCache = masterResult.value;
+        }
+
+        // เรนเดอร์เฉพาะ 2 ส่วนหลักเหมือนเดิม
         if (typeof renderSAAlerts === "function") renderSAAlerts();
         if (typeof renderMasterTable === "function") renderMasterTable();
 

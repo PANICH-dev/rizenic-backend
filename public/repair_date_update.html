@@ -6,6 +6,7 @@
     <title>RIZENIC ERP - อัปเดตวันที่งานซ่อม</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="table_scroll_fix.css?v=1.6">
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap');
@@ -23,6 +24,7 @@
         .inline-edit-input:hover { border-color: #cbd5e1; background: #f8fafc; }
         .inline-edit-input:focus { border-color: #f59e0b; background: #fff; outline: none; box-shadow: 0 0 0 2px rgba(245,158,11,0.1); }
     </style>
+    <link rel="stylesheet" href="ui_global.css?v=1.1">
 </head>
 <body class="text-slate-800">
 
@@ -87,9 +89,13 @@
         </div>
     </main>
 
+    <script src="table_pagination.js?v=1.1"></script>
+    <script src="table_viewport_lock.js?v=1.0"></script>
     <script>
         const API_BASE_URL = window.location.origin;
-        let allJobs = []; 
+        let allJobs = [];
+        let dateFilteredData = [];
+        const datePager = RizenicPagination.createState(50);
         let currentBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
 
         function showToast(msg, type='success') {
@@ -122,15 +128,28 @@
                 
                 return true;
             });
-            renderTable(filteredData);
+            dateFilteredData = filteredData;
+            RizenicPagination.reset(datePager);
+            renderTable(dateFilteredData);
+        }
+
+        function goDatePage(page) {
+            datePager.page = page;
+            renderTable(dateFilteredData);
         }
 
         function renderTable(data) {
             const tbody = document.getElementById('date_list_body');
+            const pageInfo = RizenicPagination.paginate(data, datePager);
+            document.getElementById('table_row_count').innerText = data.length;
+            RizenicPagination.renderControls({
+                anchorId: 'dateTable', containerId: 'date_table_pagination', pageInfo,
+                noun: 'คัน', onPageChange: goDatePage
+            });
             if(data.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="p-12 text-center text-slate-400 font-bold text-base">📭 ไม่พบข้อมูลรถ</td></tr>`; return; }
 
             let html = '';
-            data.forEach(j => {
+            pageInfo.items.forEach(j => {
                 const arrDate = j.arrived_date ? j.arrived_date.split('T')[0] : '';
                 const repDate = j.repair_finish_date ? j.repair_finish_date.split('T')[0] : '';
                 const delDate = j.delivery_date ? j.delivery_date.split('T')[0] : '';
@@ -147,7 +166,24 @@
                 `;
             });
             tbody.innerHTML = html;
-            document.getElementById('table_row_count').innerText = data.length;
+        }
+
+        async function readApiErrorMessage(response, fallback = 'เกิดข้อผิดพลาดในการบันทึกข้อมูล') {
+            try {
+                const text = await response.text();
+                if (text) {
+                    try {
+                        const data = JSON.parse(text);
+                        if (data?.error) return data.error;
+                        if (Array.isArray(data?.validationErrors) && data.validationErrors.length) {
+                            const messages = data.validationErrors.map(item => item?.message || item?.field).filter(Boolean);
+                            if (messages.length) return messages.join('\n');
+                        }
+                        if (data?.message) return data.message;
+                    } catch (_) { return text.trim() || fallback; }
+                }
+            } catch (_) {}
+            return fallback;
         }
 
         async function updateDate(id, field, value) {
@@ -159,8 +195,10 @@
                     const idx = allJobs.findIndex(j => String(j.id) === String(id));
                     if(idx > -1) allJobs[idx][field] = value ? value + 'T00:00:00.000Z' : null;
                     showToast('บันทึกวันที่สำเร็จ!');
-                } else throw new Error();
-            } catch(e) { showToast('อัปเดตไม่สำเร็จ', 'error'); }
+                } else {
+                    throw new Error(await readApiErrorMessage(res, 'อัปเดตไม่สำเร็จ'));
+                }
+            } catch(e) { showToast(e?.message || 'อัปเดตไม่สำเร็จ', 'error'); }
         }
 
         document.addEventListener('DOMContentLoaded', fetchJobs);

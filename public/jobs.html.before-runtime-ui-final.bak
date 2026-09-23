@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIZENIC ERP - Job Tracking Board & SA Overview</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="table_scroll_fix.css?v=1.6">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap');
+        body { font-family: 'Kanit', sans-serif; background-color: #f4f6f9; overflow: hidden; }
+        .bg-rizenic-green { background-color: #00320D; }
+        .text-rizenic-green { color: #00320D; }
+        .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .minimal-input { @apply px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none text-sm font-bold text-[#00320D] focus:border-[#00320D] focus:ring-2 focus:ring-green-500/20 shadow-sm; }
+        
+        .calendar-cell { @apply bg-white border border-slate-200 rounded-xl p-2 min-h-[90px] flex flex-col justify-start hover:border-amber-400 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer relative overflow-hidden; }
+        .calendar-cell.today { @apply border-2 border-amber-500 bg-amber-50/30; }
+        .calendar-day-label { @apply text-xs font-black text-slate-400 font-mono mb-1 self-start transition-colors; }
+        .calendar-cell.today .calendar-day-label { @apply text-amber-600 bg-amber-100 px-2 py-0.5 rounded shadow-sm; }
+        .calendar-cell:hover .calendar-day-label { @apply text-amber-500; }
+        
+        .excel-table-green { width: 100%; text-align: left; border-collapse: collapse; white-space: nowrap; font-size: 12px; background-color: #ffffff; table-layout: fixed; border: 1px solid #cbd5e1; }
+        .excel-table-green thead th { position: sticky; top: 0; z-index: 20; background-color: #00320D !important; color: #ffffff !important; border: 1px solid #1e3a1e !important; font-weight: 700; padding: 10px 8px; text-align: center; user-select: none; }
+        .excel-table-green tbody td { padding: 8px; border: 1px solid #e2e8f0 !important; color: #1e293b; vertical-align: middle; overflow: hidden; }
+        .excel-table-green tbody tr:hover td { background-color: #fefce8 !important; }
+        
+        .resizer-green { position: absolute; top: 0; right: 0; width: 6px; height: 100%; cursor: col-resize; z-index: 30; user-select: none; }
+        .resizer-green:hover, .resizer-green.resizing { background-color: #f59e0b !important; }
+        .simple-table { @apply w-full text-left border-collapse whitespace-nowrap text-xs bg-white; }
+        .simple-table thead th { @apply px-4 py-2 bg-slate-100 border-b border-slate-200 font-bold sticky top-0 z-10 shadow-sm; }
+        .simple-table tbody td { @apply px-4 py-3 border-b border-slate-100 text-slate-700 align-middle; }
+        .modal-fade { animation: fadeInScale 0.2s ease-out forwards; }
+        @keyframes fadeInScale { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+    </style>
+    <link rel="stylesheet" href="ui_global.css?v=1.0">
+</head>
+<body class="text-slate-800 h-screen flex flex-col selection:bg-[#00320D] selection:text-white">
+
+    <div id="toastMsg" class="fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 translate-y-20 opacity-0 z-[200] flex items-center gap-2 border border-white/20">
+        <span id="toastContent"><i class="fa-solid fa-circle-check text-xl"></i> บันทึกข้อมูลสำเร็จ!</span>
+    </div>
+
+    <header class="bg-rizenic-green text-white shadow-md z-50 shrink-0 border-b border-green-800">
+        <div class="px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-table-list text-amber-400 text-xl"></i>
+                <h1 class="text-lg font-black tracking-wider text-white">RIZENIC <span class="text-green-400">TRACKING</span></h1>
+                
+                <div class="hidden sm:flex relative ml-4 items-center gap-2">
+                    <div class="relative">
+                        <input type="text" id="global_search_plate" onkeypress="if(event.key==='Enter') globalSearchCar()" class="px-4 py-1.5 rounded-full text-xs font-bold text-slate-800 w-44 outline-none border-2 border-transparent focus:border-amber-400 transition-all shadow-inner" placeholder="🔍 ทะเบียนด่วน...">
+                        <button onclick="globalSearchCar()" class="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-slate-400 hover:text-amber-500 bg-white rounded-full"><i class="fa-solid fa-arrow-right"></i></button>
+                    </div>
+                    <div class="relative bg-white rounded-full px-2 py-1 shadow-inner flex items-center border border-slate-300">
+                        <i class="fa-solid fa-building text-green-700 text-xs ml-1"></i>
+                        <select id="branch_filter" onchange="onBranchChange()" class="bg-transparent outline-none text-[11px] font-bold text-[#00320D] cursor-pointer ml-1 pr-2 py-1 max-w-[120px]"></select>
+                    </div>
+                </div>
+            </div>
+            <nav class="flex flex-col sm:flex-row items-center gap-3">
+                <div class="text-right border-r border-green-700 pr-4 hidden sm:block">
+                    <div class="flex items-center justify-end gap-2 mb-1">
+                        <p class="text-xs font-bold text-white" id="display_emp_name">Staff Name</p>
+                        <span class="text-[10px] text-green-300 font-bold bg-white/10 px-2 py-0.5 rounded-md border border-white/10">📍 <span id="display_branch">Branch</span></span>
+                    </div>
+                    <div class="flex items-center justify-end gap-1.5 text-[10px] font-bold">
+                        <span class="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-400/40 shadow-xs" title="รถรอออกบิล">
+                            📄 รอออกบิล: <span id="badge_wait_bill" class="font-black text-amber-300">0</span>
+                        </span>
+                        <span class="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-400/40 shadow-xs" title="ปิดบิลแล้วประจำเดือน">
+                            ✅ ปิดบิล: <span id="badge_billed" class="font-black text-emerald-300">0</span>
+                        </span>
+                        <span class="bg-blue-500/20 text-blue-200 px-2 py-0.5 rounded-full border border-blue-400/40 shadow-xs" title="ชิ้นส่วนอะไหล่ (หลัก / รอง)">
+                            📦 อะไหล่: <span id="badge_main_parts" class="font-black text-blue-300">0</span> / <span id="badge_sub_parts" class="font-black text-amber-300">0</span>
+                        </span>
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-1.5 items-center">
+                    <a href="dashboard.html" class="px-3 py-1.5 rounded-lg text-green-200 hover:bg-white/10 font-bold text-xs transition">แดชบอร์ด</a>
+                    <a href="index.html" class="px-3 py-1.5 rounded-lg text-green-200 hover:bg-white/10 font-bold text-xs transition">เปิดบิลซ่อม</a>
+                    <button class="px-3 py-1.5 rounded-lg bg-white text-[#00320D] font-bold shadow-sm text-xs transition">บอร์ดใบงาน</button>
+                    <a href="repair.html" class="px-3 py-1.5 rounded-lg text-green-200 hover:bg-white/10 font-bold text-xs transition">สถานีช่าง</a>
+                    <a href="parts.html" class="px-3 py-1.5 rounded-lg text-green-200 hover:bg-white/10 font-bold text-xs transition">แผนกอะไหล่</a>
+                    <button onclick="logout()" class="px-2 py-1.5 text-red-300 hover:bg-red-500/20 rounded-lg text-xs transition ml-1"><i class="fa-solid fa-power-off"></i></button>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <div class="bg-white border-b border-slate-200 z-40 shrink-0 shadow-sm flex overflow-x-auto px-2 pt-2">
+        <a href="jobs_table.html" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 rounded-t-xl transition-all"><i class="fa-solid fa-file-excel text-emerald-600"></i> 1. ตารางใบงานทั้งหมด (Excel Mode)</a>
+        <a href="jobs.html" class="px-6 py-3.5 text-sm font-bold border-b-2 border-[#00320D] text-[#00320D] bg-blue-50/80 flex items-center gap-2 rounded-t-xl transition-all"><i class="fa-solid fa-users text-blue-600"></i> 2. ภาพรวมทีมบริการ (SA)</a>
+        <a href="history.html" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 rounded-t-xl transition-all"><i class="fa-solid fa-clock-rotate-left text-purple-600"></i> 3. เช็คประวัติรถ (History)</a>
+    </div>
+
+    <main class="flex-1 overflow-y-auto custom-scrollbar bg-slate-100 p-4 relative flex flex-col">
+        <!-- หน้าแรก: รายชื่อ SA -->
+        <div id="sa_list_view" class="max-w-[1400px] mx-auto w-full">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
+                <h2 class="text-2xl font-black text-[#00320D] border-l-4 border-amber-500 pl-3">รายชื่อ Service Advisor (SA)</h2>
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <div class="relative flex-1 sm:w-64">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                        <input type="text" id="sa_search_plate_input" onkeypress="if(event.key==='Enter') searchCarByPlateFromSAView()" class="w-full pl-8 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:border-amber-500 shadow-sm" placeholder="🔍 ค้นหาทะเบียนในหน้านี้...">
+                    </div>
+                    <button onclick="loadJobsData()" class="px-4 py-2 bg-white text-slate-700 font-bold border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 transition text-xs flex items-center gap-1.5"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6" id="sa_cards_container">
+                <div class="col-span-full text-center py-10 text-slate-400 font-bold"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังโหลดข้อมูล SA...</div>
+            </div>
+        </div>
+
+        <!-- หน้าที่สอง: รายละเอียด SA (เมื่อกดคลิก) -->
+        <div id="sa_detail_view" class="hidden max-w-[1500px] mx-auto w-full space-y-6 pb-10">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 pb-4 mt-2">
+                <div class="flex items-center gap-4">
+                    <button onclick="backToSAList()" class="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-xl font-bold hover:bg-slate-100 transition shadow-sm"><i class="fa-solid fa-arrow-left"></i> กลับหน้ารวม SA</button>
+                    <div>
+                        <h2 class="text-2xl font-black text-[#00320D]">ภาพรวมงาน: <span id="current_sa_name" class="text-amber-600">SA Name</span></h2>
+                    </div>
+                </div>
+                
+                <div class="flex flex-wrap gap-2 items-center bg-red-50 border border-red-200 p-2.5 rounded-xl shadow-sm">
+                    <span class="text-xs font-black text-red-700 uppercase flex items-center gap-1.5"><i class="fa-solid fa-triangle-exclamation text-red-600 text-sm animate-pulse"></i> OVERDUE เตือนด่วน:</span>
+                    <button id="btn_ov_app" onclick="openSAOverdueModal('appointment')" class="px-2.5 py-1 bg-white border border-red-300 rounded-lg text-xs font-bold text-red-700 transition flex items-center gap-1 shadow-sm">
+                        <span>เลยกำหนดรถเข้า:</span> <span id="ov_app_count" class="bg-red-600 text-white px-1.5 py-0.5 rounded-full font-black text-[11px]">0</span>
+                    </button>
+                    <button id="btn_ov_tgt" onclick="openSAOverdueModal('target')" class="px-2.5 py-1 bg-white border border-amber-300 rounded-lg text-xs font-bold text-amber-800 transition flex items-center gap-1 shadow-sm">
+                        <span>ช้ากว่าเป้าเสร็จ:</span> <span id="ov_tgt_count" class="bg-amber-600 text-white px-1.5 py-0.5 rounded-full font-black text-[11px]">0</span>
+                    </button>
+                    <button id="btn_ov_del" onclick="openSAOverdueModal('delivery')" class="px-2.5 py-1 bg-white border border-purple-300 rounded-lg text-xs font-bold text-purple-800 transition flex items-center gap-1 shadow-sm">
+                        <span>เลยวันส่งมอบ:</span> <span id="ov_del_count" class="bg-purple-600 text-white px-1.5 py-0.5 rounded-full font-black text-[11px]">0</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ปฏิทิน -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col mb-2">
+                <div class="bg-slate-50 px-5 py-3.5 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div><h3 class="font-black text-[#00320D] text-lg"><i class="fa-regular fa-calendar-days text-blue-600"></i> ปฏิทินนัดหมายของ SA</h3></div>
+                    <div class="flex items-center gap-2">
+                        <select id="sa_cal_month" onchange="refreshSADashboardFilter()" class="minimal-input !py-1 w-auto text-xs cursor-pointer">
+                            <option value="01">มกราคม (01)</option> <option value="02">กุมภาพันธ์ (02)</option> <option value="03">มีนาคม (03)</option>
+                            <option value="04">เมษายน (04)</option> <option value="05">พฤษภาคม (05)</option> <option value="06">มิถุนายน (06)</option>
+                            <option value="07">กรกฎาคม (07)</option> <option value="08">สิงหาคม (08)</option> <option value="09">กันยายน (09)</option>
+                            <option value="10">ตุลาคม (10)</option> <option value="11">พฤศจิกายน (11)</option> <option value="12">ธันวาคม (12)</option>
+                        </select>
+                        <select id="sa_cal_year" onchange="refreshSADashboardFilter()" class="minimal-input !py-1 w-auto text-xs cursor-pointer"></select>
+                    </div>
+                </div>
+                <div class="p-5">
+                    <div class="flex flex-wrap gap-4 text-xs font-bold px-4 py-2 bg-slate-50 rounded-xl border border-slate-200 shadow-inner mb-4 w-fit">
+                        <div class="flex items-center gap-2"><div class="w-3.5 h-3.5 bg-gradient-to-t from-blue-600 to-blue-400 rounded-sm shadow-sm"></div> <span class="text-slate-600">รถเข้าจอดอู่</span></div>
+                        <div class="flex items-center gap-2"><div class="w-3.5 h-3.5 bg-gradient-to-t from-amber-500 to-amber-300 rounded-sm shadow-sm"></div> <span class="text-slate-600">เป้าซ่อมเสร็จ</span></div>
+                        <div class="flex items-center gap-2"><div class="w-3.5 h-3.5 bg-gradient-to-t from-emerald-500 to-emerald-300 rounded-sm shadow-sm"></div> <span class="text-slate-600">นัดส่งมอบ</span></div>
+                    </div>
+                    <div class="grid grid-cols-7 gap-2 text-center text-xs font-bold text-white uppercase tracking-widest mb-2 bg-[#00320D] rounded-lg py-2 shadow-md">
+                        <div class="text-red-400">อาทิตย์</div><div>จันทร์</div><div>อังคาร</div><div>พุธ</div><div>พฤหัสฯ</div><div>ศุกร์</div><div class="text-blue-400">เสาร์</div>
+                    </div>
+                    <div id="sa_calendar_grid" class="grid grid-cols-7 gap-2 min-h-[400px]"></div>
+                </div>
+            </div>
+
+            <!-- สถานะค้าง & ปิดบิล -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div class="lg:col-span-7 bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                    <h3 class="font-black text-slate-800 mb-4 border-b pb-2"><i class="fa-solid fa-chart-pie text-purple-500"></i> สรุปงานค้างแยกตามสถานะ (Active Jobs)</h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="sa_status_grid"></div>
+                </div>
+                
+                <div class="lg:col-span-5 grid grid-cols-1 gap-4">
+                    <div class="bg-amber-50 rounded-xl shadow-sm border border-amber-200 p-4 flex justify-between items-center cursor-pointer hover:bg-amber-100 transition" onclick="openSAFilteredModal('WaitBill')">
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-file-invoice text-3xl text-amber-400"></i>
+                            <div>
+                                <h3 class="text-amber-800 font-bold text-sm">รถรอปิดบิล</h3>
+                                <span class="text-[10px] text-amber-600" id="waitbill_month_label">(ประจำเดือน -)</span>
+                            </div>
+                        </div>
+                        <span class="text-3xl font-black text-amber-600" id="sa_waitbill_count">0</span>
+                    </div>
+                    
+                    <div class="bg-emerald-50 rounded-xl shadow-sm border border-emerald-200 p-4 cursor-pointer hover:bg-emerald-100 transition flex flex-col justify-center" onclick="openSAFilteredModal('Billed')">
+                        <div class="flex justify-between items-center mb-3">
+                            <div class="flex items-center gap-3">
+                                <i class="fa-solid fa-file-invoice-dollar text-3xl text-emerald-400"></i>
+                                <div>
+                                    <h3 class="text-emerald-800 font-bold text-sm">ปิดบิลแล้ว</h3>
+                                    <span class="text-[10px] text-emerald-600" id="billed_month_label">(ประจำเดือน -)</span>
+                                </div>
+                            </div>
+                            <span class="text-3xl font-black text-emerald-600" id="sa_billed_count">0</span>
+                        </div>
+                        <div class="grid grid-cols-4 gap-2 text-center border-t border-emerald-200/60 pt-3">
+                            <div><p class="text-[10px] text-emerald-700 font-bold mb-0.5">ชิ้น(หลัก/รอง)</p><p class="text-sm font-black text-slate-700"><span id="sum_main_parts" class="text-blue-600">0</span> / <span id="sum_sub_parts" class="text-amber-600">0</span></p></div>
+                            <div class="border-l border-emerald-200/60"><p class="text-[10px] text-emerald-700 font-bold mb-0.5">ค่าแรง</p><p class="text-sm font-black text-emerald-700" id="sum_labor">0</p></div>
+                            <div class="border-l border-emerald-200/60"><p class="text-[10px] text-emerald-700 font-bold mb-0.5">ค่าอะไหล่</p><p class="text-sm font-black text-purple-600" id="sum_parts">0</p></div>
+                            <div class="border-l border-emerald-200/60"><p class="text-[10px] text-emerald-700 font-bold mb-0.5">งานนอก</p><p class="text-sm font-black text-orange-600" id="sum_outsource">0</p></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- รถจอดซ่อม -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[350px]">
+                <div class="bg-slate-50 px-5 py-3.5 border-b border-slate-200 flex justify-between items-center">
+                    <h3 class="font-black text-[#00320D]"><i class="fa-solid fa-car text-amber-500"></i> รถกำลังจอดซ่อมในศูนย์</h3>
+                </div>
+                <div class="flex-1 overflow-auto custom-scrollbar p-1.5 bg-slate-100">
+                    <table class="excel-table-green" id="parkedTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 90px;">ทะเบียน<div class="resizer-green"></div></th>
+                                <th style="width: 140px;">ยี่ห้อ/รุ่น<div class="resizer-green"></div></th>
+                                <th style="width: 140px;">ลูกค้า<div class="resizer-green"></div></th>
+                                <th style="width: 130px;">สถานะ ERP<div class="resizer-green"></div></th>
+                                <th style="width: 110px;">สถานีล่าสุด<div class="resizer-green"></div></th>
+                                <th style="width: 200px;">ชิ้นส่วน(หลัก/รอง)<div class="resizer-green"></div></th>
+                            </tr>
+                        </thead>
+                        <tbody id="sa_parked_body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- PO Tracking (โฉมใหม่) -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[500px]">
+                <div class="bg-amber-50 px-5 py-3.5 border-b border-amber-200 flex justify-between items-center">
+                    <h3 class="font-black text-amber-900 flex items-center gap-2"><i class="fa-solid fa-bell text-amber-500"></i> รายการสั่งซื้ออะไหล่ที่ส่งเข้ามาจากทีมบริการ (SA)</h3>
+                    <div class="flex items-center gap-3">
+                        <div class="relative w-48 sm:w-64">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                            <input type="text" onkeyup="filterPOTable(this.value)" class="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:border-amber-500 shadow-sm" placeholder="ค้นหาทะเบียน, ชื่อ...">
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-1 overflow-auto custom-scrollbar p-1.5 bg-slate-100">
+                    <table class="excel-table-green w-full" id="poTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 100px;">ทะเบียนรถ<div class="resizer-green"></div></th>
+                                <th style="width: 100px;">สถานะจอด<div class="resizer-green"></div></th>
+                                <th style="width: 100px;">วันที่รับงาน<div class="resizer-green"></div></th>
+                                <th style="width: 100px;">รุ่นรถ<div class="resizer-green"></div></th>
+                                <th style="width: 140px;">หมายเลขเครื่อง/VIN<div class="resizer-green"></div></th>
+                                <th style="width: 160px;">ชื่อลูกค้า<div class="resizer-green"></div></th>
+                                <th style="width: 120px;">QT<div class="resizer-green"></div></th>
+                                <th style="width: 120px;">SO<div class="resizer-green"></div></th>
+                                <th style="width: 350px;" class="text-left pl-4"><i class="fa-solid fa-list-ul"></i> รายการสั่งซื้ออะไหล่ (PO) & สถานะคิว<div class="resizer-green"></div></th>
+                                <th style="width: 100px;">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sa_po_body" class="divide-y divide-slate-200"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal: ตารางรวมแบบเก่า -->
+    <div id="jobListModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden modal-fade border border-[#00320D] flex flex-col max-h-[90vh]">
+            <div class="bg-[#00320D] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md z-20 relative border-b-4 border-amber-500">
+                <h2 class="font-bold text-lg flex items-center gap-3">
+                    <button onclick="closeModal('jobListModal')" class="bg-white/10 hover:bg-white/20 px-4 py-1.5 rounded-lg text-sm font-bold transition flex items-center gap-2 shadow-sm border border-white/10"><i class="fa-solid fa-arrow-left"></i> กลับ</button>
+                    <div class="w-px h-6 bg-white/20 mx-1"></div>
+                    <span id="modal_status_name" class="text-amber-400 font-black tracking-wide"></span>
+                </h2>
+                <button onclick="closeModal('jobListModal')" class="hover:text-red-400 bg-white/5 hover:bg-red-500/20 w-8 h-8 rounded-full flex items-center justify-center transition-colors text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-auto custom-scrollbar p-0 bg-slate-50 relative">
+                <table class="simple-table border-none">
+                    <thead class="bg-[#00320D] text-white uppercase sticky top-0 shadow-sm text-[11px]">
+                        <tr></tr>
+                    </thead>
+                    <tbody id="modal_job_table" class="bg-white text-[11px]"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: โต๊ะคีย์อะไหล่ ProMax -->
+    <div id="saKeyDeskModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[150] flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-7xl overflow-hidden modal-fade flex flex-col max-h-[95vh]">
+            <div class="bg-amber-50 px-6 py-4 flex justify-between items-center shrink-0 border-b border-amber-200">
+                <h2 class="font-black text-lg text-amber-800 flex items-center gap-3"><i class="fa-solid fa-table-cells text-amber-500 text-2xl"></i> โต๊ะคีย์อัปเดตสถานะให้ SA</h2>
+                <button onclick="closeModal('saKeyDeskModal')" class="hover:text-red-500 text-slate-400 transition-colors text-2xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-6 bg-slate-50 flex-1 overflow-hidden flex flex-col">
+                <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-4 flex justify-between items-center shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-file-excel text-emerald-600 text-2xl"></i>
+                        <div>
+                            <h3 class="font-bold text-emerald-800">โต๊ะคีย์อะไหล่ ProMax: <span id="kd_plate" class="text-emerald-600 bg-white px-2 py-0.5 rounded border border-emerald-300"></span></h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-1 overflow-auto custom-scrollbar border border-slate-200 rounded-xl bg-white">
+                    <table class="excel-table-green w-full">
+                        <thead>
+                            <tr>
+                                <th style="width: 100px;">EPC No</th><th style="width: 120px;">หมายเลขอะไหล่</th><th style="width: 60px;">จำนวน</th><th style="width: 200px;">ชื่อชิ้นส่วน</th><th style="width: 120px;">MAIN No</th><th style="width: 100px;">ประเภท</th><th style="width: 120px;">QT</th><th style="width: 120px;">SO</th><th style="width: 120px;">สถานะ</th><th style="width: 120px;">คาดการณ์ (ETA)</th><th style="width: 50px;">ลบ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="kd_tbody" class="divide-y divide-slate-200"></tbody>
+                    </table>
+                </div>
+                <div class="mt-3">
+                    <button onclick="addSAKeyDeskRow()" class="px-4 py-2 bg-white border border-emerald-500 text-emerald-600 font-bold rounded-lg text-xs shadow-sm hover:bg-emerald-50 transition flex items-center gap-1.5"><i class="fa-solid fa-plus"></i> กดเพิ่มแถว</button>
+                </div>
+            </div>
+            <div class="bg-white border-t border-slate-200 px-6 py-4 flex justify-end gap-3 shrink-0">
+                <button onclick="closeModal('saKeyDeskModal')" class="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl text-sm font-bold shadow-sm hover:bg-slate-100 transition">ปิดหน้าต่าง</button>
+                <button onclick="saveSAKeyDesk()" id="btn_save_kd" class="px-8 py-2.5 bg-amber-500 text-amber-900 font-black rounded-xl text-sm shadow-md hover:bg-amber-400 transition flex items-center gap-2"><i class="fa-solid fa-save"></i> บันทึกข้อมูล</button>
+            </div>
+        </div>
+    </div>
+
+    <datalist id="master_parts_datalist"></datalist>
+    <script src="table_pagination.js?v=1.1"></script>
+    <script src="table_viewport_lock.js?v=1.0"></script>
+<script src="jobs.js?v=2.4"></script>
+</body>
+</html>

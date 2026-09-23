@@ -6,6 +6,7 @@
     <title>RIZENIC ERP - รายงานข้อมูลรถซ่อม</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="table_scroll_fix.css?v=1.6">
     
     <!-- ดึง SheetJS สำหรับโหลด Excel 100% ภาษาไทยไม่เพี้ยน -->
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
@@ -22,6 +23,7 @@
         .excel-table tbody tr:hover td { background-color: #f1f5f9; }
         .excel-table tbody td { padding: 12px 14px; color: #334155; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; background-color: #fff; white-space: nowrap; }
     </style>
+    <link rel="stylesheet" href="ui_global.css?v=1.1">
 </head>
 <body class="text-slate-800">
 
@@ -95,10 +97,13 @@
         </div>
     </main>
 
+    <script src="table_pagination.js?v=1.1"></script>
+    <script src="table_viewport_lock.js?v=1.0"></script>
     <script>
         const API_BASE_URL = window.location.origin;
         let allJobs = []; 
         let filteredJobs = [];
+        const reportPager = RizenicPagination.createState(50);
         let currentBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
 
         async function fetchJobs() {
@@ -140,22 +145,33 @@
                 return true;
             });
 
+            RizenicPagination.reset(reportPager);
+            renderTable(filteredJobs);
+        }
+
+        function goReportPage(page) {
+            reportPager.page = page;
             renderTable(filteredJobs);
         }
 
         function renderTable(data) {
             const tbody = document.getElementById('report_list_body');
+            const pageInfo = RizenicPagination.paginate(data, reportPager);
+            document.getElementById('table_row_count').innerText = data.length;
+            RizenicPagination.renderControls({
+                anchorId: 'reportTable', containerId: 'report_table_pagination', pageInfo,
+                noun: 'รายการ', onPageChange: goReportPage
+            });
             if(data.length === 0) { 
                 tbody.innerHTML = `<tr><td colspan="10" class="p-12 text-center text-slate-400 font-bold text-base">📭 ไม่พบข้อมูลในช่วงเวลาที่เลือก</td></tr>`; 
-                document.getElementById('table_row_count').innerText = 0;
                 return; 
             }
 
             let html = '';
-            data.forEach((j, index) => {
+            pageInfo.items.forEach((j, index) => {
                 html += `
                     <tr>
-                        <td class="text-center font-bold text-slate-400">${index + 1}</td>
+                        <td class="text-center font-bold text-slate-400">${pageInfo.startIndex + index + 1}</td>
                         <td class="font-mono font-black text-[#00320D]">${j.car_plate || '-'}</td>
                         <td class="font-bold">${j.car_brand || ''} <span class="font-normal text-slate-500">${j.car_model || ''}</span></td>
                         <td>${j.sa_owner || '-'}</td>
@@ -169,7 +185,6 @@
                 `;
             });
             tbody.innerHTML = html;
-            document.getElementById('table_row_count').innerText = data.length;
         }
 
         function exportToExcel() {

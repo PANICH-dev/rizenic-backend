@@ -35,6 +35,83 @@ function getSafeJobsData() {
     return [];
 }
 
+
+const stationTablePager = RizenicPagination.createState(20);
+const parkedCarsPager = RizenicPagination.createState(20);
+const dashboardTableSortState = Object.create(null);
+
+function goDashboardStationPage(page) {
+    stationTablePager.page = page;
+    renderStationTable(false);
+}
+
+function goDashboardParkedPage(page) {
+    parkedCarsPager.page = page;
+    renderParkedCars(false);
+}
+
+function updateDashboardSort(tableId, colIndex) {
+    const current = dashboardTableSortState[tableId];
+    const dir = current && current.colIndex === colIndex && current.dir === 'asc' ? 'desc' : 'asc';
+    dashboardTableSortState[tableId] = { colIndex, dir };
+    if (tableId === 'stationTable') RizenicPagination.reset(stationTablePager);
+    if (tableId === 'parkedCarsTable') RizenicPagination.reset(parkedCarsPager);
+    if (tableId === 'partsTrackingTable' && typeof dashboardPOPager !== 'undefined') RizenicPagination.reset(dashboardPOPager);
+}
+
+function compareDashboardValues(a, b, dir) {
+    const av = a == null ? '' : String(a).trim();
+    const bv = b == null ? '' : String(b).trim();
+    const an = Number(String(av).replace(/,/g, ''));
+    const bn = Number(String(bv).replace(/,/g, ''));
+    let result;
+    if (av !== '' && bv !== '' && Number.isFinite(an) && Number.isFinite(bn)) result = an - bn;
+    else result = av.localeCompare(bv, 'th', { numeric: true, sensitivity: 'base' });
+    return dir === 'desc' ? -result : result;
+}
+
+function sortDashboardRows(rows, tableId, valueGetter) {
+    const state = dashboardTableSortState[tableId];
+    if (!state) return rows;
+    return rows.slice().sort((a, b) => compareDashboardValues(
+        valueGetter(a, state.colIndex),
+        valueGetter(b, state.colIndex),
+        state.dir
+    ));
+}
+
+function refreshDashboardSortIcon(tableId) {
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    table.querySelectorAll('.fa-sort, .fa-sort-up, .fa-sort-down').forEach(icon => {
+        icon.className = 'fa-solid fa-sort sort-icon';
+    });
+    const state = dashboardTableSortState[tableId];
+    if (!state) return;
+    const th = table.querySelectorAll('th')[state.colIndex];
+    const icon = th ? th.querySelector('.sort-icon') : null;
+    if (icon) icon.className = state.dir === 'asc'
+        ? 'fa-solid fa-sort-down ml-1 text-white opacity-100 sort-icon'
+        : 'fa-solid fa-sort-up ml-1 text-white opacity-100 sort-icon';
+}
+
+function pushDateIndex(map, dateValue, job) {
+    const dateKey = cleanDate(dateValue);
+    if (!dateKey) return;
+    if (!map.has(dateKey)) map.set(dateKey, []);
+    map.get(dateKey).push(job);
+}
+
+function buildDashboardDateIndex(jobs) {
+    const dateIndex = { arrived: new Map(), target: new Map(), delivery: new Map() };
+    (Array.isArray(jobs) ? jobs : []).forEach(job => {
+        pushDateIndex(dateIndex.arrived, job.arrived_date, job);
+        pushDateIndex(dateIndex.target, job.target_finish_date, job);
+        pushDateIndex(dateIndex.delivery, job.delivery_date, job);
+    });
+    return dateIndex;
+}
+
 function checkOverdue(job) {
     if (!job.target_finish_date) return false; 
     if (job.repair_finish_date) return false; 
@@ -176,6 +253,14 @@ function openStationModal(stationName) {
 }
 
 function sortTable(tableId, colIndex) {
+    if (['partsTrackingTable', 'stationTable', 'parkedCarsTable'].includes(tableId)) {
+        updateDashboardSort(tableId, colIndex);
+        if (tableId === 'partsTrackingTable' && typeof renderPartsTracking === 'function') renderPartsTracking(false);
+        else if (tableId === 'stationTable') renderStationTable(false);
+        else if (tableId === 'parkedCarsTable') renderParkedCars(false);
+        return;
+    }
+
     const table = document.getElementById(tableId);
     if(!table) return;
     const tbody = table.querySelector('tbody');
@@ -183,61 +268,63 @@ function sortTable(tableId, colIndex) {
     const rows = Array.from(tbody.querySelectorAll('tr'));
     if (rows.length <= 1) return;
 
-    table.querySelectorAll('.fa-sort, .fa-sort-up, .fa-sort-down').forEach(icon => icon.className = "fa-solid fa-sort sort-icon");
-
+    table.querySelectorAll('.fa-sort, .fa-sort-up, .fa-sort-down').forEach(icon => icon.className = 'fa-solid fa-sort sort-icon');
     let dir = table.getAttribute(`data-dir-${colIndex}`) || 'asc';
     table.setAttribute(`data-dir-${colIndex}`, dir === 'asc' ? 'desc' : 'asc');
-    
-    const clickedIcon = table.querySelectorAll('th')[colIndex] ? table.querySelectorAll('th')[colIndex].querySelector('.sort-icon') : null;
-    if (clickedIcon) clickedIcon.className = dir === 'asc' ? "fa-solid fa-sort-down ml-1 text-white opacity-100" : "fa-solid fa-sort-up ml-1 text-white opacity-100";
-
-    rows.sort((a, b) => {
-        let valA = getCellValue(a.cells[colIndex]); 
-        let valB = getCellValue(b.cells[colIndex]);
-        let numA = parseFloat(valA.replace(/,/g, '')); 
-        let numB = parseFloat(valB.replace(/,/g, ''));
-        if (!isNaN(numA) && !isNaN(numB)) return dir === 'asc' ? numA - numB : numB - numA;
-        return dir === 'asc' ? valA.localeCompare(valB, 'th') : valB.localeCompare(valA, 'th');
-    });
+    const clickedIcon = table.querySelectorAll('th')[colIndex]?.querySelector('.sort-icon');
+    if (clickedIcon) clickedIcon.className = dir === 'asc' ? 'fa-solid fa-sort-down ml-1 text-white opacity-100 sort-icon' : 'fa-solid fa-sort-up ml-1 text-white opacity-100 sort-icon';
+    rows.sort((a, b) => compareDashboardValues(getCellValue(a.cells[colIndex]), getCellValue(b.cells[colIndex]), dir));
     rows.forEach(row => tbody.appendChild(row));
 }
 
 // ==========================================
 // 🛠️ 1. ตารางรายการรถในสถานีซ่อม (10.กำลังซ่อม เท่านั้น)
 // ==========================================
-function renderStationTable() {
+function renderStationTable(resetPage = false) {
     const tbody = document.getElementById('station_table_body');
     if(!tbody) return;
-    
+
+    if (resetPage) RizenicPagination.reset(stationTablePager);
     const safeJobs = getSafeJobsData();
-    
-    // 🎯 กรองเฉพาะ job_status ที่มีคำว่า '10.กำลังซ่อม' 
-    const inRepairCars = safeJobs.filter(j => {
+    let inRepairCars = safeJobs.filter(j => {
         const st = String(j.job_status || '').trim();
         return st === '10.กำลังซ่อม' || st.includes('10.กำลังซ่อม');
     });
-    
+
+    inRepairCars.sort((a,b) => new Date(a.target_finish_date||'9999') - new Date(b.target_finish_date||'9999'));
+    inRepairCars = sortDashboardRows(inRepairCars, 'stationTable', (j, colIndex) => {
+        const station = computeHighestStationIFS(j);
+        const values = [
+            j.car_plate || '', `${j.car_brand || ''} ${j.car_model || ''}`.trim(), j.customer_name || '',
+            j.job_status || '', station, cleanDate(j.target_finish_date), cleanDate(j.repair_finish_date), cleanDate(j.delivery_date)
+        ];
+        return values[colIndex] ?? '';
+    });
+
+    const pageInfo = RizenicPagination.paginate(inRepairCars, stationTablePager);
+    RizenicPagination.renderControls({
+        anchorId: 'stationTable', containerId: 'dashboard_station_pagination', pageInfo,
+        noun: 'คัน', onPageChange: goDashboardStationPage
+    });
+
     if(inRepairCars.length === 0) {
         tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-slate-400 font-bold bg-slate-50">ไม่มีรถกำลังซ่อมในสถานีขณะนี้ 🎉</td></tr>`;
+        refreshDashboardSortIcon('stationTable');
         return;
     }
 
-    inRepairCars.sort((a,b) => new Date(a.target_finish_date||'9999') - new Date(b.target_finish_date||'9999'));
     const today = new Date(); today.setHours(0,0,0,0);
-
-    tbody.innerHTML = inRepairCars.map(j => {
+    tbody.innerHTML = pageInfo.items.map(j => {
         const target = j.target_finish_date ? cleanDate(j.target_finish_date) : '-';
         const actual = j.repair_finish_date ? cleanDate(j.repair_finish_date) : '-';
         const delivery = j.delivery_date ? cleanDate(j.delivery_date) : '-';
         const station = computeHighestStationIFS(j);
-        
         let overdueWarning = '';
         if (j.delivery_date && today > new Date(j.delivery_date).setHours(0,0,0,0)) {
             overdueWarning = `<i class="fa-solid fa-triangle-exclamation text-red-500 animate-pulse ml-1" title="เลยกำหนดส่งมอบ!"></i>`;
         } else if (j.target_finish_date && today > new Date(j.target_finish_date).setHours(0,0,0,0)) {
             overdueWarning = `<i class="fa-solid fa-clock text-amber-500 animate-pulse ml-1" title="เลยเป้าซ่อมเสร็จ!"></i>`;
         }
-        
         return `
             <tr class="cursor-pointer hover:bg-orange-50/50 transition-colors border-b border-slate-100" onclick="goToEditJob('${j.id}')">
                 <td class="px-4 py-3 font-black text-orange-700"><span class="bg-orange-50 px-2.5 py-1 rounded border border-orange-200 shadow-inner">${j.car_plate || '-'}${overdueWarning}</span></td>
@@ -249,39 +336,55 @@ function renderStationTable() {
                 <td class="px-4 py-3 font-mono text-xs text-emerald-600 text-center font-bold">${actual}</td>
                 <td class="px-4 py-3 font-mono text-xs text-purple-600 text-center font-bold">${delivery}</td>
                 <td class="px-4 py-3 text-center"><button class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-sm w-full whitespace-nowrap"><i class="fa-solid fa-pen"></i> ดูข้อมูล</button></td>
-            </tr>
-        `;
+            </tr>`;
     }).join('');
+    refreshDashboardSortIcon('stationTable');
 }
 
 // ==========================================
 // 🚗 2. รายการรถกำลังจอดซ่อมในศูนย์ (is_parked === 'จอดซ่อม' เท่านั้น)
 // ==========================================
-function renderParkedCars() {
+function renderParkedCars(resetPage = false) {
     const tbody = document.getElementById('parked_cars_body');
     if(!tbody) return;
-    
+
+    if (resetPage) RizenicPagination.reset(parkedCarsPager);
     const safeJobs = getSafeJobsData();
-    
-    // 🎯 กรองเฉพาะรถที่มี is_parked = 'จอดซ่อม' หรือมีคำว่า 'จอดซ่อม' 
-    const parkedCars = safeJobs.filter(j => {
+    let parkedCars = safeJobs.filter(j => {
         const pk = String(j.is_parked || '').trim();
         return pk === 'จอดซ่อม' || pk.includes('จอดซ่อม');
     });
-    
+
+    const today = new Date(); today.setHours(0,0,0,0);
+    const parkedDays = job => {
+        if (!job.arrived_date) return 0;
+        const arrDate = new Date(job.arrived_date); arrDate.setHours(0,0,0,0);
+        return Math.floor(Math.abs(today - arrDate) / (1000 * 60 * 60 * 24));
+    };
+    parkedCars.sort((a,b) => new Date(a.arrived_date) - new Date(b.arrived_date));
+    parkedCars = sortDashboardRows(parkedCars, 'parkedCarsTable', (j, colIndex) => {
+        const values = [
+            parkedDays(j), j.car_plate || '', `${j.car_brand || ''} ${j.car_model || ''}`.trim(), j.customer_name || '',
+            computeHighestStationIFS(j), cleanDate(j.target_finish_date), cleanDate(j.repair_finish_date), cleanDate(j.delivery_date), j.job_status || ''
+        ];
+        return values[colIndex] ?? '';
+    });
+
+    const pageInfo = RizenicPagination.paginate(parkedCars, parkedCarsPager);
+    RizenicPagination.renderControls({
+        anchorId: 'parkedCarsTable', containerId: 'dashboard_parked_pagination', pageInfo,
+        noun: 'คัน', onPageChange: goDashboardParkedPage
+    });
+
     if(parkedCars.length === 0) {
         tbody.innerHTML = `<tr><td colspan="10" class="text-center py-10 text-slate-400 font-bold bg-slate-50"><i class="fa-solid fa-car-tunnel text-3xl mb-3 block opacity-50"></i>ไม่มีรถจอดซ่อมในศูนย์ขณะนี้ 🎉</td></tr>`;
+        refreshDashboardSortIcon('parkedCarsTable');
         return;
     }
 
-    const today = new Date(); today.setHours(0,0,0,0);
-    parkedCars.sort((a,b) => new Date(a.arrived_date) - new Date(b.arrived_date)); 
-
-    tbody.innerHTML = parkedCars.map(j => {
-        const arrDate = new Date(j.arrived_date); arrDate.setHours(0,0,0,0);
-        const diffDays = j.arrived_date ? Math.floor(Math.abs(today - arrDate) / (1000 * 60 * 60 * 24)) : 0;
-        let dayBadge = diffDays > 14 ? 'bg-red-100 text-red-700 border-red-400 font-black shadow-sm animate-pulse' : (diffDays > 7 ? 'bg-amber-100 text-amber-700 border-amber-400 font-bold shadow-sm' : 'bg-slate-100 text-slate-700 border-slate-300 font-bold shadow-sm');
-        
+    tbody.innerHTML = pageInfo.items.map(j => {
+        const diffDays = parkedDays(j);
+        const dayBadge = diffDays > 14 ? 'bg-red-100 text-red-700 border-red-400 font-black shadow-sm animate-pulse' : (diffDays > 7 ? 'bg-amber-100 text-amber-700 border-amber-400 font-bold shadow-sm' : 'bg-slate-100 text-slate-700 border-slate-300 font-bold shadow-sm');
         return `
             <tr class="cursor-pointer hover:bg-amber-50/80 transition-colors border-b border-slate-100" onclick="goToEditJob('${j.id}')">
                 <td class="text-center px-4 py-3"><span class="px-3 py-1 rounded-lg border ${dayBadge}">${diffDays}</span></td>
@@ -294,9 +397,9 @@ function renderParkedCars() {
                 <td class="font-mono text-xs text-purple-600 text-center font-bold px-4 py-3">${j.delivery_date ? cleanDate(j.delivery_date) : '-'}</td>
                 <td class="font-bold text-slate-600 text-[11px] px-4 py-3"><span class="bg-slate-100 border border-slate-200 px-2 py-1 rounded shadow-sm">${j.job_status || '-'}</span></td>
                 <td class="text-center px-4 py-3"><button class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-sm w-full whitespace-nowrap"><i class="fa-solid fa-pen"></i> ดูข้อมูล</button></td>
-            </tr>
-        `;
+            </tr>`;
     }).join('');
+    refreshDashboardSortIcon('parkedCarsTable');
 }
 
 // ==========================================
@@ -321,14 +424,15 @@ function renderCalendarByRange(startDate, endDate) {
     for(let i = 0; i < start.getDay(); i++) grid.innerHTML += `<div class="bg-slate-50/50 rounded-xl border border-transparent"></div>`; 
 
     const safeFilteredJobs = getSafeJobsData();
+    const dateIndex = buildDashboardDateIndex(safeFilteredJobs);
 
     let maxCount = 1; const daysData = [];
     let currentDay = new Date(start);
     while(currentDay <= end) {
         const dateStr = `${currentDay.getFullYear()}-${String(currentDay.getMonth()+1).padStart(2,'0')}-${String(currentDay.getDate()).padStart(2,'0')}`;
-        const arr = safeFilteredJobs.filter(j => j.arrived_date && cleanDate(j.arrived_date) === dateStr);
-        const tar = safeFilteredJobs.filter(j => j.target_finish_date && cleanDate(j.target_finish_date) === dateStr);
-        const del = safeFilteredJobs.filter(j => j.delivery_date && cleanDate(j.delivery_date) === dateStr);
+        const arr = dateIndex.arrived.get(dateStr) || [];
+        const tar = dateIndex.target.get(dateStr) || [];
+        const del = dateIndex.delivery.get(dateStr) || [];
         
         maxCount = Math.max(maxCount, arr.length, tar.length, del.length);
         daysData.push({ day: currentDay.getDate(), dateStr, arrJobs: arr, tarJobs: tar, delJobs: del });

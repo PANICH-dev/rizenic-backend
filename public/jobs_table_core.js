@@ -303,6 +303,26 @@ async function autoMapRouting(jobId, newStatus) {
     }
 }
 
+async function readApiErrorMessage(response, fallback = 'เกิดข้อผิดพลาดในการบันทึกข้อมูล') {
+    try {
+        const text = await response.text();
+        if (text) {
+            try {
+                const data = JSON.parse(text);
+                if (data?.error) return data.error;
+                if (Array.isArray(data?.validationErrors) && data.validationErrors.length) {
+                    const messages = data.validationErrors.map(item => item?.message || item?.field).filter(Boolean);
+                    if (messages.length) return messages.join('\n');
+                }
+                if (data?.message) return data.message;
+            } catch (_) {
+                return text.trim() || fallback;
+            }
+        }
+    } catch (_) {}
+    return fallback;
+}
+
 async function fastUpdateStationDropdown(id, selectedLevel) {
     const job = allJobsData.find(j => String(j.id) === String(id));
     if (!job) return;
@@ -323,9 +343,11 @@ async function fastUpdateStationDropdown(id, selectedLevel) {
             showToast('อัปเดตความคืบหน้าสถานีเรียบร้อย!');
             Object.assign(job, payload);
             job.calculated_station = computeHighestStationIFS(job);
-            if(typeof applyFilters === 'function') applyFilters();
-        } else throw new Error();
-    } catch(e) { showToast('อัปเดตไม่สำเร็จ', 'error'); }
+            if(typeof applyFilters === 'function') applyFilters(false);
+        } else {
+            throw new Error(await readApiErrorMessage(res, 'อัปเดตไม่สำเร็จ'));
+        }
+    } catch(e) { showToast(e?.message || 'อัปเดตไม่สำเร็จ', 'error'); }
 }
 
 async function fastUpdateJob(jobId, field, value, silent = false) {
@@ -354,7 +376,7 @@ async function fastUpdateJob(jobId, field, value, silent = false) {
         
         if (requiresArrivedDate && (!job.arrived_date || String(job.arrived_date).trim() === '')) {
             alert(`❌ ไม่สามารถเปลี่ยนสถานะเป็น "${formattedValue}" ได้\nกรุณาระบุ "วันที่รถเข้าจอดอู่" ในคอลัมน์ให้เรียบร้อยก่อนครับ!`);
-            if(!silent && typeof applyFilters === 'function') applyFilters(); // รีเฟรชตารางกลับค่าเดิม
+            if(!silent && typeof applyFilters === 'function') applyFilters(false); // รีเฟรชตารางกลับค่าเดิมโดยคงหน้าปัจจุบัน
             return;
         }
     }
@@ -371,7 +393,7 @@ async function fastUpdateJob(jobId, field, value, silent = false) {
             const quotaCheck = await checkQuotaForInlineEdit(jobId, job.branch_name, formattedValue, field, reqCount);
             if (quotaCheck !== true) {
                 alert('❌ ไม่สามารถอัปเดตได้:\n\n' + quotaCheck);
-                if(typeof applyFilters === 'function') applyFilters(); 
+                if(typeof applyFilters === 'function') applyFilters(false); 
                 return;
             }
         }
@@ -388,7 +410,7 @@ async function fastUpdateJob(jobId, field, value, silent = false) {
             
             if(!silent) showToast('บันทึกข้อมูลเรียบร้อย!');
             if(field === 'job_status') await autoMapRouting(jobId, value);
-            if(!silent && typeof applyFilters === 'function') applyFilters();
+            if(!silent && typeof applyFilters === 'function') applyFilters(false);
         } else {
             const errData = await res.json();
             throw new Error(errData.error || 'บันทึกไม่สำเร็จ');
@@ -405,10 +427,7 @@ async function deleteJobRow(jobId, carPlate) {
         
         if (res.ok) { 
             allJobsData = allJobsData.filter(j => String(j.id) !== String(jobId));
-            const rowToRemove = document.getElementById(`row_${jobId}`);
-            if (rowToRemove) rowToRemove.remove();
-            const currentRowCount = document.querySelectorAll('#jobs_table_body tr[id^="row_"]').length;
-            document.getElementById('row_count').innerText = currentRowCount;
+            if (typeof applyFilters === 'function') applyFilters(false);
             showToast(`✅ ลบรายการทะเบียน ${carPlate} สำเร็จ`);
         } else {
             const errData = await res.json();

@@ -6,12 +6,18 @@ let currentEditingJob = null;
 let repairBodyPartsList = { main: [], sub: [] };
 let selectedBodyParts = { main: [], sub: [] };
 
+function releaseAuthPaintGuard() {
+    document.documentElement.classList.remove('auth-pending');
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
     if(sessionStorage.getItem('isLoggedIn') !== 'true') {
         const loginScr = document.getElementById('login-screen');
         const mainApp = document.getElementById('main-app');
         if (loginScr) loginScr.classList.remove('hidden');
         if (mainApp) mainApp.classList.add('hidden');
+        releaseAuthPaintGuard();
         return;
     }
     
@@ -45,6 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     enterApp();
+    releaseAuthPaintGuard();
 });
 
 function logout() {
@@ -188,8 +195,7 @@ async function loadInitialData() {
             fetch(`${API_BASE_URL}/api/customer-types`).then(r => r.json()),
             fetch(`${API_BASE_URL}/api/car-models`).then(r => r.json()),
             fetch(`${API_BASE_URL}/api/insurances`).then(r => r.json()),
-            fetch(`${API_BASE_URL}/api/body-parts`).then(r => r.json()),
-            fetch(`${API_BASE_URL}/api/part-orders`).then(r => r.json()) // 🌟 1. เพิ่มการดึงข้อมูลอะไหล่
+            fetch(`${API_BASE_URL}/api/body-parts`).then(r => r.json())
         ]);
 
         if (results[0].status === 'fulfilled' && Array.isArray(results[0].value)) {
@@ -245,12 +251,7 @@ async function loadInitialData() {
             if (typeof renderBodyPartsUI === 'function') renderBodyPartsUI();
         }
 
-        // 🌟 2. เก็บข้อมูลอะไหล่ไว้ใช้แสดงผล
-        if (results[6].status === 'fulfilled' && Array.isArray(results[6].value)) {
-            window.allPartOrders = results[6].value;
-        } else {
-            window.allPartOrders = [];
-        }
+        // Part orders are intentionally lazy-loaded by sa_parts.js only when PO tracking is opened.
 
     } catch (err) {
         console.error("Error loading initial data", err);
@@ -567,6 +568,26 @@ function cancelEditMode() {
     if (saOwnerInp) saOwnerInp.value = sessionStorage.getItem('emp_name') || '';
 }
 
+async function readApiErrorMessage(response, fallback = 'เกิดข้อผิดพลาดในการบันทึกข้อมูล') {
+    try {
+        const text = await response.text();
+        if (text) {
+            try {
+                const data = JSON.parse(text);
+                if (data?.error) return data.error;
+                if (Array.isArray(data?.validationErrors) && data.validationErrors.length) {
+                    const messages = data.validationErrors.map(item => item?.message || item?.field).filter(Boolean);
+                    if (messages.length) return messages.join('\n');
+                }
+                if (data?.message) return data.message;
+            } catch (_) {
+                return text.trim() || fallback;
+            }
+        }
+    } catch (_) {}
+    return fallback;
+}
+
 async function submitSaForm(event) {
     event.preventDefault(); 
     
@@ -723,8 +744,8 @@ async function submitSaForm(event) {
     try {
         const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
         if (!response.ok) {
-            const errData = await response.json();
-            alert(`❌ บันทึกล้มเหลว:\n\n` + (errData.error || 'โปรดตรวจสอบอีกครั้ง'));
+            const message = await readApiErrorMessage(response, 'โปรดตรวจสอบอีกครั้ง');
+            alert('❌ บันทึกล้มเหลว:\n\n' + message);
             if (btnSubmit) {
                 btnSubmit.innerHTML = editId ? '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม' : '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ';
                 btnSubmit.disabled = false; 
@@ -745,7 +766,7 @@ async function submitSaForm(event) {
                 const pQty = tr.querySelector('.part-qty-input')?.value || '1';
                 
                 if (pNo && pName) {
-                    await fetch(`${API_BASE_URL}/api/part-orders`, {
+                    const partOrderResponse = await fetch(`${API_BASE_URL}/api/part-orders`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
                             job_id: savedJobId,
@@ -755,8 +776,13 @@ async function submitSaForm(event) {
                             part_no: pNo, part_main_no: pMain, part_name: pName, qty_ordered: pQty, part_type: pType, branch_name: formData.branch_name, order_status: 'รอสั่งซื้อ' 
                         })
                     });
+                    if (!partOrderResponse.ok) {
+                        const partOrderMessage = await readApiErrorMessage(partOrderResponse, `บันทึกรายการอะไหล่ ${pNo} ไม่สำเร็จ`);
+                        alert('❌ ใบงานบันทึกแล้ว แต่รายการอะไหล่ไม่สำเร็จ:\n' + partOrderMessage);
+                        continue;
+                    }
 
-                    await fetch(`${API_BASE_URL}/api/part-outbound`, {
+                    const outboundResponse = await fetch(`${API_BASE_URL}/api/part-outbound`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             job_id: savedJobId,
@@ -768,7 +794,11 @@ async function submitSaForm(event) {
                             job_status: 'รอเข้าซ่อม', part_type: pType,
                             branch_name: formData.branch_name
                         })
-                    }).catch(e => console.warn(e));
+                    });
+                    if (!outboundResponse.ok) {
+                        const outboundMessage = await readApiErrorMessage(outboundResponse, `บันทึกการเบิกอะไหล่ ${pNo} ไม่สำเร็จ`);
+                        alert('❌ ใบงานและรายการสั่งอะไหล่บันทึกแล้ว แต่รายการเบิกอะไหล่ไม่สำเร็จ:\n' + outboundMessage);
+                    }
                 }
             }
         }
@@ -792,7 +822,7 @@ async function submitSaForm(event) {
         }
         
     } catch (e) { 
-        alert('❌ เครือข่ายขัดข้อง'); 
+        alert('❌ ' + (e?.message || 'เครือข่ายขัดข้อง')); 
         if (btnSubmit) {
             btnSubmit.innerHTML = editId ? '<i class="fa-solid fa-file-pen"></i> บันทึกอัปเดตใบงานซ่อม' : '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ'; 
             btnSubmit.disabled = false;

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIZENIC ERP - Vehicle History</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="table_scroll_fix.css?v=1.5">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap');
+        body { font-family: 'Kanit', sans-serif; background-color: #f4f6f9; overflow: hidden; }
+        .bg-rizenic-green { background-color: #00320D; }
+        .text-rizenic-green { color: #00320D; }
+        .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .modal-fade { animation: fadeInScale 0.2s ease-out forwards; }
+        @keyframes fadeInScale { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+    </style>
+</head>
+<body class="text-slate-800 h-screen flex flex-col selection:bg-[#00320D] selection:text-white">
+
+    <!-- Header Navigation Bar -->
+    <header class="bg-rizenic-green text-white shadow-md z-50 shrink-0 border-b border-green-800">
+        <div class="px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-table-list text-amber-400 text-xl"></i>
+                <h1 class="text-lg font-black tracking-wider text-white">RIZENIC <span class="text-green-400">TRACKING</span></h1>
+            </div>
+            <nav class="flex flex-col sm:flex-row items-center gap-3">
+                <div class="text-right border-r border-green-700 pr-4 hidden sm:block">
+                    <p class="text-xs font-bold text-white mb-1" id="display_emp_name">Staff Name</p>
+                    <span class="text-[10px] text-green-300 font-bold bg-white/10 px-2 py-0.5 rounded-md border border-white/10">📍 <span id="display_branch">Branch</span></span>
+                </div>
+                <div class="flex flex-wrap gap-1.5 items-center">
+                    <a href="dashboard.html" class="px-3 py-1.5 rounded-lg text-green-200 hover:bg-white/10 font-bold text-xs transition">แดชบอร์ด</a>
+                    <a href="index.html" class="px-3 py-1.5 rounded-lg text-green-200 hover:bg-white/10 font-bold text-xs transition">เปิดบิลซ่อม</a>
+                    <a href="jobs.html" class="px-3 py-1.5 rounded-lg text-green-200 hover:bg-white/10 font-bold text-xs transition">บอร์ดใบงาน</a>
+                    <a href="repair.html" class="px-3 py-1.5 rounded-lg text-green-200 hover:bg-white/10 font-bold text-xs transition">สถานีช่าง</a>
+                    <a href="parts.html" class="px-3 py-1.5 rounded-lg text-green-200 hover:bg-white/10 font-bold text-xs transition">แผนกอะไหล่</a>
+                    <button onclick="logout()" class="px-2 py-1.5 text-red-300 hover:bg-red-500/20 rounded-lg text-xs transition ml-1"><i class="fa-solid fa-power-off"></i></button>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <div class="bg-white border-b border-slate-200 z-40 shrink-0 shadow-sm flex overflow-x-auto px-2 pt-2">
+        <a href="jobs_table.html" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 rounded-t-xl transition-all"><i class="fa-solid fa-file-excel text-emerald-600"></i> 1. ตารางใบงานทั้งหมด (Excel Mode)</a>
+        <a href="jobs.html" class="px-6 py-3.5 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 rounded-t-xl transition-all"><i class="fa-solid fa-users text-blue-600"></i> 2. ภาพรวมทีมบริการ (SA)</a>
+        <a href="history.html" class="px-6 py-3.5 text-sm font-bold border-b-2 border-[#00320D] text-[#00320D] bg-purple-50/80 flex items-center gap-2 rounded-t-xl transition-all"><i class="fa-solid fa-clock-rotate-left text-purple-600"></i> 3. เช็คประวัติรถ (History)</a>
+    </div>
+
+    <main class="flex-1 overflow-y-auto custom-scrollbar bg-slate-100 p-6 relative flex flex-col items-center">
+        <!-- กล่องค้นหา -->
+        <div class="bg-white w-full max-w-5xl rounded-2xl shadow-sm border border-slate-200 p-8 mb-6 mt-4">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-3 shadow-inner"><i class="fa-solid fa-magnifying-glass-chart"></i></div>
+                <h2 class="text-2xl font-black text-[#00320D]">ค้นหาประวัติงานซ่อม (Vehicle History)</h2>
+                <p class="text-sm text-slate-500 font-bold mt-1">ค้นหาจาก ทะเบียนรถ, เบอร์โทรศัพท์, ชื่อลูกค้า หรือเลขตัวถัง (VIN)</p>
+            </div>
+            
+            <div class="relative w-full max-w-3xl mx-auto flex items-center shadow-md rounded-xl overflow-hidden border-2 border-transparent focus-within:border-purple-400 transition-colors">
+                <div class="bg-slate-50 px-4 py-4 text-slate-400 border-r border-slate-200"><i class="fa-solid fa-car text-xl"></i></div>
+                <input type="text" id="searchInput" onkeypress="if(event.key==='Enter') searchHistory()" class="w-full px-5 py-4 text-lg font-bold outline-none text-[#00320D] placeholder-slate-300" placeholder="พิมพ์คำค้นหาที่นี่... (เช่น กท 1234, 0812345678)">
+                <button onclick="searchHistory()" class="bg-[#00320D] hover:bg-black text-white px-8 py-4 font-black text-lg transition-colors"><i class="fa-solid fa-search mr-2"></i> ค้นหา</button>
+            </div>
+        </div>
+
+        <!-- ผลลัพธ์การค้นหา -->
+        <div class="w-full max-w-6xl bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hidden flex-col max-h-[600px]" id="resultContainer">
+            <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
+                <h3 class="font-black text-slate-700"><i class="fa-solid fa-list-check text-purple-600 mr-2"></i> ผลการค้นหา: <span id="resultCount" class="text-purple-600">0</span> รายการ</h3>
+                <button onclick="clearSearch()" class="text-xs font-bold text-slate-400 hover:text-red-500 transition"><i class="fa-solid fa-eraser"></i> ล้างการค้นหา</button>
+            </div>
+            <div class="flex-1 overflow-auto custom-scrollbar p-0">
+                <table id="historyTable" class="w-full text-left border-collapse whitespace-nowrap text-sm">
+                    <thead class="bg-[#00320D] text-white sticky top-0 shadow-sm z-10 text-[11px] uppercase tracking-wider">
+                        <tr>
+                            <th class="px-4 py-3 font-bold">ทะเบียนรถ</th>
+                            <th class="px-4 py-3 font-bold">ลูกค้า / เบอร์โทร</th>
+                            <th class="px-4 py-3 font-bold">ยี่ห้อ / รุ่น</th>
+                            <th class="px-4 py-3 font-bold text-center">วันที่รับรถ</th>
+                            <th class="px-4 py-3 font-bold text-center">สถานะงาน</th>
+                            <th class="px-4 py-3 font-bold text-right">ยอดรวม (บาท)</th>
+                            <th class="px-4 py-3 font-bold text-center">ประวัติ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody" class="divide-y divide-slate-100">
+                        <!-- JS injects here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal รายละเอียดประวัติ -->
+    <div id="historyModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden modal-fade border border-[#00320D] flex flex-col max-h-[90vh]">
+            <div class="bg-[#00320D] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md z-20 relative border-b-4 border-purple-500">
+                <h2 class="font-bold text-lg flex items-center gap-3">
+                    <i class="fa-solid fa-file-contract text-purple-400 text-2xl"></i> ข้อมูลประวัติงานซ่อม
+                </h2>
+                <button onclick="closeModal('historyModal')" class="hover:text-red-400 bg-white/5 hover:bg-red-500/20 w-8 h-8 rounded-full flex items-center justify-center transition-colors text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-auto custom-scrollbar p-6 bg-slate-50 relative" id="historyModalContent">
+                <!-- JS injects details here -->
+            </div>
+            <div class="bg-white border-t border-slate-200 px-6 py-4 flex justify-end gap-3 shrink-0">
+                <button onclick="closeModal('historyModal')" class="px-6 py-2 bg-white border border-slate-300 text-slate-700 rounded-xl text-sm font-bold shadow-sm hover:bg-slate-100 transition">ปิดหน้าต่าง</button>
+                <button id="btnOpenJob" class="px-6 py-2 bg-amber-500 text-amber-900 font-black rounded-xl text-sm shadow-md hover:bg-amber-400 transition flex items-center gap-2"><i class="fa-solid fa-folder-open"></i> เปิดใบงานนี้</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="table_pagination.js?v=1.1"></script>
+    <script src="table_viewport_lock.js?v=1.0"></script>
+    <script src="history.js?v=1.1"></script>
+</body>
+</html>

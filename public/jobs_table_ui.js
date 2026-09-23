@@ -2,14 +2,21 @@
 // 🎨 RIZENIC - Jobs Table UI (Table & Filters)
 // ==========================================
 
+const jobsPager = RizenicPagination.createState(50);
+
 // ------------------------------------------
 // 🛠️ 1. จัดการคอลัมน์ (ยืด-หด, ซ่อน-แสดง, ลากสลับ)
 // ------------------------------------------
+function getVisibleColumns() {
+    return columnsDef.filter(col => !hiddenCols.has(col.idx));
+}
+
 function initColumns() {
     const thead = document.getElementById('jobs_table_head'); 
     let trHtml = '<tr>';
+    const visibleColumns = getVisibleColumns();
     
-    columnsDef.forEach((col, renderIndex) => {
+    visibleColumns.forEach((col, renderIndex) => {
         let filterIcon = col.key !== 'action' ? `<i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, ${col.idx}, '${col.title}')"></i>` : '';
         trHtml += `<th class="group select-none" data-render-idx="${renderIndex + 1}" id="th_${col.idx}" style="width: ${col.width}px; min-width: ${col.width}px;">
             <div class="flex justify-between items-center w-full h-full px-1">
@@ -38,7 +45,8 @@ function initColumns() {
     
     toggleContainer.innerHTML = togglesHtml;
 
-    applyColumnStyles(); 
+    applyColumnStyles();
+    restoreTableIndicators();
     setTimeout(initResizableColumns, 300);
 }
 
@@ -53,26 +61,72 @@ function handleDrop(e, targetIdx) {
     
     saveUserPreferences(); 
     initColumns(); 
-    applyFilters(); 
+    applyFilters(false); 
 }
 function handleDragEnd(e) { e.target.style.opacity = '1'; }
 
 function toggleColManager() { document.getElementById('colManagerPanel').classList.toggle('hidden'); }
 
+function getCurrentRenderedDataOrder(data) {
+    const rows = Array.from(document.querySelectorAll('#jobs_table_body tr[id^="row_"]'));
+    if (!rows.length || !Array.isArray(data) || !data.length) return data || [];
+
+    const pageSize = jobsPager.pageSize || 50;
+    const startIndex = Math.max(0, (jobsPager.page - 1) * pageSize);
+    const endIndex = Math.min(startIndex + pageSize, data.length);
+    const pageData = data.slice(startIndex, endIndex);
+    const dataById = new Map(pageData.map(job => [String(job.id), job]));
+    const orderedPage = [];
+    const usedIds = new Set();
+
+    rows.forEach(row => {
+        const rowId = String(row.id || '').replace(/^row_/, '');
+        const job = dataById.get(rowId);
+        if (job) {
+            orderedPage.push(job);
+            usedIds.add(rowId);
+        }
+    });
+    pageData.forEach(job => {
+        if (!usedIds.has(String(job.id))) orderedPage.push(job);
+    });
+
+    return [...data.slice(0, startIndex), ...orderedPage, ...data.slice(endIndex)];
+}
+
+function restoreTableIndicators() {
+    Object.keys(activeFilters || {}).forEach(idx => {
+        const icon = document.getElementById(`th_${idx}`)?.querySelector('.filter-icon');
+        if (icon) {
+            icon.classList.remove('text-slate-300');
+            icon.classList.add('text-amber-400');
+        }
+    });
+
+    const table = document.getElementById('jobsTable');
+    const sortedCol = table?.getAttribute('data-sorted-col');
+    const sortedDir = table?.getAttribute('data-sorted-dir');
+    if (sortedCol && sortedDir) {
+        const icon = document.getElementById(`th_${sortedCol}`)?.querySelector('.sort-icon');
+        if (icon) icon.className = sortedDir === 'asc' ? 'fa-solid fa-sort-down ml-1 text-amber-400 opacity-100' : 'fa-solid fa-sort-up ml-1 text-amber-400 opacity-100';
+    }
+}
+
 function toggleColumnVisibility(idx, isShow) { 
+    const renderedOrder = getCurrentRenderedDataOrder(currentFilteredData);
     if (isShow) hiddenCols.delete(idx); 
     else hiddenCols.add(idx); 
-    applyColumnStyles(); 
-    saveUserPreferences(); 
+    saveUserPreferences();
+    initColumns();
+    currentFilteredData = renderedOrder;
+    renderTable(currentFilteredData);
 }
 
 function applyColumnStyles() {
-    const styleTag = document.getElementById('dynamic-col-styles'); let css = '';
-    hiddenCols.forEach(idx => { 
-        const rIdx = columnsDef.findIndex(c => c.idx === idx) + 1; 
-        if(rIdx > 0) css += `#jobsTable th:nth-child(${rIdx}), #jobsTable td:nth-child(${rIdx}) { display: none !important; }\n`; 
-    });
-    styleTag.innerHTML = css;
+    // Hidden columns are no longer added to the table DOM.
+    // Keep this function for compatibility with the existing column-manager flow.
+    const styleTag = document.getElementById('dynamic-col-styles');
+    if (styleTag) styleTag.innerHTML = '';
 }
 
 function initResizableColumns() {
@@ -94,6 +148,9 @@ function initResizableColumns() {
             col.style.minWidth = `${newWidth}px`; 
         };
         const onMouseUp = () => { 
+            const colIdx = Number(String(col.id || '').replace('th_', ''));
+            const colDef = columnsDef.find(c => c.idx === colIdx);
+            if (colDef && col.offsetWidth) colDef.width = col.offsetWidth;
             resizer.classList.remove('resizing');
             document.removeEventListener('mousemove', onMouseMove); 
             document.removeEventListener('mouseup', onMouseUp); 
@@ -218,7 +275,7 @@ function debounceSearch() {
     searchTimeout = setTimeout(applyFilters, 300); 
 }
 
-function applyFilters() {
+function applyFilters(resetPage = true) {
     const searchTxt = document.getElementById('search_input').value.toLowerCase();
     const saSelectedTxt = document.getElementById('sa_filter_select').value; 
     const branchSelectedTxt = document.getElementById('branch_filter_select').value; 
@@ -245,40 +302,49 @@ function applyFilters() {
     });
 
     currentFilteredData = filteredData;
-    renderTable(filteredData); 
+    if (resetPage) RizenicPagination.reset(jobsPager);
+    renderTable(currentFilteredData); 
     document.getElementById('row_count').innerText = filteredData.length;
 }
 
-function sortTable(colIndex) {
-    const table = document.getElementById('jobsTable'); 
-    const tbody = table.querySelector('tbody'); 
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-    
-    if (rows.length <= 1) return;
-    
-    table.querySelectorAll('.fa-sort, .fa-sort-up, .fa-sort-down').forEach(icon => { icon.className = "fa-solid fa-sort sort-icon"; });
-    
-    let dir = table.getAttribute(`data-dir-${colIndex}`) || 'asc'; 
-    table.setAttribute(`data-dir-${colIndex}`, dir === 'asc' ? 'desc' : 'asc');
-    
-    const clickedTh = Array.from(table.querySelectorAll('th')).find(th => th.id === `th_${colIndex}`);
-    if (clickedTh) { 
-        const clickedIcon = clickedTh.querySelector('.sort-icon'); 
-        if (clickedIcon) clickedIcon.className = dir === 'asc' ? "fa-solid fa-sort-down ml-1 text-amber-400 opacity-100" : "fa-solid fa-sort-up ml-1 text-amber-400 opacity-100"; 
-    }
-    
-    const thIndex = Array.from(table.querySelectorAll('th')).findIndex(th => th.id === `th_${colIndex}`);
+function getJobsSortValue(job, colIndex) {
+    const colDef = columnsDef.find(c => Number(c.idx) === Number(colIndex));
+    if (!colDef) return '';
+    const key = colDef.key;
+    if (key === 'main_part_qty') return Number(job.main_part_qty) || (job.main_part_name ? job.main_part_name.split(',').filter(Boolean).length : 0);
+    if (key === 'sub_part_qty') return Number(job.sub_part_qty) || (job.sub_part_name ? job.sub_part_name.split(',').filter(Boolean).length : 0);
+    return job[key] ?? '';
+}
 
-    rows.sort((a, b) => {
-        let valA = getCellValue(a.cells[thIndex]); let valB = getCellValue(b.cells[thIndex]);
-        let isDateA = valA.match(/^\d{4}-\d{2}-\d{2}$/); let isDateB = valB.match(/^\d{4}-\d{2}-\d{2}$/);
-        if (isDateA && isDateB) { let dateA = new Date(valA); let dateB = new Date(valB); if (!isNaN(dateA) && !isNaN(dateB)) return dir === 'asc' ? dateA - dateB : dateB - dateA; }
-        let numA = parseFloat(valA.replace(/,/g, '')); let numB = parseFloat(valB.replace(/,/g, ''));
-        if (!isNaN(numA) && !isNaN(numB)) return dir === 'asc' ? numA - numB : numB - numA;
-        return dir === 'asc' ? valA.localeCompare(valB, 'th') : valB.localeCompare(valA, 'th');
-    });
-    
-    rows.forEach(row => tbody.appendChild(row));
+function compareJobsValues(a, b, dir) {
+    const aStr = String(a ?? '').trim();
+    const bStr = String(b ?? '').trim();
+    const dateRe = /^\d{4}-\d{2}-\d{2}/;
+    if (dateRe.test(aStr) && dateRe.test(bStr)) {
+        const da = new Date(aStr).getTime();
+        const db = new Date(bStr).getTime();
+        if (!Number.isNaN(da) && !Number.isNaN(db)) return dir === 'asc' ? da - db : db - da;
+    }
+    const na = Number(aStr.replace(/,/g, ''));
+    const nb = Number(bStr.replace(/,/g, ''));
+    if (aStr !== '' && bStr !== '' && Number.isFinite(na) && Number.isFinite(nb)) return dir === 'asc' ? na - nb : nb - na;
+    return dir === 'asc' ? aStr.localeCompare(bStr, 'th') : bStr.localeCompare(aStr, 'th');
+}
+
+function sortTable(colIndex) {
+    const table = document.getElementById('jobsTable');
+    if (!table || !currentFilteredData || currentFilteredData.length <= 1) return;
+
+    table.querySelectorAll('.fa-sort, .fa-sort-up, .fa-sort-down').forEach(icon => { icon.className = 'fa-solid fa-sort sort-icon'; });
+    const dir = table.getAttribute(`data-dir-${colIndex}`) || 'asc';
+    table.setAttribute(`data-dir-${colIndex}`, dir === 'asc' ? 'desc' : 'asc');
+    table.setAttribute('data-sorted-col', String(colIndex));
+    table.setAttribute('data-sorted-dir', dir);
+
+    currentFilteredData.sort((a, b) => compareJobsValues(getJobsSortValue(a, colIndex), getJobsSortValue(b, colIndex), dir));
+    RizenicPagination.reset(jobsPager);
+    renderTable(currentFilteredData);
+    restoreTableIndicators();
 }
 
 // ------------------------------------------
@@ -291,8 +357,18 @@ function formatPartsText(partStr, type) {
     </div>`;
 }
 
+function goJobsPage(page) {
+    jobsPager.page = page;
+    renderTable(currentFilteredData);
+}
+
 function renderTable(data) {
-    const tbody = document.getElementById('jobs_table_body'); 
+    const tbody = document.getElementById('jobs_table_body');
+    const pageInfo = RizenicPagination.paginate(data || [], jobsPager);
+    RizenicPagination.renderControls({
+        anchorId: 'jobsTable', containerId: 'jobs_table_pagination', pageInfo,
+        noun: 'คัน', onPageChange: goJobsPage
+    });
     if (!data || data.length === 0) { 
         tbody.innerHTML = `<tr><td colspan="40" class="text-center py-16 text-slate-400 font-bold bg-white">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td></tr>`; 
         return; 
@@ -305,6 +381,7 @@ function renderTable(data) {
     today.setHours(0,0,0,0);
 
     const branchSAs = getSAsForCurrentBranch();
+    const renderColumns = getVisibleColumns();
     const activePartOrders = (allPartOrders || []).filter(p => p.order_status !== 'ยกเลิก');
     
     const partsByJobId = {};
@@ -322,7 +399,7 @@ function renderTable(data) {
         }
     });
 
-    data.forEach(job => {
+    pageInfo.items.forEach((job, rowIndex) => {
         let carParts = [];
         if (job.id && partsByJobId[job.id]) {
             carParts = partsByJobId[job.id];
@@ -338,7 +415,7 @@ function renderTable(data) {
         
         // 🌟 1. กำหนดสีพื้นหลัง: ถ้ามีไฮไลท์ให้ใช้สีไฮไลท์ ถ้าไม่มีให้ใช้เทาสลับขาว
         const highlight = (typeof userRowHighlights !== 'undefined') ? userRowHighlights[job.id] : null;
-        const isEvenRow = data.indexOf(job) % 2 !== 0; 
+        const isEvenRow = rowIndex % 2 !== 0; 
         
         let rowBgStyle = '';
         if (highlight && highlight.color) {
@@ -349,7 +426,7 @@ function renderTable(data) {
         
         let rowHtml = `<tr id="row_${job.id}" ondblclick="goToEditJob('${job.id}')" title="${highlight && highlight.note ? 'โน้ตส่วนตัว: ' + highlight.note : 'ดับเบิ้ลคลิกเพื่อเปิดใบงานนี้'}" style="${rowBgStyle}">`;
         
-        columnsDef.forEach(col => {
+        renderColumns.forEach(col => {
             let cellData = ''; let cellClass = '';
             
             switch(col.key) {
@@ -570,6 +647,6 @@ function saveHighlight() {
     
     saveUserPreferences(); // ยิง API เซฟเก็บไว้ใน DB
     closeHighlightModal();
-    applyFilters(); // รีเฟรชตารางเพื่อโชว์สีใหม่
+    applyFilters(false); // รีเฟรชตารางเพื่อโชว์สีใหม่โดยคงหน้าปัจจุบัน
     showToast('อัปเดตไฮไลท์ส่วนตัวเรียบร้อย!');
 }

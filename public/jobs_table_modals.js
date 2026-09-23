@@ -363,13 +363,19 @@ async function saveBulkData() {
         }
         
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึกข้อมูล...';
-        await Promise.all(promises); 
+        const responses = await Promise.all(promises);
+        const failedResponse = responses.find(response => !response.ok);
+        if (failedResponse) {
+            const message = await readApiErrorMessage(failedResponse, 'มีบางรายการบันทึกไม่สำเร็จ');
+            alert('❌ ' + message);
+            return;
+        }
         alert(`🎉 นำเข้าสำเร็จ ${promises.length} คัน!`); 
         closeBulkModal(); 
         
         if(typeof loadJobsData === 'function') loadJobsData(); 
     } catch(e) { 
-        alert('❌ เกิดข้อผิดพลาดในการบันทึกข้อมูล'); 
+        alert('❌ ' + (e?.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล')); 
     } finally { 
         btn.innerHTML = '<i class="fa-solid fa-save"></i> บันทึกข้อมูลเข้าฐานข้อมูล'; 
         btn.disabled = false; 

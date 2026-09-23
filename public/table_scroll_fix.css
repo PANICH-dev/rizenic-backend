@@ -1,0 +1,188 @@
+/*
+ * RIZENIC table scroll containment v1.6
+ * Page-level scrolling is disabled only while a single long data table is active.
+ * The table scroller owns both X/Y scrolling; pagination and outer chrome stay fixed.
+ */
+html,
+body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* Flex/grid children otherwise default to min-width:auto and can push the page wider. */
+main,
+section,
+.tab-content,
+.card-container,
+#resultContainer,
+#sa_detail_view {
+    min-width: 0;
+}
+
+/* Existing table scroll wrappers remain the horizontal scroll surface. */
+.table-container,
+#tableContainer,
+.overflow-auto:has(> table),
+.overflow-x-auto:has(> table) {
+    min-width: 0;
+    max-width: 100%;
+    overflow: auto !important;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* One-screen mode: no body/main scrollbar. */
+html.rz-table-page-lock {
+    height: 100%;
+    overflow: hidden !important;
+}
+
+body.rz-table-page-lock {
+    height: 100dvh !important;
+    min-height: 0 !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+    overscroll-behavior: none;
+}
+
+body.rz-table-page-lock main {
+    min-height: 0 !important;
+    overflow: hidden !important;
+}
+
+body.rz-table-page-lock main.rz-table-main-lock {
+    min-height: 0 !important;
+    overflow: hidden !important;
+}
+
+body.rz-table-page-lock .rz-table-flex-path {
+    min-height: 0 !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+}
+
+/* Only this area may move vertically/horizontally in one-screen table mode. */
+body.rz-table-page-lock .rz-table-viewport-scroll {
+    height: var(--rz-table-viewport-height) !important;
+    max-height: var(--rz-table-viewport-height) !important;
+    min-height: 0 !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    flex: 0 1 auto !important;
+    overflow: auto !important;
+    overscroll-behavior: none;
+    resize: none !important;
+
+    position: relative;
+
+    -webkit-overflow-scrolling: touch;
+}
+
+
+/*
+ * Sticky headers are applied to the whole THEAD as one stacking layer.
+ * This avoids Chromium table-cell compositing artifacts where independently
+ * sticky TH elements can ghost/double-paint or let row text leak above them.
+ */
+body.rz-table-page-lock .rz-table-viewport-scroll thead {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 60 !important;
+    isolation: isolate;
+}
+
+body.rz-table-page-lock .rz-table-viewport-scroll thead th {
+    position: relative !important;
+    top: auto !important;
+    z-index: 1 !important;
+    background-clip: padding-box;
+}
+
+/* Pagination belongs to the table card, not to the table scroll surface. */
+.rz-pagination {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    overflow: hidden;
+}
+
+/* On very narrow screens only pager buttons may scroll horizontally. */
+.rz-pagination > div:last-child {
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+}
+
+
+/* RIZENIC non-locked sticky header leak fix v1.6 */
+/*
+ * Multi-table pages such as Parts and Jobs do not enter rz-table-page-lock.
+ * Their local styles make every TH sticky independently, which can let tbody
+ * text ghost/leak above the green header in Chromium while scrolling.
+ * Keep one sticky THEAD layer and force its TH cells back to normal positioning.
+ */
+table.modern-table > thead,
+table.excel-table-green > thead {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 70 !important;
+    isolation: isolate;
+    background: #00320D !important;
+}
+
+table.modern-table > thead > tr > th,
+table.excel-table-green > thead > tr > th {
+    position: relative !important;
+    top: auto !important;
+    z-index: 1 !important;
+    background-clip: padding-box;
+}
+
+table.modern-table > tbody,
+table.excel-table-green > tbody {
+    position: relative;
+    z-index: 0;
+}
+
+
+/* RIZENIC table compositor clip shell v1.7
+ * Outer shell clips Chromium paint leakage without being the scroll host.
+ * Inner surface owns scrolling, keeping sticky THEAD behavior intact.
+ */
+.rz-table-clip-shell {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden !important;
+}
+
+.rz-table-scroll-surface {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: auto !important;
+    overscroll-behavior: none;
+}
+
+
+/* RIZENIC top paint guard v1.8
+ * Chromium can expose a few pixels of tbody paint above a sticky THEAD while
+ * the inner table surface is scrolling. This guard lives on the non-scrolling
+ * outer shell, so it masks only that compositor leak without clipping the
+ * sticky header itself or changing table geometry.
+ */
+.rz-table-clip-shell::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 10px;
+    height: 4px;
+    background: #00320D;
+    z-index: 120;
+    pointer-events: none;
+}

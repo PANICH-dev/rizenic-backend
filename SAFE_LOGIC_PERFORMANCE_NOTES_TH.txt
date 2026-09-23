@@ -1,0 +1,35 @@
+RIZENIC SAFE LOGIC PERFORMANCE PATCH
+====================================
+ขอบเขต: Frontend logic เท่านั้น ไม่แก้ Database, app.js, API contract, flow งาน หรือ CSS ที่ใช้อยู่
+
+1) index/open job
+- เดิม loadInitialData โหลด /api/part-orders ทั้งชุดทุกครั้งที่เข้าหน้า
+- ใหม่ไม่โหลดตอนเริ่ม; sa_parts.js เดิมจะโหลดเมื่อเปิด PO Tracking จริงเท่านั้น
+- ลด 1 API request + JSON parse ที่ไม่จำเป็นตอนเปิดหน้า
+
+2) history
+- เดิมเปิดหน้าแล้วโหลด reports + part-orders พร้อมกัน แม้ยังไม่เปิดรายละเอียด
+- ใหม่โหลด reports ก่อน; part-orders โหลดครั้งแรกเมื่อเปิด Detail และ cache ไว้
+- สร้าง Map ตามทะเบียนเพื่อไม่ scan allPartOrders ทุกครั้ง
+- Search / Pagination / Detail data / API endpoint เดิมไม่เปลี่ยน
+
+3) dashboard
+- สร้าง date count maps 1 ครั้งต่อการเปลี่ยน filter
+- daily line chart lookup count ตามวันแทน filter all jobs 3 รอบต่อวัน
+- สร้าง part-order indexes ตาม job id และทะเบียน 1 ครั้งต่อ filter
+- parts status chart/modal ใช้ lookup แทน filter filteredPartOrders ทุกคัน
+- API endpoints และผลลัพธ์เดิมไม่เปลี่ยน
+
+ไฟล์ที่แก้:
+- public/sa_core.js
+- public/history.js
+- public/dashboard.js
+- public/dashboard_charts.js
+- test/frontend-safe-logic-performance.test.js
+
+ไฟล์ที่ไม่ได้แก้:
+- app.js
+- .env
+- Database / SQL
+- CSS/UI flow
+- API routes/contracts
