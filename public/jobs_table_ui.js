@@ -559,9 +559,16 @@ function renderTable(data) {
 // ------------------------------------------
 // 📥 4. ส่งออก Excel (Export)
 // ------------------------------------------
-function exportToExcel() {
+async function exportToExcel() {
     if (!currentFilteredData || currentFilteredData.length === 0) {
         showToast('ไม่มีข้อมูลในตารางให้โหลดครับ!', 'error');
+        return;
+    }
+
+    try {
+        await ensureXlsxLoaded();
+    } catch (error) {
+        showToast(error.message || 'ไม่สามารถโหลดเครื่องมือ Excel ได้', 'error');
         return;
     }
 

@@ -212,34 +212,28 @@ function setupBranchDropdown() {
 
 async function fetchDashboardData() {
     try {
-        // These endpoints are independent. Start them together so dashboard load time
-        // is bounded by the slowest request instead of the sum of all three.
-        const [jobsResult, partsResult, statusesResult] = await Promise.allSettled([
-            fetch(`${API_BASE_URL}/api/reports`).then(async res => res.ok ? res.json() : []),
-            fetch(`${API_BASE_URL}/api/part-orders`).then(async res => res.ok ? res.json() : []),
+        const rStr = String(userRole).toLowerCase();
+        const isManager = rStr.includes('admin') || rStr.includes('แอดมิน') || rStr.includes('manager') || rStr.includes('ba');
+        const reportParams = new URLSearchParams();
+        const orderParams = new URLSearchParams();
+        if (!isManager) {
+            reportParams.set('branch', userBranch);
+            orderParams.set('branch', userBranch);
+        }
+
+        // Parts/status masters are not required for the first KPI/table paint.
+        const secondaryDashboardData = Promise.allSettled([
+            fetch(`${API_BASE_URL}/api/part-orders${orderParams.toString() ? `?${orderParams.toString()}` : ''}`).then(async res => res.ok ? res.json() : []),
             fetch(`${API_BASE_URL}/api/statuses`).then(async res => res.ok ? res.json() : [])
         ]);
 
-        if (jobsResult.status === 'fulfilled') {
-            const rawJobs = jobsResult.value;
-            const jobsArray = Array.isArray(rawJobs) ? rawJobs : (rawJobs?.data || []);
-            allJobs = jobsArray.map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
-            rebuildDashboardIndexes();
-        }
+        const primaryReports = await fetch(`${API_BASE_URL}/api/reports${reportParams.toString() ? `?${reportParams.toString()}` : ''}`)
+            .then(async res => res.ok ? res.json() : []);
+        const jobsArray = Array.isArray(primaryReports) ? primaryReports : (primaryReports?.data || []);
+        allJobs = jobsArray.map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
+        rebuildDashboardIndexes();
 
-        if (partsResult.status === 'fulfilled') {
-            const rawParts = partsResult.value;
-            allPartOrders = Array.isArray(rawParts) ? rawParts : (rawParts?.data || []);
-        }
-
-        if (statusesResult.status === 'fulfilled') {
-            const rawStat = statusesResult.value;
-            allStatuses = Array.isArray(rawStat) ? rawStat : (rawStat?.data || []);
-            globalStatusOptionsHtml = allStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
-        }
-
-        const rStr = String(userRole).toLowerCase();
-        if (rStr.includes('admin') || rStr.includes('แอดมิน') || rStr.includes('manager') || rStr.includes('ba')) {
+        if (isManager) {
             const uniqueBranches = [...new Set(allJobs.map(j => j.branch_name).filter(b => b))];
             const filterSelect = document.getElementById('branchFilter');
             if (filterSelect) {
@@ -249,14 +243,39 @@ async function fetchDashboardData() {
                 if(savedVal && (savedVal === 'all' || uniqueBranches.includes(savedVal))) filterSelect.value = savedVal;
             }
         }
-    } catch (err) { 
-        console.error("โหลดข้อมูลแดชบอร์ดพัง:", err); 
-    } finally {
-        applyFilters(); 
+
+        // First usable paint is based on reports only. Part-specific widgets wait for their dataset.
+        applyFilters(false);
+
+        const secondaryResults = await secondaryDashboardData;
+        if (secondaryResults[0].status === 'fulfilled') {
+            const rawParts = secondaryResults[0].value;
+            allPartOrders = Array.isArray(rawParts) ? rawParts : (rawParts?.data || []);
+        }
+        if (secondaryResults[1].status === 'fulfilled') {
+            const rawStat = secondaryResults[1].value;
+            allStatuses = Array.isArray(rawStat) ? rawStat : (rawStat?.data || []);
+            globalStatusOptionsHtml = allStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
+        }
+        refreshDashboardPartViews();
+    } catch (err) {
+        console.error('โหลดข้อมูลแดชบอร์ดพัง:', err);
+        applyFilters(false);
     }
 }
 
-function applyFilters() {
+function refreshDashboardPartViews() {
+    const filterSelect = document.getElementById('branchFilter');
+    const selectedBranch = filterSelect ? filterSelect.value : 'all';
+    filteredPartOrders = selectedBranch === 'all'
+        ? [...allPartOrders]
+        : allPartOrders.filter(o => isSameBranch(o.branch_name, selectedBranch));
+    rebuildDashboardRenderIndexes();
+    if(typeof renderPartsTracking === 'function') renderPartsTracking(true);
+    if(typeof renderPartsStatusChart === 'function') renderPartsStatusChart();
+}
+
+function applyFilters(includeParts = true) {
     const filterSelect = document.getElementById('branchFilter');
     const selectedBranch = filterSelect ? filterSelect.value : 'all';
     
@@ -282,7 +301,7 @@ function applyFilters() {
 
     if(typeof renderERPStatuses === 'function') renderERPStatuses(filteredJobs);
     if(typeof renderStationSummary === 'function') renderStationSummary(filteredJobs);
-    if(typeof renderPartsTracking === 'function') renderPartsTracking(true);
+    if(includeParts && typeof renderPartsTracking === 'function') renderPartsTracking(true);
 
     if(typeof renderKPIs === 'function') renderKPIs(startDate, endDate);
     if(typeof renderDailyReport === 'function') renderDailyReport(); 
@@ -291,7 +310,7 @@ function applyFilters() {
     if(typeof renderInsuranceChart === 'function') renderInsuranceChart();
     if(typeof renderDamageChart === 'function') renderDamageChart(startDate, endDate);   
     if(typeof renderPaymentChart === 'function') renderPaymentChart(startDate, endDate);   
-    if(typeof renderPartsStatusChart === 'function') renderPartsStatusChart();                 
+    if(includeParts && typeof renderPartsStatusChart === 'function') renderPartsStatusChart();                 
     if(typeof renderMechanicChart === 'function') renderMechanicChart();                    
     if(typeof renderFinanceChart === 'function') renderFinanceChart(startDate, endDate);
     

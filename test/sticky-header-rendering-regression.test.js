@@ -31,7 +31,7 @@ test('repair header reserves a fixed tools lane and a safe minimum width for cou
   const html = read('public/repair.html');
   assert.match(html, /\.rz-th-content\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto/s);
   assert.match(html, /\.rz-th-tools\s*\{[^}]*flex-shrink:\s*0/s);
-  assert.match(html, /repair\.js\?v=7/);
+  assert.match(html, /repair\.js\?v=8/);
 });
 
 test('all table pages cache-bust the corrected sticky-header stylesheet', () => {

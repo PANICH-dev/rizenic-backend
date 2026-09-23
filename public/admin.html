@@ -7,6 +7,10 @@
     <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RIZENIC ERP - Admin Panel</title>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="table_scroll_fix.css?v=1.6">
@@ -499,7 +503,7 @@
                 return;
             }
 
-            loadAllData();
+            ensureAdminPanelLoaded('emp-panel');
         });
 
         function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
@@ -510,6 +514,7 @@
             document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active', 'bg-[#004a1f]', 'text-white'));
             const btn = document.getElementById('btn-' + panelId);
             if(btn) btn.classList.add('active', 'bg-[#004a1f]', 'text-white');
+            ensureAdminPanelLoaded(panelId);
         }
 
         // 🌟 Helper Format วันที่ 🌟
@@ -594,8 +599,35 @@
             } 
         }
 
-        async function loadAllData() { 
-            loadEmp(); loadCar(); loadIns(); loadCtype(); loadBodyParts(); loadMainStatus(); loadPartStatus(); loadQuota(); 
+        // Load only the visible panel at startup. Hidden master tables are fetched on first use.
+        const adminPanelLoaders = {
+            'emp-panel': loadEmp,
+            'car-panel': loadCar,
+            'ins-panel': loadIns,
+            'ctype-panel': loadCtype,
+            'body-parts-panel': loadBodyParts,
+            'main-status-panel': loadMainStatus,
+            'status-panel': loadPartStatus,
+            'quota-panel': loadQuota
+        };
+        const adminLoadedPanels = new Set();
+        const adminPanelPromises = new Map();
+
+        function ensureAdminPanelLoaded(panelId) {
+            if (adminLoadedPanels.has(panelId)) return Promise.resolve();
+            if (adminPanelPromises.has(panelId)) return adminPanelPromises.get(panelId);
+            const loader = adminPanelLoaders[panelId];
+            if (typeof loader !== 'function') return Promise.resolve();
+
+            const promise = Promise.resolve(loader())
+                .then(() => adminLoadedPanels.add(panelId))
+                .finally(() => adminPanelPromises.delete(panelId));
+            adminPanelPromises.set(panelId, promise);
+            return promise;
+        }
+
+        async function loadAllData() {
+            return ensureAdminPanelLoaded('emp-panel');
         }
 
         // ================= 1. พนักงาน =================

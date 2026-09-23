@@ -22,7 +22,7 @@ test('repair finish date display overlay is transparent and native date text is 
   assert.match(html, /\.group:hover\s+\.repair-date-input[^}]*color:\s*#00320D\s*!important/s);
   assert.match(js, /class="repair-date-display[^\"]*"/);
   assert.match(js, /class="inline-edit-input repair-date-input[^\"]*"/);
-  assert.match(html, /repair\.js\?v=7/);
+  assert.match(html, /repair\.js\?v=8/);
   assert.doesNotMatch(js, /repair_finish_date[\s\S]{0,500}bg-white\s+z-10/);
 });
 
@@ -35,5 +35,5 @@ test('index starts auth-pending so the login screen cannot flash before session 
   assert.match(core, /document\.documentElement\.classList\.remove\(['"]auth-pending['"]\)/);
   assert.match(core, /if\(sessionStorage\.getItem\('isLoggedIn'\) !== 'true'\)[\s\S]{0,450}releaseAuthPaintGuard\(\)/);
   assert.match(core, /enterApp\(\);\s*releaseAuthPaintGuard\(\);/);
-  assert.match(html, /sa_core\.js\?v=19\.2/);
+  assert.match(html, /sa_core\.js\?v=19\.3/);
 });

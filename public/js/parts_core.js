@@ -120,38 +120,43 @@ function switchTab(tabId) {
 
 // 🌟 โหลดเฉพาะ Reports, POs และ Master
 async function loadAllData() {
-    const nocache = `?_t=${new Date().getTime()}`;
     const isManager = ['BA','Manager','Admin','แอดมิน'].includes(userRole);
+    const reportParams = new URLSearchParams({ _t: String(Date.now()) });
+    const orderParams = new URLSearchParams({ _t: String(Date.now()) });
+    if (!isManager) {
+        reportParams.set('branch', userBranch);
+        orderParams.set('branch', userBranch);
+    }
 
     try {
-        // ทั้ง 3 API เป็นข้อมูลอิสระต่อกัน จึงเริ่มโหลดพร้อมกัน
-        // ยังคงใช้ allSettled เพื่อให้ API ตัวใดตัวหนึ่งล้มแล้วอีกส่วนยังใช้งานได้เหมือนเดิม
-        const [reportsResult, ordersResult, masterResult] = await Promise.allSettled([
-            fetch(`${API_BASE_URL}/api/reports${nocache}`).then(async res => res.ok ? res.json() : null),
-            fetch(`${API_BASE_URL}/api/part-orders${nocache}`).then(async res => res.ok ? res.json() : null),
-            fetch(`${API_BASE_URL}/api/parts?branch=${encodeURIComponent(userBranch)}&_t=${new Date().getTime()}`).then(async res => res.ok ? res.json() : null)
-        ]);
+        // Master table and SA Alerts are independent views. Start both immediately,
+        // and paint whichever becomes usable first instead of waiting for all 3 APIs.
+        const masterPromise = fetch(`${API_BASE_URL}/api/parts?branch=${encodeURIComponent(userBranch)}&_t=${Date.now()}`)
+            .then(async res => res.ok ? res.json() : null)
+            .then(data => {
+                if (Array.isArray(data)) allMasterPartsCache = data;
+                if (typeof renderMasterTable === 'function') renderMasterTable();
+            });
 
-        if (reportsResult.status === 'fulfilled' && Array.isArray(reportsResult.value)) {
-            allReports = reportsResult.value;
-            if (!isManager) allReports = allReports.filter(d => d.branch_name === userBranch);
-        }
+        const alertsPromise = Promise.allSettled([
+            fetch(`${API_BASE_URL}/api/reports?${reportParams.toString()}`).then(async res => res.ok ? res.json() : null),
+            fetch(`${API_BASE_URL}/api/part-orders?${orderParams.toString()}`).then(async res => res.ok ? res.json() : null)
+        ]).then(([reportsResult, ordersResult]) => {
+            if (reportsResult.status === 'fulfilled' && Array.isArray(reportsResult.value)) {
+                allReports = reportsResult.value;
+                if (!isManager) allReports = allReports.filter(d => d.branch_name === userBranch);
+            }
 
-        if (ordersResult.status === 'fulfilled' && Array.isArray(ordersResult.value)) {
-            allPartOrders = ordersResult.value;
-            if (!isManager) allPartOrders = allPartOrders.filter(d => d.branch_name === userBranch);
-        }
-        rebuildPartOrderIndexes();
+            if (ordersResult.status === 'fulfilled' && Array.isArray(ordersResult.value)) {
+                allPartOrders = ordersResult.value;
+                if (!isManager) allPartOrders = allPartOrders.filter(d => d.branch_name === userBranch);
+            }
+            rebuildPartOrderIndexes();
+            if (typeof renderSAAlerts === 'function') renderSAAlerts();
+        });
 
-        if (masterResult.status === 'fulfilled' && Array.isArray(masterResult.value)) {
-            allMasterPartsCache = masterResult.value;
-        }
-
-        // เรนเดอร์เฉพาะ 2 ส่วนหลักเหมือนเดิม
-        if (typeof renderSAAlerts === "function") renderSAAlerts();
-        if (typeof renderMasterTable === "function") renderMasterTable();
-
-    } catch (e) { console.error("Data load error:", e); }
+        await Promise.allSettled([masterPromise, alertsPromise]);
+    } catch (e) { console.error('Data load error:', e); }
 }
 
 function filterTableByText(tbodyId, txt) {

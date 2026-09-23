@@ -3,6 +3,7 @@ const cors = require('cors');
 const { Pool } = require('pg');
 const path = require('path');
 const { registerApiValidation } = require('./backend_validation');
+const { buildReportsReadQuery, buildPartOrdersReadQuery, buildEmployeesReadQuery } = require('./read_queries');
 
 const app = express();
 const port = process.env.PORT || 3000; 
@@ -214,7 +215,10 @@ app.post('/api/login', async (req, res) => {
 // 👥 API พนักงาน - CRUD
 // ==========================================
 app.get('/api/employees', async (req, res) => {
-  try { res.json((await pool.query('SELECT * FROM rizenicemployeemaster ORDER BY branch_name ASC, employee_code ASC')).rows); } 
+  try {
+    const query = buildEmployeesReadQuery(req.query);
+    res.json((await pool.query(query.text, query.values)).rows);
+  }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 app.post('/api/employees', async (req, res) => {
@@ -457,8 +461,10 @@ app.delete('/api/body-parts/:id', async (req, res) => {
 // ==========================================
 
 app.get('/api/reports', async (req, res) => {
-  try { res.json((await pool.query('SELECT * FROM rizenicreport ORDER BY id DESC')).rows); } 
-  catch (e) { res.status(500).json({ error: e.message }); }
+  try {
+    const query = buildReportsReadQuery(req.query);
+    res.json((await pool.query(query.text, query.values)).rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/report/:id', async (req, res) => {
@@ -707,8 +713,10 @@ app.delete('/api/part-statuses/:id', async (req, res) => {
 });
 
 app.get('/api/part-orders', async (req, res) => {
-  try { res.json((await pool.query('SELECT * FROM rizenic_part_orders ORDER BY order_id DESC')).rows); } 
-  catch (e) { res.status(500).json({ error: e.message }); }
+  try {
+    const query = buildPartOrdersReadQuery(req.query);
+    res.json((await pool.query(query.text, query.values)).rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 /// ==========================================
 // API สั่งเบิกอะไหล่ (เพิ่มการรับค่า job_id และแก้ไขการรับค่า Status/Dates)

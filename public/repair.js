@@ -161,58 +161,57 @@ async function saveUserPreferences() {
 
 document.addEventListener('DOMContentLoaded', async () => {
     if(sessionStorage.getItem('isLoggedIn') !== 'true') { window.location.href = 'index.html'; return; }
-    
+
     const allowedPages = (sessionStorage.getItem('accessible_pages') || '').split(',');
-    if (!allowedPages.includes('repair')) { 
+    if (!allowedPages.includes('repair')) {
         alert('⛔ คุณไม่มีสิทธิ์เข้าถึงหน้าสถานีช่างครับ!');
-        window.location.href = allowedPages.length > 0 ? allowedPages[0] + '.html' : 'index.html'; return; 
+        window.location.href = allowedPages.length > 0 ? allowedPages[0] + '.html' : 'index.html'; return;
     }
 
     document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name') || 'ช่างซ่อม';
-    
+
     currentBranch = sessionStorage.getItem('branch_name') || sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
     document.getElementById('display_branch').innerText = currentBranch;
-    
+
     const userRole = sessionStorage.getItem('emp_role') || '';
     const isManager = ['BA', 'Manager', 'Admin', 'แอดมิน'].includes(userRole);
     const branchSelectEl = document.getElementById('branchSelect');
 
+    // Establish the branch scope synchronously so the primary report query can start without waiting for employees.
     if (branchSelectEl) {
-        try {
-            const empRes = await fetch(`${API_BASE_URL}/api/employees`);
-            if (empRes.ok) {
-                const employees = await empRes.json();
-                const masterBranches = [...new Set(employees.map(e => e.branch_name).filter(Boolean))].sort();
-                
-                let optionsHtml = isManager ? `<option value="ALL">🏢 รวมทุกสาขา (ภาพรวม)</option>` : '';
-                masterBranches.forEach(b => {
-                    optionsHtml += `<option value="${b}">${b}</option>`;
-                });
-                branchSelectEl.innerHTML = optionsHtml;
-            }
-        } catch (e) {
-            console.error('โหลดข้อมูลสาขาไม่สำเร็จ', e);
-        }
-
         if (isManager) {
             selectedBranchFilter = 'ALL';
+            branchSelectEl.innerHTML = `<option value="ALL">🏢 รวมทุกสาขา (ภาพรวม)</option>`;
             branchSelectEl.value = 'ALL';
             branchSelectEl.disabled = false;
         } else {
             selectedBranchFilter = currentBranch;
-            if(!Array.from(branchSelectEl.options).some(opt => opt.value === currentBranch)) {
-                branchSelectEl.add(new Option(currentBranch, currentBranch));
-            }
+            branchSelectEl.innerHTML = `<option value="${currentBranch}">${currentBranch}</option>`;
             branchSelectEl.value = currentBranch;
-            branchSelectEl.disabled = true; 
+            branchSelectEl.disabled = true;
         }
     }
-    
+
+    // Only managers need the full employee list to build a branch picker; load it in the background.
+    const branchOptionsPromise = (isManager && branchSelectEl)
+        ? fetch(`${API_BASE_URL}/api/employees`).then(async empRes => {
+            if (!empRes.ok) return;
+            const employees = await empRes.json();
+            const masterBranches = [...new Set(employees.map(e => e.branch_name).filter(Boolean))].sort();
+            branchSelectEl.innerHTML = `<option value="ALL">🏢 รวมทุกสาขา (ภาพรวม)</option>` +
+                masterBranches.map(b => `<option value="${b}">${b}</option>`).join('');
+            branchSelectEl.value = selectedBranchFilter;
+        }).catch(e => console.error('โหลดข้อมูลสาขาไม่สำเร็จ', e))
+        : Promise.resolve();
+
     document.getElementById('m_repair_date').setAttribute('min', getTodayString());
 
-    await loadUserColumnPreferences(); 
-    buildTableHeaders(); renderHideColumnMenu(); fetchJobList();
+    await loadUserColumnPreferences();
+    buildTableHeaders();
+    renderHideColumnMenu();
+    fetchJobList();
     renderTimelineModal();
+    await branchOptionsPromise;
 });
 
 function onBranchChange(newBranchVal) {
@@ -505,21 +504,20 @@ function openDayListForTarget(dateStr) {
 async function fetchJobList() {
     try {
         document.getElementById('repair_list_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-12 text-slate-400 font-mono text-sm"><i class="fa-solid fa-circle-notch fa-spin text-[#00320D] text-lg mr-2"></i> กำลังโหลดข้อมูล...</td></tr>`;
-        const nocache = `?_t=${new Date().getTime()}`;
-        
-        // 🌟 แก้ไข: ลบ API ตัว part-statuses ออกให้ตรงจำนวนที่ destructure เพื่อกันบั๊กโหลดค้าง 🌟
-        const [resReports, resQuotas, resParts, resBodyParts] = await Promise.all([
-            safeFetch(`${API_BASE_URL}/api/reports${nocache}`), 
-            safeFetch(`${API_BASE_URL}/api/quotas${nocache}`), 
-            safeFetch(`${API_BASE_URL}/api/part-orders${nocache}`),
-            safeFetch(`${API_BASE_URL}/api/body-parts${nocache}`)
-        ]);
-        
-        allQuotas = Array.isArray(resQuotas) ? resQuotas : (resQuotas.data || []); 
-        allPartOrders = Array.isArray(resParts) ? resParts : (resParts.data || []); 
-        allBodyPartsMaster = Array.isArray(resBodyParts) ? resBodyParts : (resBodyParts.data || []); 
+        const userRole = sessionStorage.getItem('emp_role') || '';
+        const isManager = ['BA', 'Manager', 'Admin', 'แอดมิน'].includes(userRole);
+        const reportParams = new URLSearchParams({ _t: String(Date.now()) });
+        if (!isManager) reportParams.set('branch', currentBranch);
 
-        const rawReports = Array.isArray(resReports) ? resReports : (resReports.data || []);
+        // Start auxiliary data immediately, but do not hold the main repair table behind it.
+        const secondaryRepairData = Promise.all([
+            safeFetch(`${API_BASE_URL}/api/quotas?_t=${Date.now()}`),
+            safeFetch(`${API_BASE_URL}/api/part-orders?_t=${Date.now()}`),
+            safeFetch(`${API_BASE_URL}/api/body-parts?_t=${Date.now()}`)
+        ]);
+
+        const primaryReports = await safeFetch(`${API_BASE_URL}/api/reports?${reportParams.toString()}`);
+        const rawReports = Array.isArray(primaryReports) ? primaryReports : (primaryReports.data || []);
 
         originalRepairJobs = rawReports.filter(j => {
             const st = j.job_status || '';
@@ -528,10 +526,16 @@ async function fetchJobList() {
             return isNotCancelled && isNotDelivered;
         }).map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
 
+        // First usable paint: KPI + 50-row table need only reports.
         updateKPIs();
-        renderCalendar(); 
         runTableFilters();
-    } catch (err) { console.error("โหลดข้อมูลพัง:", err); }
+
+        const [resQuotas, resParts, resBodyParts] = await secondaryRepairData;
+        allQuotas = Array.isArray(resQuotas) ? resQuotas : (resQuotas.data || []);
+        allPartOrders = Array.isArray(resParts) ? resParts : (resParts.data || []);
+        allBodyPartsMaster = Array.isArray(resBodyParts) ? resBodyParts : (resBodyParts.data || []);
+        renderCalendar();
+    } catch (err) { console.error('โหลดข้อมูลพัง:', err); }
 }
 
 async function readApiErrorMessage(response, fallback = 'เกิดข้อผิดพลาดในการบันทึกข้อมูล') {

@@ -99,42 +99,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadJobsData() {
     try {
-        const results = await Promise.allSettled([
+        const isManager = ['BA','Manager','Admin','แอดมิน'].includes(userRole);
+        const reportParams = new URLSearchParams();
+        if (!isManager) reportParams.set('branch', userBranch);
+        const reportUrl = `${API_BASE_URL}/api/reports${reportParams.toString() ? `?${reportParams.toString()}` : ''}`;
+
+        // Start PO/master data in parallel, but the SA overview does not need to wait for it.
+        const secondaryPromise = Promise.allSettled([
             fetch(`${API_BASE_URL}/api/statuses`).then(res => res.json()),
             fetch(`${API_BASE_URL}/api/part-orders`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/api/reports`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/api/employees`).then(res => res.json()),
             fetch(`${API_BASE_URL}/api/part-statuses`).then(res => res.json()),
             fetch(`${API_BASE_URL}/api/parts?branch=${encodeURIComponent(userBranch)}`).then(res => res.json())
         ]);
 
-        if (results[0].status === 'fulfilled') {
-            globalStatusOptionsHtml = results[0].value.length > 0 ? results[0].value.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('') : `<option value="09.จอดรอเข้าซ่อม">09.จอดรอเข้าซ่อม</option>`;
-        }
-        if (results[1].status === 'fulfilled') allPartOrders = results[1].value;
-        rebuildPartOrdersByPlate();
-        if (results[3].status === 'fulfilled') {
-            const employees = results[3].value;
-            let masterBranches = [...new Set(employees.map(e => e.branch_name).filter(Boolean))].sort();
-            const branchSelect = document.getElementById('branch_filter');
-            const isManager = ['BA','Manager','Admin','แอดมิน'].includes(userRole);
-            let optionsHtml = isManager ? `<option value="ALL">🏢 รวมทุกสาขา</option>` : '';
-            if(masterBranches.length === 0) masterBranches = [userBranch];
-            masterBranches.forEach(b => { optionsHtml += `<option value="${b}">${b}</option>`; });
-            
-            if (branchSelect) {
-                branchSelect.innerHTML = optionsHtml;
-                if (isManager) { branchSelect.value = selectedBranchFilter; branchSelect.disabled = false; } 
-                else { selectedBranchFilter = userBranch; branchSelect.value = userBranch; branchSelect.disabled = true; }
-            }
-        }
-        if (results[4].status === 'fulfilled') allStatuses = results[4].value || [];
-        if (results[5].status === 'fulfilled') allMasterPartsCache = results[5].value || [];
+        // Branch metadata is useful for the filter, but it must not hold up the first SA cards.
+        const employeeBranchesPromise = isManager
+            ? fetch(`${API_BASE_URL}/api/employees`).then(res => res.ok ? res.json() : [])
+            : Promise.resolve([{ branch_name: userBranch }]);
 
-        if (results[2].status === 'fulfilled') {
-            masterJobsData = results[2].value;
-            filterDataByBranch();
+        const primaryReport = await fetch(reportUrl).then(res => res.ok ? res.json() : []);
+        masterJobsData = Array.isArray(primaryReport) ? primaryReport : [];
+        if (!isManager) selectedBranchFilter = userBranch;
+        filterDataByBranch();
+
+        const employees = await employeeBranchesPromise;
+        let masterBranches = [...new Set((Array.isArray(employees) ? employees : []).map(e => e.branch_name).filter(Boolean))].sort();
+        const branchSelect = document.getElementById('branch_filter');
+        let optionsHtml = isManager ? `<option value="ALL">🏢 รวมทุกสาขา</option>` : '';
+        if(masterBranches.length === 0) masterBranches = [userBranch];
+        masterBranches.forEach(b => { optionsHtml += `<option value="${b}">${b}</option>`; });
+
+        if (branchSelect) {
+            branchSelect.innerHTML = optionsHtml;
+            if (isManager) { branchSelect.value = selectedBranchFilter; branchSelect.disabled = false; }
+            else { selectedBranchFilter = userBranch; branchSelect.value = userBranch; branchSelect.disabled = true; }
         }
+
+        const secondaryResults = await secondaryPromise;
+        if (secondaryResults[0].status === 'fulfilled') {
+            globalStatusOptionsHtml = secondaryResults[0].value.length > 0
+                ? secondaryResults[0].value.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('')
+                : `<option value="09.จอดรอเข้าซ่อม">09.จอดรอเข้าซ่อม</option>`;
+        }
+        if (secondaryResults[1].status === 'fulfilled') allPartOrders = secondaryResults[1].value;
+        rebuildPartOrdersByPlate();
+        if (secondaryResults[2].status === 'fulfilled') allStatuses = secondaryResults[2].value || [];
+        if (secondaryResults[3].status === 'fulfilled') allMasterPartsCache = secondaryResults[3].value || [];
+
+        // Refresh the same view after enrichment without changing the user's flow or selection.
+        filterDataByBranch();
     } catch (error) { showToast('มีปัญหาในการโหลดข้อมูล', 'error'); }
 }
 

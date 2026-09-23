@@ -227,7 +227,13 @@ function addBulkRow(rowData = null) {
     }
 }
 
-function downloadExcelTemplate() {
+async function downloadExcelTemplate() {
+    try {
+        await ensureXlsxLoaded();
+    } catch (error) {
+        alert('❌ ' + (error.message || 'ไม่สามารถโหลดเครื่องมือ Excel ได้'));
+        return;
+    }
     let row = {}; 
     columnsDef.filter(c => c.key !== 'action' && c.key !== 'calculated_station').forEach(c => { row[c.title] = ''; });
     row['ทะเบียนรถ'] = 'กข 1234'; 
@@ -241,9 +247,16 @@ function downloadExcelTemplate() {
     XLSX.writeFile(wb, "RIZENIC_PDI_Full_Template.xlsx");
 }
 
-function handleExcelUpload(event) {
+async function handleExcelUpload(event) {
     const file = event.target.files[0]; 
-    if (!file) return; 
+    if (!file) return;
+    try {
+        await ensureXlsxLoaded();
+    } catch (error) {
+        alert('❌ ' + (error.message || 'ไม่สามารถโหลดเครื่องมือ Excel ได้'));
+        event.target.value = '';
+        return;
+    }
     const reader = new FileReader();
     
     reader.onload = function(e) {

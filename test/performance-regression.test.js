@@ -67,6 +67,7 @@ function loadJobsUi(extra = {}) {
     },
     ...extra,
   };
+  context.ensureXlsxLoaded = () => Promise.resolve(context.XLSX);
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(path.join(root, 'public/table_pagination.js'), 'utf8'), context);
   vm.runInContext(fs.readFileSync(path.join(root, 'public/jobs_table_ui.js'), 'utf8'), context);
@@ -117,7 +118,7 @@ test('column visibility change preserves the current rendered row order', () => 
   assert.ok(elements.jobs_table_body.innerHTML.indexOf('row_2') < elements.jobs_table_body.innerHTML.indexOf('row_1'));
 });
 
-test('Excel export still includes hidden columns', () => {
+test('Excel export still includes hidden columns', async () => {
   let exportedRows = null;
   const xlsx = {
     utils: {
@@ -129,7 +130,7 @@ test('Excel export still includes hidden columns', () => {
   };
   const { context } = loadJobsUi({ XLSX: xlsx });
   context.currentFilteredData = [{ id: 10, car_plate: 'กก1234', customer_name: 'ลูกค้า', notes: 'note' }];
-  context.exportToExcel();
+  await context.exportToExcel();
   assert.deepEqual(Array.from(exportedRows[0]), ['ทะเบียนรถ', 'ชื่อลูกค้า', 'หมายเหตุ']);
 });
 
@@ -137,6 +138,7 @@ function loadPartsCore(fetchImpl) {
   const context = {
     console,
     fetch: fetchImpl,
+    URLSearchParams,
     window: { location: { origin: 'http://localhost:3000' } },
     sessionStorage: { getItem() { return null; }, clear() {} },
     document: {

@@ -27,12 +27,14 @@ test('dashboard long operation tables use 20-row client pagination without chang
   assert.match(dashboard, /\/api\/statuses/);
 });
 
-test('dashboard starts its independent API requests concurrently', () => {
+test('dashboard starts secondary requests immediately while reports drive first usable paint', () => {
   const dashboard = read('public/dashboard.js');
-  assert.match(dashboard, /Promise\.allSettled\s*\(\s*\[/s);
-  assert.match(dashboard, /fetch\(`\$\{API_BASE_URL\}\/api\/reports`\)/);
-  assert.match(dashboard, /fetch\(`\$\{API_BASE_URL\}\/api\/part-orders`\)/);
-  assert.match(dashboard, /fetch\(`\$\{API_BASE_URL\}\/api\/statuses`\)/);
+  assert.match(dashboard, /secondaryDashboardData\s*=\s*Promise\.allSettled\s*\(\s*\[/s);
+  assert.match(dashboard, /\/api\/part-orders/);
+  assert.match(dashboard, /\/api\/statuses/);
+  assert.match(dashboard, /primaryReports\s*=\s*await fetch/);
+  assert.ok(dashboard.indexOf('secondaryDashboardData = Promise.allSettled') < dashboard.indexOf('primaryReports = await fetch'));
+  assert.ok(dashboard.indexOf('applyFilters(false)') < dashboard.indexOf('await secondaryDashboardData'));
 });
 
 test('parts and jobs hot paths use prebuilt part-order indexes instead of repeated full-array scans', () => {

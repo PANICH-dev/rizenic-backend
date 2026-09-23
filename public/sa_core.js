@@ -189,8 +189,9 @@ async function enterApp() {
 
 async function loadInitialData() {
     try {
+        const userBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
         const results = await Promise.allSettled([
-            fetch(`${API_BASE_URL}/api/employees`).then(r => r.json()),
+            fetch(`${API_BASE_URL}/api/employees?branch=${encodeURIComponent(userBranch)}`).then(r => r.json()),
             fetch(`${API_BASE_URL}/api/statuses`).then(r => r.json()),
             fetch(`${API_BASE_URL}/api/customer-types`).then(r => r.json()),
             fetch(`${API_BASE_URL}/api/car-models`).then(r => r.json()),
@@ -203,7 +204,6 @@ async function loadInitialData() {
             const saList = document.getElementById('sa_list');
             if (saList) {
                 saList.innerHTML = '';
-                const userBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
                 const branchSAs = data.filter(e => e && e.branch_name === userBranch && String(e.employee_role || '').toUpperCase().includes('SA'));
                 const uniqueSAs = [...new Set(branchSAs.map(e => e.employee_name).filter(Boolean))].sort();
                 uniqueSAs.forEach(name => { saList.innerHTML += `<option value="${name}">`; });

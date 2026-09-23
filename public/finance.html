@@ -5,12 +5,15 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RIZENIC ERP - Finance Department</title>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="table_scroll_fix.css?v=1.6">
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style type="text/tailwindcss">
         @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap');
@@ -241,6 +244,23 @@
     <script src="table_viewport_lock.js?v=1.0"></script>
     <script>
         const API_BASE_URL = window.location.origin;
+        let xlsxLoadPromise = null;
+        function ensureXlsxLoaded() {
+            if (window.XLSX) return Promise.resolve(window.XLSX);
+            if (xlsxLoadPromise) return xlsxLoadPromise;
+            xlsxLoadPromise = new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+                script.async = true;
+                script.onload = () => resolve(window.XLSX);
+                script.onerror = () => {
+                    xlsxLoadPromise = null;
+                    reject(new Error('ไม่สามารถโหลดเครื่องมือ Excel ได้'));
+                };
+                document.head.appendChild(script);
+            });
+            return xlsxLoadPromise;
+        }
         let allAccJobs = [];
         let currentFilteredData = [];
         const financePager = RizenicPagination.createState(50);
@@ -389,15 +409,18 @@
 
         async function loadAccountingData() {
             try {
-                const [statRes, reportsRes] = await Promise.all([
-                    fetch(`${API_BASE_URL}/api/statuses`),
-                    fetch(`${API_BASE_URL}/api/reports`)
-                ]);
+                const isManager = ['BA','Manager','Admin','แอดมิน'].includes(userRole);
+                const reportParams = new URLSearchParams({
+                    department_routing: 'บัญชี',
+                    exclude_status: 'ปิดงาน'
+                });
+                if (!isManager) reportParams.set('branch', userBranch);
 
-                if(statRes.ok) {
-                    const allStats = await statRes.json();
-                    accStatuses = allStats.filter(s => s.department === 'บัญชี').map(s => s.status_name);
-                }
+                // Status master is useful for the inline editor, but report data can paint first.
+                const financeStatusPromise = fetch(`${API_BASE_URL}/api/statuses`)
+                    .then(async res => res.ok ? res.json() : [])
+                    .catch(() => []);
+                const reportsRes = await fetch(`${API_BASE_URL}/api/reports?${reportParams.toString()}`);
 
                 if(reportsRes.ok) {
                     const data = await reportsRes.json();
@@ -411,6 +434,12 @@
                 buildBranchDropdown();
                 buildYearDropdown(); 
                 applyGlobalFilters();
+
+                const allStats = await financeStatusPromise;
+                accStatuses = allStats.filter(s => s.department === 'บัญชี').map(s => s.status_name);
+                if (document.getElementById('tab-excel')?.classList.contains('active')) {
+                    renderTable(currentFilteredData);
+                }
             } catch (error) {
                 document.getElementById('acc_table_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-10 text-red-500 font-bold">⚠️ ไม่สามารถเชื่อมต่อฐานข้อมูลได้</td></tr>`;
             }
@@ -699,12 +728,18 @@
             }).join('');
         }
 
-        function exportToExcel() {
+        async function exportToExcel() {
             if (!currentFilteredData || currentFilteredData.length === 0) {
                 showToast('ไม่มีข้อมูลในตารางให้โหลดครับ!', 'error');
                 return;
             }
 
+            try {
+                await ensureXlsxLoaded();
+            } catch (error) {
+                showToast(error.message || 'ไม่สามารถโหลดเครื่องมือ Excel ได้', 'error');
+                return;
+            }
             const exportData = [];
             const headers = columnsDef.map(col => col.title);
             exportData.push(headers);
