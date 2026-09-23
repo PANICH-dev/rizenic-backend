@@ -20,7 +20,7 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap');
         
-        body { font-family: 'Kanit', sans-serif; background-color: #f8fafc; display: flex; flex-direction: column; min-height: 100vh; }
+        body { font-family: 'Kanit', sans-serif; background-color: #f8fafc; display: flex; flex-direction: column; height: 100vh; min-height: 100vh; overflow: hidden; }
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
@@ -116,8 +116,55 @@
         .calendar-day-label { font-size: 14px; font-weight: 800; color: #64748b; font-family: monospace; }
         .calendar-cell.today .calendar-day-label { color: #d97706; background-color: #fef3c7; padding: 1px 6px; border-radius: 4px; }
 
-        .tab-content { display: none; animation: fadeIn 0.3s ease; flex: 1; min-height: 0; }
+        .tab-content { display: none; animation: fadeIn 0.3s ease; flex: 1; min-height: 0; overflow: hidden; }
         .tab-content.active { display: flex; flex-direction: column; }
+
+        /* Repair viewport lock: the page shell stays fixed; only the active work surface scrolls. */
+        .repair-main { min-height: 0; overflow: hidden !important; }
+        .repair-main > div { min-height: 0; }
+        .repair-tab-scroll {
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            overscroll-behavior: contain;
+            scrollbar-gutter: stable;
+        }
+
+        /* Calendar: month controls, legend and weekday row stay visible; only dates scroll. */
+        .repair-calendar-card { min-height: 0; overflow: hidden; }
+        .repair-calendar-head {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            background: #ffffff;
+            flex: 0 0 auto;
+        }
+        .repair-calendar-weekdays {
+            position: sticky;
+            top: 0;
+            z-index: 25;
+            flex: 0 0 auto;
+        }
+        #repair_calendar_scroll { flex: 1 1 auto; min-height: 0; padding-right: 4px; }
+        #repair_calendar_scroll .calendar-grid-container { overflow: hidden; min-height: max-content; }
+
+        /* Summary/chart tab: scrolling is contained inside this tab, never on the whole page. */
+        #repair_summary_scroll { height: 100%; padding-right: 4px; padding-bottom: 12px; }
+        .repair-summary-grid { min-height: 620px; }
+        .repair-summary-card { position: relative; min-height: 560px; overflow: visible; }
+        .repair-summary-card-head {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            width: 100%;
+            background: #ffffff;
+            padding-bottom: 10px;
+        }
+
+        @media (max-width: 1024px) {
+            .repair-summary-grid { min-height: 0; }
+            .repair-summary-card { min-height: 520px; }
+        }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
         .nav-tab { padding: 10px 18px; font-size: 13px; font-weight: 700; color: #64748b; border-bottom: 3px solid transparent; transition: all 0.2s; cursor: pointer; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
@@ -264,43 +311,53 @@
     </div>
 
     <!-- Main Content Area -->
-    <main class="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-3 md:p-6 bg-[#f4f6f9]">
-        <div class="max-w-[1600px] mx-auto h-full flex flex-col">
+    <main class="repair-main flex-1 overflow-hidden p-3 md:p-6 bg-[#f4f6f9]">
+        <div class="max-w-[1600px] mx-auto h-full min-h-0 flex flex-col">
 
             <!-- 📑 แท็บ 1: ปฏิทินปฏิบัติงาน -->
             <section id="tab-calendar" class="tab-content active">
-                <div class="bg-white border border-slate-200 rounded-xl p-4 md:p-6 shadow-sm flex-1 flex flex-col">
-                    <div class="flex justify-between items-center mb-6">
+                <div class="repair-calendar-card bg-white border border-slate-200 rounded-xl p-4 md:p-6 shadow-sm flex-1 flex flex-col">
+                    <div class="repair-calendar-head flex flex-col gap-4 mb-4">
+                    <div class="flex justify-between items-center">
                         <button onclick="changeMonth(-1)" class="p-2 hover:bg-slate-100 rounded text-slate-500 font-bold text-sm md:text-base"><i class="fa-solid fa-chevron-left"></i> <span class="hidden sm:inline">ย้อนกลับ</span></button>
                         <h2 id="calendar_month_title" class="text-xl md:text-3xl font-black text-[#00320D]">เดือน...</h2>
                         <button onclick="changeMonth(1)" class="p-2 hover:bg-slate-100 rounded text-slate-500 font-bold text-sm md:text-base"><span class="hidden sm:inline">ถัดไป</span> <i class="fa-solid fa-chevron-right"></i></button>
                     </div>
-                    <div class="flex flex-wrap justify-center items-center gap-4 bg-slate-50 py-3 px-4 rounded-xl border border-slate-200 shadow-inner mb-4">
+                    <div class="flex flex-wrap justify-center items-center gap-4 bg-slate-50 py-3 px-4 rounded-xl border border-slate-200 shadow-inner">
                         <div class="flex items-center gap-2"><div class="w-3 h-5 md:w-4 md:h-6 bg-gradient-to-t from-blue-600 to-blue-400 rounded-sm shadow-sm"></div><span class="text-xs md:text-sm font-bold text-slate-600">นัดรถเข้า (Arrived)</span></div>
                         <div class="flex items-center gap-2"><div class="w-3 h-5 md:w-4 md:h-6 bg-gradient-to-t from-amber-500 to-amber-300 rounded-sm shadow-sm"></div><span class="text-xs md:text-sm font-bold text-slate-600">เป้าซ่อมเสร็จ (Target)</span></div>
                         <div class="flex items-center gap-2"><div class="w-3 h-5 md:w-4 md:h-6 bg-gradient-to-t from-emerald-500 to-emerald-300 rounded-sm shadow-sm"></div><span class="text-xs md:text-sm font-bold text-slate-600">นัดส่งมอบ (Delivery)</span></div>
                     </div>
-                    <div class="grid grid-cols-7 gap-px text-center text-xs md:text-base font-bold text-white uppercase tracking-widest mb-1 bg-[#00320D] py-2 md:py-3 rounded-t-xl shadow-md border-b-2 border-amber-400">
+                    </div>
+                    <div class="repair-calendar-weekdays grid grid-cols-7 gap-px text-center text-xs md:text-base font-bold text-white uppercase tracking-widest mb-1 bg-[#00320D] py-2 md:py-3 rounded-t-xl shadow-md border-b-2 border-amber-400">
                         <div class="text-red-300">อา<span class="hidden sm:inline">ทิตย์</span></div><div>จ<span class="hidden sm:inline">ันทร์</span></div><div>อ<span class="hidden sm:inline">ังคาร</span></div><div>พ<span class="hidden sm:inline">ุธ</span></div><div>พฤ<span class="hidden sm:inline">หัสฯ</span></div><div>ศ<span class="hidden sm:inline">ุกร์</span></div><div class="text-blue-300">ส<span class="hidden sm:inline">าร์</span></div>
                     </div>
-                    <div id="calendar_grid" class="calendar-grid-container flex-1"></div>
+                    <div id="repair_calendar_scroll" class="repair-tab-scroll custom-scrollbar">
+                        <div id="calendar_grid" class="calendar-grid-container"></div>
+                    </div>
                 </div>
             </section>
 
             <!-- 📊 แท็บ 2: สรุปสถานี (Pie Chart) -->
             <section id="tab-summary" class="tab-content">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full pb-10">
-                    <div class="bg-white border border-slate-200 p-6 md:p-8 rounded-2xl flex flex-col items-center justify-center shadow-sm h-[60vh] md:h-[70vh]">
-                        <h2 class="text-lg md:text-xl font-bold text-[#00320D] mb-2 flex items-center gap-2"><i class="fa-solid fa-chart-pie text-amber-500"></i> สัดส่วนปริมาณรถในสถานี</h2>
-                        <p class="text-xs md:text-sm text-slate-500 mb-6 text-center">*(คลิกที่กราฟเพื่อดูกระดานรถของสถานีนั้นๆ)*</p>
-                        <div class="w-full flex-1 relative flex justify-center pb-4">
-                            <canvas id="stationPieChart"></canvas>
+                <div id="repair_summary_scroll" class="repair-tab-scroll custom-scrollbar">
+                    <div class="repair-summary-grid grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+                        <div class="repair-summary-card bg-white border border-slate-200 p-6 md:p-8 rounded-2xl flex flex-col items-center shadow-sm">
+                            <div class="repair-summary-card-head text-center">
+                                <h2 class="text-lg md:text-xl font-bold text-[#00320D] mb-2 flex items-center justify-center gap-2"><i class="fa-solid fa-chart-pie text-amber-500"></i> สัดส่วนปริมาณรถในสถานี</h2>
+                                <p class="text-xs md:text-sm text-slate-500 text-center">*(คลิกที่กราฟเพื่อดูกระดานรถของสถานีนั้นๆ)*</p>
+                            </div>
+                            <div class="w-full flex-1 min-h-0 relative flex justify-center pb-4 pt-3">
+                                <canvas id="stationPieChart"></canvas>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="bg-white border border-slate-200 p-4 md:p-6 rounded-2xl shadow-sm h-[70vh] flex flex-col">
-                        <h2 class="text-lg md:text-xl font-bold text-[#00320D] mb-4 flex items-center gap-2"><i class="fa-solid fa-list-ol text-amber-500"></i> คิวงานแยกตามสถานี</h2>
-                        <div class="overflow-y-auto custom-scrollbar flex-1 pr-2 space-y-3" id="station_breakdown_list"></div>
+                        <div class="repair-summary-card bg-white border border-slate-200 p-4 md:p-6 rounded-2xl shadow-sm flex flex-col">
+                            <div class="repair-summary-card-head">
+                                <h2 class="text-lg md:text-xl font-bold text-[#00320D] flex items-center gap-2"><i class="fa-solid fa-list-ol text-amber-500"></i> คิวงานแยกตามสถานี</h2>
+                            </div>
+                            <div class="overflow-y-auto custom-scrollbar flex-1 min-h-0 pr-2 pt-2 space-y-3" id="station_breakdown_list"></div>
+                        </div>
                     </div>
                 </div>
             </section>

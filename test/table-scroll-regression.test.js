@@ -64,10 +64,11 @@ test('all application pages with scrollable data tables load the shared scroll c
   }
 });
 
-test('repair table cannot be manually resized beyond its page and outer main is horizontal-scroll locked', () => {
+test('repair table cannot be manually resized and the outer repair viewport stays locked', () => {
   const src = fs.readFileSync(path.join(root, 'public/repair.html'), 'utf8');
   assert.doesNotMatch(src, /resize:\s*both/);
-  assert.match(src, /<main class="[^"]*overflow-y-auto[^"]*overflow-x-hidden[^"]*"/);
+  assert.match(src, /<main class="[^"]*repair-main[^"]*overflow-hidden[^"]*"/);
+  assert.match(src, /class="table-container flex-1"/);
 });
 
 test('finance keeps vertical page scrolling but prevents page-level horizontal scrolling', () => {
