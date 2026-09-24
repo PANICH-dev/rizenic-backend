@@ -22,7 +22,7 @@ app.use(express.static(path.join(__dirname, 'public'), {
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false }
 });
 
 // ==========================================
@@ -1001,6 +1001,9 @@ app.post('/api/user-preferences', async (req, res) => {
 // 📲 API ส่งข้อความเข้ากลุ่ม LINE ผ่าน Messaging API (PUSH MESSAGE)
 // ==========================================
 app.post('/api/send-line-notify', async (req, res) => {
+  if (process.env.DISABLE_LINE_NOTIFICATIONS === 'true') {
+    return res.status(403).json({ error: 'LINE notifications are disabled in this local environment.' });
+  }
   try {
     const { branch, message } = req.body;
     

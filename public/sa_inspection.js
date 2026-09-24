@@ -376,7 +376,10 @@ async function loadExistingInspectionData(jobId) {
                     ctxSmall.clearRect(0, 0, canvasSmall.width, canvasSmall.height);
                     ctxSmall.drawImage(img, 0, 0, canvasSmall.width, canvasSmall.height);
                 };
-                img.src = data.car_diagram_image;
+                const imageRef = String(data.car_diagram_image);
+                img.src = imageRef.startsWith('data:')
+                    ? imageRef
+                    : `${API_BASE_URL}/api/attachments/${encodeURIComponent(imageRef)}`;
             }
         }
     } catch (e) {
