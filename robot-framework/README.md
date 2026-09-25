@@ -52,9 +52,11 @@ python3 -m venv .venv
 When a repair job is saved from the React Service Advisor page, the backend writes a
 Robot Framework input file to `job-json-input/repair-job-{job_id}.json`.
 
-The output directory is configurable with `ROBOT_OUTBOX_PATH`. The production default
-is `/projects/rizenic-backend/robot-framework/job-json-input`; for local development,
-set it to an accessible directory before starting the backend, for example:
+The output directory is configurable with `ROBOT_OUTBOX_PATH`. When it is omitted,
+the backend walks upward from its working directory and uses the first
+`robot-framework/job-json-input` directory it finds. This works when the service is
+started from the repository root or from `rizenic-backend-service`. Set the variable
+explicitly when the backend and Robot run in separate containers or hosts:
 
 ```bash
 ROBOT_OUTBOX_PATH=/projects/rizenic-backend/robot-framework/job-json-input

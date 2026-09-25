@@ -19,9 +19,25 @@ public class RobotOutboxService {
   private final ObjectMapper objectMapper;
   private final Path outboxDirectory;
 
-  public RobotOutboxService(@Value("${ROBOT_OUTBOX_PATH:/projects/rizenic-backend/robot-framework/job-json-input}") String outboxPath) {
+  public RobotOutboxService(@Value("${ROBOT_OUTBOX_PATH:}") String outboxPath) {
     this.objectMapper = new ObjectMapper();
-    this.outboxDirectory = Path.of(outboxPath).toAbsolutePath().normalize();
+    this.outboxDirectory = resolveOutboxDirectory(outboxPath);
+  }
+
+  static Path resolveOutboxDirectory(String configuredPath) {
+    if (configuredPath != null && !configuredPath.isBlank()) {
+      return Path.of(configuredPath).toAbsolutePath().normalize();
+    }
+
+    Path workingDirectory = Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();
+    for (Path candidate = workingDirectory; candidate != null; candidate = candidate.getParent()) {
+      Path robotDirectory = candidate.resolve("robot-framework");
+      if (Files.isDirectory(robotDirectory)) {
+        return robotDirectory.resolve("job-json-input").normalize();
+      }
+    }
+
+    return workingDirectory.resolve("robot-framework/job-json-input").normalize();
   }
 
   public Map<String, Object> write(Map<String, Object> request) {
