@@ -44,6 +44,18 @@ erDiagram
 | `created_at` | `timestamptz` | — | วันเวลาสร้างข้อมูล |
 | `updated_at` | `timestamptz` | — | วันเวลาแก้ไขล่าสุด |
 
+**คำอธิบายตาราง:** ข้อมูลสาขา/ศูนย์บริการที่เป็นเจ้าของใบงาน สต็อก และสิทธิ์การเข้าถึง
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `code` | `EXAMPLE` |
+| `name` | `ตัวอย่าง` |
+| `timezone` | `ตัวอย่างข้อมูล` |
+| `is_active` | true |
+
 #### `departments`
 
 | Field | PostgreSQL type | Key | Description |
@@ -52,6 +64,17 @@ erDiagram
 | `code` | `text` | — | รหัสอ้างอิง |
 | `name` | `text` | — | ชื่อรายการ |
 | `is_active` | `boolean` | — | เปิดใช้งาน mapping |
+
+**คำอธิบายตาราง:** ข้อมูลแผนกหรือสายงานที่ใช้กำหนดเส้นทางและผู้รับผิดชอบงาน
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `code` | `EXAMPLE` |
+| `name` | `ตัวอย่าง` |
+| `is_active` | true |
 
 ### องค์กรและสิทธิ์
 
@@ -68,6 +91,18 @@ erDiagram
 | `created_at` | `timestamptz` | — | วันเวลาสร้างข้อมูล |
 | `updated_at` | `timestamptz` | — | วันเวลาแก้ไขล่าสุด |
 
+**คำอธิบายตาราง:** ข้อมูลพนักงานและผู้ปฏิบัติงานในระบบ
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `employee_code` | `EXAMPLE` |
+| `display_name` | `ตัวอย่าง` |
+| `phone` | `0812345678` |
+| `home_branch_id` | 1 |
+
 #### `user_accounts`
 
 | Field | PostgreSQL type | Key | Description |
@@ -80,6 +115,18 @@ erDiagram
 | `created_at` | `timestamptz` | — | วันเวลาสร้างข้อมูล |
 | `updated_at` | `timestamptz` | — | วันเวลาแก้ไขล่าสุด |
 
+**คำอธิบายตาราง:** บัญชีสำหรับเข้าสู่ระบบที่ผูกกับพนักงาน โดยเก็บรหัสผ่านในรูป hash เท่านั้น
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `username` | `ตัวอย่างข้อมูล` |
+| `employee_id` | 1 |
+| `password_hash` | `ตัวอย่างข้อมูล` |
+| `credential_state` | `EXAMPLE` |
+
 #### `roles`
 
 | Field | PostgreSQL type | Key | Description |
@@ -87,6 +134,16 @@ erDiagram
 | `id` | `bigint` | PK | รหัสรายการแบบ identity |
 | `code` | `text` | — | รหัสอ้างอิง |
 | `name` | `text` | — | ชื่อรายการ |
+
+**คำอธิบายตาราง:** บทบาทของผู้ใช้งาน เช่น ผู้ดูแลระบบ เจ้าหน้าที่รับรถ หรือคลังอะไหล่
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `code` | `EXAMPLE` |
+| `name` | `ตัวอย่าง` |
 
 #### `permissions`
 
@@ -96,12 +153,31 @@ erDiagram
 | `code` | `text` | — | รหัสอ้างอิง |
 | `description` | `text` | — | รายละเอียด |
 
+**คำอธิบายตาราง:** รายการสิทธิ์ย่อยที่ใช้ควบคุมการอ่านและแก้ไขข้อมูล
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `code` | `EXAMPLE` |
+| `description` | `ตัวอย่างข้อมูล` |
+
 #### `role_permissions`
 
 | Field | PostgreSQL type | Key | Description |
 |---|---|---|---|
 | `role_id` | `bigint` | PK, FK -> roles.id | บทบาท |
 | `permission_id` | `bigint` | PK, FK -> permissions.id | สิทธิ์ |
+
+**คำอธิบายตาราง:** ตารางเชื่อมบทบาทกับสิทธิ์แบบ many-to-many
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `role_id` | 1 |
+| `permission_id` | 1 |
 
 #### `user_branch_roles`
 
@@ -111,6 +187,16 @@ erDiagram
 | `branch_id` | `bigint` | PK, FK -> branches.id | สาขาที่เป็นเจ้าของข้อมูล |
 | `role_id` | `bigint` | PK, FK -> roles.id | บทบาท |
 
+**คำอธิบายตาราง:** ตารางกำหนดว่าบัญชีใดมีบทบาทใดในแต่ละสาขา
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `user_id` | 1 |
+| `branch_id` | 1 |
+| `role_id` | 1 |
+
 #### `user_branch_permissions`
 
 | Field | PostgreSQL type | Key | Description |
@@ -119,6 +205,17 @@ erDiagram
 | `branch_id` | `bigint` | PK, FK -> branches.id | สาขาที่เป็นเจ้าของข้อมูล |
 | `permission_id` | `bigint` | PK, FK -> permissions.id | สิทธิ์ |
 | `effect` | `text` | — | ข้อมูล effect ของ user_branch_permissions |
+
+**คำอธิบายตาราง:** ตารางกำหนดสิทธิ์เฉพาะบัญชีและสาขา พร้อมผลการอนุญาตหรือปฏิเสธ
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `user_id` | 1 |
+| `branch_id` | 1 |
+| `permission_id` | 1 |
+| `effect` | `EXAMPLE` |
 
 ### ลูกค้าและรถ
 
@@ -131,6 +228,17 @@ erDiagram
 | `name` | `text` | — | ชื่อรายการ |
 | `is_active` | `boolean` | — | เปิดใช้งาน mapping |
 
+**คำอธิบายตาราง:** ประเภทลูกค้าที่เลือกใช้ในใบงาน
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `code` | `EXAMPLE` |
+| `name` | `ตัวอย่าง` |
+| `is_active` | true |
+
 #### `customers`
 
 | Field | PostgreSQL type | Key | Description |
@@ -142,6 +250,18 @@ erDiagram
 | `created_at` | `timestamptz` | — | วันเวลาสร้างข้อมูล |
 | `updated_at` | `timestamptz` | — | วันเวลาแก้ไขล่าสุด |
 
+**คำอธิบายตาราง:** ข้อมูลหลักของลูกค้า/ผู้เอาประกัน
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `display_name` | `ตัวอย่าง` |
+| `customer_type_id` | 1 |
+| `is_active` | true |
+| `created_at` | 2026-01-15 |
+
 #### `customer_identity_keys`
 
 | Field | PostgreSQL type | Key | Description |
@@ -150,6 +270,17 @@ erDiagram
 | `customer_id` | `bigint` | FK -> customers.id | ลูกค้าที่เกี่ยวข้อง |
 | `key_type` | `text` | — | ชนิด identity |
 | `normalized_key` | `text` | — | ค่า identity ที่ normalize แล้ว |
+
+**คำอธิบายตาราง:** คีย์สำหรับค้นหาและรวมลูกค้าจากข้อมูลเดิม เช่น เลขบัตรหรือเบอร์โทรที่ normalize แล้ว
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `customer_id` | 1 |
+| `key_type` | `EXAMPLE` |
+| `normalized_key` | `ตัวอย่างข้อมูล` |
 
 #### `customer_contacts`
 
@@ -164,6 +295,18 @@ erDiagram
 | `is_verified` | `boolean` | — | ผ่านการยืนยัน |
 | `created_at` | `timestamptz` | — | วันเวลาสร้างข้อมูล |
 
+**คำอธิบายตาราง:** ช่องทางติดต่อของลูกค้า เช่น โทรศัพท์ มือถือ Line และอีเมล
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `customer_id` | 1 |
+| `contact_type` | `EXAMPLE` |
+| `raw_value` | `ตัวอย่างข้อมูล` |
+| `label` | `ตัวอย่าง` |
+
 #### `car_brands`
 
 | Field | PostgreSQL type | Key | Description |
@@ -173,6 +316,17 @@ erDiagram
 | `name` | `text` | — | ชื่อรายการ |
 | `is_active` | `boolean` | — | เปิดใช้งาน mapping |
 
+**คำอธิบายตาราง:** รายการยี่ห้อรถยนต์
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `code` | `EXAMPLE` |
+| `name` | `ตัวอย่าง` |
+| `is_active` | true |
+
 #### `car_models`
 
 | Field | PostgreSQL type | Key | Description |
@@ -181,6 +335,17 @@ erDiagram
 | `brand_id` | `bigint` | FK -> car_brands.id | ยี่ห้อรถ |
 | `model_name` | `text` | — | ชื่อรุ่นรถ |
 | `is_active` | `boolean` | — | เปิดใช้งาน mapping |
+
+**คำอธิบายตาราง:** รายการรุ่นรถยนต์ที่ผูกกับยี่ห้อ
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `brand_id` | 1 |
+| `model_name` | `ตัวอย่าง` |
+| `is_active` | true |
 
 #### `vehicles`
 
@@ -195,6 +360,18 @@ erDiagram
 | `created_at` | `timestamptz` | — | วันเวลาสร้างข้อมูล |
 | `updated_at` | `timestamptz` | — | วันเวลาแก้ไขล่าสุด |
 | `plate_province_code` | `text` | — | รหัสจังหวัดทะเบียนจาก E-Claim |
+
+**คำอธิบายตาราง:** ข้อมูลรถยนต์หลัก โดยเก็บ VIN และทะเบียนปัจจุบัน
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `vin` | `ตัวอย่างข้อมูล` |
+| `plate_number` | `ตัวอย่างข้อมูล` |
+| `car_model_id` | 1 |
+| `plate_province` | `ตัวอย่างข้อมูล` |
 
 #### `vehicle_registration_history`
 
@@ -212,6 +389,18 @@ erDiagram
 | `comment` | `text` | — | หมายเหตุเพิ่มเติม |
 | `created_at` | `timestamptz` | — | วันเวลาสร้างข้อมูล |
 
+**คำอธิบายตาราง:** ประวัติทะเบียนรถทุกช่วงเวลา ใช้รองรับกรณีเปลี่ยนทะเบียนหรือจังหวัด
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `plate_number` | `ตัวอย่างข้อมูล` |
+| `vehicle_id` | 1 |
+| `plate_province` | `ตัวอย่างข้อมูล` |
+| `plate_province_code` | `EXAMPLE` |
+
 #### `insurers`
 
 | Field | PostgreSQL type | Key | Description |
@@ -222,6 +411,18 @@ erDiagram
 | `insurance_type` | `text` | — | ประเภทประกัน |
 | `is_active` | `boolean` | — | เปิดใช้งาน mapping |
 | `comment` | `text` | — | หมายเหตุเพิ่มเติม |
+
+**คำอธิบายตาราง:** ข้อมูลหลักบริษัทประกันภัย
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `code` | `EXAMPLE` |
+| `name` | `ตัวอย่าง` |
+| `insurance_type` | `EXAMPLE` |
+| `is_active` | true |
 
 ### E-Claim
 
@@ -235,6 +436,18 @@ erDiagram
 | `created_at` | `timestamptz` | — | วันเวลาสร้างข้อมูล |
 | `comment` | `text` | — | หมายเหตุเพิ่มเติม |
 
+**คำอธิบายตาราง:** ชื่อหรือรหัสบริษัทประกันจากระบบต้นทางที่ใช้จับคู่กับ insurer หลัก
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `source_name` | `ตัวอย่าง` |
+| `insurer_id` | 1 |
+| `source_code` | `EXAMPLE` |
+| `created_at` | 2026-01-15 |
+| `comment` | `ตัวอย่างข้อมูล` |
+
 #### `eclaim_insurer_refs`
 
 | Field | PostgreSQL type | Key | Description |
@@ -247,6 +460,18 @@ erDiagram
 | `is_active` | `boolean` | — | เปิดใช้งาน mapping |
 | `comment` | `text` | — | หมายเหตุเพิ่มเติม |
 
+**คำอธิบายตาราง:** รหัสบริษัทประกันที่ใช้ส่งหรืออ่านข้อมูลจาก E-Claim
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `external_code` | `EXAMPLE` |
+| `insurer_id` | 1 |
+| `external_system` | `ตัวอย่างข้อมูล` |
+| `external_name` | `ตัวอย่าง` |
+
 #### `eclaim_province_refs`
 
 | Field | PostgreSQL type | Key | Description |
@@ -256,6 +481,18 @@ erDiagram
 | `eclaim_code` | `text` | — | ข้อมูล eclaim code ของ eclaim_province_refs |
 | `is_active` | `boolean` | — | เปิดใช้งาน mapping |
 | `comment` | `text` | — | หมายเหตุเพิ่มเติม |
+
+**คำอธิบายตาราง:** ตาราง mapping จังหวัดกับรหัสจังหวัดของ E-Claim
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `province_name` | `ตัวอย่าง` |
+| `eclaim_code` | `EXAMPLE` |
+| `is_active` | true |
+| `comment` | `ตัวอย่างข้อมูล` |
 
 #### `eclaim_vehicle_refs`
 
@@ -275,6 +512,18 @@ erDiagram
 | `is_active` | `boolean` | — | เปิดใช้งาน mapping |
 | `comment` | `text` | — | หมายเหตุเพิ่มเติม |
 
+**คำอธิบายตาราง:** ตาราง mapping รุ่นรถและรหัสอ้างอิงรถของ E-Claim
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `car_model_id` | 1 |
+| `eclaim_type_code` | `EXAMPLE` |
+| `eclaim_brand_code` | `EXAMPLE` |
+| `eclaim_model_code` | `EXAMPLE` |
+
 #### `eclaim_reference_values`
 
 | Field | PostgreSQL type | Key | Description |
@@ -284,6 +533,18 @@ erDiagram
 | `reference_name` | `text` | — | ข้อมูล reference name ของ eclaim_reference_values |
 | `sort_order` | `integer` | — | ลำดับการแสดงผล |
 | `is_active` | `boolean` | — | เปิดใช้งาน mapping |
+
+**คำอธิบายตาราง:** ค่าคงที่จาก E-Claim เช่น ระดับน้ำมัน ประเภทงาน และสถานะจอดรถ
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `reference_type` | `EXAMPLE` |
+| `reference_code` | `EXAMPLE` |
+| `reference_name` | `ตัวอย่าง` |
+| `sort_order` | 10.000 |
+| `is_active` | true |
 
 ### ใบงาน/อะไหล่/ตรวจสภาพ/ระบบ
 
@@ -298,6 +559,18 @@ erDiagram
 | `legacy_route_page` | `text` | — | ข้อมูล legacy route page ของ job_statuses |
 | `sort_order` | `integer` | — | ลำดับการแสดงผล |
 | `is_active` | `boolean` | — | เปิดใช้งาน mapping |
+
+**คำอธิบายตาราง:** สถานะใบงานและเส้นทางการทำงานของแต่ละแผนก
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `code` | `EXAMPLE` |
+| `name` | `ตัวอย่าง` |
+| `department_id` | 1 |
+| `legacy_route_page` | `ตัวอย่างข้อมูล` |
 
 #### `repair_jobs`
 
@@ -332,6 +605,18 @@ erDiagram
 | `created_at` | `timestamptz` | — | วันเวลาสร้างข้อมูล |
 | `updated_at` | `timestamptz` | — | วันเวลาแก้ไขล่าสุด |
 
+**คำอธิบายตาราง:** หัวใบงานซ่อมรถ ซึ่งเชื่อมลูกค้า รถ สาขา ประกัน และสถานะงาน
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `job_number` | `ตัวอย่างข้อมูล` |
+| `branch_id` | 1 |
+| `customer_id` | 1 |
+| `vehicle_id` | 1 |
+
 #### `job_contacts`
 
 | Field | PostgreSQL type | Key | Description |
@@ -339,6 +624,16 @@ erDiagram
 | `job_id` | `bigint` | PK, FK -> repair_jobs.id | ใบงานที่เกี่ยวข้อง |
 | `customer_contact_id` | `bigint` | PK, FK -> customer_contacts.id | ช่องทางติดต่อลูกค้า |
 | `purpose` | `text` | PK | วัตถุประสงค์ของความสัมพันธ์ |
+
+**คำอธิบายตาราง:** ความสัมพันธ์ระหว่างใบงานกับช่องทางติดต่อของลูกค้าตามวัตถุประสงค์
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `job_id` | 1 |
+| `customer_contact_id` | 1 |
+| `purpose` | `EXAMPLE` |
 
 #### `job_documents`
 
@@ -352,6 +647,18 @@ erDiagram
 | `issuer_label` | `text` | — | ข้อมูล issuer label ของ job_documents |
 | `created_at` | `timestamptz` | — | วันเวลาสร้างข้อมูล |
 
+**คำอธิบายตาราง:** เอกสารประกอบใบงาน เช่น เลขเคลม ใบสั่งซ่อม และใบเสนอราคา
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `job_id` | 1 |
+| `document_type` | `EXAMPLE` |
+| `document_number` | `ตัวอย่างข้อมูล` |
+| `document_date` | 2026-01-15 |
+
 #### `body_parts`
 
 | Field | PostgreSQL type | Key | Description |
@@ -360,6 +667,17 @@ erDiagram
 | `name` | `text` | — | ชื่อรายการ |
 | `category` | `text` | — | หมวดหมู่ |
 | `is_active` | `boolean` | — | เปิดใช้งาน mapping |
+
+**คำอธิบายตาราง:** รายการชิ้นส่วนหรือบริเวณตัวถังที่ใช้ระบุงานซ่อม
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `name` | `ตัวอย่าง` |
+| `category` | `EXAMPLE` |
+| `is_active` | true |
 
 #### `job_repair_items`
 
@@ -373,6 +691,18 @@ erDiagram
 | `quantity` | `numeric(18,3)` | — | จำนวน |
 | `sort_order` | `integer` | — | ลำดับการแสดงผล |
 
+**คำอธิบายตาราง:** รายการบริเวณที่ต้องซ่อมในแต่ละใบงาน
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `job_id` | 1 |
+| `body_part_id` | 1 |
+| `category` | `EXAMPLE` |
+| `description` | `ตัวอย่างข้อมูล` |
+
 #### `job_capacity_requirements`
 
 | Field | PostgreSQL type | Key | Description |
@@ -380,6 +710,16 @@ erDiagram
 | `job_id` | `bigint` | PK, FK -> repair_jobs.id | ใบงานที่เกี่ยวข้อง |
 | `metric` | `text` | PK | ตัวชี้วัด/โควตา |
 | `units` | `integer` | — | จำนวนหน่วย |
+
+**คำอธิบายตาราง:** จำนวนกำลังการผลิตที่ใบงานต้องใช้ตาม metric
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `job_id` | 1 |
+| `metric` | `ตัวอย่างข้อมูล` |
+| `units` | 10.000 |
 
 #### `repair_stations`
 
@@ -390,6 +730,18 @@ erDiagram
 | `name` | `text` | — | ชื่อรายการ |
 | `sort_order` | `integer` | — | ลำดับการแสดงผล |
 | `is_active` | `boolean` | — | เปิดใช้งาน mapping |
+
+**คำอธิบายตาราง:** รายการสถานีหรือขั้นตอนการซ่อม
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `code` | `EXAMPLE` |
+| `name` | `ตัวอย่าง` |
+| `sort_order` | 10.000 |
+| `is_active` | true |
 
 #### `job_station_progress`
 
@@ -406,6 +758,18 @@ erDiagram
 | `notes` | `text` | — | หมายเหตุ |
 | `updated_at` | `timestamptz` | — | วันเวลาแก้ไขล่าสุด |
 
+**คำอธิบายตาราง:** ความคืบหน้าของใบงานในแต่ละสถานีซ่อม
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `state` | `EXAMPLE` |
+| `job_id` | 1 |
+| `station_id` | 1 |
+| `legacy_checked` | true |
+
 #### `job_status_history`
 
 | Field | PostgreSQL type | Key | Description |
@@ -420,6 +784,18 @@ erDiagram
 | `source` | `text` | — | ข้อมูล source ของ job_status_history |
 | `reason` | `text` | — | เหตุผล |
 
+**คำอธิบายตาราง:** ประวัติการเปลี่ยนสถานะใบงานแบบตรวจสอบย้อนหลังได้
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `job_id` | 1 |
+| `previous_status_id` | 1 |
+| `new_status_id` | 1 |
+| `changed_by` | `ตัวอย่างข้อมูล` |
+
 #### `job_financial_summaries`
 
 | Field | PostgreSQL type | Key | Description |
@@ -433,6 +809,18 @@ erDiagram
 | `insurance_paid_on` | `date` | — | วันที่ประกันจ่าย |
 | `updated_at` | `timestamptz` | — | วันเวลาแก้ไขล่าสุด |
 
+**คำอธิบายตาราง:** สรุปยอดค่าแรง ค่าอะไหล่ และยอดทางการเงินของใบงาน
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `job_id` | 1 |
+| `currency` | `THB` |
+| `labor_amount` | 10.000 |
+| `parts_amount` | 10.000 |
+| `external_amount` | 10.000 |
+
 #### `branch_capacity_rules`
 
 | Field | PostgreSQL type | Key | Description |
@@ -444,6 +832,18 @@ erDiagram
 | `capacity_limit` | `integer` | — | เพดานความจุ |
 | `created_at` | `timestamptz` | — | วันเวลาสร้างข้อมูล |
 | `updated_at` | `timestamptz` | — | วันเวลาแก้ไขล่าสุด |
+
+**คำอธิบายตาราง:** กฎกำลังการรองรับงานของแต่ละสาขาตามวันและ metric
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `branch_id` | 1 |
+| `metric` | `ตัวอย่างข้อมูล` |
+| `rule_date` | 2026-01-15 |
+| `capacity_limit` | 10.000 |
 
 #### `parts`
 
@@ -461,6 +861,18 @@ erDiagram
 | `created_at` | `timestamptz` | — | วันเวลาสร้างข้อมูล |
 | `updated_at` | `timestamptz` | — | วันเวลาแก้ไขล่าสุด |
 
+**คำอธิบายตาราง:** ข้อมูลหลักอะไหล่ ราคา หน่วย และสถานะการใช้งาน
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `part_number` | `ตัวอย่างข้อมูล` |
+| `name` | `ตัวอย่าง` |
+| `main_part_number` | `ตัวอย่างข้อมูล` |
+| `compatible_with_all_models` | true |
+
 #### `part_compatible_models`
 
 | Field | PostgreSQL type | Key | Description |
@@ -469,6 +881,17 @@ erDiagram
 | `car_model_id` | `bigint` | PK, FK -> car_models.id | รุ่นรถ |
 | `note` | `text` | — | หมายเหตุ |
 | `created_at` | `timestamptz` | — | วันเวลาสร้างข้อมูล |
+
+**คำอธิบายตาราง:** ความสัมพันธ์ระหว่างอะไหล่กับรุ่นรถที่รองรับ
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `part_id` | 1 |
+| `car_model_id` | 1 |
+| `note` | `ตัวอย่างข้อมูล` |
+| `created_at` | 2026-01-15 |
 
 #### `part_compatibility_unresolved`
 
@@ -479,6 +902,17 @@ erDiagram
 | `reason` | `text` | — | เหตุผล |
 | `created_at` | `timestamptz` | — | วันเวลาสร้างข้อมูล |
 
+**คำอธิบายตาราง:** รายการชื่อรุ่นจากข้อมูลเดิมที่ยังจับคู่กับรุ่นมาตรฐานไม่ได้
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `part_id` | 1 |
+| `raw_model_name` | `ตัวอย่าง` |
+| `reason` | `ตัวอย่างข้อมูล` |
+| `created_at` | 2026-01-15 |
+
 #### `job_part_tracking`
 
 | Field | PostgreSQL type | Key | Description |
@@ -488,6 +922,18 @@ erDiagram
 | `ordered_on` | `date` | — | วันที่สั่งซื้อ |
 | `estimated_arrival_on` | `date` | — | วันที่คาดว่าอะไหล่มาถึง |
 | `updated_at` | `timestamptz` | — | วันเวลาแก้ไขล่าสุด |
+
+**คำอธิบายตาราง:** สรุปสถานะการจัดหาอะไหล่ของใบงาน
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `status` | `EXAMPLE` |
+| `job_id` | 1 |
+| `ordered_on` | 2026-01-15 |
+| `estimated_arrival_on` | 2026-01-15 |
+| `updated_at` | 2026-01-15 |
 
 #### `job_part_requests`
 
@@ -500,6 +946,18 @@ erDiagram
 | `quantity` | `numeric(18,3)` | — | จำนวน |
 | `sort_order` | `integer` | — | ลำดับการแสดงผล |
 
+**คำอธิบายตาราง:** รายการอะไหล่ที่ร้องขอในใบงาน
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `job_id` | 1 |
+| `part_id` | 1 |
+| `description` | `ตัวอย่างข้อมูล` |
+| `quantity` | 10.000 |
+
 #### `branch_parts`
 
 | Field | PostgreSQL type | Key | Description |
@@ -509,6 +967,17 @@ erDiagram
 | `storage_location` | `text` | — | ตำแหน่งจัดเก็บ |
 | `safety_stock` | `numeric(18,3)` | — | จำนวน safety stock |
 
+**คำอธิบายตาราง:** สต็อกและตำแหน่งจัดเก็บอะไหล่รายสาขา
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `branch_id` | 1 |
+| `part_id` | 1 |
+| `storage_location` | `ตัวอย่างข้อมูล` |
+| `safety_stock` | `ตัวอย่างข้อมูล` |
+
 #### `part_order_statuses`
 
 | Field | PostgreSQL type | Key | Description |
@@ -517,6 +986,17 @@ erDiagram
 | `code` | `text` | — | รหัสอ้างอิง |
 | `name` | `text` | — | ชื่อรายการ |
 | `is_active` | `boolean` | — | เปิดใช้งาน mapping |
+
+**คำอธิบายตาราง:** สถานะใบสั่งซื้ออะไหล่
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `code` | `EXAMPLE` |
+| `name` | `ตัวอย่าง` |
+| `is_active` | true |
 
 #### `part_orders`
 
@@ -531,6 +1011,18 @@ erDiagram
 | `notes` | `text` | — | หมายเหตุ |
 | `created_at` | `timestamptz` | — | วันเวลาสร้างข้อมูล |
 | `updated_at` | `timestamptz` | — | วันเวลาแก้ไขล่าสุด |
+
+**คำอธิบายตาราง:** หัวใบสั่งซื้ออะไหล่
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `branch_id` | 1 |
+| `order_number` | `ตัวอย่างข้อมูล` |
+| `epc_reference` | `ตัวอย่างข้อมูล` |
+| `ordered_on` | 2026-01-15 |
 
 #### `part_order_items`
 
@@ -550,6 +1042,18 @@ erDiagram
 | `reported_received_on` | `date` | — | วันที่แจ้งรับเข้า |
 | `notes` | `text` | — | หมายเหตุ |
 
+**คำอธิบายตาราง:** รายการอะไหล่ภายในใบสั่งซื้อและการเชื่อมกับใบงาน
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `branch_id` | 1 |
+| `order_id` | 1 |
+| `line_number` | 10.000 |
+| `job_id` | 1 |
+
 #### `part_receipts`
 
 | Field | PostgreSQL type | Key | Description |
@@ -562,6 +1066,18 @@ erDiagram
 | `received_by` | `bigint` | FK -> employees.id | ผู้รับเข้า |
 | `notes` | `text` | — | หมายเหตุ |
 | `created_at` | `timestamptz` | — | วันเวลาสร้างข้อมูล |
+
+**คำอธิบายตาราง:** หัวเอกสารรับอะไหล่เข้าคลัง
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `branch_id` | 1 |
+| `receipt_number` | `ตัวอย่างข้อมูล` |
+| `epc_reference` | `ตัวอย่างข้อมูล` |
+| `received_on` | 2026-01-15 |
 
 #### `part_receipt_items`
 
@@ -577,6 +1093,18 @@ erDiagram
 | `quantity` | `numeric(18,3)` | — | จำนวน |
 | `unit_price` | `numeric(19,4)` | — | ราคาต่อหน่วย |
 
+**คำอธิบายตาราง:** รายการอะไหล่ที่รับเข้าตามเอกสารรับ
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `branch_id` | 1 |
+| `receipt_id` | 1 |
+| `line_number` | 10.000 |
+| `order_item_id` | 1 |
+
 #### `part_reservations`
 
 | Field | PostgreSQL type | Key | Description |
@@ -590,6 +1118,18 @@ erDiagram
 | `reserved_at` | `timestamptz` | — | เวลาจอง |
 | `recorded_at` | `timestamptz` | — | วันเวลาบันทึก |
 | `updated_at` | `timestamptz` | — | วันเวลาแก้ไขล่าสุด |
+
+**คำอธิบายตาราง:** ยอดอะไหล่ที่จองไว้ให้ใบงานและยอดที่ปล่อยคืน
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `branch_id` | 1 |
+| `job_id` | 1 |
+| `part_id` | 1 |
+| `quantity_reserved` | 10.000 |
 
 #### `stock_movements`
 
@@ -609,6 +1149,18 @@ erDiagram
 | `reason` | `text` | — | เหตุผล |
 | `created_by` | `bigint` | FK -> user_accounts.id | ผู้สร้าง movement |
 | `recorded_at` | `timestamptz` | — | วันเวลาบันทึก |
+
+**คำอธิบายตาราง:** บัญชีรายการเคลื่อนไหวสต็อกแบบเพิ่มลดทุก transaction
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `branch_id` | 1 |
+| `part_id` | 1 |
+| `movement_type` | `EXAMPLE` |
+| `quantity_delta` | 10.000 |
 
 #### `inspections`
 
@@ -632,6 +1184,18 @@ erDiagram
 | `created_at` | `timestamptz` | — | วันเวลาสร้างข้อมูล |
 | `updated_at` | `timestamptz` | — | วันเวลาแก้ไขล่าสุด |
 
+**คำอธิบายตาราง:** ผลตรวจสภาพรถก่อนหรือระหว่างกระบวนการซ่อม
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `branch_id` | 1 |
+| `job_id` | 1 |
+| `vehicle_id` | 1 |
+| `inspection_type` | `EXAMPLE` |
+
 #### `attachments`
 
 | Field | PostgreSQL type | Key | Description |
@@ -645,6 +1209,18 @@ erDiagram
 | `uploaded_by` | `bigint` | FK -> user_accounts.id | ผู้ upload ไฟล์ |
 | `recorded_at` | `timestamptz` | — | วันเวลาบันทึก |
 
+**คำอธิบายตาราง:** metadata ของไฟล์ที่จัดเก็บใน attachment storage
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `storage_key` | `ตัวอย่างข้อมูล` |
+| `original_filename` | `ตัวอย่างข้อมูล` |
+| `media_type` | `EXAMPLE` |
+| `byte_size` | 10.000 |
+
 #### `inspection_attachments`
 
 | Field | PostgreSQL type | Key | Description |
@@ -652,6 +1228,16 @@ erDiagram
 | `inspection_id` | `bigint` | PK, FK -> inspections.id | ข้อมูล inspection id ของ inspection_attachments |
 | `attachment_id` | `bigint` | PK, FK -> attachments.id | ข้อมูล attachment id ของ inspection_attachments |
 | `purpose` | `text` | PK | วัตถุประสงค์ของความสัมพันธ์ |
+
+**คำอธิบายตาราง:** ตารางเชื่อมรูปหรือไฟล์กับรายการตรวจสภาพรถ
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `inspection_id` | 1 |
+| `attachment_id` | 1 |
+| `purpose` | `EXAMPLE` |
 
 #### `user_preferences`
 
@@ -662,6 +1248,18 @@ erDiagram
 | `page_key` | `text` | — | หน้าที่ตั้งค่า |
 | `settings` | `jsonb` | — | ค่าการตั้งค่าแบบ JSON |
 | `updated_at` | `timestamptz` | — | วันเวลาแก้ไขล่าสุด |
+
+**คำอธิบายตาราง:** การตั้งค่าหน้าจอและคอลัมน์ส่วนตัวของผู้ใช้
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `user_id` | 1 |
+| `page_key` | `ตัวอย่างข้อมูล` |
+| `settings` | `{"source":"example"}` |
+| `updated_at` | 2026-01-15 |
 
 #### `migration_runs`
 
@@ -675,6 +1273,18 @@ erDiagram
 | `started_at` | `timestamptz` | — | เวลาเริ่มสถานี |
 | `finished_at` | `timestamptz` | — | เวลาสิ้นสุด |
 | `summary` | `jsonb` | — | สรุปผลแบบ JSON |
+
+**คำอธิบายตาราง:** รอบการนำเข้าหรือแปลงข้อมูลจากระบบเดิม
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `state` | `EXAMPLE` |
+| `source_name` | `ตัวอย่าง` |
+| `source_checksum` | `EXAMPLE` |
+| `mapping_version` | `ตัวอย่างข้อมูล` |
 
 #### `legacy_records`
 
@@ -690,6 +1300,18 @@ erDiagram
 | `redacted_fields` | `jsonb` | — | รายการ field ที่ redacted |
 | `recorded_at` | `timestamptz` | — | วันเวลาบันทึก |
 
+**คำอธิบายตาราง:** snapshot ข้อมูลต้นทางที่เก็บเพื่อการตรวจสอบ migration
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `run_id` | 1 |
+| `source_schema` | `EXAMPLE` |
+| `source_table` | `EXAMPLE` |
+| `source_key` | `EXAMPLE` |
+
 #### `legacy_entity_mappings`
 
 | Field | PostgreSQL type | Key | Description |
@@ -701,6 +1323,18 @@ erDiagram
 | `target_id` | `bigint` | — | รหัสรายการปลายทาง |
 | `target_key` | `jsonb` | — | คีย์ปลายทางแบบ JSON |
 | `recorded_at` | `timestamptz` | — | วันเวลาบันทึก |
+
+**คำอธิบายตาราง:** mapping จากรายการ legacy ไปยัง entity ใน schema ใหม่
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `legacy_record_id` | 1 |
+| `target_table` | `ตัวอย่างข้อมูล` |
+| `mapping_key` | `ตัวอย่างข้อมูล` |
+| `target_id` | 1 |
 
 #### `migration_issues`
 
@@ -719,6 +1353,18 @@ erDiagram
 | `resolved_at` | `timestamptz` | — | เวลาแก้ไขเสร็จ |
 | `recorded_at` | `timestamptz` | — | วันเวลาบันทึก |
 
+**คำอธิบายตาราง:** ปัญหาที่พบระหว่าง migration พร้อมสถานะการแก้ไข
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `state` | `EXAMPLE` |
+| `run_id` | 1 |
+| `legacy_record_id` | 1 |
+| `field_name` | `ตัวอย่าง` |
+
 #### `audit_events`
 
 | Field | PostgreSQL type | Key | Description |
@@ -732,6 +1378,18 @@ erDiagram
 | `changes` | `jsonb` | — | รายละเอียดการเปลี่ยนแปลง |
 | `occurred_at` | `timestamptz` | — | วันเวลาที่เกิดเหตุการณ์ |
 | `correlation_id` | `text` | — | รหัสเชื่อมโยง request |
+
+**คำอธิบายตาราง:** ประวัติการกระทำสำคัญในระบบเพื่อ audit และ trace ย้อนหลัง
+
+**ตัวอย่างข้อมูล (ค่าตัวอย่างเพื่ออธิบายรูปแบบ ไม่ใช่ข้อมูลจริง):**
+
+| Field | Example value |
+|---|---|
+| `id` | 1 |
+| `actor_user_id` | 1 |
+| `branch_id` | 1 |
+| `entity_type` | `EXAMPLE` |
+| `entity_id` | 1 |
 
 ## Views (read-only)
 
