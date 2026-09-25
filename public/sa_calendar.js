@@ -30,7 +30,7 @@ async function openScheduleCalendar(field) {
         const editId = editIdEl ? editIdEl.value : '';
 
         const [resJobs, resQuotas] = await Promise.all([
-            fetch(`${API_BASE_URL}/api/reports`),
+            fetch(`${API_BASE_URL}/api/reports?branch=${encodeURIComponent(b)}`),
             fetch(`${API_BASE_URL}/api/quotas`)
         ]);
         
@@ -316,7 +316,7 @@ function closeModal(modalId) {
 async function checkQuotaBeforeSubmit(branch, arrivedDate, targetDate, deliveryDate, reqMain, reqSub) {
     try {
         const [resJobs, resQuotas] = await Promise.all([
-            fetch(`${API_BASE_URL}/api/reports`),
+            fetch(`${API_BASE_URL}/api/reports?branch=${encodeURIComponent(branch)}`),
             fetch(`${API_BASE_URL}/api/quotas`)
         ]);
         const allJobs = await resJobs.json();

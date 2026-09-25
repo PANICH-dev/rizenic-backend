@@ -227,7 +227,13 @@ function addBulkRow(rowData = null) {
     }
 }
 
-function downloadExcelTemplate() {
+async function downloadExcelTemplate() {
+    try {
+        await ensureXlsxLoaded();
+    } catch (error) {
+        alert('❌ ' + (error.message || 'ไม่สามารถโหลดเครื่องมือ Excel ได้'));
+        return;
+    }
     let row = {}; 
     columnsDef.filter(c => c.key !== 'action' && c.key !== 'calculated_station').forEach(c => { row[c.title] = ''; });
     row['ทะเบียนรถ'] = 'กข 1234'; 
@@ -241,9 +247,16 @@ function downloadExcelTemplate() {
     XLSX.writeFile(wb, "RIZENIC_PDI_Full_Template.xlsx");
 }
 
-function handleExcelUpload(event) {
+async function handleExcelUpload(event) {
     const file = event.target.files[0]; 
-    if (!file) return; 
+    if (!file) return;
+    try {
+        await ensureXlsxLoaded();
+    } catch (error) {
+        alert('❌ ' + (error.message || 'ไม่สามารถโหลดเครื่องมือ Excel ได้'));
+        event.target.value = '';
+        return;
+    }
     const reader = new FileReader();
     
     reader.onload = function(e) {
@@ -363,13 +376,19 @@ async function saveBulkData() {
         }
         
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึกข้อมูล...';
-        await Promise.all(promises); 
+        const responses = await Promise.all(promises);
+        const failedResponse = responses.find(response => !response.ok);
+        if (failedResponse) {
+            const message = await readApiErrorMessage(failedResponse, 'มีบางรายการบันทึกไม่สำเร็จ');
+            alert('❌ ' + message);
+            return;
+        }
         alert(`🎉 นำเข้าสำเร็จ ${promises.length} คัน!`); 
         closeBulkModal(); 
         
         if(typeof loadJobsData === 'function') loadJobsData(); 
     } catch(e) { 
-        alert('❌ เกิดข้อผิดพลาดในการบันทึกข้อมูล'); 
+        alert('❌ ' + (e?.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล')); 
     } finally { 
         btn.innerHTML = '<i class="fa-solid fa-save"></i> บันทึกข้อมูลเข้าฐานข้อมูล'; 
         btn.disabled = false; 

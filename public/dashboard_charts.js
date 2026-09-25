@@ -314,9 +314,9 @@ function renderDailyLineChart(start, end) {
         labels.push(dayLabel);
         fullDates.push(dateStr);
 
-        dataArrived.push(filteredJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length);
-        dataTarget.push(filteredJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).length);
-        dataDelivered.push(filteredJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length);
+        dataArrived.push(dashboardDateCounts.arrived.get(dateStr) || 0);
+        dataTarget.push(dashboardDateCounts.target.get(dateStr) || 0);
+        dataDelivered.push(dashboardDateCounts.delivery.get(dateStr) || 0);
     }
 
     if (dailyLineChartInstance) dailyLineChartInstance.destroy();
@@ -557,12 +557,7 @@ function renderPartsStatusChart() {
         const jobIdStr = String(job.id);
         const jobPlate = cleanPlate(job.car_plate);
 
-        const carParts = filteredPartOrders.filter(o => {
-            if (o.order_status === 'ยกเลิก') return false;
-            const oJobId = String(o.job_id || o.report_id || '');
-            if (oJobId && oJobId !== 'undefined' && oJobId !== 'null' && oJobId !== '') return oJobId === jobIdStr;
-            return jobPlate && cleanPlate(o.car_plate) === jobPlate;
-        });
+        const carParts = getDashboardPartOrdersForJob(job);
 
         let carStatus = 'รอสั่งซื้อ';
         if (carParts.length > 0) {
@@ -614,12 +609,7 @@ function openPartsStatusModal(statusLabel) {
         const jobIdStr = String(job.id);
         const jobPlate = cleanPlate(job.car_plate);
 
-        const carParts = filteredPartOrders.filter(o => {
-            if (o.order_status === 'ยกเลิก') return false;
-            const oJobId = String(o.job_id || o.report_id || '');
-            if (oJobId && oJobId !== 'undefined' && oJobId !== 'null' && oJobId !== '') return oJobId === jobIdStr;
-            return jobPlate && cleanPlate(o.car_plate) === jobPlate;
-        });
+        const carParts = getDashboardPartOrdersForJob(job);
 
         let carStatus = 'รอสั่งซื้อ';
         if (carParts.length > 0) {

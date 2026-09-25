@@ -1,11 +1,17 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="th" class="auth-pending">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RIZENIC ERP - Service Advisor Portal</title>
+    <style>html.auth-pending body { visibility: hidden !important; }</style>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="table_scroll_fix.css?v=1.6">
     
     <style type="text/tailwindcss">
     @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;900&display=swap');
@@ -72,6 +78,8 @@
         .modal-fade { animation: fadeIn 0.2s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
     </style>
+    <link rel="stylesheet" href="ui_global.css?v=1.1">
+    <link rel="stylesheet" href="topbar_lock.css?v=1.0">
 </head>
 <body class="text-slate-800 min-h-screen relative selection:bg-[#00320D] selection:text-white">
 
@@ -91,7 +99,7 @@
 
     <!-- Main App -->
     <div id="main-app" class="hidden">
-        <header class="bg-[#00320D] border-b border-green-900 sticky top-0 z-50 shadow-md">
+        <header id="main-topbar" class="bg-[#00320D] border-b border-green-900 fixed top-0 left-0 right-0 w-full z-[90] shadow-md">
             <div class="max-w-[1500px] mx-auto px-6 py-3 flex flex-col lg:flex-row justify-between items-center gap-4">
                 <div class="flex items-center gap-3"><div class="bg-white/10 p-2 rounded-lg border border-white/10 shadow-inner"><i class="fa-solid fa-car text-amber-400"></i></div><h1 class="text-lg font-black tracking-widest text-white">RIZENIC <span class="text-green-400">ERP</span></h1></div>
                 <nav class="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto justify-end">
@@ -109,6 +117,7 @@
                 </nav>
             </div>
         </header>
+        <div id="main-topbar-spacer" aria-hidden="true"></div>
 
         <main class="max-w-[1500px] mx-auto px-4 py-8">
             <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
@@ -575,12 +584,37 @@
         </div>
     </div>
 
+    <script>
+    (() => {
+        const mainApp = document.getElementById('main-app');
+        const topbar = document.getElementById('main-topbar');
+        const spacer = document.getElementById('main-topbar-spacer');
+        if (!mainApp || !topbar || !spacer) return;
+
+        const syncMainTopbarSpacer = () => {
+            spacer.style.height = mainApp.classList.contains('hidden')
+                ? '0px'
+                : `${Math.ceil(topbar.getBoundingClientRect().height)}px`;
+        };
+
+        if ('ResizeObserver' in window) {
+            const topbarObserver = new ResizeObserver(syncMainTopbarSpacer);
+            topbarObserver.observe(topbar);
+        }
+
+        const appVisibilityObserver = new MutationObserver(syncMainTopbarSpacer);
+        appVisibilityObserver.observe(mainApp, { attributes: true, attributeFilter: ['class'] });
+        window.addEventListener('resize', syncMainTopbarSpacer, { passive: true });
+        requestAnimationFrame(syncMainTopbarSpacer);
+    })();
+    </script>
+
 <!-- 🌟 โหลดสคริปต์แยกไฟล์ที่ถูกต้อง -->
-    <script src="sa_core.js?v=19.0"></script>
-    <script src="sa_parts.js?v=19.0"></script>
-    <script src="sa_calendar.js?v=19.0"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="sa_import_qt.js?v=19.0"></script>
+    <script src="topbar_lock.js?v=1.0"></script>
+    <script src="sa_core.js?v=19.3"></script>
+    <script src="sa_parts.js?v=19.1"></script>
+    <script src="sa_calendar.js?v=19.1"></script>
+    <script src="sa_import_qt.js?v=19.1"></script>
     <script src="sa_inspection.js?v=19.0"></script>
 </body>
 </html>

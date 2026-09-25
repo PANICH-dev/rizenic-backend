@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIZENIC ERP - ตารางใบงาน (Ref Match Mode)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="table_scroll_fix.css?v=1.5">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap');
+        body { font-family: 'Kanit', sans-serif; background-color: #f1f5f9; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        
+        .custom-scrollbar::-webkit-scrollbar { height: 10px; width: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f8fafc; border-left: 1px solid #cbd5e1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; border: 2px solid #f8fafc; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        .excel-table {
+            width: 100%; text-align: left; border-collapse: collapse; white-space: nowrap;
+            font-size: 12px; background-color: #ffffff; table-layout: fixed; border: 1px solid #cbd5e1;
+        }
+        
+        .excel-table thead th {
+            position: sticky; top: 0; z-index: 30; background-color: #00320D !important;
+            color: #ffffff !important; border: 1px solid #1e3a1e !important; font-weight: 700;
+            padding: 8px 4px; text-align: center; user-select: none; box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .excel-table tbody td {
+            padding: 2px 4px; border: 1px solid #cbd5e1 !important; color: #1e293b;
+            vertical-align: middle; overflow: hidden; position: relative;
+        }
+        
+        
+        .excel-table tbody tr:hover td { background-color: #fef3c7 !important; border-color: #fcd34d !important; color: #78350f !important; }
+        
+        .resizer { position: absolute; top: 0; right: 0; width: 6px; height: 100%; cursor: col-resize; z-index: 40; user-select: none; }
+        .resizer:hover, .resizer.resizing { background-color: #f59e0b !important; }
+        
+        .sort-icon { margin-left: 4px; opacity: 0.5; font-size: 10px; }
+        .filter-icon { margin-left: 6px; color: #cbd5e1; cursor: pointer; }
+        .filter-icon:hover { color: #fbbf24; }
+        
+        .inline-edit-input { width: 100%; height: 100%; border: 0; background: transparent; padding: 4px 6px; outline: none; font-weight: 500; color: inherit; font-size: 12px; }
+        .inline-edit-input:focus, .inline-edit-select:focus { background-color: #ffffff !important; box-shadow: inset 0 0 0 2px #3b82f6; }
+        .inline-edit-select { width: 100%; height: 100%; border: 0; background: transparent; padding: 4px 4px; outline: none; font-weight: 700; color: inherit; cursor: pointer; font-size: 12px; }
+
+        .part-badge-main { display: inline-block; padding: 2px 8px; background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; border-radius: 4px; font-size: 11px; font-weight: 700; margin: 1px; }
+        .part-badge-sub { display: inline-block; padding: 2px 8px; background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a; border-radius: 4px; font-size: 11px; font-weight: 700; margin: 1px; }
+
+        .minimal-input { padding: 4px 8px; background-color: #ffffff; border: 1px solid #cbd5e1; outline: none; font-size: 12px; font-weight: 700; color: #00320D; border-radius: 6px; }
+        
+        .bulk-table { width: 100%; text-align: left; border-collapse: collapse; font-size: 11px; border: 1px solid #cbd5e1; }
+        .bulk-table th { padding: 6px; background-color: #00320D; color: white; border: 1px solid #1e3a1e; font-weight: 700; text-align: center; white-space: nowrap; }
+        .bulk-table td { padding: 0; border: 1px solid #cbd5e1; background-color: #ffffff; position: relative; }
+        .bulk-input { width: 100%; height: 100%; padding: 6px; outline: none; background: transparent; border: 0; font-size: 11px; }
+        .bulk-input:focus { background-color: #fefce8; box-shadow: inset 0 0 0 2px #f59e0b; }
+        .bulk-input[readonly] { background-color: #f1f5f9; color: #64748b; font-weight: bold; cursor: not-allowed; }
+
+        .sched-cell { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 0.5rem; min-height: 135px; display: flex; flex-direction: column; justify-content: space-between; transition: all 0.2s; }
+        .modal-fade { animation: fadeIn 0.2s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    </style>
+    <style id="dynamic-col-styles"></style>
+</head>
+<body class="text-slate-800 h-screen flex flex-col">
+
+    <datalist id="dl_car_brands"></datalist>
+    <datalist id="dl_car_models"></datalist>
+
+    <div id="toastMsg" class="fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-5 py-2.5 rounded shadow-2xl transform transition-all duration-300 translate-y-20 opacity-0 z-[200] flex items-center gap-2 border border-white/20 text-xs">
+        <span id="toastContent"><i class="fa-solid fa-circle-check text-base"></i> บันทึกข้อมูลเรียบร้อย!</span>
+    </div>
+
+    <div id="excelFilterModal" class="hidden fixed bg-white border border-slate-300 shadow-2xl rounded-lg w-64 z-[9999] flex-col overflow-hidden text-xs">
+        <div class="bg-[#00320D] text-white border-b border-green-800 px-3 py-2 flex justify-between items-center">
+            <span class="font-bold flex items-center gap-1.5"><i class="fa-solid fa-filter text-amber-400"></i> ตัวกรอง: <span id="ef_col_name" class="text-slate-300"></span></span>
+            <button onclick="closeExcelFilter()" class="text-slate-300 hover:text-red-400 transition"><i class="fa-solid fa-xmark text-base"></i></button>
+        </div>
+        <div class="p-2.5 pb-1">
+            <input type="text" id="ef_search" class="w-full border border-slate-300 rounded px-2 py-1 text-xs outline-none focus:border-green-600 mb-2 transition" placeholder="ค้นหา..." onkeyup="searchExcelFilter()">
+            <label class="flex items-center gap-2 px-1.5 py-1 border-b border-slate-100 mb-1 cursor-pointer hover:bg-slate-50 rounded transition">
+                <input type="checkbox" id="ef_select_all" checked onchange="toggleAllExcelFilters(this.checked)" class="w-3.5 h-3.5 accent-[#00320D] cursor-pointer rounded">
+                <span class="font-bold text-slate-700">เลือกทั้งหมด</span>
+            </label>
+            <div id="ef_checkbox_list" class="max-h-44 overflow-y-auto space-y-0.5 custom-scrollbar pr-1"></div>
+        </div>
+        <div class="bg-slate-50 border-t border-slate-200 p-2 flex gap-2">
+            <button onclick="applyExcelFilter()" class="flex-1 bg-[#00320D] text-white font-bold py-1 rounded hover:bg-black transition"><i class="fa-solid fa-check"></i> ตกลง</button>
+            <button onclick="clearSpecificExcelFilter()" class="flex-1 bg-white text-slate-600 border border-slate-300 font-bold py-1 rounded hover:bg-slate-100 transition"><i class="fa-solid fa-eraser"></i> ล้าง</button>
+        </div>
+    </div>
+
+    <!-- Header Bar -->
+    <header class="bg-[#00320D] text-white shadow-md z-50 shrink-0 border-b-4 border-amber-500">
+        <div class="px-4 py-2 flex justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-table-list text-amber-400 text-lg"></i>
+                <h1 class="text-base font-black tracking-wider">RIZENIC <span class="text-amber-400">TRACKING</span></h1>
+            </div>
+            <nav class="flex items-center gap-3">
+                <div class="text-right border-r border-green-700 pr-4 hidden sm:block">
+                    <p class="text-xs font-bold" id="display_emp_name">Staff Name</p>
+                    <p class="text-[10px] text-green-300">สาขา: <span id="display_branch">Branch</span></p>
+                </div>
+                <div class="flex gap-1">
+                    <a href="dashboard.html" class="px-2.5 py-1 rounded text-green-200 hover:bg-white/10 font-bold text-xs transition">แดชบอร์ด</a>
+                    <a href="index.html" class="px-2.5 py-1 rounded text-green-200 hover:bg-white/10 font-bold text-xs transition">เปิดบิลซ่อม</a>
+                    <button class="px-2.5 py-1 rounded bg-white text-[#00320D] font-bold text-xs shadow-xs transition">บอร์ดใบงาน</button>
+                    <a href="repair.html" class="px-2.5 py-1 rounded text-green-200 hover:bg-white/10 font-bold text-xs transition">สถานีช่าง</a>
+                    <a href="parts.html" class="px-2.5 py-1 rounded text-green-200 hover:bg-white/10 font-bold text-xs transition">แผนกอะไหล่</a>
+                    <!-- 🌟 เพิ่มปุ่มแผนกบัญชี ต่อจากแผนกอะไหล่ 🌟 -->
+<a href="finance.html" class="px-3 py-1.5 rounded-lg bg-white/10 text-white hover:bg-white hover:text-[#00320D] font-medium transition-all text-xs border border-white/20 flex items-center gap-1.5 whitespace-nowrap">
+    <i class="fa-solid fa-file-invoice-dollar"></i> แผนกบัญชี
+</a>
+                    <button onclick="logout()" class="px-2 py-1 text-red-300 hover:bg-red-500/20 rounded text-xs ml-1 transition"><i class="fa-solid fa-power-off"></i></button>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Tab Navigation -->
+    <div class="bg-white border-b border-slate-200 z-40 shrink-0 shadow-2xs flex px-2 pt-1.5 gap-1 overflow-x-auto">
+        <a href="jobs_table.html" class="px-5 py-2 text-xs font-bold border-b-2 border-[#00320D] text-[#00320D] bg-green-50/50 flex items-center gap-2 rounded-t-lg"><i class="fa-solid fa-file-excel text-emerald-600"></i> 1. ตารางใบงานทั้งหมด (Excel Mode)</a>
+        <a href="jobs.html" class="px-5 py-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50 flex items-center gap-2 transition-all rounded-t-lg"><i class="fa-solid fa-users text-blue-600"></i> 2. ภาพรวมทีมบริการ (SA)</a>
+        <a href="history.html" class="px-5 py-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50 flex items-center gap-2 transition-all rounded-t-lg"><i class="fa-solid fa-clock-rotate-left text-purple-600"></i> 3. เช็คประวัติรถ (History)</a>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="bg-slate-100 border-b border-slate-200 p-2 shrink-0 z-40 flex flex-col lg:flex-row justify-between gap-2 text-xs">
+        <div class="flex flex-wrap gap-2.5 items-center w-full lg:w-auto">
+            <div class="flex items-center gap-1.5">
+                <span class="font-bold text-slate-600 uppercase"><i class="fa-solid fa-search text-green-700"></i> ค้นหาด่วน:</span>
+                <input type="text" id="search_input" onkeyup="debounceSearch()" class="minimal-input w-40" placeholder="พิมพ์ค้นหาทุกช่อง...">
+            </div>
+            <div class="flex items-center gap-1.5">
+                <span class="font-bold text-slate-600 uppercase"><i class="fa-solid fa-building text-emerald-700"></i> สาขา:</span>
+                <select id="branch_filter_select" onchange="applyFilters()" class="minimal-input w-36 cursor-pointer"><option value="ALL">-- ทุกสาขา --</option></select>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <span class="font-bold text-slate-600 uppercase"><i class="fa-solid fa-user-tie text-blue-700"></i> กรอง SA ด่วน:</span>
+                <select id="sa_filter_select" onchange="applyFilters()" class="minimal-input w-36 cursor-pointer"><option value="">-- แสดง SA ทั้งหมด --</option></select>
+            </div>
+        </div>
+        
+        <div class="flex items-center justify-end gap-1.5 w-full lg:w-auto">
+            <span class="font-bold text-slate-600 bg-white px-2.5 py-1 rounded border border-slate-200 mr-1 shadow-2xs">พบ: <span id="row_count" class="text-blue-700 font-black">0</span> คัน</span>
+            <button onclick="exportToExcel()" class="px-3 py-1 bg-emerald-600 text-white font-bold rounded text-xs hover:bg-emerald-700 transition flex items-center gap-1"><i class="fa-solid fa-file-excel"></i> ดาวน์โหลด Excel</button>
+            <button onclick="openBulkModal()" class="px-3 py-1 bg-amber-500 text-slate-900 font-bold rounded text-xs hover:bg-amber-600 transition"><i class="fa-solid fa-bolt mr-1"></i> เพิ่มด่วน (PDI)</button>
+            <button onclick="toggleColManager()" class="px-2.5 py-1 bg-white text-slate-700 font-bold rounded text-xs border border-slate-300 hover:bg-slate-100 transition"><i class="fa-solid fa-sliders"></i> ตั้งค่าคอลัมน์</button>
+            <button onclick="clearAllFilters()" class="px-2.5 py-1 bg-white text-slate-700 font-bold rounded text-xs border border-slate-300 hover:bg-slate-100 transition"><i class="fa-solid fa-eraser"></i> ล้างฟิลเตอร์</button>
+            <button onclick="loadJobsData()" class="px-3 py-1 bg-[#00320D] text-white font-bold rounded text-xs hover:bg-black transition"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
+        </div>
+    </div>
+
+    <div id="colManagerPanel" class="hidden bg-slate-100 border-b border-slate-300 p-2.5 shrink-0 z-30 text-xs">
+        <h3 class="font-black text-slate-700 mb-2"><i class="fa-solid fa-up-down-left-right text-amber-500 mr-1"></i> ลากเพื่อสลับตำแหน่ง หรือ ติ๊กออกเพื่อซ่อนคอลัมน์</h3>
+        <div class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto custom-scrollbar pr-2" id="col_toggles_container"></div>
+    </div>
+
+    <main class="flex-1 overflow-hidden relative bg-slate-200 p-1 flex flex-col">
+        <div class="flex-1 overflow-auto custom-scrollbar bg-white border border-slate-300 shadow-2xs relative" id="tableContainer">
+            <table class="excel-table" id="jobsTable">
+                <thead id="jobs_table_head"></thead>
+                <tbody id="jobs_table_body">
+                    <tr><td colspan="40" class="text-center py-20 text-slate-400 font-bold"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 text-green-800"></i><br>กำลังโหลดข้อมูล...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Modal เลือกรายการอะไหล่หลายรายการ -->
+    <div id="partsSelectModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh] border border-slate-200">
+            <div class="bg-[#00320D] px-4 py-3 flex justify-between items-center text-white shrink-0">
+                <h3 class="font-bold text-xs flex items-center gap-2"><i class="fa-solid fa-list-check text-amber-400"></i> เลือก<span id="modal_parts_field_title">อะไหล่</span> (เลือกได้หลายชิ้น)</h3>
+                <button onclick="closePartsSelectModal()" class="hover:text-red-300 text-base transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-3 bg-slate-50 border-b border-slate-200 shrink-0 space-y-2">
+                <input type="text" id="parts_modal_search" onkeyup="filterPartsModalList()" class="minimal-input w-full" placeholder="🔍 พิมพ์ค้นหาชิ้นส่วน...">
+                <div class="flex gap-2">
+                    <input type="text" id="parts_custom_add" class="minimal-input text-xs flex-1" placeholder="พิมพ์ชื่ออะไหล่เพิ่มเอง (นอกเหนือจากรายการ)...">
+                    <button onclick="addCustomPartToSelection()" class="px-3 py-1.5 bg-amber-500 text-slate-900 font-bold text-xs rounded hover:bg-amber-600 transition"><i class="fa-solid fa-plus"></i> เพิ่ม</button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto p-3 custom-scrollbar bg-white" id="parts_modal_checkbox_container"></div>
+            <div class="bg-slate-50 p-3 border-t border-slate-200 flex justify-between items-center shrink-0">
+                <span class="text-xs font-bold text-slate-500">เลือกแล้ว: <span id="parts_modal_selected_count" class="text-blue-600 font-black text-xs">0</span> ชิ้น</span>
+                <div class="flex gap-2">
+                    <button onclick="closePartsSelectModal()" class="px-4 py-1.5 bg-slate-200 text-slate-700 font-bold text-xs rounded hover:bg-slate-300 transition">ยกเลิก</button>
+                    <button onclick="confirmPartsSelection()" class="px-5 py-1.5 bg-blue-600 text-white font-bold text-xs rounded hover:bg-blue-700 transition"><i class="fa-solid fa-check mr-1"></i> ยืนยัน</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal เพิ่มข้อมูลด่วน (PDI) -->
+    <div id="bulkModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+        <div class="bg-white w-full max-w-[98%] h-[95vh] rounded-xl shadow-2xl flex flex-col overflow-hidden border border-slate-200">
+            <div class="bg-[#00320D] px-5 py-3 flex justify-between items-center text-white shrink-0">
+                <h2 class="text-sm font-black flex items-center gap-2"><i class="fa-solid fa-bolt text-amber-400"></i> สร้างรายการด่วน (PDI / Fleet)</h2>
+                <div class="flex gap-2">
+                    <button onclick="downloadExcelTemplate()" class="px-3 py-1.5 bg-green-800 rounded text-xs font-bold hover:bg-green-900 transition border border-green-600"><i class="fa-solid fa-download"></i> โหลดฟอร์ม</button>
+                    <label class="px-3 py-1.5 bg-amber-500 rounded text-xs font-bold text-slate-900 cursor-pointer hover:bg-amber-600 transition"><i class="fa-solid fa-upload"></i> อัปโหลด Excel <input type="file" id="excel_upload" class="hidden" onchange="handleExcelUpload(event)"></label>
+                    <button onclick="closeBulkModal()" class="ml-2 hover:text-red-300 text-xl transition"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-auto custom-scrollbar bg-slate-50 p-2">
+                <table class="bulk-table">
+                    <thead id="bulk_table_head_tr"></thead>
+                    <tbody id="bulk_table_body"></tbody>
+                </table>
+            </div>
+            <div class="bg-white p-3 border-t border-slate-200 flex justify-between items-center shrink-0">
+                <button onclick="addBulkRow()" class="px-4 py-2 bg-slate-100 text-slate-700 font-bold text-xs rounded border border-slate-300 hover:bg-slate-200 transition">+ เพิ่มแถวใหม่</button>
+                <button onclick="saveBulkData()" id="btn_save_bulk" class="px-6 py-2 bg-[#00320D] text-white font-black text-xs rounded hover:bg-black transition shadow-md"><i class="fa-solid fa-save"></i> บันทึกข้อมูลเข้าฐานข้อมูล</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🌟 Modal: ปฏิทินภาพรวม (Overview Calendar) 🌟 -->
+    <div id="scheduleCalendarModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[120] flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden modal-fade border-t-4 border-blue-600 flex flex-col max-h-[90vh]">
+            <div class="bg-[#00320D] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md z-10 relative">
+                <h2 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-calendar-days text-blue-400"></i> <span id="modal_dynamic_title">ตารางตรวจสอบโควต้า</span></h2>
+                <button type="button" onclick="closeModal('scheduleCalendarModal')" class="hover:text-red-400 transition text-2xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="flex-1 overflow-auto custom-scrollbar p-6 bg-slate-50 relative">
+                <div id="calendar_loading" class="absolute inset-0 bg-white/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center hidden">
+                    <i class="fa-solid fa-spinner fa-spin text-4xl text-[#00320D] mb-3"></i>
+                    <p class="font-bold text-slate-600">กำลังประมวลผลข้อมูลโควต้า...</p>
+                </div>
+                
+                <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                    <div class="flex flex-wrap items-center gap-3 text-[11px] font-bold bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm">
+                        <span class="text-emerald-600 flex items-center"><i class="fa-solid fa-truck-ramp-box mr-1"></i> รถเข้าจอดอู่</span>
+                        <span class="text-amber-600 flex items-center"><i class="fa-solid fa-hammer mr-1"></i> กำหนดซ่อมเสร็จ/ทำสี</span>
+                        <span class="text-indigo-600 flex items-center"><i class="fa-solid fa-key mr-1"></i> ส่งมอบรถลูกค้า</span>
+                    </div>
+                    <div class="flex items-center gap-4 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm">
+                        <button type="button" onclick="changeSchedMonth(-1)" class="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold transition-colors"><i class="fa-solid fa-chevron-left"></i></button>
+                        <h2 id="sched_month_title" class="text-sm font-black text-[#00320D] min-w-[140px] text-center">เดือน...</h2>
+                        <button type="button" onclick="changeSchedMonth(1)" class="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold transition-colors"><i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-7 gap-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 bg-white py-2 rounded-xl border border-slate-200 shadow-sm">
+                    <div>อาทิตย์</div><div>จันทร์</div><div>อังคาร</div><div>พุธ</div><div>พฤหัสฯ</div><div>ศุกร์</div><div>เสาร์</div>
+                </div>
+                <div id="sched_calendar_grid" class="grid grid-cols-7 gap-2 min-h-[400px]"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🌟 Modal: ไฮไลท์แถว & โน้ตส่วนตัว (Personal Highlight) 🌟 -->
+    <div id="highlightModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col border border-slate-200 modal-fade">
+            <div class="bg-[#00320D] px-4 py-3 flex justify-between items-center text-white">
+                <h3 class="font-bold text-sm"><i class="fa-solid fa-highlighter text-amber-400 mr-2"></i> ไฮไลท์และโน้ต (เห็นเฉพาะคุณ)</h3>
+                <button onclick="closeHighlightModal()" class="hover:text-red-300 transition text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-5 space-y-5 bg-slate-50">
+                <input type="hidden" id="hl_job_id">
+                <div>
+                    <label class="block text-xs font-black text-slate-700 mb-2 uppercase tracking-wide">1. เลือกสีสัญลักษณ์</label>
+                    <div class="flex gap-2.5 justify-center bg-white p-3 rounded-lg border border-slate-200 shadow-sm" id="hl_color_options">
+                        <div onclick="selectHighlightColor('')" class="hl-color-btn w-8 h-8 rounded-full border border-slate-300 cursor-pointer hover:scale-110 transition bg-slate-100 flex items-center justify-center shadow-sm" data-color=""><i class="fa-solid fa-ban text-slate-400 text-xs hidden"></i></div>
+                        <div onclick="selectHighlightColor('#fef08a')" class="hl-color-btn w-8 h-8 rounded-full border-2 border-transparent cursor-pointer hover:scale-110 transition bg-yellow-200 shadow-sm" data-color="#fef08a"></div>
+                        <div onclick="selectHighlightColor('#fbcfe8')" class="hl-color-btn w-8 h-8 rounded-full border-2 border-transparent cursor-pointer hover:scale-110 transition bg-pink-200 shadow-sm" data-color="#fbcfe8"></div>
+                        <div onclick="selectHighlightColor('#bbf7d0')" class="hl-color-btn w-8 h-8 rounded-full border-2 border-transparent cursor-pointer hover:scale-110 transition bg-green-200 shadow-sm" data-color="#bbf7d0"></div>
+                        <div onclick="selectHighlightColor('#bfdbfe')" class="hl-color-btn w-8 h-8 rounded-full border-2 border-transparent cursor-pointer hover:scale-110 transition bg-blue-200 shadow-sm" data-color="#bfdbfe"></div>
+                        <div onclick="selectHighlightColor('#e9d5ff')" class="hl-color-btn w-8 h-8 rounded-full border-2 border-transparent cursor-pointer hover:scale-110 transition bg-purple-200 shadow-sm" data-color="#e9d5ff"></div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-black text-slate-700 mb-2 uppercase tracking-wide">2. เหตุผล / หมายเหตุกันลืม</label>
+                    <textarea id="hl_note" rows="3" class="minimal-input resize-none w-full text-sm shadow-inner" placeholder="เช่น ต้องตามอะไหล่ด่วน, ลูกค้ารีบใช้รถ..."></textarea>
+                </div>
+                <button onclick="saveHighlight()" class="w-full bg-blue-600 text-white font-black py-2.5 rounded-lg hover:bg-blue-700 transition shadow-md border border-blue-800"><i class="fa-solid fa-save mr-1"></i> บันทึกข้อมูลไฮไลท์</button>
+            </div>
+        </div>
+    </div>
+
+    
+    
+ <!-- 🌟 เรียกใช้ไฟล์ JS ที่แยกหมวดหมู่แล้ว 🌟 -->
+    <script src="table_pagination.js?v=1.1"></script>
+    <script src="table_viewport_lock.js?v=1.0"></script>
+    <script src="jobs_table_core.js?v=23.2"></script>
+    <script src="jobs_table_ui.js?v=23.2"></script>
+    <script src="jobs_table_modals.js?v=23.0"></script>
+</body>
+</html>

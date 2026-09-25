@@ -4,13 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RIZENIC ERP - รายงานข้อมูลรถซ่อม</title>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    
-    <!-- ดึง SheetJS สำหรับโหลด Excel 100% ภาษาไทยไม่เพี้ยน -->
-    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
-
-    <style>
+    <link rel="stylesheet" href="table_scroll_fix.css?v=1.6">
+<style>
         @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap');
         body { font-family: 'Kanit', sans-serif; background-color: #f8fafc; display: flex; flex-direction: column; min-height: 100vh; }
         .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -22,6 +23,7 @@
         .excel-table tbody tr:hover td { background-color: #f1f5f9; }
         .excel-table tbody td { padding: 12px 14px; color: #334155; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; background-color: #fff; white-space: nowrap; }
     </style>
+    <link rel="stylesheet" href="ui_global.css?v=1.1">
 </head>
 <body class="text-slate-800">
 
@@ -95,15 +97,36 @@
         </div>
     </main>
 
+    <script src="table_pagination.js?v=1.1"></script>
+    <script src="table_viewport_lock.js?v=1.0"></script>
     <script>
         const API_BASE_URL = window.location.origin;
+        let xlsxLoadPromise = null;
+        function ensureXlsxLoaded() {
+            if (window.XLSX) return Promise.resolve(window.XLSX);
+            if (xlsxLoadPromise) return xlsxLoadPromise;
+            xlsxLoadPromise = new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+                script.async = true;
+                script.onload = () => resolve(window.XLSX);
+                script.onerror = () => {
+                    xlsxLoadPromise = null;
+                    reject(new Error('ไม่สามารถโหลดเครื่องมือ Excel ได้'));
+                };
+                document.head.appendChild(script);
+            });
+            return xlsxLoadPromise;
+        }
         let allJobs = []; 
         let filteredJobs = [];
+        const reportPager = RizenicPagination.createState(50);
         let currentBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
 
         async function fetchJobs() {
             try {
-                const res = await fetch(`${API_BASE_URL}/api/reports?_t=${new Date().getTime()}`);
+                const reportParams = new URLSearchParams({ _t: String(Date.now()), branch: currentBranch, department_routing: 'ซ่อม' });
+                const res = await fetch(`${API_BASE_URL}/api/reports?${reportParams.toString()}`);
                 const data = await res.json();
                 allJobs = data.filter(j => j.branch_name === currentBranch && j.department_routing === 'ซ่อม');
                 
@@ -140,22 +163,33 @@
                 return true;
             });
 
+            RizenicPagination.reset(reportPager);
+            renderTable(filteredJobs);
+        }
+
+        function goReportPage(page) {
+            reportPager.page = page;
             renderTable(filteredJobs);
         }
 
         function renderTable(data) {
             const tbody = document.getElementById('report_list_body');
+            const pageInfo = RizenicPagination.paginate(data, reportPager);
+            document.getElementById('table_row_count').innerText = data.length;
+            RizenicPagination.renderControls({
+                anchorId: 'reportTable', containerId: 'report_table_pagination', pageInfo,
+                noun: 'รายการ', onPageChange: goReportPage
+            });
             if(data.length === 0) { 
                 tbody.innerHTML = `<tr><td colspan="10" class="p-12 text-center text-slate-400 font-bold text-base">📭 ไม่พบข้อมูลในช่วงเวลาที่เลือก</td></tr>`; 
-                document.getElementById('table_row_count').innerText = 0;
                 return; 
             }
 
             let html = '';
-            data.forEach((j, index) => {
+            pageInfo.items.forEach((j, index) => {
                 html += `
                     <tr>
-                        <td class="text-center font-bold text-slate-400">${index + 1}</td>
+                        <td class="text-center font-bold text-slate-400">${pageInfo.startIndex + index + 1}</td>
                         <td class="font-mono font-black text-[#00320D]">${j.car_plate || '-'}</td>
                         <td class="font-bold">${j.car_brand || ''} <span class="font-normal text-slate-500">${j.car_model || ''}</span></td>
                         <td>${j.sa_owner || '-'}</td>
@@ -169,11 +203,16 @@
                 `;
             });
             tbody.innerHTML = html;
-            document.getElementById('table_row_count').innerText = data.length;
         }
 
-        function exportToExcel() {
+        async function exportToExcel() {
             if (filteredJobs.length === 0) return alert('ไม่มีข้อมูลให้ดาวน์โหลดครับ!');
+            try {
+                await ensureXlsxLoaded();
+            } catch (error) {
+                alert('❌ ' + (error.message || 'ไม่สามารถโหลดเครื่องมือ Excel ได้'));
+                return;
+            }
 
             // แปลงข้อมูลเป็น Array สำหรับ SheetJS
             const exportData = filteredJobs.map((j, index) => ({

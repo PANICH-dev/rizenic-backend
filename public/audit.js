@@ -13,8 +13,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function fetchInitialAuditData() {
     try {
+        const reportParams = new URLSearchParams({ branch: userBranch });
         const [resReports, resParts] = await Promise.all([
-            fetch(`${API_BASE_URL}/api/reports`),
+            fetch(`${API_BASE_URL}/api/reports?${reportParams.toString()}`),
             fetch(`${API_BASE_URL}/api/part-orders`)
         ]);
 

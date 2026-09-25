@@ -9,6 +9,67 @@ let filteredPartOrders = [];
 let allStatuses = [];
 let allQuotas = []; 
 let globalStatusOptionsHtml = ''; 
+let jobByPlate = new Map();
+let dashboardDateCounts = { arrived: new Map(), target: new Map(), delivery: new Map() };
+let dashboardPartOrdersByJobId = new Map();
+let dashboardPartOrdersByPlate = new Map();
+
+function addDashboardDateCount(map, dateValue) {
+    if (!dateValue) return;
+    const key = dateValue.split('T')[0];
+    map.set(key, (map.get(key) || 0) + 1);
+}
+
+function addDashboardPartOrder(map, key, order) {
+    if (!key) return;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(order);
+}
+
+function rebuildDashboardRenderIndexes() {
+    dashboardDateCounts = { arrived: new Map(), target: new Map(), delivery: new Map() };
+    filteredJobs.forEach(job => {
+        addDashboardDateCount(dashboardDateCounts.arrived, job.arrived_date);
+        addDashboardDateCount(dashboardDateCounts.target, job.target_finish_date);
+        addDashboardDateCount(dashboardDateCounts.delivery, job.delivery_date);
+    });
+
+    dashboardPartOrdersByJobId = new Map();
+    dashboardPartOrdersByPlate = new Map();
+    filteredPartOrders.forEach(order => {
+        if (!order || order.order_status === 'ยกเลิก') return;
+        const orderJobId = String(order.job_id || order.report_id || '');
+        if (orderJobId && orderJobId !== 'undefined' && orderJobId !== 'null') {
+            addDashboardPartOrder(dashboardPartOrdersByJobId, orderJobId, order);
+            return;
+        }
+        const plate = String(order.car_plate || '').replace(/\s+/g, '').toLowerCase();
+        if (plate) addDashboardPartOrder(dashboardPartOrdersByPlate, plate, order);
+    });
+}
+
+function getDashboardPartOrdersForJob(job) {
+    if (!job) return [];
+    const jobId = String(job.id);
+    const plate = String(job.car_plate || '').replace(/\s+/g, '').toLowerCase();
+    const byJob = dashboardPartOrdersByJobId.get(jobId) || [];
+    const byPlate = plate ? (dashboardPartOrdersByPlate.get(plate) || []) : [];
+    return byJob.length && byPlate.length ? byJob.concat(byPlate) : (byJob.length ? byJob : byPlate);
+}
+
+function rebuildDashboardIndexes() {
+    jobByPlate = new Map();
+    allJobs.forEach(job => {
+        const plate = job && job.car_plate != null ? String(job.car_plate).trim() : '';
+        // Preserve Array.find() semantics: first job with a plate wins.
+        if (plate && !jobByPlate.has(plate)) jobByPlate.set(plate, job);
+    });
+}
+
+function getDashboardJobByPlate(plate) {
+    const key = plate != null ? String(plate).trim() : '';
+    return key ? (jobByPlate.get(key) || null) : null;
+}
 
 let statusChartInstance = null;
 let insuranceChartInstance = null;
@@ -151,28 +212,28 @@ function setupBranchDropdown() {
 
 async function fetchDashboardData() {
     try {
-        const resJobs = await fetch(`${API_BASE_URL}/api/reports`);
-        if (resJobs.ok) {
-            const rawJobs = await resJobs.json();
-            const jobsArray = Array.isArray(rawJobs) ? rawJobs : (rawJobs.data || []);
-            allJobs = jobsArray.map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
-        }
-
-        const resParts = await fetch(`${API_BASE_URL}/api/part-orders`).catch(() => null);
-        if (resParts && resParts.ok) { 
-            const rawParts = await resParts.json(); 
-            allPartOrders = Array.isArray(rawParts) ? rawParts : (rawParts.data || []);
-        }
-
-        const statRes = await fetch(`${API_BASE_URL}/api/statuses`).catch(() => null);
-        if (statRes && statRes.ok) { 
-            const rawStat = await statRes.json();
-            allStatuses = Array.isArray(rawStat) ? rawStat : (rawStat.data || []);
-            globalStatusOptionsHtml = allStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
-        }
-
         const rStr = String(userRole).toLowerCase();
-        if (rStr.includes('admin') || rStr.includes('แอดมิน') || rStr.includes('manager') || rStr.includes('ba')) {
+        const isManager = rStr.includes('admin') || rStr.includes('แอดมิน') || rStr.includes('manager') || rStr.includes('ba');
+        const reportParams = new URLSearchParams();
+        const orderParams = new URLSearchParams();
+        if (!isManager) {
+            reportParams.set('branch', userBranch);
+            orderParams.set('branch', userBranch);
+        }
+
+        // Parts/status masters are not required for the first KPI/table paint.
+        const secondaryDashboardData = Promise.allSettled([
+            fetch(`${API_BASE_URL}/api/part-orders${orderParams.toString() ? `?${orderParams.toString()}` : ''}`).then(async res => res.ok ? res.json() : []),
+            fetch(`${API_BASE_URL}/api/statuses`).then(async res => res.ok ? res.json() : [])
+        ]);
+
+        const primaryReports = await fetch(`${API_BASE_URL}/api/reports${reportParams.toString() ? `?${reportParams.toString()}` : ''}`)
+            .then(async res => res.ok ? res.json() : []);
+        const jobsArray = Array.isArray(primaryReports) ? primaryReports : (primaryReports?.data || []);
+        allJobs = jobsArray.map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
+        rebuildDashboardIndexes();
+
+        if (isManager) {
             const uniqueBranches = [...new Set(allJobs.map(j => j.branch_name).filter(b => b))];
             const filterSelect = document.getElementById('branchFilter');
             if (filterSelect) {
@@ -182,14 +243,39 @@ async function fetchDashboardData() {
                 if(savedVal && (savedVal === 'all' || uniqueBranches.includes(savedVal))) filterSelect.value = savedVal;
             }
         }
-    } catch (err) { 
-        console.error("โหลดข้อมูลแดชบอร์ดพัง:", err); 
-    } finally {
-        applyFilters(); 
+
+        // First usable paint is based on reports only. Part-specific widgets wait for their dataset.
+        applyFilters(false);
+
+        const secondaryResults = await secondaryDashboardData;
+        if (secondaryResults[0].status === 'fulfilled') {
+            const rawParts = secondaryResults[0].value;
+            allPartOrders = Array.isArray(rawParts) ? rawParts : (rawParts?.data || []);
+        }
+        if (secondaryResults[1].status === 'fulfilled') {
+            const rawStat = secondaryResults[1].value;
+            allStatuses = Array.isArray(rawStat) ? rawStat : (rawStat?.data || []);
+            globalStatusOptionsHtml = allStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
+        }
+        refreshDashboardPartViews();
+    } catch (err) {
+        console.error('โหลดข้อมูลแดชบอร์ดพัง:', err);
+        applyFilters(false);
     }
 }
 
-function applyFilters() {
+function refreshDashboardPartViews() {
+    const filterSelect = document.getElementById('branchFilter');
+    const selectedBranch = filterSelect ? filterSelect.value : 'all';
+    filteredPartOrders = selectedBranch === 'all'
+        ? [...allPartOrders]
+        : allPartOrders.filter(o => isSameBranch(o.branch_name, selectedBranch));
+    rebuildDashboardRenderIndexes();
+    if(typeof renderPartsTracking === 'function') renderPartsTracking(true);
+    if(typeof renderPartsStatusChart === 'function') renderPartsStatusChart();
+}
+
+function applyFilters(includeParts = true) {
     const filterSelect = document.getElementById('branchFilter');
     const selectedBranch = filterSelect ? filterSelect.value : 'all';
     
@@ -209,9 +295,13 @@ function applyFilters() {
         filteredPartOrders = allPartOrders.filter(o => isSameBranch(o.branch_name, selectedBranch));
     }
 
+    // Rebuild lightweight lookup maps once per filter change. Renderers then reuse them
+    // instead of repeatedly scanning the full filtered datasets.
+    rebuildDashboardRenderIndexes();
+
     if(typeof renderERPStatuses === 'function') renderERPStatuses(filteredJobs);
     if(typeof renderStationSummary === 'function') renderStationSummary(filteredJobs);
-    if(typeof renderPartsTracking === 'function') renderPartsTracking(filteredPartOrders);
+    if(includeParts && typeof renderPartsTracking === 'function') renderPartsTracking(true);
 
     if(typeof renderKPIs === 'function') renderKPIs(startDate, endDate);
     if(typeof renderDailyReport === 'function') renderDailyReport(); 
@@ -220,13 +310,13 @@ function applyFilters() {
     if(typeof renderInsuranceChart === 'function') renderInsuranceChart();
     if(typeof renderDamageChart === 'function') renderDamageChart(startDate, endDate);   
     if(typeof renderPaymentChart === 'function') renderPaymentChart(startDate, endDate);   
-    if(typeof renderPartsStatusChart === 'function') renderPartsStatusChart();                 
+    if(includeParts && typeof renderPartsStatusChart === 'function') renderPartsStatusChart();                 
     if(typeof renderMechanicChart === 'function') renderMechanicChart();                    
     if(typeof renderFinanceChart === 'function') renderFinanceChart(startDate, endDate);
     
     if(typeof renderSASection === 'function') renderSASection();
-    if(typeof renderStationTable === 'function') renderStationTable(); 
-    if(typeof renderParkedCars === 'function') renderParkedCars();
+    if(typeof renderStationTable === 'function') renderStationTable(true); 
+    if(typeof renderParkedCars === 'function') renderParkedCars(true);
     if(typeof renderCalendarByRange === 'function') renderCalendarByRange(startDate, endDate);
 }
 

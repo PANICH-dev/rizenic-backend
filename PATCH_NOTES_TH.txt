@@ -1,0 +1,33 @@
+RIZENIC Validation + UI + Dashboard Patch
+==========================================
+
+1) Backend validation / duplicate guard
+- Trim text inputs before save (except image/signature payloads)
+- Validate required fields, dates, phone, VIN, non-negative money, positive/non-negative quantities
+- Validate dynamic sync table/column identifiers to reject malformed keys
+- Block duplicate master data case-insensitively:
+  employees (username/code), car brand+model, insurance code/name,
+  customer type, parts master Part No., body-part category+name,
+  part status, quota branch/type/date
+- Main status keeps existing POST upsert/edit behavior; blocks duplicate status name on another code
+- Repair report duplicate check: normalized plate + same contact date
+- Transaction tables (part orders/inbound/outbound) intentionally allow repeated Part No. rows
+
+2) Dropdown polish across standalone pages
+- One shared CSS: ui_global.css
+- Moves arrow 14px inward from right edge and reserves 2.75rem padding
+- Fragments such as inspection.html inherit the parent page style
+
+3) Repair floating menus
+- Column menu and 3-dot menu are portaled to document.body
+- z-index above sticky table headers
+- flips up when bottom space is insufficient
+- clamps left/right inside viewport
+- hover has 240ms bridge and click pins menu open until outside/Escape
+
+4) Dashboard polish
+- Visual-only CSS layer; no IDs/API/chart/data logic changed
+- Cleaner shell, KPI cards, financial cards, report card, table surfaces and spacing
+
+5) Existing duplicates
+- database_duplicate_audit.sql is READ ONLY. It only lists duplicates; it never deletes/updates rows.

@@ -4,11 +4,35 @@ let allJobsData = [];
 let allPartOrders = [];
 let allStatuses = []; 
 let allMasterPartsCache = []; 
+let partOrdersByPlate = new Map();
 let globalStatusOptionsHtml = '';
+
+function rebuildPartOrdersByPlate() {
+    const next = new Map();
+    allPartOrders.forEach(order => {
+        if (!order || order.order_status === 'ยกเลิก') return;
+        const plate = order.car_plate != null ? String(order.car_plate).trim() : '';
+        if (!plate) return;
+        if (!next.has(plate)) next.set(plate, []);
+        next.get(plate).push(order);
+    });
+    partOrdersByPlate = next;
+}
+
+function getActivePartOrdersByPlate(plate) {
+    const key = plate != null ? String(plate).trim() : '';
+    return key ? (partOrdersByPlate.get(key) || []) : [];
+}
+
 let userRole = '';
 let userBranch = '';
 let currentViewSA = ''; 
 let selectedBranchFilter = 'ALL';
+const parkedPager = RizenicPagination.createState(50);
+const poPager = RizenicPagination.createState(50);
+let parkedJobsSource = [];
+let poJobsSource = [];
+let poSearchText = '';
 
 let currentKeyDeskJobId = null;
 let keyDeskRows = [];
@@ -75,41 +99,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadJobsData() {
     try {
-        const results = await Promise.allSettled([
+        const isManager = ['BA','Manager','Admin','แอดมิน'].includes(userRole);
+        const reportParams = new URLSearchParams();
+        if (!isManager) reportParams.set('branch', userBranch);
+        const reportUrl = `${API_BASE_URL}/api/reports${reportParams.toString() ? `?${reportParams.toString()}` : ''}`;
+
+        // Start PO/master data in parallel, but the SA overview does not need to wait for it.
+        const secondaryPromise = Promise.allSettled([
             fetch(`${API_BASE_URL}/api/statuses`).then(res => res.json()),
             fetch(`${API_BASE_URL}/api/part-orders`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/api/reports`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/api/employees`).then(res => res.json()),
             fetch(`${API_BASE_URL}/api/part-statuses`).then(res => res.json()),
             fetch(`${API_BASE_URL}/api/parts?branch=${encodeURIComponent(userBranch)}`).then(res => res.json())
         ]);
 
-        if (results[0].status === 'fulfilled') {
-            globalStatusOptionsHtml = results[0].value.length > 0 ? results[0].value.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('') : `<option value="09.จอดรอเข้าซ่อม">09.จอดรอเข้าซ่อม</option>`;
-        }
-        if (results[1].status === 'fulfilled') allPartOrders = results[1].value;
-        if (results[3].status === 'fulfilled') {
-            const employees = results[3].value;
-            let masterBranches = [...new Set(employees.map(e => e.branch_name).filter(Boolean))].sort();
-            const branchSelect = document.getElementById('branch_filter');
-            const isManager = ['BA','Manager','Admin','แอดมิน'].includes(userRole);
-            let optionsHtml = isManager ? `<option value="ALL">🏢 รวมทุกสาขา</option>` : '';
-            if(masterBranches.length === 0) masterBranches = [userBranch];
-            masterBranches.forEach(b => { optionsHtml += `<option value="${b}">${b}</option>`; });
-            
-            if (branchSelect) {
-                branchSelect.innerHTML = optionsHtml;
-                if (isManager) { branchSelect.value = selectedBranchFilter; branchSelect.disabled = false; } 
-                else { selectedBranchFilter = userBranch; branchSelect.value = userBranch; branchSelect.disabled = true; }
-            }
-        }
-        if (results[4].status === 'fulfilled') allStatuses = results[4].value || [];
-        if (results[5].status === 'fulfilled') allMasterPartsCache = results[5].value || [];
+        // Branch metadata is useful for the filter, but it must not hold up the first SA cards.
+        const employeeBranchesPromise = isManager
+            ? fetch(`${API_BASE_URL}/api/employees`).then(res => res.ok ? res.json() : [])
+            : Promise.resolve([{ branch_name: userBranch }]);
 
-        if (results[2].status === 'fulfilled') {
-            masterJobsData = results[2].value;
-            filterDataByBranch();
+        const primaryReport = await fetch(reportUrl).then(res => res.ok ? res.json() : []);
+        masterJobsData = Array.isArray(primaryReport) ? primaryReport : [];
+        if (!isManager) selectedBranchFilter = userBranch;
+        filterDataByBranch();
+
+        const employees = await employeeBranchesPromise;
+        let masterBranches = [...new Set((Array.isArray(employees) ? employees : []).map(e => e.branch_name).filter(Boolean))].sort();
+        const branchSelect = document.getElementById('branch_filter');
+        let optionsHtml = isManager ? `<option value="ALL">🏢 รวมทุกสาขา</option>` : '';
+        if(masterBranches.length === 0) masterBranches = [userBranch];
+        masterBranches.forEach(b => { optionsHtml += `<option value="${b}">${b}</option>`; });
+
+        if (branchSelect) {
+            branchSelect.innerHTML = optionsHtml;
+            if (isManager) { branchSelect.value = selectedBranchFilter; branchSelect.disabled = false; }
+            else { selectedBranchFilter = userBranch; branchSelect.value = userBranch; branchSelect.disabled = true; }
         }
+
+        const secondaryResults = await secondaryPromise;
+        if (secondaryResults[0].status === 'fulfilled') {
+            globalStatusOptionsHtml = secondaryResults[0].value.length > 0
+                ? secondaryResults[0].value.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('')
+                : `<option value="09.จอดรอเข้าซ่อม">09.จอดรอเข้าซ่อม</option>`;
+        }
+        if (secondaryResults[1].status === 'fulfilled') allPartOrders = secondaryResults[1].value;
+        rebuildPartOrdersByPlate();
+        if (secondaryResults[2].status === 'fulfilled') allStatuses = secondaryResults[2].value || [];
+        if (secondaryResults[3].status === 'fulfilled') allMasterPartsCache = secondaryResults[3].value || [];
+
+        // Refresh the same view after enrichment without changing the user's flow or selection.
+        filterDataByBranch();
     } catch (error) { showToast('มีปัญหาในการโหลดข้อมูล', 'error'); }
 }
 
@@ -572,16 +610,28 @@ function openSAFilteredModal(statusType) {
 }
 
 // ---- Parked Cars ----
-function renderSAParkedCars(jobs) {
-    const tbody = document.getElementById('sa_parked_body'); 
-    const parkedCars = jobs.filter(j => j.is_parked === 'จอดซ่อม' && !(j.job_status||'').includes('ปิดงาน')); 
+function goParkedPage(page) {
+    parkedPager.page = page;
+    renderSAParkedCars(parkedJobsSource, false);
+}
 
-    if(parkedCars.length === 0) { 
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีรถจอดซ่อมในศูนย์</td></tr>`; 
-        return; 
+function renderSAParkedCars(jobs, resetPage = true) {
+    const tbody = document.getElementById('sa_parked_body');
+    parkedJobsSource = Array.isArray(jobs) ? jobs : [];
+    const parkedCars = parkedJobsSource.filter(j => j.is_parked === 'จอดซ่อม' && !(j.job_status||'').includes('ปิดงาน'));
+    if (resetPage) RizenicPagination.reset(parkedPager);
+    const pageInfo = RizenicPagination.paginate(parkedCars, parkedPager);
+    RizenicPagination.renderControls({
+        anchorId: 'parkedTable', containerId: 'parked_table_pagination', pageInfo,
+        noun: 'คัน', onPageChange: goParkedPage
+    });
+
+    if(parkedCars.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีรถจอดซ่อมในศูนย์</td></tr>`;
+        return;
     }
 
-    tbody.innerHTML = parkedCars.map(j => `
+    tbody.innerHTML = pageInfo.items.map(j => `
         <tr class="hover:bg-amber-50/50 transition-colors">
             <td class="font-black text-amber-600 text-center px-2 py-2">${j.car_plate || '-'}</td>
             <td class="font-bold text-slate-800 text-[11px] px-2">${j.car_brand} ${j.car_model || ''}</td>
@@ -638,8 +688,14 @@ function injectPOFilterModal() {
     });
 }
 
-function renderSAPOTracking(saJobs) {
+function goPOPage(page) {
+    poPager.page = page;
+    renderSAPOTracking(poJobsSource, false);
+}
+
+function renderSAPOTracking(saJobs, resetPage = true) {
     injectPOFilterModal();
+    poJobsSource = Array.isArray(saJobs) ? saJobs : [];
     const tbody = document.getElementById('sa_po_body');
     const thead = document.querySelector('#poTable thead tr');
     
@@ -682,37 +738,51 @@ function renderSAPOTracking(saJobs) {
         return (job.job_status || '').includes('06.สั่งอะไหล่');
     });
 
-    if (relevantJobs.length === 0) { 
-        tbody.innerHTML = `<tr><td colspan="10" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีรถในสถานะ "06.สั่งอะไหล่" ของ SA ท่านนี้</td></tr>`; return; 
+    if (relevantJobs.length === 0) {
+        const emptyPage = RizenicPagination.paginate([], poPager);
+        RizenicPagination.renderControls({ anchorId: 'poTable', containerId: 'poTablePagination', pageInfo: emptyPage, onPageChange: goPOPage, noun: 'รายการ' });
+        tbody.innerHTML = `<tr><td colspan="10" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีรถในสถานะ "06.สั่งอะไหล่" ของ SA ท่านนี้</td></tr>`;
+        return;
     }
 
     relevantJobs.sort((a,b) => new Date(b.arrived_date || b.contact_date || 0) - new Date(a.arrived_date || a.contact_date || 0));
 
-    let finalHtml = '';
-    let visibleCount = 0;
-
-    relevantJobs.forEach((job, index) => {
-        const jobPOs = allPartOrders.filter(po => po.car_plate === job.car_plate && po.order_status !== 'ยกเลิก');
-        const rowId = `part_group_${index}`;
-
+    const filteredEntries = relevantJobs.map(job => {
+        const jobPOs = getActivePartOrdersByPlate(job.car_plate);
         let worstStatus = 'มีของ/ครบ';
         const statuses = jobPOs.map(i => i.order_status || '');
         if (jobPOs.length === 0) worstStatus = 'รอสั่งซื้อ';
         else if (statuses.includes('รอสั่งซื้อ')) worstStatus = 'รอสั่งซื้อ';
         else if (statuses.includes('ติด Back Order')) worstStatus = 'ติด Back Order';
         else if (statuses.includes('รออะไหล่')) worstStatus = 'รออะไหล่';
-        else if (statuses.some(s => !s.includes('ครบ') && !s.includes('มีของ'))) {
-            worstStatus = statuses.find(s => !s.includes('ครบ') && !s.includes('มีของ')) || 'รออะไหล่';
-        }
-
+        else if (statuses.some(s => !s.includes('ครบ') && !s.includes('มีของ'))) worstStatus = statuses.find(s => !s.includes('ครบ') && !s.includes('มีของ')) || 'รออะไหล่';
         const pkFilterVal = job.is_parked === 'จอดซ่อม' ? 'จอดซ่อม' : 'ไม่จอดซ่อม';
         const plateVal = job.car_plate || '-';
+        return { job, jobPOs, worstStatus, pkFilterVal, plateVal };
+    }).filter(entry => {
+        if (activePOFilters['plate'] && !activePOFilters['plate'].has(entry.plateVal)) return false;
+        if (activePOFilters['status'] && !activePOFilters['status'].has(entry.worstStatus)) return false;
+        if (activePOFilters['parked'] && !activePOFilters['parked'].has(entry.pkFilterVal)) return false;
+        if (poSearchText) {
+            const haystack = `${Object.values(entry.job).join(' ')} ${entry.jobPOs.map(p => Object.values(p).join(' ')).join(' ')} ${entry.worstStatus}`.toLowerCase();
+            if (!haystack.includes(poSearchText)) return false;
+        }
+        return true;
+    });
 
-        if (activePOFilters['plate'] && !activePOFilters['plate'].has(plateVal)) return;
-        if (activePOFilters['status'] && !activePOFilters['status'].has(worstStatus)) return;
-        if (activePOFilters['parked'] && !activePOFilters['parked'].has(pkFilterVal)) return;
+    if (resetPage) RizenicPagination.reset(poPager);
+    const pageInfo = RizenicPagination.paginate(filteredEntries, poPager);
+    RizenicPagination.renderControls({
+        anchorId: 'poTable', containerId: 'po_table_pagination', pageInfo,
+        noun: 'คัน', onPageChange: goPOPage
+    });
 
-        visibleCount++;
+    let finalHtml = '';
+    const visibleCount = filteredEntries.length;
+
+    pageInfo.items.forEach((entry, pageIndex) => {
+        const { job, jobPOs, worstStatus, pkFilterVal, plateVal } = entry;
+        const rowId = `part_group_${pageInfo.startIndex + pageIndex}`;
 
         let mainBadgeClass = 'bg-amber-50 text-amber-700 border-amber-300';
         if (worstStatus === 'รอสั่งซื้อ' || worstStatus === 'รออะไหล่' || worstStatus === 'ติด Back Order') {
@@ -827,7 +897,7 @@ function openPOExcelFilter(e, colKey, title) {
     const relevantJobs = saJobs.filter(job => (job.job_status || '').includes('06.สั่งอะไหล่'));
 
     relevantJobs.forEach(job => {
-        const jobPOs = allPartOrders.filter(po => po.car_plate === job.car_plate && po.order_status !== 'ยกเลิก');
+        const jobPOs = getActivePartOrdersByPlate(job.car_plate);
         let worstStatus = 'มีของ/ครบ';
         const statuses = jobPOs.map(i => i.order_status || '');
         if (jobPOs.length === 0) worstStatus = 'รอสั่งซื้อ';
@@ -908,8 +978,9 @@ function applyPOExcelFilter() {
     }
     
     closePOExcelFilter();
+    RizenicPagination.reset(poPager);
     const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
-    renderSAPOTracking(saJobs);
+    renderSAPOTracking(saJobs, false);
 }
 
 function clearSpecificPOExcelFilter() {
@@ -917,41 +988,18 @@ function clearSpecificPOExcelFilter() {
     const thIcon = document.querySelector(`#po_th_${currentPOFilterKey} .po-filter-icon`);
     if(thIcon) { thIcon.classList.remove('text-amber-400'); thIcon.classList.add('text-slate-400'); }
     closePOExcelFilter();
+    RizenicPagination.reset(poPager);
     const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
-    renderSAPOTracking(saJobs);
+    renderSAPOTracking(saJobs, false);
 }
 
 window.filterPOTable = function(keyword) {
-    const tbody = document.getElementById('sa_po_body');
-    if (!tbody) return;
-    const lowerKeyword = keyword.toLowerCase().trim();
-    const mainRows = Array.from(tbody.querySelectorAll('tr[onclick^="togglePartAccordion"]'));
-    
-    mainRows.forEach(row => {
-        const nextRow = row.nextElementSibling;
-        let isMatch = false;
-
-        if (lowerKeyword === '') isMatch = true;
-        else {
-            const mainText = row.innerText.toLowerCase();
-            if (mainText.includes(lowerKeyword)) isMatch = true;
-            else if (nextRow && nextRow.id.startsWith('part_group_')) {
-                const subText = nextRow.innerText.toLowerCase();
-                if (subText.includes(lowerKeyword)) isMatch = true;
-            }
-        }
-
-        if (isMatch) row.style.display = '';
-        else {
-            row.style.display = 'none';
-            if (nextRow && nextRow.id.startsWith('part_group_')) {
-                nextRow.classList.add('hidden');
-                const icon = row.querySelector('.fa-chevron-right');
-                if(icon) icon.classList.remove('rotate-90');
-            }
-        }
-    });
+    poSearchText = String(keyword || '').toLowerCase().trim();
+    RizenicPagination.reset(poPager);
+    const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
+    renderSAPOTracking(saJobs, false);
 };
+
 
 // =====================================
 // View 3: Key Desk ProMax Modal
@@ -962,7 +1010,7 @@ function openSAKeyDeskModal(jobId) {
     if(!job) return;
 
     document.getElementById('kd_plate').innerText = job.car_plate || '-';
-    const jobPOs = allPartOrders.filter(po => po.car_plate === job.car_plate && po.order_status !== 'ยกเลิก');
+    const jobPOs = getActivePartOrdersByPlate(job.car_plate);
     keyDeskRows = JSON.parse(JSON.stringify(jobPOs)); 
 
     if(keyDeskRows.length === 0) addSAKeyDeskRow(job);
@@ -1053,6 +1101,26 @@ function renderSAKeyDeskTable() {
     });
 }
 
+async function readApiErrorMessage(response, fallback = 'เกิดข้อผิดพลาดในการบันทึกข้อมูล') {
+    try {
+        const text = await response.text();
+        if (text) {
+            try {
+                const data = JSON.parse(text);
+                if (data?.error) return data.error;
+                if (Array.isArray(data?.validationErrors) && data.validationErrors.length) {
+                    const messages = data.validationErrors.map(item => item?.message || item?.field).filter(Boolean);
+                    if (messages.length) return messages.join('\n');
+                }
+                if (data?.message) return data.message;
+            } catch (_) {
+                return text.trim() || fallback;
+            }
+        }
+    } catch (_) {}
+    return fallback;
+}
+
 async function saveSAKeyDesk() {
     const btn = document.getElementById('btn_save_kd');
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
@@ -1070,16 +1138,18 @@ async function saveSAKeyDesk() {
             if(row.is_new) {
                 payload.order_date = payload.order_date || today;
                 payload.branch_name = userBranch;
-                await fetch(`${API_BASE_URL}/api/part-orders`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                const res = await fetch(`${API_BASE_URL}/api/part-orders`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                if (!res.ok) throw new Error(await readApiErrorMessage(res, 'ไม่สามารถเพิ่มรายการอะไหล่ได้'));
             } else {
-                await fetch(`${API_BASE_URL}/api/part-orders/${row.order_id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                const res = await fetch(`${API_BASE_URL}/api/part-orders/${row.order_id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                if (!res.ok) throw new Error(await readApiErrorMessage(res, 'ไม่สามารถอัปเดตรายการอะไหล่ได้'));
             }
         }
         showToast('บันทึกข้อมูลสำเร็จ!', 'success');
         closeModal('saKeyDeskModal');
         await loadJobsData(); 
     } catch(e) {
-        showToast('เกิดข้อผิดพลาดในการบันทึก', 'error');
+        showToast(e?.message || 'เกิดข้อผิดพลาดในการบันทึก', 'error');
     } finally {
         btn.innerHTML = '<i class="fa-solid fa-save"></i> บันทึกข้อมูล';
         btn.disabled = false;

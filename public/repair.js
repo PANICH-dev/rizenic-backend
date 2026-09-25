@@ -19,6 +19,8 @@ let draggedColIdx = null;
 let savedSortCol = null;
 let savedSortDir = 'asc';
 let kpiData = { arrived: [], repairing: [], done: [], delayed: [] };
+let currentRepairFilteredData = [];
+const repairPager = RizenicPagination.createState(50);
 
 const statusOptions = [
     "09.จอดรอเข้าซ่อม", "10.กำลังซ่อม", "11.รถซ่อมเสร็จรอส่งมอบ", "12.รอส่งมอบ", "21.พักซ่อม"
@@ -159,58 +161,57 @@ async function saveUserPreferences() {
 
 document.addEventListener('DOMContentLoaded', async () => {
     if(sessionStorage.getItem('isLoggedIn') !== 'true') { window.location.href = 'index.html'; return; }
-    
+
     const allowedPages = (sessionStorage.getItem('accessible_pages') || '').split(',');
-    if (!allowedPages.includes('repair')) { 
+    if (!allowedPages.includes('repair')) {
         alert('⛔ คุณไม่มีสิทธิ์เข้าถึงหน้าสถานีช่างครับ!');
-        window.location.href = allowedPages.length > 0 ? allowedPages[0] + '.html' : 'index.html'; return; 
+        window.location.href = allowedPages.length > 0 ? allowedPages[0] + '.html' : 'index.html'; return;
     }
 
     document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name') || 'ช่างซ่อม';
-    
+
     currentBranch = sessionStorage.getItem('branch_name') || sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
     document.getElementById('display_branch').innerText = currentBranch;
-    
+
     const userRole = sessionStorage.getItem('emp_role') || '';
     const isManager = ['BA', 'Manager', 'Admin', 'แอดมิน'].includes(userRole);
     const branchSelectEl = document.getElementById('branchSelect');
 
+    // Establish the branch scope synchronously so the primary report query can start without waiting for employees.
     if (branchSelectEl) {
-        try {
-            const empRes = await fetch(`${API_BASE_URL}/api/employees`);
-            if (empRes.ok) {
-                const employees = await empRes.json();
-                const masterBranches = [...new Set(employees.map(e => e.branch_name).filter(Boolean))].sort();
-                
-                let optionsHtml = isManager ? `<option value="ALL">🏢 รวมทุกสาขา (ภาพรวม)</option>` : '';
-                masterBranches.forEach(b => {
-                    optionsHtml += `<option value="${b}">${b}</option>`;
-                });
-                branchSelectEl.innerHTML = optionsHtml;
-            }
-        } catch (e) {
-            console.error('โหลดข้อมูลสาขาไม่สำเร็จ', e);
-        }
-
         if (isManager) {
             selectedBranchFilter = 'ALL';
+            branchSelectEl.innerHTML = `<option value="ALL">🏢 รวมทุกสาขา (ภาพรวม)</option>`;
             branchSelectEl.value = 'ALL';
             branchSelectEl.disabled = false;
         } else {
             selectedBranchFilter = currentBranch;
-            if(!Array.from(branchSelectEl.options).some(opt => opt.value === currentBranch)) {
-                branchSelectEl.add(new Option(currentBranch, currentBranch));
-            }
+            branchSelectEl.innerHTML = `<option value="${currentBranch}">${currentBranch}</option>`;
             branchSelectEl.value = currentBranch;
-            branchSelectEl.disabled = true; 
+            branchSelectEl.disabled = true;
         }
     }
-    
+
+    // Only managers need the full employee list to build a branch picker; load it in the background.
+    const branchOptionsPromise = (isManager && branchSelectEl)
+        ? fetch(`${API_BASE_URL}/api/employees`).then(async empRes => {
+            if (!empRes.ok) return;
+            const employees = await empRes.json();
+            const masterBranches = [...new Set(employees.map(e => e.branch_name).filter(Boolean))].sort();
+            branchSelectEl.innerHTML = `<option value="ALL">🏢 รวมทุกสาขา (ภาพรวม)</option>` +
+                masterBranches.map(b => `<option value="${b}">${b}</option>`).join('');
+            branchSelectEl.value = selectedBranchFilter;
+        }).catch(e => console.error('โหลดข้อมูลสาขาไม่สำเร็จ', e))
+        : Promise.resolve();
+
     document.getElementById('m_repair_date').setAttribute('min', getTodayString());
 
-    await loadUserColumnPreferences(); 
-    buildTableHeaders(); renderHideColumnMenu(); fetchJobList();
+    await loadUserColumnPreferences();
+    buildTableHeaders();
+    renderHideColumnMenu();
+    fetchJobList();
     renderTimelineModal();
+    await branchOptionsPromise;
 });
 
 function onBranchChange(newBranchVal) {
@@ -237,20 +238,23 @@ function switchTab(tabId) {
 function buildTableHeaders() {
     const tr = document.getElementById('repair_head_row'); let html = '';
     columnsDef.forEach((col, renderIndex) => {
-        let filterIcon = col.filter ? `<i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, ${col.idx}, '${col.title}')"></i>` : '';
-        let countBadge = col.showCount ? `<span id="hdr_cnt_${col.key}" class="text-[12px] text-amber-300 font-bold ml-1 bg-[#002209] px-2 py-0.5 rounded shadow-sm inline-block min-w-[20px] text-center">0</span>` : '';
+        const headerWidth = col.showCount ? Math.max(col.w, 175) : col.w;
+        let filterIcon = col.filter ? `<i class="fa-solid fa-filter filter-icon shrink-0" onclick="openExcelFilter(event, ${col.idx}, '${col.title}')"></i>` : '';
+        let countBadge = col.showCount ? `<span id="hdr_cnt_${col.key}" class="rz-th-count text-[12px] text-amber-300 font-bold bg-[#002209] px-1.5 py-0.5 rounded shadow-sm inline-flex items-center justify-center text-center">0</span>` : '';
         let sortIconClass = "fa-sort";
         if (savedSortCol === col.idx) {
-            sortIconClass = savedSortDir === 'asc' ? 'fa-sort-up ml-1 text-amber-400 opacity-100' : 'fa-sort-down ml-1 text-amber-400 opacity-100';
+            sortIconClass = savedSortDir === 'asc' ? 'fa-sort-up text-amber-400 opacity-100' : 'fa-sort-down text-amber-400 opacity-100';
         }
 
         html += `
-            <th class="group select-none" data-render-idx="${renderIndex + 1}" id="th_${col.idx}" style="width: ${col.w}px; min-width: ${col.w}px;">
-                <div class="flex justify-between items-center w-full h-full">
-                    <div class="cursor-pointer flex-1 overflow-hidden whitespace-nowrap text-ellipsis flex items-center" onclick="${col.filter ? `sortTable(${col.idx})` : ''}">
-                        ${col.title} ${countBadge} <i class="fa-solid ${sortIconClass} sort-icon"></i>
-                    </div>
-                    ${filterIcon}
+            <th class="group select-none" data-render-idx="${renderIndex + 1}" id="th_${col.idx}" style="width: ${headerWidth}px; min-width: ${headerWidth}px;">
+                <div class="rz-th-content h-full">
+                    <span class="rz-th-title cursor-pointer" title="${col.title}" onclick="${col.filter ? `sortTable(${col.idx})` : ''}">${col.title}</span>
+                    <span class="rz-th-tools">
+                        ${countBadge}
+                        <i class="fa-solid ${sortIconClass} sort-icon shrink-0 cursor-pointer" onclick="${col.filter ? `sortTable(${col.idx})` : ''}"></i>
+                        ${filterIcon}
+                    </span>
                 </div>
                 <div class="resizer"></div>
             </th>`;
@@ -268,7 +272,7 @@ function handleDrop(e, targetIdx) {
     const srcPos = columnsDef.findIndex(c => c.idx === draggedColIdx);
     const tgtPos = columnsDef.findIndex(c => c.idx === targetIdx);
     const [movedCol] = columnsDef.splice(srcPos, 1); columnsDef.splice(tgtPos, 0, movedCol);
-    saveUserPreferences(); buildTableHeaders(); runTableFilters(); renderHideColumnMenu();
+    saveUserPreferences(); buildTableHeaders(); runTableFilters(false); renderHideColumnMenu();
 }
 function handleDragEnd(e) { e.target.style.opacity = '1'; }
 
@@ -384,7 +388,7 @@ function updateKPIs() {
     document.getElementById('kpi_delay').innerText = kpiData.delayed.length;
 }
 
-function runTableFilters() {
+function runTableFilters(resetPage = true) {
     const searchTxt = (document.getElementById('global_search_input')?.value || '').toLowerCase();
     
     const filteredData = originalRepairJobs.filter(job => {
@@ -419,7 +423,10 @@ function runTableFilters() {
         return true;
     });
     
-    renderRepairListTable(filteredData);
+    currentRepairFilteredData = filteredData;
+    if (savedSortCol !== null) sortRepairData(currentRepairFilteredData, savedSortCol, savedSortDir);
+    if (resetPage) RizenicPagination.reset(repairPager);
+    renderRepairListTable(currentRepairFilteredData);
 }
 
 function filterBoardByKpi(type) {
@@ -497,21 +504,20 @@ function openDayListForTarget(dateStr) {
 async function fetchJobList() {
     try {
         document.getElementById('repair_list_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-12 text-slate-400 font-mono text-sm"><i class="fa-solid fa-circle-notch fa-spin text-[#00320D] text-lg mr-2"></i> กำลังโหลดข้อมูล...</td></tr>`;
-        const nocache = `?_t=${new Date().getTime()}`;
-        
-        // 🌟 แก้ไข: ลบ API ตัว part-statuses ออกให้ตรงจำนวนที่ destructure เพื่อกันบั๊กโหลดค้าง 🌟
-        const [resReports, resQuotas, resParts, resBodyParts] = await Promise.all([
-            safeFetch(`${API_BASE_URL}/api/reports${nocache}`), 
-            safeFetch(`${API_BASE_URL}/api/quotas${nocache}`), 
-            safeFetch(`${API_BASE_URL}/api/part-orders${nocache}`),
-            safeFetch(`${API_BASE_URL}/api/body-parts${nocache}`)
-        ]);
-        
-        allQuotas = Array.isArray(resQuotas) ? resQuotas : (resQuotas.data || []); 
-        allPartOrders = Array.isArray(resParts) ? resParts : (resParts.data || []); 
-        allBodyPartsMaster = Array.isArray(resBodyParts) ? resBodyParts : (resBodyParts.data || []); 
+        const userRole = sessionStorage.getItem('emp_role') || '';
+        const isManager = ['BA', 'Manager', 'Admin', 'แอดมิน'].includes(userRole);
+        const reportParams = new URLSearchParams({ _t: String(Date.now()) });
+        if (!isManager) reportParams.set('branch', currentBranch);
 
-        const rawReports = Array.isArray(resReports) ? resReports : (resReports.data || []);
+        // Start auxiliary data immediately, but do not hold the main repair table behind it.
+        const secondaryRepairData = Promise.all([
+            safeFetch(`${API_BASE_URL}/api/quotas?_t=${Date.now()}`),
+            safeFetch(`${API_BASE_URL}/api/part-orders?_t=${Date.now()}`),
+            safeFetch(`${API_BASE_URL}/api/body-parts?_t=${Date.now()}`)
+        ]);
+
+        const primaryReports = await safeFetch(`${API_BASE_URL}/api/reports?${reportParams.toString()}`);
+        const rawReports = Array.isArray(primaryReports) ? primaryReports : (primaryReports.data || []);
 
         originalRepairJobs = rawReports.filter(j => {
             const st = j.job_status || '';
@@ -520,10 +526,34 @@ async function fetchJobList() {
             return isNotCancelled && isNotDelivered;
         }).map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
 
+        // First usable paint: KPI + 50-row table need only reports.
         updateKPIs();
-        renderCalendar(); 
         runTableFilters();
-    } catch (err) { console.error("โหลดข้อมูลพัง:", err); }
+
+        const [resQuotas, resParts, resBodyParts] = await secondaryRepairData;
+        allQuotas = Array.isArray(resQuotas) ? resQuotas : (resQuotas.data || []);
+        allPartOrders = Array.isArray(resParts) ? resParts : (resParts.data || []);
+        allBodyPartsMaster = Array.isArray(resBodyParts) ? resBodyParts : (resBodyParts.data || []);
+        renderCalendar();
+    } catch (err) { console.error('โหลดข้อมูลพัง:', err); }
+}
+
+async function readApiErrorMessage(response, fallback = 'เกิดข้อผิดพลาดในการบันทึกข้อมูล') {
+    try {
+        const text = await response.text();
+        if (text) {
+            try {
+                const data = JSON.parse(text);
+                if (data?.error) return data.error;
+                if (Array.isArray(data?.validationErrors) && data.validationErrors.length) {
+                    const messages = data.validationErrors.map(item => item?.message || item?.field).filter(Boolean);
+                    if (messages.length) return messages.join('\n');
+                }
+                if (data?.message) return data.message;
+            } catch (_) { return text.trim() || fallback; }
+        }
+    } catch (_) {}
+    return fallback;
 }
 
 async function fastUpdateField(id, field, value) {
@@ -531,7 +561,7 @@ async function fastUpdateField(id, field, value) {
     if (isDate) {
         const today = getTodayString();
         if (value && value < today && field === 'repair_finish_date') {
-            showToast('ไม่อนุญาตให้ใส่วันที่เสร็จจริงย้อนหลังครับ!', 'error'); runTableFilters(); return;
+            showToast('ไม่อนุญาตให้ใส่วันที่เสร็จจริงย้อนหลังครับ!', 'error'); runTableFilters(false); return;
         }
     }
     try {
@@ -542,10 +572,12 @@ async function fastUpdateField(id, field, value) {
                 originalRepairJobs[jobIndex][field] = (isDate && value) ? value + 'T00:00:00.000Z' : value; 
                 showToast('บันทึกข้อมูลเรียบร้อย!'); 
                 if(isDate || field === 'job_status' || field === 'department_routing') updateKPIs(); 
-                runTableFilters(); 
+                runTableFilters(false); 
             }
-        } else throw new Error();
-    } catch(e) { showToast('อัปเดตไม่สำเร็จ', 'error'); }
+        } else {
+            throw new Error(await readApiErrorMessage(res, 'อัปเดตไม่สำเร็จ'));
+        }
+    } catch(e) { showToast(e?.message || 'อัปเดตไม่สำเร็จ', 'error'); }
 }
 
 async function fastUpdateStationDropdown(id, selectedLevel) {
@@ -575,9 +607,11 @@ async function fastUpdateStationDropdown(id, selectedLevel) {
             Object.assign(job, payload);
             job.calculated_station = computeHighestStationIFS(job);
             updateKPIs(); 
-            runTableFilters();
-        } else throw new Error();
-    } catch(e) { showToast('อัปเดตไม่สำเร็จ', 'error'); }
+            runTableFilters(false);
+        } else {
+            throw new Error(await readApiErrorMessage(res, 'อัปเดตไม่สำเร็จ'));
+        }
+    } catch(e) { showToast(e?.message || 'อัปเดตไม่สำเร็จ', 'error'); }
 }
 
 function renderAllTags(partsStr, bgClass, textClass, borderClass) {
@@ -589,27 +623,40 @@ function renderAllTags(partsStr, bgClass, textClass, borderClass) {
     html += `</div>`; return html;
 }
 
+function goRepairPage(page) {
+    repairPager.page = page;
+    renderRepairListTable(currentRepairFilteredData);
+}
+
 function renderRepairListTable(data) {
     const tbody = document.getElementById('repair_list_body');
+    const pageInfo = RizenicPagination.paginate(data || [], repairPager);
+    RizenicPagination.renderControls({
+        anchorId: 'repairTable', containerId: 'repair_table_pagination', pageInfo,
+        noun: 'คัน', onPageChange: goRepairPage
+    });
+    document.getElementById('table_row_count').innerText = (data || []).length;
     if(!data || data.length === 0) { tbody.innerHTML = `<tr><td colspan="${columnsDef.length}" class="p-12 text-center text-slate-400 font-bold bg-white text-base">📭 ไม่พบข้อมูลรถที่ตรงตามเงื่อนไข</td></tr>`; return; }
 
     let cArr = 0, cTar = 0, cRep = 0, cDel = 0, sumMain = 0, sumSub = 0;
-    let allRowsHtml = '';
-
     data.forEach(j => {
+        if(j.arrived_date) cArr++;
+        if(j.target_finish_date) cTar++;
+        if(j.repair_finish_date) cRep++;
+        if(j.delivery_date) cDel++;
+        sumMain += Number(j.main_part_qty) || (j.main_part_name ? j.main_part_name.split(',').filter(Boolean).length : 0);
+        sumSub += Number(j.sub_part_qty) || (j.sub_part_name ? j.sub_part_name.split(',').filter(Boolean).length : 0);
+    });
+
+    let allRowsHtml = '';
+    pageInfo.items.forEach(j => {
         const arrDateStr = j.arrived_date ? j.arrived_date.split('T')[0] : '';
         const targetDateStr = j.target_finish_date ? j.target_finish_date.split('T')[0] : '';
         const finishDateStr = j.repair_finish_date ? j.repair_finish_date.split('T')[0] : '';
         const deliveryDateStr = j.delivery_date ? j.delivery_date.split('T')[0] : '';
         const isOverdue = checkOverdue(j);
-        
-        if(arrDateStr) cArr++;
-        if(targetDateStr) cTar++;
-        if(finishDateStr) cRep++;
-        if(deliveryDateStr) cDel++;
         let mQty = Number(j.main_part_qty) || (j.main_part_name ? j.main_part_name.split(',').filter(Boolean).length : 0);
         let sQty = Number(j.sub_part_qty) || (j.sub_part_name ? j.sub_part_name.split(',').filter(Boolean).length : 0);
-        sumMain += mQty; sumSub += sQty;
 
         let rowHtml = `<tr>`;
         columnsDef.forEach(col => {
@@ -642,8 +689,8 @@ function renderRepairListTable(data) {
                 case 'repair_finish_date': 
                     let displayValue = finishDateStr ? formatThaiDate(finishDateStr) : '';
                     cellData = `<div class="text-center px-2 py-1.5 relative group">
-                        <div class="absolute inset-0 flex items-center justify-center font-mono text-base text-[#00320D] font-bold bg-white z-10 pointer-events-none group-hover:hidden group-focus-within:hidden">${displayValue}</div>
-                        <input type="date" value="${finishDateStr}" onchange="fastUpdateField('${j.id}', 'repair_finish_date', this.value)" class="inline-edit-input w-full font-mono text-base text-[#00320D] font-bold relative z-0">
+                        <div class="repair-date-display absolute inset-0 flex items-center justify-center font-mono text-base text-[#00320D] font-bold z-10 pointer-events-none group-hover:hidden group-focus-within:hidden">${displayValue}</div>
+                        <input type="date" value="${finishDateStr}" onchange="fastUpdateField('${j.id}', 'repair_finish_date', this.value)" class="inline-edit-input repair-date-input w-full font-mono text-base text-[#00320D] font-bold relative z-0">
                     </div>`; 
                     break;
                 case 'delivery_date': 
@@ -690,8 +737,6 @@ function renderRepairListTable(data) {
     });
     tbody.innerHTML = allRowsHtml;
     
-    document.getElementById('table_row_count').innerText = data.length;
-
     if(document.getElementById('hdr_cnt_arrived_date')) document.getElementById('hdr_cnt_arrived_date').innerText = cArr;
     if(document.getElementById('hdr_cnt_target_finish_date')) document.getElementById('hdr_cnt_target_finish_date').innerText = cTar;
     if(document.getElementById('hdr_cnt_repair_finish_date')) document.getElementById('hdr_cnt_repair_finish_date').innerText = cRep;
@@ -699,7 +744,6 @@ function renderRepairListTable(data) {
     if(document.getElementById('hdr_cnt_main_part_qty')) document.getElementById('hdr_cnt_main_part_qty').innerText = sumMain;
     if(document.getElementById('hdr_cnt_sub_part_qty')) document.getElementById('hdr_cnt_sub_part_qty').innerText = sumSub;
 
-    if(savedSortCol !== null) { sortTableDirectly(savedSortCol, savedSortDir); }
 }
 
 function openExcelFilter(e, colIndex, title) {
@@ -748,52 +792,61 @@ function clearSpecificExcelFilter() {
     closeExcelFilter(); runTableFilters();
 }
 
+function getRepairSortValue(job, colIndex) {
+    const colDef = columnsDef.find(c => Number(c.idx) === Number(colIndex));
+    if (!colDef) return '';
+    const key = colDef.key;
+    if (key === 'car_brand') return `${job.car_brand || ''} ${job.car_model || ''}`.trim();
+    if (key === 'main_part_qty') return Number(job.main_part_qty) || (job.main_part_name ? job.main_part_name.split(',').filter(Boolean).length : 0);
+    if (key === 'sub_part_qty') return Number(job.sub_part_qty) || (job.sub_part_name ? job.sub_part_name.split(',').filter(Boolean).length : 0);
+    return job[key] ?? '';
+}
+
+function compareRepairValues(a, b, dir) {
+    const aStr = String(a ?? '').trim();
+    const bStr = String(b ?? '').trim();
+    const dateRe = /^\d{4}-\d{2}-\d{2}/;
+    if (dateRe.test(aStr) && dateRe.test(bStr)) {
+        const da = new Date(aStr).getTime();
+        const db = new Date(bStr).getTime();
+        if (!Number.isNaN(da) && !Number.isNaN(db)) return dir === 'asc' ? da - db : db - da;
+    }
+    const na = Number(aStr.replace(/,/g, ''));
+    const nb = Number(bStr.replace(/,/g, ''));
+    if (aStr !== '' && bStr !== '' && Number.isFinite(na) && Number.isFinite(nb)) return dir === 'asc' ? na - nb : nb - na;
+    return dir === 'asc' ? aStr.localeCompare(bStr, 'th') : bStr.localeCompare(aStr, 'th');
+}
+
+function sortRepairData(data, colIndex, dir) {
+    data.sort((a, b) => compareRepairValues(getRepairSortValue(a, colIndex), getRepairSortValue(b, colIndex), dir));
+}
+
+function updateRepairSortIndicator(colIndex, dir) {
+    const table = document.getElementById('repairTable');
+    if (!table) return;
+    table.querySelectorAll('.fa-sort, .fa-sort-up, .fa-sort-down').forEach(icon => { icon.className = 'fa-solid fa-sort sort-icon'; });
+    const clickedTh = document.getElementById(`th_${colIndex}`);
+    const clickedIcon = clickedTh?.querySelector('.sort-icon');
+    if(clickedIcon) clickedIcon.className = dir === 'asc' ? 'fa-solid fa-sort-down ml-1 text-amber-400 opacity-100' : 'fa-solid fa-sort-up ml-1 text-amber-400 opacity-100';
+}
+
 function sortTable(colIndex) {
     const table = document.getElementById('repairTable');
-    let dir = table.getAttribute(`data-dir-${colIndex}`) || 'asc'; 
+    let dir = table.getAttribute(`data-dir-${colIndex}`) || 'asc';
     dir = dir === 'asc' ? 'desc' : 'asc';
     table.setAttribute(`data-dir-${colIndex}`, dir);
-
-    savedSortCol = colIndex; savedSortDir = dir;
+    savedSortCol = colIndex;
+    savedSortDir = dir;
     saveUserPreferences();
-    
     sortTableDirectly(colIndex, dir);
 }
 
 function sortTableDirectly(colIndex, dir) {
-    const tbody = document.getElementById('repair_list_body'); const rows = Array.from(tbody.querySelectorAll('tr')); if (rows.length <= 1) return;
-    const table = document.getElementById('repairTable'); 
-    table.querySelectorAll('.fa-sort, .fa-sort-up, .fa-sort-down').forEach(icon => { icon.className = "fa-solid fa-sort sort-icon"; });
-    
-    const clickedTh = document.getElementById(`th_${colIndex}`);
-    if(clickedTh) {
-        const clickedIcon = clickedTh.querySelector('.sort-icon');
-        if(clickedIcon) clickedIcon.className = dir === 'asc' ? "fa-solid fa-sort-down ml-1 text-amber-400 opacity-100" : "fa-solid fa-sort-up ml-1 text-amber-400 opacity-100";
-    }
-    const thIndex = Array.from(table.querySelectorAll('th')).findIndex(th => th.id === `th_${colIndex}`);
-    rows.sort((a, b) => {
-        let valA = getCellValue(a.cells[thIndex]); let valB = getCellValue(b.cells[thIndex]);
-        let dateMatchA = valA.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-        let dateMatchB = valB.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-        if(dateMatchA && dateMatchB) {
-            let dateA = new Date(dateMatchA[3], dateMatchA[2]-1, dateMatchA[1]);
-            let dateB = new Date(dateMatchB[3], dateMatchB[2]-1, dateMatchB[1]);
-            return dir === 'asc' ? dateA - dateB : dateB - dateA;
-        }
-        let isDateA = valA.match(/^\d{4}-\d{2}-\d{2}$/); let isDateB = valB.match(/^\d{4}-\d{2}-\d{2}$/);
-        if (isDateA && isDateB) { let dateA = new Date(valA); let dateB = new Date(valB); if (!isNaN(dateA) && !isNaN(dateB)) return dir === 'asc' ? dateA - dateB : dateB - dateA; }
-        let numA = parseFloat(valA.replace(/,/g, '')); let numB = parseFloat(valB.replace(/,/g, ''));
-        if (!isNaN(numA) && !isNaN(numB)) return dir === 'asc' ? numA - numB : numB - numA;
-        return dir === 'asc' ? valA.localeCompare(valB, 'th') : valB.localeCompare(valA, 'th');
-    });
-    rows.forEach(row => tbody.appendChild(row));
-}
-
-function changeMonth(step) {
-    currentMonth += step;
-    if(currentMonth > 11) { currentMonth = 0; currentYear++; }
-    if(currentMonth < 0) { currentMonth = 11; currentYear--; }
-    renderCalendar();
+    if (!Array.isArray(currentRepairFilteredData) || currentRepairFilteredData.length === 0) return;
+    sortRepairData(currentRepairFilteredData, colIndex, dir);
+    RizenicPagination.reset(repairPager);
+    renderRepairListTable(currentRepairFilteredData);
+    updateRepairSortIndicator(colIndex, dir);
 }
 
 function renderCalendar() {
@@ -1405,7 +1458,7 @@ async function submitRepairStation() {
             body: JSON.stringify(fullPayload)
         });
         
-        if (!res.ok) throw new Error('บันทึกข้อมูลหลักไม่สำเร็จ');
+        if (!res.ok) throw new Error(await readApiErrorMessage(res, 'บันทึกข้อมูลหลักไม่สำเร็จ'));
 
         const job = originalRepairJobs.find(j => String(j.id) === String(id));
         if(job) {
@@ -1416,7 +1469,7 @@ async function submitRepairStation() {
         showToast('บันทึกข้อมูลและอัปเดตสถานะเรียบร้อยแล้ว!', 'success');
         closeModal();
         updateKPIs();
-        runTableFilters();
+        runTableFilters(false);
         
         if(btnSubmit) { btnSubmit.innerHTML = oldHtml; btnSubmit.disabled = false; }
     } catch(e) { 

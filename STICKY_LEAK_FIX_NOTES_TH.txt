@@ -1,0 +1,17 @@
+RIZENIC Sticky Header Leak Fix v1.6
+
+ปัญหา:
+- Parts/Jobs เป็นหน้าที่มีหลายตาราง จึงไม่เข้า rz-table-page-lock
+- CSS เฉพาะหน้ากำหนด TH แต่ละช่องเป็น sticky แยกกัน
+- Chromium สามารถเกิด compositing artifact ทำให้ข้อความ tbody โผล่เหนือหัวตารางสีเขียวตอน scroll
+
+แก้:
+- ไม่แตะ Topbar / Dashboard / API / Database / app.js
+- ใช้ sticky ที่ THEAD เป็นก้อนเดียวสำหรับ modern-table และ excel-table-green
+- TH กลับเป็น position: relative ภายใน sticky THEAD
+- TBODY อยู่ layer ต่ำกว่า header
+- bump table_scroll_fix.css เป็น v1.6 กัน cache
+
+ผลกระทบ:
+- เปลี่ยนเฉพาะวิธีวาด layer ของหัวตาราง
+- ไม่เปลี่ยนข้อมูล, pagination, filter, sort, resize column, edit, export หรือ business logic

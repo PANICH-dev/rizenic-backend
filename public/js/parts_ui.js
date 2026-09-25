@@ -11,6 +11,37 @@ const fallbackStatuses = [
 ];
 
 let allPartStatusesCache = [];
+const saAlertsPager = RizenicPagination.createState(50);
+const masterPartsPager = RizenicPagination.createState(50);
+let saAlertsSearchText = '';
+let masterPartsSearchText = '';
+const SA_ALERT_PREVIEW_LIMIT = 2;
+const expandedSAAlertJobs = new Set();
+
+window.toggleSAAlertParts = function(jobId) {
+    const key = String(jobId);
+    if (expandedSAAlertJobs.has(key)) expandedSAAlertJobs.delete(key);
+    else expandedSAAlertJobs.add(key);
+    renderSAAlerts();
+};
+
+async function readApiErrorMessage(response, fallback = 'เกิดข้อผิดพลาดในการบันทึกข้อมูล') {
+    try {
+        const text = await response.text();
+        if (text) {
+            try {
+                const data = JSON.parse(text);
+                if (data?.error) return data.error;
+                if (Array.isArray(data?.validationErrors) && data.validationErrors.length) {
+                    const messages = data.validationErrors.map(item => item?.message || item?.field).filter(Boolean);
+                    if (messages.length) return messages.join('\n');
+                }
+                if (data?.message) return data.message;
+            } catch (_) { return text.trim() || fallback; }
+        }
+    } catch (_) {}
+    return fallback;
+}
 
 async function fetchPartStatuses() {
     if(allPartStatusesCache.length > 0) return;
@@ -78,6 +109,23 @@ window.initResizableColumns = function(tableId) {
     });
 };
 
+function searchSAAlerts(value) {
+    saAlertsSearchText = String(value || '').trim().toLowerCase();
+    RizenicPagination.reset(saAlertsPager);
+    renderSAAlerts();
+}
+
+function goSAAlertsPage(page) {
+    saAlertsPager.page = page;
+    renderSAAlerts();
+}
+
+function getSAAlertSearchText(job) {
+    const jobId = job.report_id || job.id;
+    const relatedParts = (typeof getPartOrdersForJob === 'function') ? getPartOrdersForJob(jobId) : [];
+    return `${Object.values(job).join(' ')} ${relatedParts.map(p => Object.values(p).join(' ')).join(' ')}`.toLowerCase();
+}
+
 function renderSAAlerts() {
     const tbody = document.getElementById('sa_alerts_body');
     const badge = document.getElementById('alert_count');
@@ -92,10 +140,7 @@ function renderSAAlerts() {
             const isPartsDept = job.department_routing === 'อะไหล่';
             const isWaitingParts = st.includes('สั่งอะไหล่') || st.includes('รอรถเข้าซ่อม') || st.includes('รออะไหล่');
 
-            const hasPartOrders = (typeof allPartOrders !== 'undefined') && allPartOrders.some(p => 
-                (p.report_id && String(p.report_id) === String(jobId)) ||
-                (p.job_id && String(p.job_id) === String(jobId))
-            );
+            const hasPartOrders = (typeof getPartOrdersForJob === 'function') && getPartOrdersForJob(jobId).length > 0;
 
             if (isPartsDept || isWaitingParts || hasPartOrders) {
                 jobsToDisplay.push(job);
@@ -103,9 +148,18 @@ function renderSAAlerts() {
         });
     }
     
-    if (jobsToDisplay.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-slate-400 font-bold bg-white"><i class="fa-solid fa-check-circle text-3xl mb-3 text-emerald-300 block"></i> ไม่มีรายการใบงานที่ต้องจัดการครับ! 🎉</td></tr>`;
-        if(badge) badge.classList.add('hidden');
+    const filteredJobs = saAlertsSearchText
+        ? jobsToDisplay.filter(job => getSAAlertSearchText(job).includes(saAlertsSearchText))
+        : jobsToDisplay;
+    const pageInfo = RizenicPagination.paginate(filteredJobs, saAlertsPager);
+    RizenicPagination.renderControls({
+        anchorId: 'saTable', containerId: 'sa_alerts_pagination', pageInfo,
+        noun: 'รายการ', onPageChange: goSAAlertsPage
+    });
+
+    if (filteredJobs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-slate-400 font-bold bg-white"><i class="fa-solid fa-check-circle text-3xl mb-3 text-emerald-300 block"></i> ${saAlertsSearchText ? 'ไม่พบข้อมูลที่ตรงกับคำค้นหา' : 'ไม่มีรายการใบงานที่ต้องจัดการครับ! 🎉'}</td></tr>`;
+        if(badge) { badge.innerText = jobsToDisplay.length; badge.classList.toggle('hidden', jobsToDisplay.length === 0); }
         return;
     }
 
@@ -114,7 +168,7 @@ function renderSAAlerts() {
         badge.classList.remove('hidden');
     }
 
-    tbody.innerHTML = jobsToDisplay.map(job => {
+    tbody.innerHTML = pageInfo.items.map(job => {
         const jobId = job.report_id || job.id; 
         const plate = job.car_plate || 'ไม่ระบุทะเบียน';
         const arrDate = (job.arrived_date || job.contact_date) ? String(job.arrived_date || job.contact_date).split('T')[0] : '-';
@@ -122,68 +176,85 @@ function renderSAAlerts() {
         const saOwner = job.sa_owner || 'ไม่ระบุ';
         const engineNoDisplay = job.engine_no || job.vin_no || '-'; 
         
-        const relatedParts = (typeof allPartOrders !== 'undefined') ? allPartOrders.filter(p => 
-            (p.report_id && String(p.report_id) === String(jobId)) ||
-            (p.job_id && String(p.job_id) === String(jobId))
-        ) : [];
+        const relatedParts = (typeof getPartOrdersForJob === 'function') ? getPartOrdersForJob(jobId) : [];
 
         const qtDisplay = job.qt_no || job.quotation_no || (relatedParts.length > 0 ? (relatedParts[0].qt_no || '-') : '-');
         const soDisplay = job.so_no || job.job_order_no || (relatedParts.length > 0 ? (relatedParts[0].so_no || '-') : '-');
 
         let itemsHtml = '';
+        const jobKey = String(jobId);
+        const isExpanded = expandedSAAlertJobs.has(jobKey);
+        const visibleCount = isExpanded ? relatedParts.length : SA_ALERT_PREVIEW_LIMIT;
+        const visibleParts = relatedParts.slice(0, visibleCount);
+        const hiddenCount = Math.max(0, relatedParts.length - SA_ALERT_PREVIEW_LIMIT);
+
         if (relatedParts.length === 0) {
             itemsHtml = `<span class="text-[11px] font-bold text-rose-500 animate-pulse block truncate"><i class="fa-solid fa-circle-exclamation"></i> ⚠️ ยังไม่มีรายการสั่งอะไหล่</span>`;
         } else {
-            itemsHtml = relatedParts.map(p => {
+            itemsHtml = visibleParts.map(p => {
                 const isComplete = p.order_status && (p.order_status.includes('ครบ') || p.order_status === 'มีสต๊อก');
                 const color = isComplete ? 'text-emerald-600' : ((p.order_status === 'รอสั่งซื้อ' || p.order_status === 'รออัปเดต') ? 'text-red-600' : 'text-amber-600');
                 const icon = isComplete ? '<i class="fa-solid fa-circle-check text-emerald-500 text-sm"></i>' : '<i class="fa-solid fa-clock text-amber-500 text-sm"></i>';
                 
                 let partNoDisplay = (p.part_no && p.part_no !== 'AUTO-PART') ? `<span class="text-blue-600 font-mono">[${p.part_no}]</span> ` : '';
-                let epcDisplay = p.epc_no ? `<span class="text-purple-600 font-mono ml-1 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 shadow-sm"><i class="fa-solid fa-barcode mr-1"></i>EPC: ${p.epc_no}</span>` : '';
-                let typeDisplay = `<span class="text-blue-700 font-bold ml-1 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 shadow-sm">${p.part_type || p.part_category || 'หลัก'}</span>`;
+                let epcDisplay = p.epc_no ? `<span class="text-purple-600 font-mono bg-purple-50 px-1.5 py-0.5 rounded-md border border-purple-200"><i class="fa-solid fa-barcode mr-1"></i>EPC: ${p.epc_no}</span>` : '';
+                let typeDisplay = `<span class="text-blue-700 font-bold bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-200">${p.part_type || p.part_category || 'หลัก'}</span>`;
 
                 let dateInfo = '';
                 if (p.est_arrival_date) {
-                    dateInfo += `<span class="text-amber-600 font-mono ml-1 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shadow-sm"><i class="fa-solid fa-calendar-day mr-1"></i>ETA: ${String(p.est_arrival_date).split('T')[0]}</span>`;
+                    dateInfo += `<span class="text-amber-600 font-mono bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200"><i class="fa-solid fa-calendar-day mr-1"></i>ETA: ${String(p.est_arrival_date).split('T')[0]}</span>`;
                 }
                 const rcvDate = p.received_date || p.part_received_all_date;
                 if (rcvDate) {
-                    dateInfo += `<span class="text-emerald-600 font-mono ml-1 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 shadow-sm"><i class="fa-solid fa-box-open mr-1"></i>เข้าครบ: ${String(rcvDate).split('T')[0]}</span>`;
+                    dateInfo += `<span class="text-emerald-600 font-mono bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200"><i class="fa-solid fa-box-open mr-1"></i>เข้าครบ: ${String(rcvDate).split('T')[0]}</span>`;
                 }
 
                 return `
-                    <div class="text-[11px] font-bold ${color} mb-1.5 flex items-start gap-2 p-1.5 hover:bg-white rounded-lg transition border border-transparent hover:border-slate-200" title="${p.part_name}">
-                        <div class="mt-0.5 shrink-0">${icon}</div>
-                        <div class="leading-tight w-full flex flex-wrap items-center gap-1">
-                            <span>${partNoDisplay}${p.part_name}</span> 
+                    <div class="sa-po-item text-[11px] font-bold ${color}" title="${p.part_name}">
+                        <div class="sa-po-item-icon">${icon}</div>
+                        <div class="sa-po-item-content">
+                            <span>${partNoDisplay}${p.part_name}</span>
                             ${typeDisplay}
-                            <span class="text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shadow-sm">${p.order_status || '-'}</span>
+                            <span class="text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md">${p.order_status || '-'}</span>
                             ${epcDisplay}
                             ${dateInfo}
                         </div>
                     </div>`;
             }).join('');
+
+            if (relatedParts.length > SA_ALERT_PREVIEW_LIMIT) {
+                const buttonLabel = isExpanded ? 'ย่อรายการ' : `ดูเพิ่มอีก ${hiddenCount} รายการ`;
+                const buttonIcon = isExpanded ? 'fa-chevron-up' : 'fa-chevron-down';
+                itemsHtml += `
+                    <div class="sa-po-more-row">
+                        <button type="button" onclick='toggleSAAlertParts(${JSON.stringify(jobKey)})'
+                            class="sa-po-more-btn">
+                            <i class="fa-solid ${buttonIcon}"></i> ${buttonLabel}
+                        </button>
+                    </div>`;
+            }
         }
 
         return `
-            <tr class="hover:bg-amber-50/50 transition border-b border-slate-100">
-                <td class="font-black text-amber-700 text-xs px-2 py-2">
-                    <span class="bg-amber-50 px-2 py-1 rounded shadow-sm border border-amber-200 font-mono">${plate}</span>
+            <tr class="sa-alert-row hover:bg-amber-50/50 transition border-b border-slate-100">
+                <td class="align-top font-black text-amber-700 text-xs px-2 py-2">
+                    <span class="bg-amber-50 px-2 py-1 rounded border border-amber-200 font-mono">${plate}</span>
                     <div class="text-[9px] text-slate-400 mt-1">ID: ${jobId}</div>
                 </td>
-                <td class="text-slate-500 font-mono font-bold text-center px-2 py-2 text-xs">${arrDate}</td>
-                <td class="font-bold text-slate-600 text-xs px-2 py-2">${job.car_model || '-'}</td>
-                <td class="font-mono text-xs font-bold text-purple-700 px-2 py-2 bg-purple-50/30 rounded border border-purple-100">${engineNoDisplay}</td>
-                <td class="font-bold text-slate-700 text-xs px-2 py-2 truncate max-w-[150px]" title="${customerName}">
+                <td class="align-top text-slate-500 font-mono font-bold text-center px-2 py-2 text-xs">${arrDate}</td>
+                <td class="align-top font-bold text-slate-600 text-xs px-2 py-2">${job.car_model || '-'}</td>
+                <td class="align-top font-mono text-xs font-bold text-purple-700 px-2 py-2 bg-purple-50/30">${engineNoDisplay}</td>
+                <td class="align-top font-bold text-slate-700 text-xs px-2 py-2 truncate max-w-[150px]" title="${customerName}">
                     ${customerName}
                     <div class="text-[10px] text-blue-600 mt-1 flex items-center gap-1 bg-blue-50 px-1.5 py-0.5 rounded-full inline-block border border-blue-100"><i class="fa-solid fa-user-tie"></i> ${saOwner}</div>
                 </td>
-                <td class="font-mono text-xs font-bold text-slate-700 px-2 py-2">${qtDisplay}</td>
-                <td class="font-mono text-xs font-bold text-amber-700 px-2 py-2">${soDisplay}</td>
-                <td class="px-2 py-2 max-h-[120px] overflow-y-auto block custom-scrollbar bg-slate-50/50 rounded-xl my-1 border border-slate-200 shadow-inner">${itemsHtml}</td>
-                <td class="text-center px-2 py-2">
-                    <button onclick="openAlertModal('${jobId}', '${plate}')" class="bg-[#00320D] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-black transition shadow-sm w-full">
+                <td class="align-top font-mono text-xs font-bold text-slate-700 px-2 py-2">${qtDisplay}</td>
+                <td class="align-top font-mono text-xs font-bold text-amber-700 px-2 py-2">${soDisplay}</td>
+                <td class="sa-po-cell align-top px-2 py-1.5">
+                    <div class="sa-po-list custom-scrollbar ${isExpanded ? 'is-expanded' : ''}">${itemsHtml}</div>
+                </td>
+                <td class="sa-action-cell align-top text-center px-2 py-2">
+                    <button onclick="openAlertModal('${jobId}', '${plate}')" class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-sm whitespace-nowrap">
                         <i class="fa-solid fa-table-cells"></i> โต๊ะคีย์
                     </button>
                 </td>
@@ -248,10 +319,7 @@ function openAlertModal(jobId, plate) {
         vinNo = mainJob.vin_no || mainJob.engine_no || '';
     }
 
-    const jobParts = (typeof allPartOrders !== 'undefined') ? allPartOrders.filter(p => 
-        (p.report_id && String(p.report_id) === String(jobId)) ||
-        (p.job_id && String(p.job_id) === String(jobId))
-    ) : [];
+    const jobParts = (typeof getPartOrdersForJob === 'function') ? getPartOrdersForJob(jobId) : [];
     
     const container = document.getElementById('modal_dynamic_table_container');
     const epcInput = document.getElementById('mass_epc_update');
@@ -519,12 +587,9 @@ async function saveSAAlertUpdate(e) {
                         order_date: todayStr, epc_no: u.epc_no, notes: u.notes, branch_name: currentBranch
                     })
                 });
-                
                 if(!res.ok) {
-                    const errTxt = await res.text();
-                    console.error("Save POST Failed Error:", errTxt); // 🌟 โชว์ Error ใน Console ให้เห็นชัดๆ
-                    alert(`❌ ระบบปฏิเสธการบันทึก: \n${errTxt}`);
-                    throw new Error("Failed to POST new row");
+                    const message = await readApiErrorMessage(res, 'ไม่สามารถเพิ่มรายการอะไหล่ได้');
+                    throw new Error(message);
                 }
             } else {
                 const payload = {
@@ -540,6 +605,9 @@ async function saveSAAlertUpdate(e) {
                 });
 
                 if (!res.ok) {
+                    if (res.status === 400 || res.status === 409) {
+                        throw new Error(await readApiErrorMessage(res, 'ข้อมูลรายการอะไหล่ไม่ถูกต้อง'));
+                    }
                     for (const field of Object.keys(payload)) {
                         let valToSend = payload[field];
                         if(valToSend === '') valToSend = null;
@@ -549,7 +617,7 @@ async function saveSAAlertUpdate(e) {
                             body: JSON.stringify({ field, value: valToSend })
                         });
                         if (!fastRes.ok) {
-                            console.error(`Save PUT Failed for field: ${field}`);
+                            throw new Error(await readApiErrorMessage(fastRes, `อัปเดต ${field} ไม่สำเร็จ`));
                         }
                     }
                 }
@@ -571,7 +639,9 @@ async function saveSAAlertUpdate(e) {
         }
 
     } catch(err) {
-        if(typeof showToast === 'function') showToast('เกิดข้อผิดพลาด! กรุณากด F12 ดู Console', 'error');
+        const message = err?.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล';
+        alert('❌ ' + message);
+        if(typeof showToast === 'function') showToast(message, 'error');
         console.error("Save Error Process:", err);
     } finally {
         btn.innerHTML = originalBtnHtml || '<i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูล';
@@ -582,11 +652,24 @@ async function saveSAAlertUpdate(e) {
 // ------------------------------------------
 // 2. ข้อมูลมาสเตอร์ (Master Data)
 // ------------------------------------------
+function goMasterPartsPage(page) {
+    masterPartsPager.page = page;
+    renderMasterTable();
+}
+
 function renderMasterTable() {
     const tbody = document.getElementById('master_table_body'); if(!tbody) return;
-    if (allMasterPartsCache.length === 0) { tbody.innerHTML = `<tr><td colspan="8" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีข้อมูลมาสเตอร์อะไหล่</td></tr>`; return; }
+    const filteredParts = masterPartsSearchText
+        ? allMasterPartsCache.filter(m => Object.values(m).join(' ').toLowerCase().includes(masterPartsSearchText))
+        : allMasterPartsCache;
+    const pageInfo = RizenicPagination.paginate(filteredParts, masterPartsPager);
+    RizenicPagination.renderControls({
+        anchorId: 'masterTable', containerId: 'master_table_pagination', pageInfo,
+        noun: 'รายการ', onPageChange: goMasterPartsPage
+    });
+    if (filteredParts.length === 0) { tbody.innerHTML = `<tr><td colspan="8" class="text-center py-10 text-slate-400 font-bold bg-white">${masterPartsSearchText ? 'ไม่พบข้อมูลที่ตรงกับคำค้นหา' : 'ไม่มีข้อมูลมาสเตอร์อะไหล่'}</td></tr>`; return; }
     
-    tbody.innerHTML = allMasterPartsCache.map(m => `
+    tbody.innerHTML = pageInfo.items.map(m => `
         <tr class="hover:bg-slate-50 transition-colors border-b border-slate-100">
             <td class="font-mono text-blue-700 font-bold px-4 py-2.5">${m.part_no}</td>
             <td class="font-bold text-slate-800 px-4 py-2.5">${m.part_name}</td>
@@ -600,7 +683,7 @@ function renderMasterTable() {
     `).join('');
 }
 
-function searchMasterTable() { filterTableByText('master_table_body', event.target.value); }
+function searchMasterTable(value) { masterPartsSearchText = String(value || '').trim().toLowerCase(); RizenicPagination.reset(masterPartsPager); renderMasterTable(); }
 
 function openMasterModal() {
     document.getElementById('edit_master_id').value = ''; document.getElementById('master_part_no').value = '';
@@ -647,8 +730,13 @@ async function saveMasterPart() {
         const url = id ? `${API_BASE_URL}/api/parts/${id}` : `${API_BASE_URL}/api/parts`;
         const method = id ? 'PUT' : 'POST';
         const res = await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-        if(res.ok) { if(typeof showToast === 'function') showToast('บันทึกมาสเตอร์สำเร็จ!'); closeMasterModal(); loadAllData(); } else throw new Error();
-    } catch(e) { if(typeof showToast === 'function') showToast('บันทึกล้มเหลว', 'error'); }
+        if(res.ok) { if(typeof showToast === 'function') showToast('บันทึกมาสเตอร์สำเร็จ!'); closeMasterModal(); loadAllData(); }
+        else throw new Error(await readApiErrorMessage(res, 'บันทึกมาสเตอร์ไม่สำเร็จ'));
+    } catch(e) {
+        const message = e?.message || 'บันทึกล้มเหลว';
+        alert('❌ ' + message);
+        if(typeof showToast === 'function') showToast(message, 'error');
+    }
 }
 
 async function deleteMaster(id) {

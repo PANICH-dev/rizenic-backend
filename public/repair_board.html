@@ -7,6 +7,10 @@
     <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RIZENIC ERP - Job Tracking Board (Excel View)</title>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
@@ -72,6 +76,7 @@
     #closeModal { position: absolute; top: 12px; right: 16px; font-size: 1.5rem; cursor: pointer; color: #94a3b8; transition: color 0.2s;}
     #closeModal:hover { color: #ef4444; }
 </style>
+    <link rel="stylesheet" href="ui_global.css?v=1.1">
 </head>
 
 <body>
@@ -227,11 +232,13 @@ function computeHighestStationIFS(j) {
 
 async function loadData() {
     try {
-        const res = await fetch(`${API_BASE_URL}/api/reports`);
+        // กรองที่ SQL ตามสาขาก่อน แต่คงเงื่อนไขสถานี/สถานะเดิมไว้ฝั่งหน้าเว็บ
+        const currentBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+        const reportParams = new URLSearchParams({ branch: currentBranch });
+        const res = await fetch(`${API_BASE_URL}/api/reports?${reportParams.toString()}`);
         const allJobs = await res.json();
         
-        // กรองเฉพาะงานซ่อม และเฉพาะ "สาขาของคนที่ล็อกอิน"
-        const currentBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+        // กรองเฉพาะงานซ่อม และเฉพาะ "สาขาของคนที่ล็อกอิน
 
         const repairJobs = allJobs.filter(j => 
             j.branch_name === currentBranch &&

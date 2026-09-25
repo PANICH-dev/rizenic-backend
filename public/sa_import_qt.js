@@ -2,12 +2,37 @@
 // 📥 RIZENIC - Import Quotation (Excel)
 // ==========================================
 
+let xlsxLoadPromise = null;
+function ensureXlsxLoaded() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    if (xlsxLoadPromise) return xlsxLoadPromise;
+    xlsxLoadPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+        script.async = true;
+        script.onload = () => resolve(window.XLSX);
+        script.onerror = () => {
+            xlsxLoadPromise = null;
+            reject(new Error('ไม่สามารถโหลดเครื่องมือ Excel ได้'));
+        };
+        document.head.appendChild(script);
+    });
+    return xlsxLoadPromise;
+}
+
 async function importQuotationExcel(event) {
     const file = event.target.files[0];
     if (!file) return;
 
     // แสดง Toast โหลด
     showToast('กำลังอ่านไฟล์ Excel...', 'info');
+    try {
+        await ensureXlsxLoaded();
+    } catch (error) {
+        showToast(error.message || 'ไม่สามารถโหลดเครื่องมือ Excel ได้', 'error');
+        event.target.value = '';
+        return;
+    }
 
     const reader = new FileReader();
     reader.onload = function(e) {

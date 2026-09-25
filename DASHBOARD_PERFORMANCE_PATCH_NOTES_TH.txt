@@ -1,0 +1,50 @@
+RIZENIC Dashboard + Performance + Spacing Patch (20 rows/page)
+=====================================================
+
+Scope ที่แก้ (ไม่เปลี่ยน API contract):
+1) Dashboard 3 ตารางรายการยาว แสดง 20 รายการ/หน้า
+   - PO Tracking
+   - รายการรถในสถานีซ่อม
+   - รายการรถกำลังจอดซ่อมในศูนย์
+   Search / Filter / Sort ทำกับข้อมูลทั้งหมดก่อนแบ่งหน้า
+
+2) Dashboard โหลด /api/reports, /api/part-orders, /api/statuses พร้อมกันด้วย Promise.allSettled
+   Endpoint และ response shape เดิมทั้งหมด
+
+3) Parts: สร้าง Map ของ Part Orders ตาม job/report id ครั้งเดียว
+   แทนการ filter/some ทั้ง allPartOrders ซ้ำในแต่ละใบงาน
+
+4) Jobs: สร้าง Map ของ Part Orders ตามทะเบียนรถครั้งเดียว
+   แทนการ filter allPartOrders ซ้ำใน PO Tracking/Filter/Key Desk
+
+5) Dashboard PO: สร้าง Map ของ Job ตามทะเบียนรถครั้งเดียว
+   แทน allJobs.find ซ้ำทุกกลุ่มทะเบียน
+
+6) Dashboard Calendar: สร้าง Map ตาม arrived/target/delivery date ครั้งเดียว
+   แทน filter รายการงาน 3 รอบต่อวัน สูงสุด 31 วัน
+
+7) Dashboard UI
+   - เอา watermark icon ใหญ่จางๆ ใน KPI card ออก
+   - chart/card มี min-width/overflow containment ไม่ล้นกรอบ
+   - เพิ่มระยะขอบภายนอก Dashboard และ inner padding ของกราฟ/การ์ด
+   - เพิ่ม inner padding ให้ SA/สถานีช่าง ไม่ชิด scrollbar/ขอบ card
+
+ไฟล์ที่แก้:
+- public/dashboard.html
+- public/dashboard.js
+- public/dashboard_po.js
+- public/dashboard_tables.js
+- public/dashboard_polish.css
+- public/jobs.js
+- public/js/parts_core.js
+- public/js/parts_ui.js
+- test/dashboard-performance-pagination.test.js (ใหม่)
+
+ไม่ได้แก้:
+- app.js
+- .env / SSL localhost
+- API endpoint หรือ response contract
+- CRUD / Auth / Validation business rules
+- Database data
+
+ไม่มีการสร้าง/ติดตั้ง Database Index ใน patch นี้ตามคำขอ

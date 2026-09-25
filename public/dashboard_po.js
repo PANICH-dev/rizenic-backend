@@ -4,6 +4,67 @@
 
 let activePOFilters = {};
 let currentPOFilterKey = '';
+const dashboardPOPager = RizenicPagination.createState(20);
+let dashboardPOSearchText = '';
+
+function goDashboardPOPage(page) {
+    dashboardPOPager.page = page;
+    renderPartsTracking(false);
+}
+
+function getDashboardPOWorstStatus(items) {
+    const statuses = items.map(i => i.order_status || '');
+    if (statuses.includes('รอสั่งซื้อ')) return 'รอสั่งซื้อ';
+    if (statuses.includes('ติด Back Order')) return 'ติด Back Order';
+    if (statuses.includes('รออะไหล่')) return 'รออะไหล่';
+    if (statuses.includes('รออัปเดต')) return 'รออัปเดต';
+    const other = statuses.find(s => !s.includes('ครบ') && !s.includes('มีของ'));
+    return other || 'มีของ/ครบ';
+}
+
+function buildDashboardPOEntries() {
+    const groupedParts = {};
+    filteredPartOrders.filter(o => o.order_status !== 'ยกเลิก').forEach(o => {
+        const plate = o.car_plate || 'ไม่ระบุ';
+        if (!groupedParts[plate]) {
+            const jobMatch = typeof getDashboardJobByPlate === 'function' ? getDashboardJobByPlate(plate) : null;
+            groupedParts[plate] = {
+                saName: jobMatch ? (jobMatch.sa_owner || 'ไม่ระบุ') : 'ไม่ระบุ',
+                isParked: jobMatch ? (jobMatch.is_parked || 'ไม่ระบุ') : 'ไม่ระบุ',
+                items: []
+            };
+        }
+        groupedParts[plate].items.push(o);
+    });
+
+    const allEntries = Object.keys(groupedParts).sort().map(plate => {
+        const group = groupedParts[plate];
+        const worstStatus = getDashboardPOWorstStatus(group.items);
+        const pkFilterVal = group.isParked === 'จอดซ่อม' ? 'จอดซ่อม' : 'ไม่จอดซ่อม';
+        return { plate, group, worstStatus, pkFilterVal };
+    });
+    let entries = allEntries.filter(entry => {
+        if (activePOFilters.plate && !activePOFilters.plate.has(entry.plate)) return false;
+        if (activePOFilters.sa && !activePOFilters.sa.has(entry.group.saName)) return false;
+        if (activePOFilters.status && !activePOFilters.status.has(entry.worstStatus)) return false;
+        if (activePOFilters.parked && !activePOFilters.parked.has(entry.pkFilterVal)) return false;
+        if (dashboardPOSearchText) {
+            const details = entry.group.items.map(item => Object.values(item).join(' ')).join(' ');
+            const haystack = `${entry.plate} ${entry.group.saName} ${entry.pkFilterVal} ${entry.worstStatus} ${details}`.toLowerCase();
+            if (!haystack.includes(dashboardPOSearchText)) return false;
+        }
+        return true;
+    });
+
+    if (typeof sortDashboardRows === 'function') {
+        entries = sortDashboardRows(entries, 'partsTrackingTable', (entry, colIndex) => {
+            const values = ['', entry.plate, entry.pkFilterVal, entry.group.saName, entry.group.items.length, entry.worstStatus];
+            return values[colIndex] ?? '';
+        });
+    }
+    return entries;
+}
+
 
 function injectPOFilterModal() {
     if (document.getElementById('poExcelFilterModal')) return;
@@ -39,12 +100,11 @@ function injectPOFilterModal() {
     });
 }
 
-function renderPartsTracking() {
-    injectPOFilterModal(); 
-
+function renderPartsTracking(resetPage = false) {
+    injectPOFilterModal();
     const tbody = document.getElementById('parts_tracking_body');
     const thead = document.querySelector('#partsTrackingTable thead tr');
-    
+
     if (thead && !thead.dataset.filtered) {
         thead.innerHTML = `
             <th class="w-10 px-3 py-3.5 text-center"></th>
@@ -73,68 +133,37 @@ function renderPartsTracking() {
                     <i class="fa-solid fa-filter ml-2 cursor-pointer text-blue-300 hover:text-amber-400 po-filter-icon transition-colors" onclick="openPOExcelFilter(event, 'status', 'สถานะหลัก')"></i>
                 </div>
             </th>
-            <th class="w-28 px-4 py-3.5 border-b border-blue-950 text-center">จัดการ</th>
-        `;
+            <th class="w-28 px-4 py-3.5 border-b border-blue-950 text-center">จัดการ</th>`;
         thead.dataset.filtered = 'true';
     }
-
     if (!tbody) return;
+    if (resetPage) RizenicPagination.reset(dashboardPOPager);
 
-    const pendingParts = filteredPartOrders.filter(o => o.order_status !== 'ยกเลิก');
-
-    if (pendingParts.length === 0) { 
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-400 font-bold bg-slate-50"><i class="fa-solid fa-box-open text-3xl mb-3 block opacity-50"></i>ไม่มีประวัติใบสั่งอะไหล่ 🎉</td></tr>`; 
-        return; 
-    }
-
-    const groupedParts = {};
-    pendingParts.forEach(o => {
-        const plate = o.car_plate || 'ไม่ระบุ';
-        if (!groupedParts[plate]) {
-            const jobMatch = allJobs.find(j => j.car_plate === plate);
-            groupedParts[plate] = { saName: jobMatch ? (jobMatch.sa_owner || 'ไม่ระบุ') : 'ไม่ระบุ', isParked: jobMatch ? (jobMatch.is_parked || 'ไม่ระบุ') : 'ไม่ระบุ', items: [] };
-        }
-        groupedParts[plate].items.push(o);
+    const entries = buildDashboardPOEntries();
+    const pageInfo = RizenicPagination.paginate(entries, dashboardPOPager);
+    RizenicPagination.renderControls({
+        anchorId: 'partsTrackingTable', containerId: 'dashboard_po_pagination', pageInfo,
+        noun: 'คัน', onPageChange: goDashboardPOPage
     });
 
-    const sortedPlates = Object.keys(groupedParts).sort();
+    if (entries.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-400 font-bold bg-slate-50"><i class="fa-solid fa-filter-circle-xmark text-3xl mb-3 block opacity-50"></i>${dashboardPOSearchText || Object.keys(activePOFilters).length ? 'ไม่พบข้อมูลที่ตรงกับตัวกรอง' : 'ไม่มีประวัติใบสั่งอะไหล่ 🎉'}</td></tr>`;
+        if (typeof refreshDashboardSortIcon === 'function') refreshDashboardSortIcon('partsTrackingTable');
+        return;
+    }
+
     let html = '';
-    let visibleCount = 0;
-
-    sortedPlates.forEach((plate, index) => {
-        const group = groupedParts[plate];
-        const rowId = `part_group_${index}`;
-
-        let worstStatus = 'มีของ/ครบ';
-        const statuses = group.items.map(i => i.order_status || '');
-        if (statuses.includes('รอสั่งซื้อ')) worstStatus = 'รอสั่งซื้อ';
-        else if (statuses.includes('ติด Back Order')) worstStatus = 'ติด Back Order';
-        else if (statuses.includes('รออะไหล่')) worstStatus = 'รออะไหล่';
-        else if (statuses.includes('รออัปเดต')) worstStatus = 'รออัปเดต';
-        else if (statuses.some(s => !s.includes('ครบ') && !s.includes('มีของ'))) {
-            worstStatus = statuses.find(s => !s.includes('ครบ') && !s.includes('มีของ')) || 'รออะไหล่';
-        }
-
-        const pkFilterVal = group.isParked === 'จอดซ่อม' ? 'จอดซ่อม' : 'ไม่จอดซ่อม';
-
-        if (activePOFilters['plate'] && !activePOFilters['plate'].has(plate)) return;
-        if (activePOFilters['sa'] && !activePOFilters['sa'].has(group.saName)) return;
-        if (activePOFilters['status'] && !activePOFilters['status'].has(worstStatus)) return;
-        if (activePOFilters['parked'] && !activePOFilters['parked'].has(pkFilterVal)) return;
-
-        visibleCount++;
-
+    pageInfo.items.forEach((entry, pageIndex) => {
+        const { plate, group, worstStatus } = entry;
+        const rowId = `part_group_${pageInfo.startIndex + pageIndex}`;
         let mainBadgeClass = 'bg-amber-50 text-amber-700 border-amber-300';
-        if (worstStatus === 'รอสั่งซื้อ' || worstStatus === 'รออะไหล่' || worstStatus === 'ติด Back Order') {
-            mainBadgeClass = 'bg-red-50 text-red-700 border-red-300';
-        } else if (worstStatus === 'มีของ/ครบ' || worstStatus.includes('ครบ')) {
-            mainBadgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-300';
-        }
-            
+        if (worstStatus === 'รอสั่งซื้อ' || worstStatus === 'รออะไหล่' || worstStatus === 'ติด Back Order') mainBadgeClass = 'bg-red-50 text-red-700 border-red-300';
+        else if (worstStatus === 'มีของ/ครบ' || worstStatus.includes('ครบ')) mainBadgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-300';
+
         const mainBadgeHtml = `<span class="inline-flex items-center px-3 py-1 rounded-md border text-xs font-black shadow-sm ${mainBadgeClass}">${worstStatus}</span>`;
-        const parkedBadge = group.isParked === 'จอดซ่อม' ? 
-            `<span class="bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded font-black text-[10px]"><i class="fa-solid fa-square-p text-amber-600"></i> จอดซ่อม</span>` : 
-            `<span class="bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded font-bold text-[10px]">ไม่จอดซ่อม</span>`;
+        const parkedBadge = group.isParked === 'จอดซ่อม'
+            ? `<span class="bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded font-black text-[10px]"><i class="fa-solid fa-square-p text-amber-600"></i> จอดซ่อม</span>`
+            : `<span class="bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded font-bold text-[10px]">ไม่จอดซ่อม</span>`;
 
         html += `
             <tr class="hover:bg-blue-50/80 transition-colors border-b border-slate-200 cursor-pointer font-medium" onclick="togglePartAccordion('${rowId}')">
@@ -145,15 +174,13 @@ function renderPartsTracking() {
                 <td class="text-center px-4 py-3"><span class="text-blue-700 font-black bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 text-xs shadow-sm">${group.items.length} รายการ</span></td>
                 <td class="px-4 py-3 align-middle">${mainBadgeHtml}</td>
                 <td class="text-center px-4 py-3" onclick="event.stopPropagation()"><button onclick="window.location.href='parts.html'" class="text-[11px] bg-white border border-blue-300 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-600 hover:text-white transition font-bold shadow-sm whitespace-nowrap"><i class="fa-solid fa-boxes-stacked mr-1"></i>ไปคลัง</button></td>
-            </tr>
-        `;
+            </tr>`;
 
-        let subRowsHtml = group.items.map(item => {
+        const subRowsHtml = group.items.map(item => {
             const st = item.order_status || 'รออัปเดต';
             let badgeClass = 'bg-amber-100 text-amber-800 border-amber-300';
             if (st === 'รอสั่งซื้อ' || st === 'รออะไหล่' || st === 'ติด Back Order') badgeClass = 'bg-red-100 text-red-800 border-red-300';
             else if (st.includes('ครบ') || st.includes('มีของ')) badgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-300';
-
             return `
                 <tr class="hover:bg-slate-50 border-b border-slate-100 text-xs">
                     <td class="px-3 py-2 text-center font-mono font-bold text-purple-700 bg-purple-50/50">${item.epc_no || '-'}</td>
@@ -163,8 +190,7 @@ function renderPartsTracking() {
                     <td class="px-3 py-2 text-center font-mono text-slate-600 font-bold">${item.order_date ? item.order_date.split('T')[0] : '-'}</td>
                     <td class="px-3 py-2 text-center font-mono text-emerald-700 font-bold">${item.est_arrival_date ? item.est_arrival_date.split('T')[0] : '-'}</td>
                     <td class="px-3 py-2 text-center"><span class="px-2 py-0.5 rounded text-[10px] border font-bold ${badgeClass}">${st}</span></td>
-                </tr>
-            `;
+                </tr>`;
         }).join('');
 
         html += `
@@ -176,19 +202,15 @@ function renderPartsTracking() {
                             <span class="text-slate-500 font-mono font-normal">รวม ${group.items.length} ชิ้น</span>
                         </div>
                         <table class="w-full text-left border-collapse">
-                            <thead class="bg-slate-50 text-[10px] uppercase font-bold text-slate-600 border-b border-slate-200">
-                                <tr><th class="px-3 py-2 text-center w-28">เลข EPC</th><th class="px-3 py-2 w-36">รหัสอะไหล่</th><th class="px-3 py-2">ชื่อรายการอะไหล่</th><th class="px-3 py-2 text-center w-16">จำนวน</th><th class="px-3 py-2 text-center w-28">วันที่สั่ง</th><th class="px-3 py-2 text-center w-28">กำหนดเข้า</th><th class="px-3 py-2 text-center w-32">สถานะ</th></tr>
-                            </thead>
+                            <thead class="bg-slate-50 text-[10px] uppercase font-bold text-slate-600 border-b border-slate-200"><tr><th class="px-3 py-2 text-center w-28">เลข EPC</th><th class="px-3 py-2 w-36">รหัสอะไหล่</th><th class="px-3 py-2">ชื่อรายการอะไหล่</th><th class="px-3 py-2 text-center w-16">จำนวน</th><th class="px-3 py-2 text-center w-28">วันที่สั่ง</th><th class="px-3 py-2 text-center w-28">กำหนดเข้า</th><th class="px-3 py-2 text-center w-32">สถานะ</th></tr></thead>
                             <tbody>${subRowsHtml}</tbody>
                         </table>
                     </div>
                 </td>
-            </tr>
-        `;
+            </tr>`;
     });
-
-    if (visibleCount === 0) tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-400 font-bold bg-slate-50"><i class="fa-solid fa-filter-circle-xmark text-3xl mb-3 block opacity-50"></i>ไม่พบข้อมูลที่ตรงกับตัวกรอง</td></tr>`; 
-    else tbody.innerHTML = html;
+    tbody.innerHTML = html;
+    if (typeof refreshDashboardSortIcon === 'function') refreshDashboardSortIcon('partsTrackingTable');
 }
 
 window.togglePartAccordion = function(id) {
@@ -213,7 +235,7 @@ function openPOExcelFilter(e, colKey, title) {
     pendingParts.forEach(o => {
         const plate = o.car_plate || 'ไม่ระบุ';
         if (!groupedParts[plate]) {
-            const jobMatch = allJobs.find(j => j.car_plate === plate);
+            const jobMatch = typeof getDashboardJobByPlate === 'function' ? getDashboardJobByPlate(plate) : null;
             groupedParts[plate] = { saName: jobMatch ? (jobMatch.sa_owner || 'ไม่ระบุ') : 'ไม่ระบุ', isParked: jobMatch ? (jobMatch.is_parked || 'ไม่ระบุ') : 'ไม่ระบุ', items: [] };
         }
         groupedParts[plate].items.push(o);
@@ -288,44 +310,18 @@ function applyPOExcelFilter() {
         activePOFilters[currentPOFilterKey] = new Set(checkedVals);
         if(thIcon) { thIcon.classList.remove('text-blue-300'); thIcon.classList.add('text-amber-400'); }
     }
-    closePOExcelFilter(); renderPartsTracking();
+    closePOExcelFilter(); RizenicPagination.reset(dashboardPOPager); renderPartsTracking(false);
 }
 
 function clearSpecificPOExcelFilter() {
     delete activePOFilters[currentPOFilterKey];
     const thIcon = document.querySelector(`#po_th_${currentPOFilterKey} .po-filter-icon`);
     if(thIcon) { thIcon.classList.remove('text-amber-400'); thIcon.classList.add('text-blue-300'); }
-    closePOExcelFilter(); renderPartsTracking();
+    closePOExcelFilter(); RizenicPagination.reset(dashboardPOPager); renderPartsTracking(false);
 }
 
 window.filterPOTable = function(keyword) {
-    const tbody = document.getElementById('parts_tracking_body');
-    if (!tbody) return;
-    const lowerKeyword = keyword.toLowerCase().trim();
-    const mainRows = Array.from(tbody.querySelectorAll('tr[onclick^="togglePartAccordion"]'));
-    
-    mainRows.forEach(row => {
-        const nextRow = row.nextElementSibling;
-        let isMatch = false;
-
-        if (lowerKeyword === '') { isMatch = true; } 
-        else {
-            const mainText = row.innerText.toLowerCase();
-            if (mainText.includes(lowerKeyword)) { isMatch = true; } 
-            else if (nextRow && nextRow.id.startsWith('part_group_')) {
-                const subText = nextRow.innerText.toLowerCase();
-                if (subText.includes(lowerKeyword)) isMatch = true;
-            }
-        }
-
-        if (isMatch) row.style.display = '';
-        else {
-            row.style.display = 'none';
-            if (nextRow && nextRow.id.startsWith('part_group_')) {
-                nextRow.classList.add('hidden');
-                const icon = row.querySelector('.fa-chevron-right');
-                if(icon) icon.classList.remove('rotate-90');
-            }
-        }
-    });
+    dashboardPOSearchText = String(keyword || '').toLowerCase().trim();
+    RizenicPagination.reset(dashboardPOPager);
+    renderPartsTracking(false);
 };

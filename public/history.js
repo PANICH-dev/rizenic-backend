@@ -1,6 +1,11 @@
 const API_BASE_URL = window.location.origin;
 let allJobsData = [];
 let allPartOrders = [];
+let partOrdersLoaded = false;
+let partOrdersLoadPromise = null;
+let partOrdersByPlate = new Map();
+let historyResults = [];
+const historyPager = RizenicPagination.createState(50);
 
 document.addEventListener('DOMContentLoaded', () => {
     if(sessionStorage.getItem('isLoggedIn') !== 'true') { window.location.href = 'index.html'; return; }
@@ -20,6 +25,46 @@ function getValidDateStr(val) {
 }
 const formatMoney = (val) => Number(val || 0).toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
+
+function rebuildHistoryPartOrderIndex() {
+    partOrdersByPlate = new Map();
+    allPartOrders.forEach(po => {
+        if (!po || po.order_status === 'ยกเลิก') return;
+        const key = po.car_plate;
+        if (!partOrdersByPlate.has(key)) partOrdersByPlate.set(key, []);
+        partOrdersByPlate.get(key).push(po);
+    });
+}
+
+async function ensureHistoryPartOrdersLoaded() {
+    if (partOrdersLoaded) return allPartOrders;
+    if (partOrdersLoadPromise) return partOrdersLoadPromise;
+
+    partOrdersLoadPromise = (async () => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/part-orders`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            allPartOrders = Array.isArray(data) ? data : [];
+        } catch (error) {
+            console.error('Error lazy-loading history part orders:', error);
+            allPartOrders = [];
+        } finally {
+            partOrdersLoaded = true;
+            rebuildHistoryPartOrderIndex();
+            partOrdersLoadPromise = null;
+        }
+        return allPartOrders;
+    })();
+
+    return partOrdersLoadPromise;
+}
+
+function getHistoryPartOrdersForJob(job, jobId) {
+    const candidates = partOrdersByPlate.get(job?.car_plate) || [];
+    return candidates.filter(po => po.job_id == jobId || !po.job_id);
+}
+
 async function loadData() {
     try {
         const btn = document.querySelector('button[onclick="searchHistory()"]');
@@ -27,13 +72,11 @@ async function loadData() {
         btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังเตรียมข้อมูล...`;
         btn.disabled = true;
 
-        const results = await Promise.allSettled([
-            fetch(`${API_BASE_URL}/api/reports`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/api/part-orders`).then(res => res.json())
+        const result = await Promise.allSettled([
+            fetch(`${API_BASE_URL}/api/reports`).then(res => res.json())
         ]);
 
-        if (results[0].status === 'fulfilled') allJobsData = results[0].value;
-        if (results[1].status === 'fulfilled') allPartOrders = results[1].value;
+        if (result[0].status === 'fulfilled') allJobsData = result[0].value;
 
         btn.innerHTML = orgHtml;
         btn.disabled = false;
@@ -61,29 +104,41 @@ function searchHistory() {
     const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
     if (!keyword) { alert("กรุณาพิมพ์คำค้นหาก่อนครับ"); return; }
 
-    const results = allJobsData.filter(j => {
+    historyResults = allJobsData.filter(j => {
         const plate = (j.car_plate || '').toLowerCase();
         const name = (j.customer_name || '').toLowerCase();
         const tel = (j.customer_phone || '').toLowerCase();
         const vin = (j.vin_no || '').toLowerCase();
-        
         return plate.includes(keyword) || name.includes(keyword) || tel.includes(keyword) || vin.includes(keyword);
     });
 
-    results.sort((a, b) => new Date(b.arrived_date || b.contact_date || 0) - new Date(a.arrived_date || a.contact_date || 0));
+    historyResults.sort((a, b) => new Date(b.arrived_date || b.contact_date || 0) - new Date(a.arrived_date || a.contact_date || 0));
+    RizenicPagination.reset(historyPager);
+    renderHistoryResults();
+}
 
+function goHistoryPage(page) {
+    historyPager.page = page;
+    renderHistoryResults();
+}
+
+function renderHistoryResults() {
     const tbody = document.getElementById('historyTableBody');
     const container = document.getElementById('resultContainer');
-    
-    document.getElementById('resultCount').innerText = results.length;
+    const pageInfo = RizenicPagination.paginate(historyResults, historyPager);
 
-    if (results.length === 0) {
+    document.getElementById('resultCount').innerText = historyResults.length;
+    RizenicPagination.renderControls({
+        anchorId: 'historyTable', containerId: 'history_table_pagination', pageInfo,
+        noun: 'รายการ', onPageChange: goHistoryPage
+    });
+
+    if (historyResults.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-500 font-bold"><i class="fa-solid fa-magnifying-glass text-3xl mb-2 block opacity-50"></i> ไม่พบประวัติงานซ่อมที่ตรงกับคำค้นหา</td></tr>`;
     } else {
-        tbody.innerHTML = results.map(j => {
+        tbody.innerHTML = pageInfo.items.map(j => {
             const totalCost = Number(j.cost_labor||0) + Number(j.cost_part||0) + Number(j.cost_external||0);
             const statusBadge = (j.job_status||'').includes('ส่งมอบ') ? `bg-emerald-100 text-emerald-700 border-emerald-300` : `bg-amber-100 text-amber-700 border-amber-300`;
-            
             return `
             <tr class="hover:bg-purple-50/50 transition cursor-pointer border-b border-slate-100" onclick="viewHistoryDetail('${j.id}')">
                 <td class="px-4 py-3 font-bold text-[#00320D]"><span class="bg-slate-100 border border-slate-300 px-3 py-1.5 rounded font-mono text-xs shadow-inner whitespace-nowrap">${j.car_plate || '-'}</span></td>
@@ -93,20 +148,19 @@ function searchHistory() {
                 <td class="px-4 py-3 text-center"><span class="border px-2 py-1 rounded text-[10px] font-bold shadow-sm whitespace-nowrap ${statusBadge}">${j.job_status || '-'}</span></td>
                 <td class="px-4 py-3 text-right text-xs font-mono font-black text-slate-700">${formatMoney(totalCost)}</td>
                 <td class="px-4 py-3 text-center"><button class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md whitespace-nowrap"><i class="fa-solid fa-file-lines"></i> ดูประวัติ</button></td>
-            </tr>
-            `;
+            </tr>`;
         }).join('');
     }
-
     container.classList.remove('hidden');
     container.classList.add('flex');
 }
 
-function viewHistoryDetail(jobId) {
+async function viewHistoryDetail(jobId) {
     const job = allJobsData.find(j => j.id == jobId);
     if(!job) return;
 
-    const jobPOs = allPartOrders.filter(po => po.car_plate === job.car_plate && po.order_status !== 'ยกเลิก' && (po.job_id == jobId || !po.job_id));
+    await ensureHistoryPartOrdersLoaded();
+    const jobPOs = getHistoryPartOrdersForJob(job, jobId);
 
     const totalLabor = Number(job.cost_labor || job.labor_total || 0);
     const totalParts = Number(job.cost_part || job.part_total || 0);

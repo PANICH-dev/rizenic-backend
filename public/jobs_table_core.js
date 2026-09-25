@@ -3,6 +3,23 @@
 // ==========================================
 
 const API_BASE_URL = window.location.origin;
+let xlsxLoadPromise = null;
+function ensureXlsxLoaded() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    if (xlsxLoadPromise) return xlsxLoadPromise;
+    xlsxLoadPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+        script.async = true;
+        script.onload = () => resolve(window.XLSX);
+        script.onerror = () => {
+            xlsxLoadPromise = null;
+            reject(new Error('ไม่สามารถโหลดเครื่องมือ Excel ได้'));
+        };
+        document.head.appendChild(script);
+    });
+    return xlsxLoadPromise;
+}
 
 // 🌟 Global Variables 🌟
 let allJobsData = [];
@@ -234,51 +251,64 @@ function getActiveJobsData() {
 
 async function loadJobsData() {
     document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="40" class="text-center py-20 text-slate-400 font-bold bg-white"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 text-green-800"></i><br>กำลังโหลดข้อมูล...</td></tr>`;
+    const isManager = ['BA','Manager','Admin','แอดมิน'].includes(userRole);
+    const reportParams = new URLSearchParams();
+    if (!isManager) reportParams.set('branch', userBranch);
+    const reportUrl = `${API_BASE_URL}/api/reports${reportParams.toString() ? `?${reportParams.toString()}` : ''}`;
+
     try {
-        const results = await Promise.allSettled([
-            fetch(`${API_BASE_URL}/api/statuses`).then(res => res.json()),
+        // Start non-critical master/PO requests immediately, but do not block the first table paint on them.
+        const secondaryPromise = Promise.allSettled([
             fetch(`${API_BASE_URL}/api/part-orders`).then(res => res.json()),
             fetch(`${API_BASE_URL}/api/body-parts`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/api/reports`).then(res => res.json()),
             fetch(`${API_BASE_URL}/api/customer-types`).then(res => res.json()),
             fetch(`${API_BASE_URL}/api/insurances`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/api/employees`).then(res => res.json()),
+            fetch(`${API_BASE_URL}/api/employees?branch=${encodeURIComponent(userBranch)}`).then(res => res.json()),
             fetch(`${API_BASE_URL}/api/car-models`).then(res => res.json())
         ]);
 
-        if (results[0].status === 'fulfilled') {
-            globalStatuses = results[0].value;
+        // Reports are the primary dataset; statuses are small and needed for the visible status editor.
+        const primaryResults = await Promise.allSettled([
+            fetch(`${API_BASE_URL}/api/statuses`).then(res => res.json()),
+            fetch(reportUrl).then(res => res.json())
+        ]);
+
+        if (primaryResults[0].status === 'fulfilled') {
+            globalStatuses = primaryResults[0].value;
             globalStatusOptionsHtml = globalStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
         }
-        if (results[1].status === 'fulfilled') allPartOrders = results[1].value;
-        if (results[2].status === 'fulfilled') allMasterParts = results[2].value;
-        if (results[4].status === 'fulfilled') allCustomerTypes = results[4].value;
-        if (results[5].status === 'fulfilled') allInsurances = results[5].value;
-        if (results[6].status === 'fulfilled') allEmployees = results[6].value;
-        if (results[7].status === 'fulfilled') allCarModels = results[7].value;
-
-        if (results[3].status === 'fulfilled') {
-            const data = results[3].value;
-            let tempJobs = (['BA','Manager','Admin','แอดมิน'].includes(userRole)) ? data : data.filter(d => d.branch_name === userBranch);
+        if (primaryResults[1].status === 'fulfilled') {
+            const data = primaryResults[1].value;
+            const tempJobs = isManager ? data : data.filter(d => d.branch_name === userBranch);
             allJobsData = tempJobs.map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
         }
-        
+
+        if(typeof initColumns === 'function') initColumns();
+        if(typeof buildBranchDropdown === 'function') buildBranchDropdown();
+        if(typeof buildSADropdown === 'function') buildSADropdown();
+        if(typeof applyFilters === 'function') applyFilters();
+
+        // Enrich hidden columns, PO details, filters and datalists after the table is already usable.
+        const secondaryResults = await secondaryPromise;
+        if (secondaryResults[0].status === 'fulfilled') allPartOrders = secondaryResults[0].value;
+        if (secondaryResults[1].status === 'fulfilled') allMasterParts = secondaryResults[1].value;
+        if (secondaryResults[2].status === 'fulfilled') allCustomerTypes = secondaryResults[2].value;
+        if (secondaryResults[3].status === 'fulfilled') allInsurances = secondaryResults[3].value;
+        if (secondaryResults[4].status === 'fulfilled') allEmployees = secondaryResults[4].value;
+        if (secondaryResults[5].status === 'fulfilled') allCarModels = secondaryResults[5].value;
+
         const dlBrands = document.getElementById('dl_car_brands');
         if(dlBrands) {
             const uniqueBrands = [...new Set(allCarModels.map(c => c.car_brand).filter(Boolean))].sort();
             dlBrands.innerHTML = uniqueBrands.map(b => `<option value="${b}">`).join('');
         }
-
         const dlModels = document.getElementById('dl_car_models');
         if(dlModels) {
             const uniqueModels = [...new Set(allCarModels.map(c => c.car_model).filter(Boolean))].sort();
             dlModels.innerHTML = uniqueModels.map(m => `<option value="${m}">`).join('');
         }
-
-        if(typeof initColumns === 'function') initColumns(); 
-        if(typeof buildBranchDropdown === 'function') buildBranchDropdown(); 
-        if(typeof buildSADropdown === 'function') buildSADropdown(); 
-        if(typeof applyFilters === 'function') applyFilters(); 
+        if(typeof buildSADropdown === 'function') buildSADropdown();
+        if(typeof applyFilters === 'function') applyFilters(false);
     } catch (error) {
         document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="40" class="text-center py-20 text-red-600 font-bold bg-white"><i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i><br>เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>`;
     }
@@ -303,6 +333,26 @@ async function autoMapRouting(jobId, newStatus) {
     }
 }
 
+async function readApiErrorMessage(response, fallback = 'เกิดข้อผิดพลาดในการบันทึกข้อมูล') {
+    try {
+        const text = await response.text();
+        if (text) {
+            try {
+                const data = JSON.parse(text);
+                if (data?.error) return data.error;
+                if (Array.isArray(data?.validationErrors) && data.validationErrors.length) {
+                    const messages = data.validationErrors.map(item => item?.message || item?.field).filter(Boolean);
+                    if (messages.length) return messages.join('\n');
+                }
+                if (data?.message) return data.message;
+            } catch (_) {
+                return text.trim() || fallback;
+            }
+        }
+    } catch (_) {}
+    return fallback;
+}
+
 async function fastUpdateStationDropdown(id, selectedLevel) {
     const job = allJobsData.find(j => String(j.id) === String(id));
     if (!job) return;
@@ -323,9 +373,11 @@ async function fastUpdateStationDropdown(id, selectedLevel) {
             showToast('อัปเดตความคืบหน้าสถานีเรียบร้อย!');
             Object.assign(job, payload);
             job.calculated_station = computeHighestStationIFS(job);
-            if(typeof applyFilters === 'function') applyFilters();
-        } else throw new Error();
-    } catch(e) { showToast('อัปเดตไม่สำเร็จ', 'error'); }
+            if(typeof applyFilters === 'function') applyFilters(false);
+        } else {
+            throw new Error(await readApiErrorMessage(res, 'อัปเดตไม่สำเร็จ'));
+        }
+    } catch(e) { showToast(e?.message || 'อัปเดตไม่สำเร็จ', 'error'); }
 }
 
 async function fastUpdateJob(jobId, field, value, silent = false) {
@@ -354,7 +406,7 @@ async function fastUpdateJob(jobId, field, value, silent = false) {
         
         if (requiresArrivedDate && (!job.arrived_date || String(job.arrived_date).trim() === '')) {
             alert(`❌ ไม่สามารถเปลี่ยนสถานะเป็น "${formattedValue}" ได้\nกรุณาระบุ "วันที่รถเข้าจอดอู่" ในคอลัมน์ให้เรียบร้อยก่อนครับ!`);
-            if(!silent && typeof applyFilters === 'function') applyFilters(); // รีเฟรชตารางกลับค่าเดิม
+            if(!silent && typeof applyFilters === 'function') applyFilters(false); // รีเฟรชตารางกลับค่าเดิมโดยคงหน้าปัจจุบัน
             return;
         }
     }
@@ -371,7 +423,7 @@ async function fastUpdateJob(jobId, field, value, silent = false) {
             const quotaCheck = await checkQuotaForInlineEdit(jobId, job.branch_name, formattedValue, field, reqCount);
             if (quotaCheck !== true) {
                 alert('❌ ไม่สามารถอัปเดตได้:\n\n' + quotaCheck);
-                if(typeof applyFilters === 'function') applyFilters(); 
+                if(typeof applyFilters === 'function') applyFilters(false); 
                 return;
             }
         }
@@ -388,7 +440,7 @@ async function fastUpdateJob(jobId, field, value, silent = false) {
             
             if(!silent) showToast('บันทึกข้อมูลเรียบร้อย!');
             if(field === 'job_status') await autoMapRouting(jobId, value);
-            if(!silent && typeof applyFilters === 'function') applyFilters();
+            if(!silent && typeof applyFilters === 'function') applyFilters(false);
         } else {
             const errData = await res.json();
             throw new Error(errData.error || 'บันทึกไม่สำเร็จ');
@@ -405,10 +457,7 @@ async function deleteJobRow(jobId, carPlate) {
         
         if (res.ok) { 
             allJobsData = allJobsData.filter(j => String(j.id) !== String(jobId));
-            const rowToRemove = document.getElementById(`row_${jobId}`);
-            if (rowToRemove) rowToRemove.remove();
-            const currentRowCount = document.querySelectorAll('#jobs_table_body tr[id^="row_"]').length;
-            document.getElementById('row_count').innerText = currentRowCount;
+            if (typeof applyFilters === 'function') applyFilters(false);
             showToast(`✅ ลบรายการทะเบียน ${carPlate} สำเร็จ`);
         } else {
             const errData = await res.json();
