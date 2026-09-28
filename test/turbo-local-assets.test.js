@@ -7,33 +7,24 @@ const root = path.resolve(__dirname, '..');
 const publicDir = path.join(root, 'public');
 const htmlFiles = fs.readdirSync(publicDir).filter(name => name.endsWith('.html'));
 
-const externalAssets = [
-  'https://cdn.tailwindcss.com',
-  'https://cdn.jsdelivr.net/npm/chart.js',
-  'https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0'
-];
-
-test('runtime HTML uses local supplied Tailwind and Chart assets instead of the three external URLs', () => {
+test('runtime HTML keeps Tailwind precompiled locally but loads Chart libraries from pinned CDN URLs', () => {
   const combined = htmlFiles.map(name => fs.readFileSync(path.join(publicDir, name), 'utf8')).join('\n');
-  for (const url of externalAssets) assert.doesNotMatch(combined, new RegExp(url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.doesNotMatch(combined, /cdn\.tailwindcss\.com/);
   assert.doesNotMatch(combined, /\/vendor\/tailwindcss\.js/);
   assert.match(combined, /\/compiled\/dashboard\.tailwind\.css/);
-  assert.match(combined, /\/vendor\/chart\.umd\.min\.js/);
-  assert.match(combined, /\/vendor\/chartjs-plugin-datalabels\.min\.js/);
+  assert.match(combined, /https:\/\/cdn\.jsdelivr\.net\/npm\/chart\.js@4\.5\.1\/dist\/chart\.umd\.min\.js/);
+  assert.match(combined, /https:\/\/cdn\.jsdelivr\.net\/npm\/chartjs-plugin-datalabels@2\.0\.0\/dist\/chartjs-plugin-datalabels\.min\.js/);
 });
 
-test('local vendor files exist and contain the supplied library signatures', () => {
-  const tailwind = fs.readFileSync(path.join(publicDir, 'vendor/tailwindcss.js'), 'utf8');
-  const chart = fs.readFileSync(path.join(publicDir, 'vendor/chart.umd.min.js'), 'utf8');
-  const labels = fs.readFileSync(path.join(publicDir, 'vendor/chartjs-plugin-datalabels.min.js'), 'utf8');
-  assert.match(tailwind, /tailwind|preflight|content-problems/i);
-  assert.match(chart, /Chart\.js v4\.5\.1/);
-  assert.match(labels, /chartjs-plugin-datalabels v2\.0\.0/);
+test('local browser vendor bundle is no longer required', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  assert.equal(pkg.scripts && pkg.scripts.postinstall, undefined);
+  assert.equal(fs.existsSync(path.join(publicDir, 'vendor')), false);
+  assert.equal(fs.existsSync(path.join(root, 'tools/vendor-runtime-assets.js')), false);
 });
 
-test('app declares long-lived cache handling for local vendor assets', () => {
+test('app does not declare local /vendor cache or node_modules vendor mounts', () => {
   const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
-  assert.match(app, /vendor\$\{path\.sep\}/);
-  assert.match(app, /immutable/i);
-  assert.match(app, /max-age=31536000/i);
+  assert.doesNotMatch(app, /localVendorRoutes/);
+  assert.doesNotMatch(app, /app\.use\(['"]\/vendor['"]/);
 });

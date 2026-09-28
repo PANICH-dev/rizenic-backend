@@ -57,7 +57,7 @@ test('parts master table pages and searches on the server instead of loading the
 test('large Chart.js runtime is loaded after page markup, not as a head-blocking script', () => {
   for (const page of ['dashboard.html', 'repair.html', 'finance.html']) {
     const html = read(`public/${page}`);
-    const chartAt = html.indexOf('/vendor/chart.umd.min.js');
+    const chartAt = html.indexOf('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js');
     const bodyAt = html.indexOf('<body');
     assert.ok(chartAt > bodyAt, `${page} should load Chart.js inside body after markup starts`);
   }

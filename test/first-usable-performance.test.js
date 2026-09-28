@@ -144,15 +144,15 @@ test('XLSX is lazy-loaded on pages where Excel is an optional action', () => {
   assert.match(finance, /function\s+ensureXlsxLoaded/);
 });
 
-test('heavy pages keep performance assets local and avoid third-party preconnects', () => {
+test('heavy pages keep precompiled Tailwind local while UI libraries use pinned external CDNs', () => {
   for (const rel of ['public/index.html','public/jobs.html','public/jobs_table.html','public/parts.html','public/repair.html','public/dashboard.html','public/finance.html','public/admin.html','public/history.html']) {
     const html = read(rel);
     assert.doesNotMatch(html, /\/vendor\/tailwindcss\.js/);
     const stem = path.basename(rel, '.html');
     assert.match(html, new RegExp(`/compiled/${stem}\\.tailwind\\.css`));
-    assert.match(html, /href="\/vendor\/fontawesome\/css\/all\.min\.css(?:\?v=[^"]+)?"/);
-    assert.match(html, /href="\/vendor\/(?:local-fonts|prompt-fonts|noto-sans-thai-fonts)\.css"/);
-    assert.doesNotMatch(html, /cdn\.tailwindcss\.com|cdnjs\.cloudflare\.com|fonts\.googleapis\.com|fonts\.gstatic\.com/);
+    assert.match(html, /cdn\.jsdelivr\.net\/npm\/@fortawesome\/fontawesome-free@6\.5\.1\/css\/all\.min\.css/);
+    assert.match(html, /fonts\.googleapis\.com\/css2\?family=/);
+    assert.doesNotMatch(html, /["']\/vendor\/(?:fontawesome|local-fonts|prompt-fonts|noto-sans-thai-fonts)/);
   }
 });
 

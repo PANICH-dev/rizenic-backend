@@ -9,49 +9,38 @@ const publicDir = path.join(root, 'public');
 function walk(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (entry.name === 'vendor') return [];
-      return walk(full);
-    }
+    if (entry.isDirectory()) return walk(full);
     return /\.(?:html|css|js)$/.test(entry.name) ? [full] : [];
   });
 }
 
-test('browser runtime assets do not call external CDN or Google Fonts hosts', () => {
+test('browser UI libraries use pinned external CDNs instead of local /vendor runtime assets', () => {
   const files = walk(publicDir);
   const combined = files.map((file) => fs.readFileSync(file, 'utf8')).join('\n');
-  const forbiddenHosts = [
-    'cdn.tailwindcss.com',
-    'cdn.jsdelivr.net',
-    'cdnjs.cloudflare.com',
-    'fonts.googleapis.com',
-    'fonts.gstatic.com'
-  ];
 
-  for (const host of forbiddenHosts) {
-    assert.doesNotMatch(combined, new RegExp(host.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `external runtime host remains: ${host}`);
-  }
+  assert.match(combined, /cdn\.jsdelivr\.net\/npm\/@fortawesome\/fontawesome-free@6\.5\.1\/css\/all\.min\.css/);
+  assert.match(combined, /fonts\.googleapis\.com\/css2\?family=(?:Kanit|Prompt|Noto\+Sans\+Thai)/);
+  assert.match(combined, /cdn\.jsdelivr\.net\/npm\/chart\.js@4\.5\.1\/dist\/chart\.umd\.min\.js/);
+  assert.match(combined, /cdn\.jsdelivr\.net\/npm\/xlsx@0\.18\.5\/dist\/xlsx\.full\.min\.js/);
 
-  assert.match(combined, /\/vendor\/fontawesome\/css\/all\.min\.css/);
-  assert.match(combined, /\/vendor\/local-fonts\.css/);
-  assert.match(combined, /\/vendor\/xlsx\/xlsx\.full\.min\.js/);
+  assert.doesNotMatch(combined, /["']\/vendor\//, 'browser source still references local /vendor runtime assets');
 });
 
-test('app serves only the required dependency folders through local vendor routes', () => {
+test('app no longer mounts local browser dependency routes from node_modules', () => {
   const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
-  assert.match(app, /\/vendor\/fontawesome/);
-  assert.match(app, /\/vendor\/xlsx/);
-  assert.match(app, /\/vendor\/fonts\/kanit/);
-  assert.match(app, /\/vendor\/fonts\/prompt/);
-  assert.match(app, /\/vendor\/fonts\/noto-sans-thai/);
+  assert.doesNotMatch(app, /localVendorRoutes/);
+  assert.doesNotMatch(app, /app\.use\(['"]\/vendor['"]/);
+  assert.doesNotMatch(app, /@fortawesome|@fontsource|node_modules['"], ['"]xlsx/);
 });
 
-test('package dependencies pin the local runtime libraries used by vendor routes', () => {
+test('package no longer installs browser-only font, icon, or XLSX vendor packages', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
   const deps = pkg.dependencies || {};
-  assert.equal(deps['@fortawesome/fontawesome-free'], '6.5.1');
-  assert.equal(deps.xlsx, '0.18.5');
-  assert.ok(deps['@fontsource/kanit']);
-  assert.ok(deps['@fontsource/prompt']);
-  assert.ok(deps['@fontsource/noto-sans-thai']);
+  assert.equal(pkg.scripts && pkg.scripts.postinstall, undefined);
+  assert.equal(deps['@fortawesome/fontawesome-free'], undefined);
+  assert.equal(deps['@fontsource/kanit'], undefined);
+  assert.equal(deps['@fontsource/prompt'], undefined);
+  assert.equal(deps['@fontsource/noto-sans-thai'], undefined);
+  assert.equal(deps.xlsx, undefined);
+  assert.equal(fs.existsSync(path.join(root, 'tools', 'vendor-runtime-assets.js')), false);
 });

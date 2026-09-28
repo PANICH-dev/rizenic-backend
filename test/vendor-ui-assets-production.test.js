@@ -11,58 +11,37 @@ function htmlFiles() {
   return fs.readdirSync(pub).filter((name) => name.endsWith('.html'));
 }
 
-test('Vercel bundles Font Awesome and all local Thai font packages used by vendor routes', () => {
+test('Vercel only bundles application public files and no node_modules browser vendors', () => {
   const vercel = JSON.parse(read('vercel.json'));
   const nodeBuild = (vercel.builds || []).find((b) => b.src === 'app.js');
   assert.ok(nodeBuild, 'app.js Vercel build is required');
-  const include = nodeBuild.config && nodeBuild.config.includeFiles;
-  assert.ok(Array.isArray(include), 'app.js build must declare config.includeFiles');
-  const joined = include.join('\n');
-  assert.match(joined, /node_modules\/@fortawesome\/fontawesome-free\/\*\*/);
-  assert.match(joined, /node_modules\/@fontsource\/kanit\/\*\*/);
-  assert.match(joined, /node_modules\/@fontsource\/prompt\/\*\*/);
-  assert.match(joined, /node_modules\/@fontsource\/noto-sans-thai\/\*\*/);
+  const include = (nodeBuild.config && nodeBuild.config.includeFiles) || [];
+  assert.deepEqual(include, ['public/**']);
 });
 
-test('every standalone page that renders Font Awesome icons loads the local stylesheet with a cache revision', () => {
+test('every standalone page that renders Font Awesome icons loads pinned external Font Awesome CSS', () => {
+  const expected = 'https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css';
   for (const name of htmlFiles()) {
     const html = read(`public/${name}`);
     if (!/<html\b/i.test(html) || !/\bfa-(?:solid|regular|brands)\b/.test(html)) continue;
-    assert.match(
-      html,
-      /href=["']\/vendor\/fontawesome\/css\/all\.min\.css\?v=6\.5\.1-rz2["']/,
-      `${name} uses Font Awesome classes but does not load the versioned local stylesheet`
-    );
+    assert.ok(html.includes(`href="${expected}"`) || html.includes(`href='${expected}'`), `${name} does not load pinned Font Awesome CDN CSS`);
   }
 });
 
-test('all local font helper styles point only at local vendor font routes', () => {
-  for (const rel of [
-    'public/vendor/local-fonts.css',
-    'public/vendor/prompt-fonts.css',
-    'public/vendor/noto-sans-thai-fonts.css'
-  ]) {
-    const css = read(rel);
-    assert.doesNotMatch(css, /https?:\/\/|fonts\.googleapis|fonts\.gstatic/);
-    assert.match(css, /@import url\('\/vendor\/fonts\//);
-  }
-});
-
-
-
-test('standalone pages keep their original local Thai font families', () => {
-  const expected = {
-    'index.html': '/vendor/prompt-fonts.css',
-    'repair_board.html': '/vendor/noto-sans-thai-fonts.css'
+test('standalone pages keep their Thai font families through Google Fonts', () => {
+  const expectedFamily = {
+    'index.html': 'Prompt',
+    'repair_board.html': 'Noto+Sans+Thai'
   };
   const kanitPages = [
     'admin.html','dashboard.html','finance.html','history.html','jobs.html','jobs_table.html',
     'parts.html','repair.html','repair_date_update.html','repair_export.html'
   ];
-  for (const name of kanitPages) expected[name] = '/vendor/local-fonts.css';
-  for (const [name, href] of Object.entries(expected)) {
+  for (const name of kanitPages) expectedFamily[name] = 'Kanit';
+  for (const [name, family] of Object.entries(expectedFamily)) {
     const html = read(`public/${name}`);
-    assert.ok(html.includes(`href="${href}"`) || html.includes(`href='${href}'`) || html.includes(`href="${href}?`) || html.includes(`href='${href}?`), `${name} lost its local font helper`);
+    const escapedFamily = family.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    assert.match(html, new RegExp(`https://fonts\\.googleapis\\.com/css2\\?family=${escapedFamily}`), `${name} lost its external Thai font stylesheet`);
   }
 });
 

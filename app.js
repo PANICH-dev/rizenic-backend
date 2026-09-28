@@ -18,36 +18,15 @@ app.use(installProductionSafety);
 app.use(express.json({ limit: '10mb' }));
 app.use(installApiCompression);
 
-// Browser runtime dependencies are served from this machine only.
-// npm install downloads them once; page loads use local /vendor/* routes.
-// Serve vendored browser assets from public first. On Vercel these are populated
-// during npm postinstall, so production pages never depend on node_modules paths.
-app.use('/vendor', express.static(path.join(__dirname, 'public', 'vendor'), {
-  maxAge: '1y',
-  immutable: true
-}));
-
-const localVendorRoutes = [
-  ['/vendor/fontawesome', path.join(__dirname, 'node_modules', '@fortawesome', 'fontawesome-free')],
-  ['/vendor/xlsx', path.join(__dirname, 'node_modules', 'xlsx', 'dist')],
-  ['/vendor/fonts/kanit', path.join(__dirname, 'node_modules', '@fontsource', 'kanit')],
-  ['/vendor/fonts/prompt', path.join(__dirname, 'node_modules', '@fontsource', 'prompt')],
-  ['/vendor/fonts/noto-sans-thai', path.join(__dirname, 'node_modules', '@fontsource', 'noto-sans-thai')]
-];
-
-for (const [route, directory] of localVendorRoutes) {
-  app.use(route, express.static(directory, {
-    maxAge: '1y',
-    immutable: true
-  }));
-}
+// Browser UI libraries are loaded from pinned external CDNs.
+// Only application-owned static files are served by Express.
 
 // ตั้งค่า Cache ตามประเภทไฟล์ static
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: function (res, filePath) {
     if (filePath.endsWith('.html')) {
       res.set('Cache-Control', 'no-store');
-    } else if (filePath.includes(`${path.sep}vendor${path.sep}`) || /\.(?:woff2?|ttf)$/i.test(filePath)) {
+    } else if (/\.(?:woff2?|ttf)$/i.test(filePath)) {
       res.set('Cache-Control', 'public, max-age=31536000, immutable');
     } else if (/\.(?:js|css)$/i.test(filePath)) {
       res.set('Cache-Control', 'public, max-age=0, must-revalidate');

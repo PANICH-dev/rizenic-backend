@@ -6,16 +6,15 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const read = rel => fs.readFileSync(path.join(root, rel), 'utf8');
 
-test('production installs copy browser runtime dependencies into public/vendor', () => {
+test('production uses external browser runtime dependencies without a vendor-copy postinstall step', () => {
   const pkg = JSON.parse(read('package.json'));
-  assert.equal(pkg.scripts.postinstall, 'node tools/vendor-runtime-assets.js');
-  const script = read('tools/vendor-runtime-assets.js');
-  assert.match(script, /fontawesome-free/);
-  assert.match(script, /webfonts/);
-  assert.match(script, /@fontsource/);
-  assert.match(script, /xlsx\.full\.min\.js/);
+  assert.equal(pkg.scripts && pkg.scripts.postinstall, undefined);
+  assert.equal(fs.existsSync(path.join(root, 'tools/vendor-runtime-assets.js')), false);
   const app = read('app.js');
-  assert.match(app, /app\.use\('\/vendor', express\.static\(path\.join\(__dirname, 'public', 'vendor'\)/);
+  assert.doesNotMatch(app, /app\.use\(['\"]\/vendor/);
+  const vercel = JSON.parse(read('vercel.json'));
+  const nodeBuild = (vercel.builds || []).find((b) => b.src === 'app.js');
+  assert.deepEqual(nodeBuild.config.includeFiles, ['public/**']);
 });
 
 test('secondary SA and dashboard part loads no longer scan all reports first', () => {
