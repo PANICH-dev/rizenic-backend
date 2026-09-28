@@ -186,3 +186,108 @@ table.excel-table-green > tbody {
     z-index: 120;
     pointer-events: none;
 }
+
+/* RIZENIC adaptive two-stage table scroll v4.0
+ * Stage 1 keeps normal document scrolling while chrome above the table leaves
+ * view. Stage 2 freezes the outer page at an 8px safe top gap and delegates
+ * vertical scrolling to the active table until it returns to its first row.
+ */
+html.rz-table-page-ready {
+    height: auto !important;
+    min-height: 100% !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    scrollbar-gutter: stable;
+}
+
+body.rz-table-page-ready:not(.rz-table-page-docked) {
+    height: auto !important;
+    min-height: 100dvh !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior-y: auto !important;
+}
+
+body.rz-table-page-ready:not(.rz-table-page-docked) main.rz-table-main-ready {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+/* Stage 2: preserve the exact page composition at the dock point. The body is
+ * fixed at its saved scroll offset, so a large wheel/trackpad step cannot push
+ * the sticky header above the viewport. Only the active table may scroll. */
+html.rz-table-page-docked {
+    overflow: hidden !important;
+}
+
+body.rz-table-page-docked {
+    position: fixed !important;
+    top: var(--rz-table-lock-offset) !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 100dvh !important;
+    max-height: none !important;
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
+}
+
+body.rz-table-page-docked .rz-table-viewport-scroll {
+    overflow: auto !important;
+    overscroll-behavior: none !important;
+    touch-action: pan-x pan-y;
+}
+
+body.rz-table-page-ready .rz-table-flex-path:not(.rz-table-viewport-scroll) {
+    min-height: 0 !important;
+    max-height: none !important;
+}
+
+body.rz-table-page-ready:not(.rz-table-page-docked) .rz-table-flex-path:not(.rz-table-viewport-scroll):not(.rz-table-clip-shell) {
+    height: auto !important;
+    overflow: visible !important;
+}
+
+main.rz-table-main-ready::after {
+    content: "";
+    display: block;
+    width: 1px;
+    height: var(--rz-table-dock-spacer-height, 0px);
+    min-height: var(--rz-table-dock-spacer-height, 0px);
+    flex: 0 0 var(--rz-table-dock-spacer-height, 0px);
+    pointer-events: none;
+}
+
+body.rz-table-page-ready .rz-table-viewport-scroll {
+    height: var(--rz-table-viewport-height) !important;
+    max-height: var(--rz-table-viewport-height) !important;
+    min-height: 160px !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    flex: 0 0 auto !important;
+    overflow: auto !important;
+    overscroll-behavior-x: contain;
+    overscroll-behavior-y: auto;
+    resize: none !important;
+    position: relative;
+    -webkit-overflow-scrolling: touch;
+}
+
+body.rz-table-page-ready .rz-table-viewport-scroll thead {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 80 !important;
+    isolation: isolate;
+}
+
+body.rz-table-page-ready .rz-table-viewport-scroll thead th {
+    position: relative !important;
+    top: auto !important;
+    z-index: 1 !important;
+    background-clip: padding-box;
+}

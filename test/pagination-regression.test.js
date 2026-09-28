@@ -55,7 +55,7 @@ test('all agreed long-table pages load the shared pagination helper', () => {
   ];
   for (const file of pages) {
     const src = fs.readFileSync(path.join(root, 'public', file), 'utf8');
-    assert.match(src, /table_pagination\.js\?v=1\.1/, `${file} must load shared pagination helper`);
+    assert.match(src, /table_pagination\.js\?v=1\.2/, `${file} must load shared pagination helper`);
   }
 });
 

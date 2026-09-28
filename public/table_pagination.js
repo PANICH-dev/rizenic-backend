@@ -57,18 +57,22 @@
         const items = Array.isArray(payload.items) ? payload.items : [];
         const safeState = state || createState(payload.pageSize || DEFAULT_PAGE_SIZE);
         const pageSize = Math.max(1, Number(payload.pageSize) || Number(safeState.pageSize) || DEFAULT_PAGE_SIZE);
-        const total = Math.max(0, Number(payload.total) || 0);
-        const totalPages = Math.max(1, Number(payload.totalPages) || Math.ceil(total / pageSize) || 1);
+        const hasServerTotal = payload.total !== undefined && payload.total !== null && payload.total !== '';
+        const total = hasServerTotal ? Math.max(0, Number(payload.total) || 0) : items.length;
+        const hasServerTotalPages = payload.totalPages !== undefined && payload.totalPages !== null && payload.totalPages !== '';
+        const totalPages = Math.max(1, hasServerTotalPages ? (Number(payload.totalPages) || 1) : (Math.ceil(total / pageSize) || 1));
         const page = Math.min(Math.max(1, Number(payload.page) || Number(safeState.page) || 1), totalPages);
         safeState.page = page;
         safeState.pageSize = pageSize;
         safeState.serverMeta = { page, pageSize, total, totalPages };
         const startIndex = total === 0 ? 0 : (page - 1) * pageSize;
-        const endIndex = total === 0 ? 0 : Math.min(startIndex + items.length, total);
+        const legacyUnpagedResponse = !hasServerTotal && !hasServerTotalPages;
+        const normalizedItems = legacyUnpagedResponse ? items.slice(startIndex, startIndex + pageSize) : items;
+        const endIndex = total === 0 ? 0 : Math.min(startIndex + normalizedItems.length, total);
         return {
-            items,
+            items: normalizedItems,
             pageInfo: {
-                items, page, pageSize, total, totalPages, startIndex, endIndex,
+                items: normalizedItems, page, pageSize, total, totalPages, startIndex, endIndex,
                 startNumber: total === 0 ? 0 : startIndex + 1,
                 endNumber: endIndex
             }

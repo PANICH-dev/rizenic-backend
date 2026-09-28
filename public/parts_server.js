@@ -162,3 +162,79 @@ loadAllData = async function() {
         console.error('Parts server view failed:', error);
     }
 };
+
+// v9: SA Alerts are truly paged on the server. Only the visible 50 jobs and their PO rows live in the browser.
+const PARTS_ALERT_PAGE_SIZE = 50;
+const partsLegacyRenderSAAlerts = renderSAAlerts;
+let partsAlertsAbortController = null;
+let partsAlertsSearchTimer = null;
+let partsAlertsServerPageInfo = null;
+
+function renderPartsAlertsServerPage() {
+    const savedPage = saAlertsPager.page;
+    saAlertsPager.page = 1;
+    partsLegacyRenderSAAlerts();
+    saAlertsPager.page = savedPage;
+    if (partsAlertsServerPageInfo) {
+        RizenicPagination.renderControls({
+            anchorId: 'saTable', containerId: 'sa_alerts_pagination', pageInfo: partsAlertsServerPageInfo,
+            noun: 'รายการ', onPageChange: goSAAlertsPage
+        });
+        const badge = document.getElementById('alert_count');
+        if (badge) {
+            badge.innerText = partsAlertsServerPageInfo.total;
+            badge.classList.toggle('hidden', partsAlertsServerPageInfo.total === 0);
+        }
+    }
+}
+
+async function fetchPartsAlertsPage(page = 1) {
+    if (partsAlertsAbortController) partsAlertsAbortController.abort();
+    partsAlertsAbortController = new AbortController();
+    saAlertsPager.page = Math.max(1, Number(page) || 1);
+    const isManager = ['BA','Manager','Admin','แอดมิน'].includes(userRole);
+    const params = new URLSearchParams({ page: String(saAlertsPager.page), limit: String(PARTS_ALERT_PAGE_SIZE) });
+    if (!isManager) params.set('branch', userBranch);
+    if (saAlertsSearchText) params.set('search', saAlertsSearchText);
+    const tbody = document.getElementById('sa_alerts_body');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="text-center py-10 text-slate-400 font-bold bg-white"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i>กำลังโหลดข้อมูล...</td></tr>';
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/server/parts-alerts?${params.toString()}`, { signal: partsAlertsAbortController.signal });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const payload = await res.json();
+        const normalized = RizenicPagination.fromServerResponse({
+            items: payload.reports || [], page: payload.page, pageSize: payload.pageSize,
+            total: payload.total, totalPages: payload.totalPages
+        }, saAlertsPager);
+        partsAlertsServerPageInfo = normalized.pageInfo;
+        allReports = normalized.items;
+        allPartOrders = Array.isArray(payload.partOrders) ? payload.partOrders : [];
+        rebuildPartOrderIndexes();
+        renderPartsAlertsServerPage();
+        return normalized.items;
+    } catch (error) {
+        if (error?.name === 'AbortError') return [];
+        if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="text-center py-10 text-red-500 font-bold bg-white">โหลดรายการจาก SA ไม่สำเร็จ</td></tr>';
+        return [];
+    }
+}
+
+searchSAAlerts = function(value) {
+    saAlertsSearchText = String(value || '').trim().toLowerCase();
+    clearTimeout(partsAlertsSearchTimer);
+    partsAlertsSearchTimer = setTimeout(() => fetchPartsAlertsPage(1), 250);
+};
+
+goSAAlertsPage = function(page) {
+    fetchPartsAlertsPage(page);
+};
+
+renderSAAlerts = function() {
+    if (partsAlertsServerPageInfo) return renderPartsAlertsServerPage();
+    return fetchPartsAlertsPage(saAlertsPager.page || 1);
+};
+
+loadAllData = async function() {
+    const masterPromise = fetchMasterPartsPage(1);
+    await Promise.all([fetchPartsAlertsPage(1), masterPromise]);
+};

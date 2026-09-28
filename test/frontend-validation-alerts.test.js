@@ -100,10 +100,10 @@ test('pages cache-bust the validation-alert JS revisions so browsers do not keep
   const repair = read('public/repair.html');
   const index = read('public/index.html');
   const portal = read('public/sa_portal.html');
-  assert.match(jobs, /jobs\.js\?v=2\.6/);
+  assert.match(jobs, /jobs\.js\?v=2\.8/);
   assert.match(jobsTable, /jobs_table_core\.js\?v=23\.5/);
   assert.match(jobsTable, /jobs_table_modals\.js\?v=23\.2/);
-  assert.match(parts, /parts_ui\.js\?v=23\.5/);
+  assert.match(parts, /parts_ui\.js\?v=23\.6/);
   assert.match(repair, /repair\.js\?v=9/);
   assert.match(index, /sa_core\.js\?v=19\.3/);
   assert.match(index, /sa_parts\.js\?v=19\.1/);

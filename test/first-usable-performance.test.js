@@ -150,7 +150,7 @@ test('heavy pages keep performance assets local and avoid third-party preconnect
     assert.doesNotMatch(html, /\/vendor\/tailwindcss\.js/);
     const stem = path.basename(rel, '.html');
     assert.match(html, new RegExp(`/compiled/${stem}\\.tailwind\\.css`));
-    assert.match(html, /href="\/vendor\/fontawesome\/css\/all\.min\.css"/);
+    assert.match(html, /href="\/vendor\/fontawesome\/css\/all\.min\.css(?:\?v=[^"]+)?"/);
     assert.match(html, /href="\/vendor\/(?:local-fonts|prompt-fonts|noto-sans-thai-fonts)\.css"/);
     assert.doesNotMatch(html, /cdn\.tailwindcss\.com|cdnjs\.cloudflare\.com|fonts\.googleapis\.com|fonts\.gstatic\.com/);
   }
@@ -173,29 +173,30 @@ test('SA bootstrap does not duplicate car-brand datalist DOM work', () => {
   assert.equal(appends.length, 1);
 });
 
-test('server-side dashboard paints reports before waiting for part-order widgets', () => {
+test('server-side dashboard keeps PO history independent from the first report page', () => {
   const dashboard = read('public/dashboard_server.js');
   const views = read('server_side_views.js');
   assert.match(dashboard, /includeParts['"],\s*['"]0/);
-  assert.match(dashboard, /partsPromise/);
-  assert.match(dashboard, /\/api\/server\/dashboard-parts/);
+  assert.match(dashboard, /\/api\/server\/dashboard-po/);
+  assert.match(dashboard, /fetchDashboardPOPage/);
   assert.match(dashboard, /dashboardLegacyApplyFilters\(false\)/);
-  assert.ok(dashboard.indexOf('dashboardLegacyApplyFilters(false)') < dashboard.indexOf('await Promise.all([statusPromise, partsPromise])'));
-  assert.match(views, /\/api\/server\/dashboard-parts/);
+  assert.doesNotMatch(dashboard, /const\s+partsPromise\s*=/, 'dashboard bootstrap must not wait on current-page part history');
+  assert.match(views, /\/api\/server\/dashboard-po/);
+  assert.match(views, /\/api\/server\/dashboard-analytics/);
 });
 
 test('server-side SA and repair pages paint primary jobs before part-order secondary data', () => {
   const jobs = read('public/jobs_server.js');
   const repair = read('public/repair_server.js');
   const views = read('server_side_views.js');
-  assert.match(jobs, /includeParts['"],\s*['"]0/);
+  assert.match(jobs, /includeParts(?:\s*:\s*|['\"],\s*)['\"]0/);
   assert.match(jobs, /\/api\/server\/sa-parts/);
   assert.match(jobs, /partsPromise/);
   assert.ok(jobs.indexOf('jobsLegacyFilterDataByBranch();') < jobs.indexOf('await Promise.all([secondaryPromise, partsPromise])'));
-  assert.match(repair, /includeParts['"],\s*['"]0/);
+  assert.match(repair, /includeParts(?:\s*:\s*|['\"],\s*)['\"]0/);
   assert.match(repair, /\/api\/server\/repair-parts/);
   assert.match(repair, /partsPromise/);
-  assert.ok(repair.indexOf('runTableFilters();') < repair.indexOf('await partsPromise'));
+  assert.ok(repair.indexOf('renderRepairServerRows(originalRepairJobs);') < repair.indexOf('await partsPromise'));
   assert.match(views, /\/api\/server\/sa-parts/);
   assert.match(views, /\/api\/server\/repair-parts/);
 });

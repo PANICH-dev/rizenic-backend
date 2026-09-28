@@ -7,7 +7,7 @@ const pub = path.join(__dirname, '..', 'public');
 
 test('all application HTML pages load the shared select/dropdown polish stylesheet', () => {
   const pages = fs.readdirSync(pub).filter(f => f.endsWith('.html') && fs.readFileSync(path.join(pub, f), 'utf8').includes('</head>'));
-  const missing = pages.filter(f => !fs.readFileSync(path.join(pub, f), 'utf8').includes('ui_global.css?v=1.1'));
+  const missing = pages.filter(f => !fs.readFileSync(path.join(pub, f), 'utf8').includes('ui_global.css?v=1.2'));
   assert.deepEqual(missing, []);
 });
 

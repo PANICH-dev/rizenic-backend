@@ -20,6 +20,13 @@ app.use(installApiCompression);
 
 // Browser runtime dependencies are served from this machine only.
 // npm install downloads them once; page loads use local /vendor/* routes.
+// Serve vendored browser assets from public first. On Vercel these are populated
+// during npm postinstall, so production pages never depend on node_modules paths.
+app.use('/vendor', express.static(path.join(__dirname, 'public', 'vendor'), {
+  maxAge: '1y',
+  immutable: true
+}));
+
 const localVendorRoutes = [
   ['/vendor/fontawesome', path.join(__dirname, 'node_modules', '@fortawesome', 'fontawesome-free')],
   ['/vendor/xlsx', path.join(__dirname, 'node_modules', 'xlsx', 'dist')],

@@ -18,7 +18,7 @@ const interactiveTablePages = [
 test('all interactive table pages cache-bust the shared table polish layer', () => {
   for (const page of interactiveTablePages) {
     const html = fs.readFileSync(path.join(pub, page), 'utf8');
-    assert.match(html, /ui_global\.css\?v=1\.1/, `${page} must load ui_global.css v1.1`);
+    assert.match(html, /ui_global\.css\?v=1\.2/, `${page} must load ui_global.css v1.2`);
   }
 });
 

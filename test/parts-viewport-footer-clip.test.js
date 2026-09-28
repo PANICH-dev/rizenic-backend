@@ -106,6 +106,6 @@ test('clip shell has an opaque top guard to hide Chromium row paint leakage abov
 test('parts loads cache-busted table helpers after footer and clip fix', () => {
   const html = fs.readFileSync(path.join(root, 'public/parts.html'), 'utf8');
   assert.match(html, /table_scroll_fix\.css\?v=1\.6&partsfix=1/);
-  assert.match(html, /table_pagination\.js\?v=1\.1&partsfix=1/);
+  assert.match(html, /table_pagination\.js\?v=1\.2&partsfix=1/);
   assert.match(html, /table_viewport_lock\.js\?v=1\.0&partsfix=1/);
 });

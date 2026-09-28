@@ -2,8 +2,8 @@ const API_BASE_URL = window.location.origin;
 let masterJobsData = [];
 let allJobsData = [];
 let allPartOrders = [];
-let allStatuses = []; 
-let allMasterPartsCache = []; 
+let allStatuses = [];
+let allMasterPartsCache = [];
 let partOrdersByPlate = new Map();
 let globalStatusOptionsHtml = '';
 
@@ -26,7 +26,7 @@ function getActivePartOrdersByPlate(plate) {
 
 let userRole = '';
 let userBranch = '';
-let currentViewSA = ''; 
+let currentViewSA = '';
 let selectedBranchFilter = 'ALL';
 const parkedPager = RizenicPagination.createState(50);
 const poPager = RizenicPagination.createState(50);
@@ -38,9 +38,9 @@ let currentKeyDeskJobId = null;
 let keyDeskRows = [];
 
 const activeProcessStatuses = [
-    '01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ', 
-    '04.รอลูกค้าอนุมัติ', '05.อนุมัติแล้ว', '06.สั่งอะไหล่', 
-    '07.รอนัดหมายเข้าซ่อม', '08.นัดหมายแล้วรอเข้าซ่อม', '09.จอดรอเข้าซ่อม', 
+    '01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ',
+    '04.รอลูกค้าอนุมัติ', '05.อนุมัติแล้ว', '06.สั่งอะไหล่',
+    '07.รอนัดหมายเข้าซ่อม', '08.นัดหมายแล้วรอเข้าซ่อม', '09.จอดรอเข้าซ่อม',
     '10.กำลังซ่อม', '11.รถซ่อมเสร็จรอส่งมอบ'
 ];
 
@@ -90,11 +90,11 @@ document.addEventListener('DOMContentLoaded', () => {
     userBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
     document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name') || 'Admin Test';
     document.getElementById('display_branch').innerText = userBranch;
-    
+
     const today = new Date();
     document.getElementById('sa_cal_month').value = String(today.getMonth() + 1).padStart(2, '0');
 
-    loadJobsData();
+    if (!window.RIZENIC_JOBS_SERVER_MODE) loadJobsData();
 });
 
 async function loadJobsData() {
@@ -159,7 +159,7 @@ function onBranchChange() {
 function filterDataByBranch() {
     if (selectedBranchFilter === 'ALL') allJobsData = masterJobsData;
     else allJobsData = masterJobsData.filter(d => d.branch_name === selectedBranchFilter);
-    
+
     const yearSelect = document.getElementById('sa_cal_year');
     const years = new Set([new Date().getFullYear()]);
     allJobsData.forEach(j => { if(j.arrived_date) { const y = new Date(j.arrived_date).getFullYear(); if(!isNaN(y)) years.add(y); } });
@@ -167,10 +167,10 @@ function filterDataByBranch() {
     yearSelect.innerHTML = '';
     [...years].sort((a,b)=>b-a).forEach(y => yearSelect.innerHTML += `<option value="${y}">${y}</option>`);
     if(years.has(parseInt(savedYear))) yearSelect.value = savedYear;
-    
+
     updateHeaderSummaryBadges(allJobsData);
 
-    if(currentViewSA) openSADetail(currentViewSA); 
+    if(currentViewSA) openSADetail(currentViewSA);
     else renderSAList();
 }
 
@@ -183,7 +183,7 @@ function updateHeaderSummaryBadges(jobs) {
         const st = job.job_status || "";
         // 🌟 ปลดกรองเดือนสำหรับรอออกบิล (Header Badge)
         if (st.includes('รอออกบิล')) waitBillCount++;
-        
+
         const isBilledStatus = st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิล');
         if (isBilledStatus && getValidDateStr(job.billing_date)) {
             const d = new Date(job.billing_date);
@@ -206,7 +206,7 @@ function globalSearchCar() {
     if(!plate) return;
     const matchedJobs = masterJobsData.filter(j => j.car_plate && j.car_plate.toLowerCase().includes(plate));
     if(matchedJobs.length === 0) showToast('ไม่พบรถทะเบียน: ' + plate, 'error');
-    else if (matchedJobs.length === 1) { showToast('🚀 กำลังพุ่งไป...', 'info'); setTimeout(() => goToEditJob(matchedJobs[0].id), 400); } 
+    else if (matchedJobs.length === 1) { showToast('🚀 กำลังพุ่งไป...', 'info'); setTimeout(() => goToEditJob(matchedJobs[0].id), 400); }
     else {
         document.getElementById('modal_status_name').innerText = `ค้นหาทะเบียน: ${plate}`;
         renderJobTableInModal(matchedJobs, 'general');
@@ -219,7 +219,7 @@ function globalSearchCar() {
 // =====================================
 function renderSAList() {
     const container = document.getElementById('sa_cards_container');
-    const saStats = {}; 
+    const saStats = {};
     const fMonth = document.getElementById('sa_cal_month')?.value || String(new Date().getMonth() + 1).padStart(2, '0');
     const fYear = document.getElementById('sa_cal_year')?.value || String(new Date().getFullYear());
     const todayStr = new Date().toISOString().split('T')[0];
@@ -234,63 +234,86 @@ function renderSAList() {
     let totalParts = 0;
     let totalOutsource = 0;
 
-    allJobsData.forEach(job => { 
-        const sa = job.sa_owner || "ไม่ระบุ SA"; 
-        const st = job.job_status || "";
-        
-        if (!saStats[sa]) saStats[sa] = { pending: 0, waitBill: 0, billed: 0, ovApp: 0, ovTgt: 0, ovDel: 0, totalOverdue: 0, sumLabor: 0, sumParts: 0, sumOutsource: 0, mainParts: 0, subParts: 0 };
-        
-        // นับงานค้าง
-        if (pendingStatuses.some(s => st.includes(s))) saStats[sa].pending++; 
+    if (Array.isArray(window.jobsServerSaSummary) && window.jobsServerSaSummary.length) {
+        window.jobsServerSaSummary.forEach(row => {
+            const sa = row.sa_owner || 'ไม่ระบุ SA';
+            const ovApp = Number(row.ov_app || 0);
+            const ovTgt = Number(row.ov_tgt || 0);
+            const ovDel = Number(row.ov_del || 0);
+            saStats[sa] = {
+                pending: Number(row.pending || 0),
+                waitBill: Number(row.wait_bill || 0),
+                billed: Number(row.billed || 0),
+                ovApp, ovTgt, ovDel, totalOverdue: ovApp + ovTgt + ovDel,
+                sumLabor: Number(row.sum_labor || 0),
+                sumParts: Number(row.sum_parts || 0),
+                sumOutsource: Number(row.sum_outsource || 0),
+                mainParts: Number(row.main_parts || 0),
+                subParts: Number(row.sub_parts || 0)
+            };
+            totalWaitBill += Number(row.wait_bill || 0);
+            totalBilled += Number(row.billed || 0);
+            totalMain += Number(row.main_parts || 0);
+            totalSub += Number(row.sub_parts || 0);
+            totalLabor += Number(row.sum_labor || 0);
+            totalParts += Number(row.sum_parts || 0);
+            totalOutsource += Number(row.sum_outsource || 0);
+        });
+    } else {
+        allJobsData.forEach(job => {
+            const sa = job.sa_owner || "ไม่ระบุ SA";
+            const st = job.job_status || "";
 
-        // 🌟 ปลดกรองเดือนสำหรับรถรอออกบิล
-        if (st.includes('รอออกบิล')) {
-            saStats[sa].waitBill++;
-            totalWaitBill++;
-        }
+            if (!saStats[sa]) saStats[sa] = { pending: 0, waitBill: 0, billed: 0, ovApp: 0, ovTgt: 0, ovDel: 0, totalOverdue: 0, sumLabor: 0, sumParts: 0, sumOutsource: 0, mainParts: 0, subParts: 0 };
 
-        // คำนวณรถปิดบิลแล้ว (ยังต้องกรองตามเดือนเพื่อดูยอดเงิน)
-        const isBilled = st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิล');
-        if (isBilled && getValidDateStr(job.billing_date)) {
-            const d = new Date(job.billing_date);
-            if (String(d.getMonth() + 1).padStart(2, '0') === fMonth && String(d.getFullYear()) === fYear) {
-                saStats[sa].billed++;
-                totalBilled++;
-                
-                const mQty = Number(job.main_part_qty) || (job.main_part_name ? job.main_part_name.split(',').filter(Boolean).length : 0);
-                const sQty = Number(job.sub_part_qty) || (job.sub_part_name ? job.sub_part_name.split(',').filter(Boolean).length : 0);
-                const labor = Number(job.cost_labor || job.labor_total || 0);
-                const partsCost = Number(job.cost_part || job.part_total || 0);
-                const outsource = Number(job.cost_external || job.outsource_total || 0);
+            if (pendingStatuses.some(s => st.includes(s))) saStats[sa].pending++;
 
-                saStats[sa].mainParts += mQty;
-                saStats[sa].subParts += sQty;
-                saStats[sa].sumLabor += labor;
-                saStats[sa].sumParts += partsCost;
-                saStats[sa].sumOutsource += outsource;
-
-                totalMain += mQty;
-                totalSub += sQty;
-                totalLabor += labor;
-                totalParts += partsCost;
-                totalOutsource += outsource;
+            if (st.includes('รอออกบิล')) {
+                saStats[sa].waitBill++;
+                totalWaitBill++;
             }
-        }
 
-        // นับ Overdue
-        const isProcess = activeProcessStatuses.some(s => st.includes(s) || st.startsWith(s.substring(0, 2)));
-        if (isProcess) {
-            const appVal = getValidDateStr(job.arrived_date);
-            const hasArrived = arrivedPrefixes.some(p => st.startsWith(p)) || job.is_parked === 'จอดซ่อม';
-            if (appVal && appVal <= todayStr && !hasArrived) { saStats[sa].ovApp++; saStats[sa].totalOverdue++; }
-            
-            const tgtVal = getValidDateStr(job.target_finish_date);
-            if (tgtVal && tgtVal < todayStr && !getValidDateStr(job.repair_finish_date)) { saStats[sa].ovTgt++; saStats[sa].totalOverdue++; }
-            
-            const delVal = getValidDateStr(job.delivery_date);
-            if (delVal && delVal < todayStr && !st.includes('ส่งมอบ')) { saStats[sa].ovDel++; saStats[sa].totalOverdue++; }
-        }
-    });
+            const isBilled = st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิล');
+            if (isBilled && getValidDateStr(job.billing_date)) {
+                const d = new Date(job.billing_date);
+                if (String(d.getMonth() + 1).padStart(2, '0') === fMonth && String(d.getFullYear()) === fYear) {
+                    saStats[sa].billed++;
+                    totalBilled++;
+
+                    const mQty = Number(job.main_part_qty) || (job.main_part_name ? job.main_part_name.split(',').filter(Boolean).length : 0);
+                    const sQty = Number(job.sub_part_qty) || (job.sub_part_name ? job.sub_part_name.split(',').filter(Boolean).length : 0);
+                    const labor = Number(job.cost_labor || job.labor_total || 0);
+                    const partsCost = Number(job.cost_part || job.part_total || 0);
+                    const outsource = Number(job.cost_external || job.outsource_total || 0);
+
+                    saStats[sa].mainParts += mQty;
+                    saStats[sa].subParts += sQty;
+                    saStats[sa].sumLabor += labor;
+                    saStats[sa].sumParts += partsCost;
+                    saStats[sa].sumOutsource += outsource;
+
+                    totalMain += mQty;
+                    totalSub += sQty;
+                    totalLabor += labor;
+                    totalParts += partsCost;
+                    totalOutsource += outsource;
+                }
+            }
+
+            const isProcess = activeProcessStatuses.some(s => st.includes(s) || st.startsWith(s.substring(0, 2)));
+            if (isProcess) {
+                const appVal = getValidDateStr(job.arrived_date);
+                const hasArrived = arrivedPrefixes.some(p => st.startsWith(p)) || job.is_parked === 'จอดซ่อม';
+                if (appVal && appVal <= todayStr && !hasArrived) { saStats[sa].ovApp++; saStats[sa].totalOverdue++; }
+
+                const tgtVal = getValidDateStr(job.target_finish_date);
+                if (tgtVal && tgtVal < todayStr && !getValidDateStr(job.repair_finish_date)) { saStats[sa].ovTgt++; saStats[sa].totalOverdue++; }
+
+                const delVal = getValidDateStr(job.delivery_date);
+                if (delVal && delVal < todayStr && !st.includes('ส่งมอบ')) { saStats[sa].ovDel++; saStats[sa].totalOverdue++; }
+            }
+        });
+    }
 
     const sortedSAs = Object.keys(saStats).sort((a, b) => saStats[b].pending - saStats[a].pending);
     const formatMoney = (val) => Number(val).toLocaleString('th-TH', {minimumFractionDigits: 0, maximumFractionDigits: 2});
@@ -310,7 +333,7 @@ function renderSAList() {
                 <span class="text-4xl font-black text-amber-600">${totalWaitBill}</span>
             </div>
         </div>
-        
+
         <div class="flex-[2.5] bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex flex-col justify-center">
             <div class="flex justify-between items-center mb-3">
                 <div class="flex items-center gap-3">
@@ -344,9 +367,9 @@ function renderSAList() {
     </div>
     `;
 
-    if(sortedSAs.length === 0) { 
-        container.innerHTML = html + `<div class="col-span-full text-center py-10 text-slate-400 font-bold bg-white rounded-xl border border-slate-200">ยังไม่มีงานค้างเลย 🎉</div>`; 
-        return; 
+    if(sortedSAs.length === 0) {
+        container.innerHTML = html + `<div class="col-span-full text-center py-10 text-slate-400 font-bold bg-white rounded-xl border border-slate-200">ยังไม่มีงานค้างเลย 🎉</div>`;
+        return;
     }
 
     html += sortedSAs.map(sa => {
@@ -354,7 +377,7 @@ function renderSAList() {
         return `
         <div onclick="openSADetail('${sa}')" class="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between cursor-pointer hover:border-amber-500 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden group">
             <div class="absolute -right-4 -bottom-4 text-slate-100 text-6xl opacity-30 rotate-12 transition-transform group-hover:scale-110"><i class="fa-solid fa-user-tie"></i></div>
-            
+
             <div class="flex items-center gap-4 mb-3 relative z-10">
                 <div class="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-xl font-black shadow-md shrink-0"><i class="fa-solid fa-user-tie"></i></div>
                 <div class="truncate w-full">
@@ -362,7 +385,7 @@ function renderSAList() {
                     <h3 class="text-base font-black text-[#00320D] leading-tight truncate w-full" title="${sa}">${sa}</h3>
                 </div>
             </div>
-            
+
             <div class="flex flex-col gap-1.5 relative z-10">
                 <div class="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100 flex justify-between items-center mb-1">
                     <span class="text-[11px] font-bold text-slate-600">งานค้างในระบบ</span>
@@ -382,7 +405,7 @@ function renderSAList() {
                 </div>
 
                 ${stats.totalOverdue > 0 ? `<div class="flex justify-between gap-1">${stats.ovApp > 0 ? `<div class="bg-red-50 text-red-700 text-[9px] font-bold px-1.5 py-1 rounded shadow-xs border border-red-200 flex-1 text-center"><i class="fa-solid fa-triangle-exclamation animate-pulse"></i> เข้า <span class="font-black text-xs">${stats.ovApp}</span></div>` : ''}${stats.ovTgt > 0 ? `<div class="bg-amber-50 text-amber-800 text-[9px] font-bold px-1.5 py-1 rounded shadow-xs border border-amber-300 flex-1 text-center"><i class="fa-solid fa-clock"></i> เสร็จ <span class="font-black text-xs">${stats.ovTgt}</span></div>` : ''}${stats.ovDel > 0 ? `<div class="bg-purple-50 text-purple-800 text-[9px] font-bold px-1.5 py-1 rounded shadow-xs border border-purple-300 flex-1 text-center"><i class="fa-solid fa-key"></i> ส่ง <span class="font-black text-xs">${stats.ovDel}</span></div>` : ''}</div>` : `<div class="text-[9px] text-emerald-600 font-bold px-2 py-1 bg-emerald-50 rounded border border-emerald-100 text-center"><i class="fa-solid fa-circle-check"></i> ไร้งาน Overdue</div>`}
-                
+
             </div>
         </div>`;
     }).join('');
@@ -390,26 +413,26 @@ function renderSAList() {
     container.innerHTML = html;
 }
 
-function backToSAList() { 
-    currentViewSA = ''; 
-    document.getElementById('sa_detail_view').classList.add('hidden'); 
-    document.getElementById('sa_list_view').classList.remove('hidden'); 
+function backToSAList() {
+    currentViewSA = '';
+    document.getElementById('sa_detail_view').classList.add('hidden');
+    document.getElementById('sa_list_view').classList.remove('hidden');
 }
 
 // =====================================
 // View 2: SA Details (Stats, Calendar, Parked, PO)
 // =====================================
 function openSADetail(saName) {
-    currentViewSA = saName; 
-    document.getElementById('sa_list_view').classList.add('hidden'); 
-    document.getElementById('sa_detail_view').classList.remove('hidden'); 
+    currentViewSA = saName;
+    document.getElementById('sa_list_view').classList.add('hidden');
+    document.getElementById('sa_detail_view').classList.remove('hidden');
     document.getElementById('current_sa_name').innerText = saName;
 
     const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === saName);
-    
-    refreshSADashboardFilter(); 
-    renderSAParkedCars(saJobs); 
-    renderSAPOTracking(saJobs); 
+
+    refreshSADashboardFilter();
+    renderSAParkedCars(saJobs);
+    renderSAPOTracking(saJobs);
 }
 
 // ---- Overdue ----
@@ -418,7 +441,7 @@ function refreshSADashboardFilter() {
     const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
     calculateSAOverdues(saJobs);
     renderSACalendar(saJobs);
-    renderSAStatuses(saJobs); 
+    renderSAStatuses(saJobs);
 }
 
 function calculateSAOverdues(jobs) {
@@ -483,12 +506,12 @@ function openSAOverdueModal(type) {
 
 // ---- Calendar ----
 function renderSACalendar(jobs) {
-    const m = parseInt(document.getElementById('sa_cal_month').value) - 1; 
-    const y = parseInt(document.getElementById('sa_cal_year').value); 
+    const m = parseInt(document.getElementById('sa_cal_month').value) - 1;
+    const y = parseInt(document.getElementById('sa_cal_year').value);
     const grid = document.getElementById('sa_calendar_grid'); grid.innerHTML = '';
     if(isNaN(m) || isNaN(y)) return;
 
-    const firstDay = new Date(y, m, 1).getDay(); 
+    const firstDay = new Date(y, m, 1).getDay();
     const totalDays = new Date(y, m + 1, 0).getDate();
     for(let i = 0; i < firstDay; i++) { grid.innerHTML += `<div class="bg-slate-50/50 rounded-xl border border-transparent"></div>`; }
     const todayStr = new Date().toISOString().split('T')[0];
@@ -498,7 +521,7 @@ function renderSACalendar(jobs) {
         const arrC = jobs.filter(j => getValidDateStr(j.arrived_date) === dateStr).length;
         const tgtC = jobs.filter(j => getValidDateStr(j.target_finish_date) === dateStr).length;
         const delC = jobs.filter(j => getValidDateStr(j.delivery_date) === dateStr).length;
-        
+
         let barBlock = `<div class="flex items-center justify-center h-[40px] w-full mt-auto"><span class="text-[10px] font-bold text-slate-300">ว่าง</span></div>`;
         if(arrC > 0 || tgtC > 0 || delC > 0) {
             barBlock = `<div class="flex flex-col gap-1 w-full mt-auto">`;
@@ -519,7 +542,7 @@ function openSAJobListModalCalendar(dateStr, type) {
     else if(type === 'delivery') { typeLabel = "นัดส่งมอบ"; jobsToShow = saJobs.filter(j => getValidDateStr(j.delivery_date) === dateStr); }
 
     document.getElementById('modal_status_name').innerText = `วันที่ ${new Date(dateStr).toLocaleDateString('th-TH')} (${typeLabel})`;
-    renderJobTableInModal(jobsToShow, 'general'); 
+    renderJobTableInModal(jobsToShow, 'general');
     document.getElementById('jobListModal').classList.remove('hidden');
 }
 
@@ -529,13 +552,13 @@ function updateBilledCount(jobs) {
     const fYear = document.getElementById('sa_cal_year').value;
     let billedCount = 0; let waitBillCount = 0;
     let sumMain = 0; let sumSub = 0; let sumLabor = 0; let sumParts = 0; let sumOutsource = 0;
-    
+
     jobs.forEach(job => {
         const st = job.job_status || "";
-        
+
         // 🌟 ปลดกรองเดือนสำหรับรถรอออกบิล
         if (st.includes('รอออกบิล')) waitBillCount++;
-        
+
         const isBilled = st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิล');
         if (isBilled && getValidDateStr(job.billing_date)) {
             const d = new Date(job.billing_date);
@@ -549,10 +572,10 @@ function updateBilledCount(jobs) {
             }
         }
     });
-    
+
     document.getElementById('sa_waitbill_count').innerText = waitBillCount;
     document.getElementById('sa_billed_count').innerText = billedCount;
-    
+
     // เอา label (เดือน...) ออกจากหน้าจอสำหรับกล่องรอปิดบิล
     document.getElementById('waitbill_month_label').innerText = `(ยอดสะสมรวมทั้งหมด)`;
     document.getElementById('billed_month_label').innerText = `(เดือน ${fMonth}/${fYear})`;
@@ -566,15 +589,15 @@ function updateBilledCount(jobs) {
 }
 
 function renderSAStatuses(jobs) {
-    const statusCounts = {}; 
-    jobs.forEach(job => { 
-        const st = job.job_status || "ไม่ระบุสถานะ"; 
+    const statusCounts = {};
+    jobs.forEach(job => {
+        const st = job.job_status || "ไม่ระบุสถานะ";
         const isBilled = getValidDateStr(job.billing_date) || st.includes('ออกบิล') || st.includes('ชำระเงินสด') || st.includes('วางบิล') || job.department_routing === 'บัญชี';
-        if (!isBilled) statusCounts[st] = (statusCounts[st] || 0) + 1; 
+        if (!isBilled) statusCounts[st] = (statusCounts[st] || 0) + 1;
     });
-    
+
     updateBilledCount(jobs);
-    const grid = document.getElementById('sa_status_grid'); 
+    const grid = document.getElementById('sa_status_grid');
     const sortedStatuses = Object.keys(statusCounts).sort();
     if(sortedStatuses.length === 0) { grid.innerHTML = `<div class="col-span-full text-center py-4 text-slate-400 font-bold">ไม่มีงานค้าง 🎉</div>`; return; }
 
@@ -587,7 +610,7 @@ function openSAFilteredModal(statusType) {
     const fYear = document.getElementById('sa_cal_year').value;
     let jobsToShow = []; let vType = 'general';
 
-    if (statusType === 'Billed') { 
+    if (statusType === 'Billed') {
         jobsToShow = saJobs.filter(job => {
             const st = job.job_status || "";
             const isBilled = st.includes('ชำระเงินสด') || st.includes('ออกบิล') || st.includes('วางบิล');
@@ -601,11 +624,11 @@ function openSAFilteredModal(statusType) {
         // 🌟 ปลดกรองเดือนสำหรับก้อน "รอออกบิล" ในหน้า Modal
         jobsToShow = saJobs.filter(job => (job.job_status || "").includes('รอออกบิล'));
         document.getElementById('modal_status_name').innerText = `งานรอปิดบิล (ยอดสะสมทั้งหมด)`; vType = 'finance';
-    } else { 
-        jobsToShow = saJobs.filter(j => j.job_status === statusType); 
-        document.getElementById('modal_status_name').innerText = `สถานะ: ${statusType}`; 
+    } else {
+        jobsToShow = saJobs.filter(j => j.job_status === statusType);
+        document.getElementById('modal_status_name').innerText = `สถานะ: ${statusType}`;
     }
-    renderJobTableInModal(jobsToShow, vType); 
+    renderJobTableInModal(jobsToShow, vType);
     document.getElementById('jobListModal').classList.remove('hidden');
 }
 
@@ -679,7 +702,7 @@ function injectPOFilterModal() {
         </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', modalHtml);
-    
+
     document.addEventListener('click', (e) => {
         const modal = document.getElementById('poExcelFilterModal');
         if (modal && !modal.contains(e.target) && !e.target.closest('.po-filter-icon') && !modal.classList.contains('hidden')) {
@@ -698,7 +721,7 @@ function renderSAPOTracking(saJobs, resetPage = true) {
     poJobsSource = Array.isArray(saJobs) ? saJobs : [];
     const tbody = document.getElementById('sa_po_body');
     const thead = document.querySelector('#poTable thead tr');
-    
+
     if (thead && !thead.dataset.filtered) {
         thead.innerHTML = `
             <th style="width: 130px;" class="select-none text-left" id="po_th_plate">
@@ -793,8 +816,8 @@ function renderSAPOTracking(saJobs, resetPage = true) {
 
         const arrDate = job.arrived_date ? job.arrived_date.split('T')[0] : (job.contact_date ? job.contact_date.split('T')[0] : '-');
 
-        const parkedBadge = job.is_parked === 'จอดซ่อม' ? 
-            `<span class="bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded font-black text-[10px] whitespace-nowrap"><i class="fa-solid fa-square-p text-amber-600"></i> จอดซ่อม</span>` : 
+        const parkedBadge = job.is_parked === 'จอดซ่อม' ?
+            `<span class="bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded font-black text-[10px] whitespace-nowrap"><i class="fa-solid fa-square-p text-amber-600"></i> จอดซ่อม</span>` :
             `<span class="bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded font-bold text-[10px] whitespace-nowrap">ไม่จอดซ่อม</span>`;
 
         finalHtml += `
@@ -892,7 +915,7 @@ function openPOExcelFilter(e, colKey, title) {
 
     const uniqueValues = new Set();
     const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
-    
+
     // 🎯 ดึงเฉพาะ SA คนปัจจุบัน และสถานะ 06.สั่งอะไหล่
     const relevantJobs = saJobs.filter(job => (job.job_status || '').includes('06.สั่งอะไหล่'));
 
@@ -917,7 +940,7 @@ function openPOExcelFilter(e, colKey, title) {
 
     const listDiv = document.getElementById('po_ef_checkbox_list');
     listDiv.innerHTML = '';
-    
+
     [...uniqueValues].sort().forEach(val => {
         const isChecked = activePOFilters[colKey] ? activePOFilters[colKey].has(val) : true;
         listDiv.innerHTML += `
@@ -927,10 +950,10 @@ function openPOExcelFilter(e, colKey, title) {
             </label>
         `;
     });
-    
+
     const selAll = document.getElementById('po_ef_select_all');
     if(selAll) selAll.checked = Array.from(document.querySelectorAll('.po-ef-check')).every(cb => cb.checked);
-    
+
     const modal = document.getElementById('poExcelFilterModal');
     const th = e.target.closest('th');
     if(th) {
@@ -968,7 +991,7 @@ function applyPOExcelFilter() {
     const checks = document.querySelectorAll('.po-ef-check');
     const checkedVals = Array.from(checks).filter(cb => cb.checked).map(cb => cb.value);
     const thIcon = document.querySelector(`#po_th_${currentPOFilterKey} .po-filter-icon`);
-    
+
     if (checkedVals.length === checks.length || checkedVals.length === 0) {
         delete activePOFilters[currentPOFilterKey];
         if(thIcon) { thIcon.classList.remove('text-amber-400'); thIcon.classList.add('text-slate-400'); }
@@ -976,7 +999,7 @@ function applyPOExcelFilter() {
         activePOFilters[currentPOFilterKey] = new Set(checkedVals);
         if(thIcon) { thIcon.classList.remove('text-slate-400'); thIcon.classList.add('text-amber-400'); }
     }
-    
+
     closePOExcelFilter();
     RizenicPagination.reset(poPager);
     const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
@@ -1011,7 +1034,7 @@ function openSAKeyDeskModal(jobId) {
 
     document.getElementById('kd_plate').innerText = job.car_plate || '-';
     const jobPOs = getActivePartOrdersByPlate(job.car_plate);
-    keyDeskRows = JSON.parse(JSON.stringify(jobPOs)); 
+    keyDeskRows = JSON.parse(JSON.stringify(jobPOs));
 
     if(keyDeskRows.length === 0) addSAKeyDeskRow(job);
     else renderSAKeyDeskTable();
@@ -1022,7 +1045,7 @@ function openSAKeyDeskModal(jobId) {
 function addSAKeyDeskRow(jobObj = null) {
     let job = jobObj;
     if(!job) job = masterJobsData.find(j => j.id == currentKeyDeskJobId);
-    
+
     keyDeskRows.push({
         order_id: 'new_' + Date.now(),
         epc_no: '', part_no: '', qty_ordered: 1, part_name: '', part_main_no: '', part_type: 'อะไหล่รอง',
@@ -1042,7 +1065,7 @@ window.autoFillSAKeyDeskName = async function(inputEl) {
     if(matched) {
         tr.querySelector('[data-field="part_name"]').value = matched.part_name || '';
         tr.querySelector('[data-field="part_main_no"]').value = matched.part_main_no || '';
-        
+
         const rowId = tr.dataset.id;
         const r = keyDeskRows.find(x => x.order_id == rowId);
         if (r) {
@@ -1061,7 +1084,7 @@ function removeSAKeyDeskRow(id) {
 function renderSAKeyDeskTable() {
     const tbody = document.getElementById('kd_tbody');
     let html = '';
-    
+
     const statusOptionsHtml = allStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
     const typeOpts = ['อะไหล่หลัก', 'อะไหล่รอง', 'อะไหล่สิ้นเปลือง'];
 
@@ -1133,7 +1156,7 @@ async function saveSAKeyDesk() {
 
         const toSave = keyDeskRows.filter(r => !r._delete);
         for(const row of toSave) {
-            if(!row.part_name && !row.part_no) continue; 
+            if(!row.part_name && !row.part_no) continue;
             const payload = { ...row };
             const today = new Date().toISOString().split('T')[0];
             if(row.is_new) {
@@ -1148,7 +1171,7 @@ async function saveSAKeyDesk() {
         }
         showToast('บันทึกข้อมูลสำเร็จ!', 'success');
         closeModal('saKeyDeskModal');
-        await loadJobsData(); 
+        await loadJobsData();
     } catch(e) {
         showToast(e?.message || 'เกิดข้อผิดพลาดในการบันทึก', 'error');
     } finally {
@@ -1172,7 +1195,7 @@ function renderJobTableInModal(jobs, viewType = 'general') {
     }
 
     let safeOptsGlobal = globalStatusOptionsHtml;
-    
+
     tbody.innerHTML = jobs.map(j => {
         const formatMoney = (val) => Number(val || 0).toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
         const mainQty = Number(j.main_part_qty) || (j.main_part_name ? j.main_part_name.split(',').filter(Boolean).length : 0);
@@ -1200,10 +1223,10 @@ function renderJobTableInModal(jobs, viewType = 'general') {
             </tr>`;
         } else {
             const damageColor = j.damage_level === 'หนัก' ? 'text-red-600' : (j.damage_level === 'กลาง' ? 'text-amber-500' : 'text-emerald-600');
-            let safeStatus = j.job_status || ''; 
+            let safeStatus = j.job_status || '';
             let safeOptions = safeOptsGlobal;
-            if(!safeOptions.includes(`value="${safeStatus}"`)) { safeOptions = `<option value="${safeStatus}">${safeStatus}</option>` + safeOptions; } 
-            safeOptions = safeOptions.replace(`value="${safeStatus}"`, `value="${safeStatus}" selected`); 
+            if(!safeOptions.includes(`value="${safeStatus}"`)) { safeOptions = `<option value="${safeStatus}">${safeStatus}</option>` + safeOptions; }
+            safeOptions = safeOptions.replace(`value="${safeStatus}"`, `value="${safeStatus}" selected`);
 
             return `<tr class="hover:bg-emerald-50/50 transition cursor-pointer border-b border-slate-100" onclick="goToEditJob('${j.id}')"><td class="px-4 py-3 font-bold text-[#00320D]"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded font-mono text-xs shadow-inner whitespace-nowrap">${j.car_plate || '-'}</span></td><td class="px-4 py-3 font-bold text-slate-800 text-[11px] leading-tight">${j.car_brand} <br><span class="text-slate-500 font-medium">${j.car_model || ''}</span></td><td class="px-4 py-3 text-[11px] leading-tight"><div class="font-bold text-slate-700 truncate max-w-[150px]" title="${j.customer_name}">${j.customer_name || '-'}</div><div class="text-[10px] text-amber-600 font-bold mt-0.5"><i class="fa-solid fa-user-tie"></i> ${j.sa_owner || '-'}</div></td><td class="px-4 py-3 text-xs font-bold ${damageColor}">${j.damage_level || '-'}</td><td class="px-4 py-3 text-[10px] font-bold text-slate-700"><select onclick="event.stopPropagation()" onchange="fastUpdateJob('${j.id}', 'job_status', this.value)" class="bg-slate-50 border border-slate-300 rounded px-2 py-1 outline-none focus:border-amber-500 w-full cursor-pointer font-bold text-[#00320D]">${safeOptions}</select></td><td class="px-4 py-3 text-center"><button onclick="event.stopPropagation(); goToEditJob('${j.id}')" class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full whitespace-nowrap"><i class="fa-solid fa-pen"></i> เปิด</button></td></tr>`;
         }

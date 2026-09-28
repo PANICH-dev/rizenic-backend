@@ -50,7 +50,8 @@ test('jobs paging never treats a legitimate zero-row result as an excuse to fetc
 test('repair board polling pauses in hidden tabs and prevents overlapping loads', () => {
   const src = read('public/repair_board.html');
   assert.match(src, /document\.hidden/);
-  assert.match(src, /repairBoardLoadInFlight/);
+  assert.match(src, /let\s+repairBoardLoadInFlight\s*=\s*false\s*;/);
+  assert.match(src, /if\s*\(document\.hidden\s*\|\|\s*repairBoardLoadInFlight\)/);
   assert.match(src, /visibilitychange/);
 });
 
