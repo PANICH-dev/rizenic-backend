@@ -112,8 +112,19 @@
         }
     }
 
+
+    function shouldBypassViewportLock(documentRef) {
+        const pathname = (documentRef && documentRef.location && documentRef.location.pathname) ||
+            (global.location && global.location.pathname) || '';
+        return /(?:^|\/)(?:repair|jobs_table)\.html$/i.test(pathname);
+    }
+
     function refresh(documentRef = global.document) {
         if (!documentRef || !documentRef.body) return false;
+        if (shouldBypassViewportLock(documentRef)) {
+            unlock(documentRef);
+            return false;
+        }
         const main = documentRef.querySelector('main');
         if (!main) return false;
 
@@ -187,7 +198,8 @@
     global.RizenicTableViewport = {
         calculateHeight,
         refresh,
-        visibleMainScrollHosts
+        visibleMainScrollHosts,
+        shouldBypassViewportLock
     };
 
     install();

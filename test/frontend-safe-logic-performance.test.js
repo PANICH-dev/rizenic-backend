@@ -35,7 +35,7 @@ test('index initial load defers part-orders until parts tracking is actually ope
     'existing cache must remain in use');
 });
 
-test('history loads reports first and lazy-loads/indexes part orders only for detail', () => {
+test('history server search lazy-loads only scoped part orders for detail', () => {
   const history = read('public/history.js');
   const loadData = functionBody(history, 'loadData');
   const detail = functionBody(history, 'viewHistoryDetail');
@@ -43,9 +43,9 @@ test('history loads reports first and lazy-loads/indexes part orders only for de
   assert.doesNotMatch(loadData, /\/api\/part-orders/,
     'history search page should not download part orders before detail is opened');
   assert.match(history, /partOrdersByPlate\s*=\s*new Map\(\)/);
-  assert.match(history, /async function ensureHistoryPartOrdersLoaded\(\)/);
+  assert.match(history, /async function ensureHistoryPartOrdersLoaded\(job, jobId\)/);
   assert.match(history, /function getHistoryPartOrdersForJob\(/);
-  assert.match(detail, /await ensureHistoryPartOrdersLoaded\(\)/);
+  assert.match(detail, /await ensureHistoryPartOrdersLoaded\(job, jobId\)/);
   assert.match(detail, /getHistoryPartOrdersForJob\(job,\s*jobId\)/);
   assert.doesNotMatch(detail, /allPartOrders\.filter\(/,
     'detail lookup should use the plate index rather than scanning every PO');

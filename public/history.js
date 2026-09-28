@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadData();
 });
 
-function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
+function logout() { return window.rizenicLogout ? window.rizenicLogout() : (sessionStorage.clear(), window.location.href = 'index.html'); }
 function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
 function getValidDateStr(val) {
     if (!val || String(val).trim() === '' || String(val) === 'null' || String(val) === 'undefined') return '-';
@@ -36,28 +36,22 @@ function rebuildHistoryPartOrderIndex() {
     });
 }
 
-async function ensureHistoryPartOrdersLoaded() {
-    if (partOrdersLoaded) return allPartOrders;
-    if (partOrdersLoadPromise) return partOrdersLoadPromise;
+async function ensureHistoryPartOrdersLoaded(job, jobId) {
+    const params = new URLSearchParams();
+    if (jobId != null && String(jobId).trim() !== '') params.set('job_ids', String(jobId));
+    if (job?.car_plate) params.set('car_plates', String(job.car_plate).trim());
 
-    partOrdersLoadPromise = (async () => {
-        try {
-            const res = await fetch(`${API_BASE_URL}/api/part-orders`);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const data = await res.json();
-            allPartOrders = Array.isArray(data) ? data : [];
-        } catch (error) {
-            console.error('Error lazy-loading history part orders:', error);
-            allPartOrders = [];
-        } finally {
-            partOrdersLoaded = true;
-            rebuildHistoryPartOrderIndex();
-            partOrdersLoadPromise = null;
-        }
-        return allPartOrders;
-    })();
-
-    return partOrdersLoadPromise;
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/part-orders?${params.toString()}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        allPartOrders = Array.isArray(data) ? data : [];
+    } catch (error) {
+        console.error('Error loading scoped history part orders:', error);
+        allPartOrders = [];
+    }
+    rebuildHistoryPartOrderIndex();
+    return allPartOrders;
 }
 
 function getHistoryPartOrdersForJob(job, jobId) {
@@ -159,7 +153,7 @@ async function viewHistoryDetail(jobId) {
     const job = allJobsData.find(j => j.id == jobId);
     if(!job) return;
 
-    await ensureHistoryPartOrdersLoaded();
+    await ensureHistoryPartOrdersLoaded(job, jobId);
     const jobPOs = getHistoryPartOrdersForJob(job, jobId);
 
     const totalLabor = Number(job.cost_labor || job.labor_total || 0);

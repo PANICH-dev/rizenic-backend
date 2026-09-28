@@ -4,28 +4,24 @@
 
 let allMasterPartsCache = [];
 
-// 1. โหลดข้อมูลมาสเตอร์อะไหล่และสร้าง Datalist ตัวช่วยค้นหา
+// 1. Autocomplete มาสเตอร์อะไหล่แบบ Server-side ไม่โหลดทั้งตารางลง Browser
 async function buildPartDatalist() {
-    try {
-        const branch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
-        const res = await fetch(`${API_BASE_URL}/api/parts?branch=${encodeURIComponent(branch)}`);
-        if (res.ok) {
-            allMasterPartsCache = await res.json();
-            window.allMasterPartsCache = allMasterPartsCache;
-
-            let datalist = document.getElementById('master_parts_datalist');
-            if (!datalist) {
-                datalist = document.createElement('datalist');
-                datalist.id = 'master_parts_datalist';
-                document.body.appendChild(datalist);
+    let datalist = document.getElementById('master_parts_datalist');
+    if (!datalist) {
+        datalist = document.createElement('datalist');
+        datalist.id = 'master_parts_datalist';
+        document.body.appendChild(datalist);
+    }
+    if (window.RizenicPartsLookup && !window.__saPartLookupBound) {
+        window.__saPartLookupBound = true;
+        window.RizenicPartsLookup.bindDatalist({
+            selector: '.part-no-input[list="master_parts_datalist"]',
+            branch: () => sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่',
+            onItems: items => {
+                allMasterPartsCache = items;
+                window.allMasterPartsCache = items;
             }
-
-            datalist.innerHTML = allMasterPartsCache.map(p =>
-                `<option value="${p.part_no}">${p.part_name} (MAIN: ${p.part_main_no || '-'})</option>`
-            ).join('');
-        }
-    } catch (e) {
-        console.error("Error building part datalist:", e);
+        });
     }
 }
 
@@ -94,13 +90,16 @@ function addPartRow(partNo = '', partMainNo = '', partName = '', partType = 'อ
 }
 
 // 3. ดึงข้อมูลจาก Master มาเติมลงในช่องอัตโนมัติเมื่อเลือกรหัสบาร์โค้ด
-function autoFillPartRow(inputEl) {
+async function autoFillPartRow(inputEl) {
     const pNo = inputEl.value.trim().toUpperCase();
     if (!pNo) return;
 
     const tr = inputEl.closest('tr');
-    const matched = allMasterPartsCache.find(x => x.part_no && x.part_no.toUpperCase() === pNo);
-
+    let matched = allMasterPartsCache.find(x => x.part_no && x.part_no.toUpperCase() === pNo);
+    if (!matched && window.RizenicPartsLookup) {
+        matched = await window.RizenicPartsLookup.exact(pNo, sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่');
+    }
+    if (!matched || inputEl.value.trim().toUpperCase() !== pNo) return;
     if (matched) {
         const mainInp = tr.querySelector('.part-main-input');
         const nameInp = tr.querySelector('.part-name-input');
@@ -134,12 +133,14 @@ async function loadPartsTrackingTable(carPlate = '', jobId = '') {
     }
 
     try {
-        if (!window.allPartOrders || window.allPartOrders.length === 0) {
-            const res = await fetch(`${API_BASE_URL}/api/part-orders`);
-            if (res.ok) window.allPartOrders = await res.json();
-        }
+        const params = new URLSearchParams();
+        if (cleanJobId) params.set('job_ids', cleanJobId);
+        if (cleanPlate) params.set('car_plates', cleanPlate);
+        const res = await fetch(`${API_BASE_URL}/api/part-orders?${params.toString()}`);
+        const scopedPartOrders = res.ok ? await res.json() : [];
+        window.allPartOrders = scopedPartOrders;
 
-        const orders = (window.allPartOrders || []).filter(p => {
+        const orders = scopedPartOrders.filter(p => {
             const pPlate = p.car_plate ? p.car_plate.trim().toUpperCase() : '';
             const pJobId = p.job_id ? String(p.job_id) : '';
             const pReportId = p.report_id ? String(p.report_id) : '';

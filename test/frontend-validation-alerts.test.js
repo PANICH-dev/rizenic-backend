@@ -104,7 +104,7 @@ test('pages cache-bust the validation-alert JS revisions so browsers do not keep
   assert.match(jobsTable, /jobs_table_core\.js\?v=23\.5/);
   assert.match(jobsTable, /jobs_table_modals\.js\?v=23\.2/);
   assert.match(parts, /parts_ui\.js\?v=23\.5/);
-  assert.match(repair, /repair\.js\?v=8/);
+  assert.match(repair, /repair\.js\?v=9/);
   assert.match(index, /sa_core\.js\?v=19\.3/);
   assert.match(index, /sa_parts\.js\?v=19\.1/);
   assert.match(portal, /sa_core\.js\?v=19\.3/);

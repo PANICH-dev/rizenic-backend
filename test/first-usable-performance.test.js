@@ -59,8 +59,8 @@ test('pages that already restricted users to a branch now push that same restric
   assert.match(finance, /department_routing:\s*'บัญชี'/);
   assert.match(finance, /exclude_status:\s*'ปิดงาน'/);
   assert.match(audit, /URLSearchParams\(\{ branch: userBranch \}\)/);
-  assert.match(calendar, /api\/reports\?branch=\$\{encodeURIComponent\(b\)\}/);
-  assert.match(calendar, /api\/reports\?branch=\$\{encodeURIComponent\(branch\)\}/);
+  assert.match(calendar, /api\/server\/calendar-capacity/);
+  assert.match(calendar, /api\/server\/quota-check/);
   assert.match(repairDate, /department_routing:\s*'ซ่อม'/);
   assert.match(repairExport, /department_routing:\s*'ซ่อม'/);
   assert.match(repairBoard, /URLSearchParams\(\{ branch: currentBranch \}\)/);
@@ -95,12 +95,13 @@ test('heavy pages paint primary content before non-critical datasets finish', ()
   assert.match(parts, /alertsPromise/);
 });
 
-test('employee reads can be branch-scoped without changing the legacy no-filter query', () => {
+test('employee reads can be branch-scoped without exposing password fields', () => {
   const { buildEmployeesReadQuery } = require('../read_queries');
-  assert.deepEqual(buildEmployeesReadQuery({}), {
-    text: 'SELECT * FROM rizenicemployeemaster ORDER BY branch_name ASC, employee_code ASC',
-    values: []
-  });
+  const all = buildEmployeesReadQuery({});
+  assert.match(all.text, /SELECT employee_id, employee_code, employee_name/);
+  assert.doesNotMatch(all.text, /SELECT \*/);
+  assert.doesNotMatch(all.text, /\bpassword\b/i);
+  assert.deepEqual(all.values, []);
   const scoped = buildEmployeesReadQuery({ branch: 'สาขา A' });
   assert.match(scoped.text, /WHERE branch_name = \$1/);
   assert.deepEqual(scoped.values, ['สาขา A']);
@@ -143,11 +144,15 @@ test('XLSX is lazy-loaded on pages where Excel is an optional action', () => {
   assert.match(finance, /function\s+ensureXlsxLoaded/);
 });
 
-test('CDN-heavy pages preconnect before loading blocking UI assets', () => {
+test('heavy pages keep performance assets local and avoid third-party preconnects', () => {
   for (const rel of ['public/index.html','public/jobs.html','public/jobs_table.html','public/parts.html','public/repair.html','public/dashboard.html','public/finance.html','public/admin.html','public/history.html']) {
     const html = read(rel);
-    assert.match(html, /rel="preconnect" href="https:\/\/cdn\.tailwindcss\.com"/);
-    assert.match(html, /rel="preconnect" href="https:\/\/cdnjs\.cloudflare\.com"/);
+    assert.doesNotMatch(html, /\/vendor\/tailwindcss\.js/);
+    const stem = path.basename(rel, '.html');
+    assert.match(html, new RegExp(`/compiled/${stem}\\.tailwind\\.css`));
+    assert.match(html, /href="\/vendor\/fontawesome\/css\/all\.min\.css"/);
+    assert.match(html, /href="\/vendor\/(?:local-fonts|prompt-fonts|noto-sans-thai-fonts)\.css"/);
+    assert.doesNotMatch(html, /cdn\.tailwindcss\.com|cdnjs\.cloudflare\.com|fonts\.googleapis\.com|fonts\.gstatic\.com/);
   }
 });
 
@@ -166,4 +171,40 @@ test('SA bootstrap does not duplicate car-brand datalist DOM work', () => {
   assert.ok(block, 'car-brand bootstrap block must exist');
   const appends = block[1].match(/uniqueBrands\.forEach\(brand => brandList\.innerHTML \+=/g) || [];
   assert.equal(appends.length, 1);
+});
+
+test('server-side dashboard paints reports before waiting for part-order widgets', () => {
+  const dashboard = read('public/dashboard_server.js');
+  const views = read('server_side_views.js');
+  assert.match(dashboard, /includeParts['"],\s*['"]0/);
+  assert.match(dashboard, /partsPromise/);
+  assert.match(dashboard, /\/api\/server\/dashboard-parts/);
+  assert.match(dashboard, /dashboardLegacyApplyFilters\(false\)/);
+  assert.ok(dashboard.indexOf('dashboardLegacyApplyFilters(false)') < dashboard.indexOf('await Promise.all([statusPromise, partsPromise])'));
+  assert.match(views, /\/api\/server\/dashboard-parts/);
+});
+
+test('server-side SA and repair pages paint primary jobs before part-order secondary data', () => {
+  const jobs = read('public/jobs_server.js');
+  const repair = read('public/repair_server.js');
+  const views = read('server_side_views.js');
+  assert.match(jobs, /includeParts['"],\s*['"]0/);
+  assert.match(jobs, /\/api\/server\/sa-parts/);
+  assert.match(jobs, /partsPromise/);
+  assert.ok(jobs.indexOf('jobsLegacyFilterDataByBranch();') < jobs.indexOf('await Promise.all([secondaryPromise, partsPromise])'));
+  assert.match(repair, /includeParts['"],\s*['"]0/);
+  assert.match(repair, /\/api\/server\/repair-parts/);
+  assert.match(repair, /partsPromise/);
+  assert.ok(repair.indexOf('runTableFilters();') < repair.indexOf('await partsPromise'));
+  assert.match(views, /\/api\/server\/sa-parts/);
+  assert.match(views, /\/api\/server\/repair-parts/);
+});
+
+test('split primary/secondary page loads ignore stale aborted requests before writing state', () => {
+  const dashboard = read('public/dashboard_server.js');
+  const jobs = read('public/jobs_server.js');
+  const repair = read('public/repair_server.js');
+  assert.match(dashboard, /dashboardServerLoadController\s*!==\s*requestController/);
+  assert.match(jobs, /jobsServerAbortController\s*!==\s*requestController/);
+  assert.match(repair, /repairServerAbortController\s*!==\s*requestController/);
 });

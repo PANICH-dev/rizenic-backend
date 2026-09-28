@@ -93,7 +93,8 @@ function validatePayload(method, path, body = {}) {
   }
 
   if (/^\/employees(?:\/[^/]+)?$/.test(path) && ['POST', 'PUT'].includes(method)) {
-    for (const [f, l] of [['employee_code','รหัสพนักงาน'],['employee_name','ชื่อพนักงาน'],['employee_role','ตำแหน่ง'],['branch_name','สาขา'],['username','Username'],['password','Password']]) required(f, l);
+    for (const [f, l] of [['employee_code','รหัสพนักงาน'],['employee_name','ชื่อพนักงาน'],['employee_role','ตำแหน่ง'],['branch_name','สาขา'],['username','Username']]) required(f, l);
+    if (method === 'POST') required('password', 'Password');
     if (!isBlank(body.employee_code) && !isSafeCode(body.employee_code, 50)) add('employee_code', 'รหัสพนักงานมีรูปแบบไม่ถูกต้อง');
     if (!isBlank(body.username) && !/^[A-Za-z0-9._-]{3,50}$/.test(body.username)) add('username', 'Username ใช้ได้เฉพาะ a-z, 0-9, จุด, _ และ - (3-50 ตัว)');
     if (!isBlank(body.password) && (String(body.password).length < 4 || String(body.password).length > 128)) add('password', 'Password ต้องมี 4-128 ตัวอักษร');

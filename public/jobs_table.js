@@ -212,7 +212,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 });
 
-function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
+function logout() { return window.rizenicLogout ? window.rizenicLogout() : (sessionStorage.clear(), window.location.href = 'index.html'); }
 
 function initColumns() {
     const thead = document.getElementById('jobs_table_head'); let trHtml = '<tr>';

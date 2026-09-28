@@ -5,43 +5,13 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RIZENIC ERP - Finance Department</title>
-    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="table_scroll_fix.css?v=1.6">
+<link rel="stylesheet" href="/vendor/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="/vendor/local-fonts.css">
+    <link rel="stylesheet" href="table_scroll_fix.css?v=1.6&financeClip=1">
     
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <style type="text/tailwindcss">
-        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap');
-        body { font-family: 'Kanit', sans-serif; background-color: #f4f6f9; overflow: hidden; }
-        .bg-rizenic-green { background-color: #00320D; }
-        
-        .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-        .acc-tab-content { display: none; animation: fadeIn 0.3s ease-in-out; }
-        .acc-tab-content.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        .excel-table { @apply w-full text-left border-collapse whitespace-nowrap text-[12px] bg-white; table-layout: fixed; }
-        .excel-table thead th { @apply relative px-0 py-0 bg-[#00320D] text-white border border-slate-500 font-bold sticky top-0 z-10 shadow-sm align-middle select-none; }
-        .excel-table tbody td { @apply p-0 border border-slate-300 text-slate-700 align-middle overflow-hidden; }
-        .excel-table tbody tr:hover td { @apply bg-blue-50/50 transition-colors; }
-
-        .resizer { @apply absolute top-0 right-0 w-1.5 h-full cursor-col-resize z-20 hover:bg-amber-400 transition-colors; }
-        .sort-icon { @apply ml-1 opacity-40 transition-opacity group-hover:opacity-100 text-[10px]; }
-        .filter-icon { @apply ml-2 text-slate-400 hover:text-amber-400 transition-colors p-1 rounded hover:bg-white/20 cursor-pointer; }
-        
-        .inline-edit-input { @apply w-full h-full border-0 bg-transparent px-3 py-2 outline-none font-medium text-slate-900 transition-colors hover:bg-slate-50 focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500; }
-        .inline-edit-select { @apply w-full h-full border-0 bg-transparent px-2 py-2 outline-none font-bold text-slate-800 transition-colors cursor-pointer hover:bg-slate-50 focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500; }
-    </style>
-    <link rel="stylesheet" href="ui_global.css?v=1.1">
+<link rel="stylesheet" href="ui_global.css?v=1.1">
+    <link rel="stylesheet" href="/compiled/finance.tailwind.css?v=1.1">
+    <script src="session_guard.js?v=1.0"></script>
 </head>
 <body class="text-slate-800 h-screen flex flex-col selection:bg-[#00320D] selection:text-white">
 
@@ -199,7 +169,7 @@
                     </div>
                     
                     <div class="flex flex-wrap items-center justify-end gap-2 w-full xl:w-auto">
-                        <span class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg border mr-1">พบ: <span id="row_count" class="text-blue-600 font-black text-sm">0</span> งาน</span>
+                        <span id="row_count" class="hidden" aria-hidden="true">0</span>
                         
                         <button onclick="exportToExcel()" class="px-3 py-1.5 bg-emerald-600 text-white font-bold rounded-lg text-xs shadow hover:bg-emerald-700 transition flex items-center gap-1.5"><i class="fa-solid fa-file-excel"></i> โหลด Excel</button>
                         
@@ -228,20 +198,23 @@
                 </div>
             </div>
 
-            <div class="flex-1 overflow-auto custom-scrollbar bg-white relative border-x border-b border-slate-200 rounded-b-xl" id="tableContainer">
-                <table class="excel-table" id="accTable">
-                    <thead id="acc_table_head"></thead>
-                    <tbody id="acc_table_body">
-                        <tr><td colspan="14" class="text-center py-10 text-slate-400 font-mono text-sm"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังโหลดข้อมูลบัญชี...</td></tr>
-                    </tbody>
-                </table>
+            <div class="flex-1 min-h-0 overflow-hidden rz-table-clip-shell">
+                <div class="h-full overflow-auto custom-scrollbar bg-white relative border-x border-b border-slate-200 rounded-b-xl rz-table-scroll-surface" id="tableContainer">
+                    <table class="excel-table" id="accTable">
+                        <thead id="acc_table_head"></thead>
+                        <tbody id="acc_table_body">
+                            <tr><td colspan="14" class="text-center py-10 text-slate-400 font-mono text-sm"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังโหลดข้อมูลบัญชี...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </section>
 
     </main>
 
-    <script src="table_pagination.js?v=1.1"></script>
+    <script src="table_pagination.js?v=1.1&rescue=1"></script>
     <script src="table_viewport_lock.js?v=1.0"></script>
+    <script src="/vendor/chart.umd.min.js"></script>
     <script>
         const API_BASE_URL = window.location.origin;
         let xlsxLoadPromise = null;
@@ -250,7 +223,7 @@
             if (xlsxLoadPromise) return xlsxLoadPromise;
             xlsxLoadPromise = new Promise((resolve, reject) => {
                 const script = document.createElement('script');
-                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+                script.src = '/vendor/xlsx/xlsx.full.min.js';
                 script.async = true;
                 script.onload = () => resolve(window.XLSX);
                 script.onerror = () => {
@@ -335,7 +308,7 @@
             loadAccountingData();
         });
 
-        function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
+        function logout() { return window.rizenicLogout ? window.rizenicLogout() : (sessionStorage.clear(), window.location.href = 'index.html'); }
 
         function switchTab(tabId) {
             document.querySelectorAll('.acc-tab-content').forEach(el => el.classList.remove('active'));
@@ -981,5 +954,6 @@
         }
 
     </script>
+    <script src="finance_server.js?v=1.0"></script>
 </body>
 </html>

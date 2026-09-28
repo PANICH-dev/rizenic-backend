@@ -1032,12 +1032,13 @@ function addSAKeyDeskRow(jobObj = null) {
     renderSAKeyDeskTable();
 }
 
-window.autoFillSAKeyDeskName = function(inputEl) {
+window.autoFillSAKeyDeskName = async function(inputEl) {
     const pNo = inputEl.value.trim().toUpperCase();
     if (!pNo) return;
     const tr = inputEl.closest('tr');
-    const matched = allMasterPartsCache.find(x => x.part_no && x.part_no.toUpperCase() === pNo);
-    
+    let matched = allMasterPartsCache.find(x => x.part_no && x.part_no.toUpperCase() === pNo);
+    if (!matched && window.RizenicPartsLookup) matched = await window.RizenicPartsLookup.exact(pNo, userBranch || 'สำนักงานใหญ่');
+    if (!matched || inputEl.value.trim().toUpperCase() !== pNo) return;
     if(matched) {
         tr.querySelector('[data-field="part_name"]').value = matched.part_name || '';
         tr.querySelector('[data-field="part_main_no"]').value = matched.part_main_no || '';

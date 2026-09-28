@@ -8,7 +8,7 @@ function ensureXlsxLoaded() {
     if (xlsxLoadPromise) return xlsxLoadPromise;
     xlsxLoadPromise = new Promise((resolve, reject) => {
         const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+        script.src = '/vendor/xlsx/xlsx.full.min.js';
         script.async = true;
         script.onload = () => resolve(window.XLSX);
         script.onerror = () => {

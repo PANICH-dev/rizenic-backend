@@ -222,7 +222,7 @@ function onBranchChange(newBranchVal) {
     showToast(`สลับการแสดงผลเป็น: ${newBranchVal === 'ALL' ? 'ทุกสาขา' : newBranchVal}`, 'info');
 }
 
-function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
+function logout() { return window.rizenicLogout ? window.rizenicLogout() : (sessionStorage.clear(), window.location.href = 'index.html'); }
 
 function switchTab(tabId) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -635,7 +635,6 @@ function renderRepairListTable(data) {
         anchorId: 'repairTable', containerId: 'repair_table_pagination', pageInfo,
         noun: 'คัน', onPageChange: goRepairPage
     });
-    document.getElementById('table_row_count').innerText = (data || []).length;
     if(!data || data.length === 0) { tbody.innerHTML = `<tr><td colspan="${columnsDef.length}" class="p-12 text-center text-slate-400 font-bold bg-white text-base">📭 ไม่พบข้อมูลรถที่ตรงตามเงื่อนไข</td></tr>`; return; }
 
     let cArr = 0, cTar = 0, cRep = 0, cDel = 0, sumMain = 0, sumSub = 0;

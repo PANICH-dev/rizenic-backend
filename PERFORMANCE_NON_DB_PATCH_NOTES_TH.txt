@@ -1,0 +1,21 @@
+RIZENIC ERP - Performance patch (ไม่แก้ฐานข้อมูล)
+
+สิ่งที่ปรับในรอบนี้
+- โหลด .env ก่อนอ่าน DATABASE_URL
+- เพิ่ม gzip สำหรับ API JSON ขนาด >= 1KB โดยใช้ Node.js zlib ในตัว ไม่เพิ่ม dependency
+- Tailwind runtime ยังเป็น local เหมือนเดิม แต่เปลี่ยนเป็น defer เพื่อลดการบล็อก HTML parsing
+- Jobs Table ยกเลิก full-data compatibility fallback เมื่อ paged API ตอบ 0 รายการตามปกติ
+- Jobs Table ยกเลิก request เก่าอัตโนมัติเมื่อมี filter/page/sort request ใหม่ และกัน stale render
+- Repair Board ไม่ polling ตอนแท็บถูกซ่อน และไม่ยิง request ซ้อนกัน
+- npm test รันเฉพาะ test suite หลักของโปรเจกต์
+
+ข้อจำกัดที่ตั้งใจรักษา
+- ไม่สร้าง/แก้ table, column, index หรือข้อมูลในฐานข้อมูล
+- ไม่แก้ read_queries.js
+- ไม่แก้ database_duplicate_audit.sql
+- Runtime external fetch ยังคงมีเฉพาะ LINE Messaging API
+
+Verification
+- npm test: 136/136 ผ่าน
+- node --check: app.js, api_compression.js, public/jobs_table_server.js ผ่าน
+- inline script ของ repair_board.html ผ่าน syntax check

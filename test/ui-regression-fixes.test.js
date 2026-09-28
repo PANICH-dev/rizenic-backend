@@ -22,7 +22,7 @@ test('repair finish date display overlay is transparent and native date text is 
   assert.match(html, /\.group:hover\s+\.repair-date-input[^}]*color:\s*#00320D\s*!important/s);
   assert.match(js, /class="repair-date-display[^\"]*"/);
   assert.match(js, /class="inline-edit-input repair-date-input[^\"]*"/);
-  assert.match(html, /repair\.js\?v=8/);
+  assert.match(html, /repair\.js\?v=9/);
   assert.doesNotMatch(js, /repair_finish_date[\s\S]{0,500}bg-white\s+z-10/);
 });
 
