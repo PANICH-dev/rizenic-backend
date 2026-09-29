@@ -19,6 +19,13 @@ let repairFacetAbortController = null;
 const REPAIR_KPI_MODAL_PAGE_SIZE = 20;
 const repairKpiDrilldownTotals = Object.create(null);
 
+function repairServerNormalizeSearchDate(value) {
+    const text = String(value || '').trim();
+    const match = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!match) return text;
+    return `${match[3]}-${match[2]}-${match[1]}`;
+}
+
 function repairServerFiltersPayload(excludeColIdx = null) {
     const out = {};
     for (const [colIdx, selected] of Object.entries(activeFilters || {})) {
@@ -221,7 +228,7 @@ openExcelFilter = async function(e, colIndex, title) {
     if (branch && String(branch).toUpperCase() !== 'ALL') params.set('branch', branch);
     if (isCalendarFilterActive) params.set('calendar', '1');
     const search = (document.getElementById('global_search_input')?.value || '').trim();
-    if (search) params.set('search', search);
+    if (search) params.set('search', repairServerNormalizeSearchDate(search));
     if (activeKpiFilter) params.set('kpi', activeKpiFilter);
     const filters = repairServerFiltersPayload(colIndex);
     if (Object.keys(filters).length) params.set('filters', JSON.stringify(filters));
@@ -338,7 +345,7 @@ async function fetchRepairServerView(branch = selectedBranchFilter, page = repai
     if (branch && String(branch).toUpperCase() !== 'ALL') params.set('branch', branch);
     if (isCalendarFilterActive) params.set('calendar', '1');
     const search = (document.getElementById('global_search_input')?.value || '').trim();
-    if (search) params.set('search', search);
+    if (search) params.set('search', repairServerNormalizeSearchDate(search));
     if (activeKpiFilter) params.set('kpi', activeKpiFilter);
     const filters = repairServerFiltersPayload();
     if (Object.keys(filters).length) params.set('filters', JSON.stringify(filters));

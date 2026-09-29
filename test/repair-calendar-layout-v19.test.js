@@ -5,13 +5,13 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = rel => fs.readFileSync(path.join(root, rel), 'utf8');
 
-test('repair calendar v23 fits the whole month inside the tab without an internal scrollbar', () => {
+test('repair calendar v24 fits the whole month inside the tab without an internal scrollbar', () => {
   const html = read('public/repair.html');
   const css = read('public/repair_calendar.css');
   const js = read('public/repair.js');
 
-  assert.match(html, /repair_calendar\.css\?v=23/);
-  assert.match(html, /repair\.js\?v=12&calendar=28/);
+  assert.match(html, /repair_calendar\.css\?v=24/);
+  assert.match(html, /repair\.js\?v=12&calendar=31/);
   assert.match(css, /#tab-calendar\s*#repair_calendar_scroll\s*\{[^}]*overflow:\s*hidden/s);
   assert.match(css, /#tab-calendar\s+\.calendar-grid-container\s*\{[^}]*height:\s*100%/s);
   assert.match(css, /grid-template-rows:\s*repeat\(var\(--repair-calendar-weeks,\s*5\),\s*minmax\(0,\s*1fr\)\)/);
@@ -24,7 +24,7 @@ test('repair calendar v23 fits the whole month inside the tab without an interna
   assert.match(js, /grid\.dataset\.weeks\s*=\s*String\(calendarWeeks\)/);
 });
 
-test('repair calendar v23 uses full-width horizontal status bars for easier reading', () => {
+test('repair calendar v24 uses full-width horizontal status bars for easier reading', () => {
   const html = read('public/repair.html');
   const css = read('public/repair_calendar.css');
   const js = read('public/repair.js');
@@ -71,4 +71,21 @@ test('all non-dashboard calendar surfaces keep the shared overlap guard while da
   assert.match(jobsJs, /rz-cal-pill-count/);
   assert.match(jobsTableJs, /rz-cal-soft-title/);
   assert.match(saCalendarJs, /rz-cal-soft-title/);
+});
+
+
+test('repair calendar cell typography is 2px larger and medium-weight for readability', () => {
+  const html = read('public/repair.html');
+  const css = read('public/repair_calendar.css');
+
+  assert.match(html, /repair_calendar\.css\?v=24/);
+  assert.match(css, /#tab-calendar\s+\.calendar-day-label\s*\{[^}]*font-size:\s*14px[^}]*font-weight:\s*500/s);
+  assert.match(css, /#tab-calendar\s+\.repair-quota-warning\s*\{[^}]*font-size:\s*10px[^}]*font-weight:\s*500/s);
+  assert.match(css, /#tab-calendar\s+\.repair-quota-row\s*\{[^}]*font-size:\s*10\.5px[^}]*font-weight:\s*500/s);
+  assert.match(css, /#tab-calendar\s+\.repair-quota-row strong\s*\{[^}]*font-size:\s*10\.5px[^}]*font-weight:\s*500/s);
+  assert.match(css, /#tab-calendar\s+\.repair-bar-count\s*\{[^}]*font-size:\s*10px[^}]*font-weight:\s*500/s);
+  assert.match(css, /#tab-calendar\s+#calendar_grid\[data-weeks="6"\]\s+\.calendar-day-label\s*\{[^}]*font-size:\s*12px/s);
+  assert.match(css, /#tab-calendar\s+#calendar_grid\[data-weeks="6"\]\s+\.repair-quota-row\s*\{[^}]*font-size:\s*9\.5px/s);
+  assert.match(css, /#tab-calendar\s+#calendar_grid\[data-weeks="6"\]\s+\.repair-quota-row strong\s*\{[^}]*font-size:\s*9\.5px/s);
+  assert.match(css, /#tab-calendar\s+#calendar_grid\[data-weeks="6"\]\s+\.repair-bar-count\s*\{[^}]*font-size:\s*9px/s);
 });

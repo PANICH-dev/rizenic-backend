@@ -1056,7 +1056,7 @@ function registerServerSideViews(app, pool) {
       const where = repairQueueConditions(calendarMode);
       const values = [];
       addBranch(where, values, req.query.branch);
-      addSearch(where, values, req.query.search, ['car_plate','vin_no','sa_owner','car_brand','car_model','car_color','job_status','department_routing','main_part_name','sub_part_name']);
+      addSearch(where, values, req.query.search, ['car_plate','vin_no','sa_owner','car_brand','car_model','car_color','appointment_date','arrived_date','target_finish_date','repair_finish_date','delivery_date','job_status','department_routing','main_part_name','sub_part_name']);
       addRepairFilters(where, values, req.query.filters);
       const kpi = clean(req.query.kpi);
       if (kpi === 'repairing') where.push(`department_routing = 'ซ่อม' AND COALESCE(station_ready::text,'') NOT IN ('true','TRUE','1')`);
@@ -1196,7 +1196,7 @@ function registerServerSideViews(app, pool) {
       const reportWhere = repairQueueConditions(calendarMode);
       const reportValues = [];
       addBranch(reportWhere, reportValues, req.query.branch);
-      addSearch(reportWhere, reportValues, req.query.search, ['car_plate','vin_no','sa_owner','car_brand','car_model','car_color','job_status','department_routing','main_part_name','sub_part_name']);
+      addSearch(reportWhere, reportValues, req.query.search, ['car_plate','vin_no','sa_owner','car_brand','car_model','car_color','appointment_date','arrived_date','target_finish_date','repair_finish_date','delivery_date','job_status','department_routing','main_part_name','sub_part_name']);
       addRepairFilters(reportWhere, reportValues, req.query.filters);
       const kpi = clean(req.query.kpi);
       if (kpi === 'repairing') reportWhere.push(`department_routing = 'ซ่อม' AND COALESCE(station_ready::text,'') NOT IN ('true','TRUE','1')`);

@@ -995,10 +995,6 @@ function renderCalendar() {
         return;
     }
 
-    const monthRows = [...repairCalendarDays.values()];
-    const monthMaxQty = Math.max(1, ...monthRows.map(row => Math.max(Number(row.appointment || 0), Number(row.target || 0), Number(row.delivery || 0))));
-    
-
     for(let day = 1; day <= totalDays; day++) {
         const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
         const dayData = repairCalendarDays.get(dateStr) || {};
@@ -1006,6 +1002,7 @@ function renderCalendar() {
         const targetQty = Number(dayData.target || 0);
         const doneQty = Number(dayData.done || 0);
         const deliveryQty = Number(dayData.delivery || 0);
+        const dayScaleMax = Math.max(1, appointmentQty, targetQty, deliveryQty);
         const sumMainDay = Number(dayData.main_parts || 0);
         const sumSubDay = Number(dayData.sub_parts || 0);
         const overdueQty = Number(dayData.overdue || 0);
@@ -1017,8 +1014,8 @@ function renderCalendar() {
 
         let partsInfoHtml = '';
         if(quota.configured || sumMainDay > 0 || sumSubDay > 0) {
-            const mainText = `${sumMainDay}/${maxMain > 0 ? maxMain : '—'}`;
-            const subText = `${sumSubDay}/${maxSub > 0 ? maxSub : '—'}`;
+            const mainText = String(sumMainDay);
+            const subText = String(sumSubDay);
             partsInfoHtml = `<div class="repair-quota-stack">
                 ${quota.configured || sumMainDay > 0 ? `<div class="repair-quota-row repair-quota-main ${overMain ? 'is-over' : ''}"><span>หลัก:</span><strong>${mainText}</strong></div>` : ''}
                 ${quota.configured || sumSubDay > 0 ? `<div class="repair-quota-row repair-quota-sub ${overSub ? 'is-over' : ''}"><span>รอง:</span><strong>${subText}</strong></div>` : ''}
@@ -1029,7 +1026,7 @@ function renderCalendar() {
         if(appointmentQty > 0 || targetQty > 0 || deliveryQty > 0) {
             barBlock = `<div class="repair-day-bars">`;
             if(appointmentQty > 0) {
-                const widthPct = Math.max(18, Math.round((appointmentQty / monthMaxQty) * 100));
+                const widthPct = Math.min(100, Math.round((appointmentQty / dayScaleMax) * 100));
                 barBlock += `<div class="repair-day-bar repair-day-bar-arrived" onclick="event.stopPropagation(); filterBoardByDate('${dateStr}', 'appointment')" title="นัดรถเข้า: ${appointmentQty} คัน">
                     <div class="repair-day-bar-line repair-day-bar-line-arrived">
                         <div class="repair-day-bar-fill repair-day-bar-fill-arrived" style="width:${widthPct}%"></div>
@@ -1039,7 +1036,7 @@ function renderCalendar() {
             }
             if(targetQty > 0) {
                 const pctDone = targetQty ? Math.min(100, Math.round((doneQty / targetQty) * 100)) : 0;
-                const widthPct = pctDone;
+                const widthPct = Math.min(100, Math.round((doneQty / dayScaleMax) * 100));
                 barBlock += `<div class="repair-day-bar repair-day-bar-target" onclick="event.stopPropagation(); openDayListForTarget('${dateStr}')" title="เป้าซ่อมเสร็จ: ${targetQty} คัน (เสร็จแล้ว ${doneQty} คัน, ${pctDone}%)">
                     <div class="repair-day-bar-line repair-day-bar-line-target">
                         <div class="repair-day-bar-fill repair-day-bar-fill-target" style="width:${widthPct}%"></div>
@@ -1048,7 +1045,7 @@ function renderCalendar() {
                 </div>`;
             }
             if(deliveryQty > 0) {
-                const widthPct = Math.max(18, Math.round((deliveryQty / monthMaxQty) * 100));
+                const widthPct = Math.min(100, Math.round((deliveryQty / dayScaleMax) * 100));
                 barBlock += `<div class="repair-day-bar repair-day-bar-delivery" onclick="event.stopPropagation(); filterBoardByDate('${dateStr}', 'delivery')" title="นัดส่งมอบ: ${deliveryQty} คัน">
                     <div class="repair-day-bar-line repair-day-bar-line-delivery">
                         <div class="repair-day-bar-fill repair-day-bar-fill-delivery" style="width:${widthPct}%"></div>
@@ -1096,7 +1093,13 @@ function filterBoardByDate(dateStr, type) {
 }
 
 function clickCalendarDate(dateString) {
-    filterBoardByDate(dateString, 'appointment');
+    switchTab('tab-board');
+    activeFilters = {};
+    activeKpiFilter = null;
+    isCalendarFilterActive = true;
+    const searchInput = document.getElementById('global_search_input');
+    if (searchInput) searchInput.value = formatThaiDate(dateString);
+    runTableFilters();
 }
 
 function generateMiniCardHTML(j, type, partOrders = allPartOrders) {

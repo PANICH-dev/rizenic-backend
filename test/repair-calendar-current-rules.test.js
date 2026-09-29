@@ -191,7 +191,11 @@ test('calendar rendering shows 5/10 progress, correct quota warning and green de
  }
  ctx.renderCalendar();
  assert.match(grid.innerHTML,/5\/10/);assert.match(grid.innerHTML,/50%/);
- assert.match(grid.innerHTML,/4\/3/);assert.match(grid.innerHTML,/🔥 เต็ม/);
+ assert.match(grid.innerHTML,/repair-quota-main[^>]*><span>หลัก:<\/span><strong>4<\/strong>/);
+ assert.match(grid.innerHTML,/repair-quota-sub[^>]*><span>รอง:<\/span><strong>1<\/strong>/);
+ assert.doesNotMatch(grid.innerHTML,/4\/3/);
+ assert.doesNotMatch(grid.innerHTML,/1\/8/);
+ assert.match(grid.innerHTML,/🔥 เต็ม/);
  assert.match(grid.innerHTML,/repair-overdue-alert/);assert.match(grid.innerHTML,/repair-day-bar-fill-delivery/);assert.match(grid.innerHTML,/style="width:/);
  assert.equal((grid.innerHTML.match(/onclick="clickCalendarDate/g)||[]).length,30);
  ctx.repairCalendarLoaded=false;ctx.renderCalendar();
@@ -268,8 +272,119 @@ test('zero part quota is treated as unlimited and does not show full warning',()
   vm.runInContext(source.slice(start,end),ctx);
  }
  ctx.renderCalendar();
- assert.match(grid.innerHTML,/31\/—/);
- assert.match(grid.innerHTML,/17\/—/);
+ assert.match(grid.innerHTML,/repair-quota-main[^>]*><span>หลัก:<\/span><strong>31<\/strong>/);
+ assert.match(grid.innerHTML,/repair-quota-sub[^>]*><span>รอง:<\/span><strong>17<\/strong>/);
+ assert.doesNotMatch(grid.innerHTML,/31\/—/);
+ assert.doesNotMatch(grid.innerHTML,/17\/—/);
  assert.doesNotMatch(grid.innerHTML,/🔥 เต็ม/);
  assert.doesNotMatch(grid.innerHTML,/repair-quota-full/);
+});
+
+
+test('calendar shows counts on arrived and delivery while target shows progress fraction',()=>{
+ const source=fs.readFileSync('public/repair.js','utf8');
+ const grid={innerHTML:'',style:{setProperty(){}},dataset:{}},title={innerText:''};
+ const ctx=vm.createContext({
+  currentYear:2026,currentMonth:8,repairCalendarLoaded:true,selectedBranchFilter:'A',
+  allQuotas:[],
+  repairCalendarDays:new Map([['2026-09-29',{appointment:7,target:10,done:5,delivery:4,main_parts:12,sub_parts:7,overdue:0}]]),
+  getTodayString:()=> '2026-09-28',document:{getElementById:id=>id==='calendar_grid'?grid:title}
+ });
+ for (const name of ['repairQuotaForCalendarDate','renderCalendar']) {
+  const start=source.indexOf(`function ${name}(`),end=source.indexOf('\nfunction ',start+1);
+  vm.runInContext(source.slice(start,end),ctx);
+ }
+ ctx.renderCalendar();
+ assert.match(grid.innerHTML,/repair-day-bar-fill-arrived/);
+ assert.match(grid.innerHTML,/repair-day-bar-fill-target/);
+ assert.match(grid.innerHTML,/repair-day-bar-fill-delivery/);
+ assert.match(grid.innerHTML,/repair-bar-count-arrived[^>]*>7<\/span>/);
+ assert.match(grid.innerHTML,/repair-bar-count-target[^>]*>5\/10<\/span>/);
+ assert.match(grid.innerHTML,/repair-bar-count-delivery[^>]*>4<\/span>/);
+ assert.match(grid.innerHTML,/repair-quota-main[^>]*><span>หลัก:<\/span><strong>12<\/strong>/);
+ assert.match(grid.innerHTML,/repair-quota-sub[^>]*><span>รอง:<\/span><strong>7<\/strong>/);
+});
+
+test('calendar bar lengths use only the three daily metrics, while target fill represents completed target work',()=>{
+ const source=fs.readFileSync('public/repair.js','utf8');
+ const grid={innerHTML:'',style:{setProperty(){}},dataset:{}},title={innerText:''};
+ const ctx=vm.createContext({
+  currentYear:2026,currentMonth:8,repairCalendarLoaded:true,selectedBranchFilter:'A',
+  allQuotas:[],
+  repairCalendarDays:new Map([['2026-09-01',{appointment:1,target:6,done:6,delivery:4,main_parts:12,sub_parts:7,overdue:0}]]),
+  getTodayString:()=> '2026-09-29',document:{getElementById:id=>id==='calendar_grid'?grid:title}
+ });
+ for (const name of ['repairQuotaForCalendarDate','renderCalendar']) {
+  const start=source.indexOf(`function ${name}(`),end=source.indexOf('\nfunction ',start+1);
+  vm.runInContext(source.slice(start,end),ctx);
+ }
+ ctx.renderCalendar();
+ assert.match(grid.innerHTML,/repair-day-bar-fill-arrived" style="width:17%"/);
+ assert.match(grid.innerHTML,/repair-day-bar-fill-target" style="width:100%"/);
+ assert.match(grid.innerHTML,/repair-day-bar-fill-delivery" style="width:67%"/);
+ assert.match(grid.innerHTML,/repair-bar-count-target[^>]*>6\/6<\/span>/);
+});
+
+test('calendar target bar combines daily scaling with completion progress',()=>{
+ const source=fs.readFileSync('public/repair.js','utf8');
+ const grid={innerHTML:'',style:{setProperty(){}},dataset:{}},title={innerText:''};
+ const ctx=vm.createContext({
+  currentYear:2026,currentMonth:8,repairCalendarLoaded:true,selectedBranchFilter:'A',
+  allQuotas:[],
+  repairCalendarDays:new Map([['2026-09-01',{appointment:1,target:10,done:5,delivery:4,main_parts:0,sub_parts:0,overdue:0}]]),
+  getTodayString:()=> '2026-09-29',document:{getElementById:id=>id==='calendar_grid'?grid:title}
+ });
+ for (const name of ['repairQuotaForCalendarDate','renderCalendar']) {
+  const start=source.indexOf(`function ${name}(`),end=source.indexOf('\nfunction ',start+1);
+  vm.runInContext(source.slice(start,end),ctx);
+ }
+ ctx.renderCalendar();
+ assert.match(grid.innerHTML,/repair-day-bar-fill-arrived" style="width:10%"/);
+ assert.match(grid.innerHTML,/repair-day-bar-fill-target" style="width:50%"/);
+ assert.match(grid.innerHTML,/repair-day-bar-fill-delivery" style="width:40%"/);
+ assert.match(grid.innerHTML,/repair-bar-count-target[^>]*>5\/10<\/span>/);
+});
+
+test('clicking the empty area of a calendar day keeps the legacy date-search behavior',()=>{
+ const source=fs.readFileSync('public/repair.js','utf8');
+ const start=source.indexOf('function clickCalendarDate(');
+ const end=source.indexOf('\nfunction ',start+1);
+ assert.ok(start>=0,'missing clickCalendarDate');
+ let tab='',ran=0;
+ const input={value:''};
+ const ctx=vm.createContext({
+  activeFilters:{old:new Set(['x'])},activeKpiFilter:'old',isCalendarFilterActive:false,
+  switchTab:id=>{tab=id;},
+  formatThaiDate:d=>`TH:${d}`,
+  runTableFilters:()=>{ran++;},
+  document:{getElementById:id=>id==='global_search_input'?input:null}
+ });
+ vm.runInContext(source.slice(start,end<0?source.length:end),ctx);
+ ctx.clickCalendarDate('2026-09-29');
+ assert.equal(tab,'tab-board');
+ assert.equal(input.value,'TH:2026-09-29');
+ assert.equal(ran,1);
+ assert.deepEqual(Object.keys(ctx.activeFilters),[]);
+ assert.equal(ctx.activeKpiFilter,null);
+ assert.equal(ctx.isCalendarFilterActive,true);
+});
+
+test('server-side repair search keeps legacy day-click behavior by searching date columns too',async()=>{
+ const calls=await capture('/api/server/repair-page',{branch:'A',page:'1',limit:'50',includeMeta:'0',includeParts:'0',known_total:'0',search:'2026-09-29'});
+ const sql=calls[0].sql;
+ for (const field of ['appointment_date','arrived_date','target_finish_date','repair_finish_date','delivery_date']) {
+  assert.match(sql,new RegExp(`COALESCE\\(${field}::text, ''\\)`));
+ }
+});
+
+test('server adapter converts legacy Thai display date search to ISO before requesting a repair page',()=>{
+ const source=fs.readFileSync('public/repair_server.js','utf8');
+ const start=source.indexOf('function repairServerNormalizeSearchDate(');
+ const end=source.indexOf('\nfunction ',start+1);
+ assert.ok(start>=0,'missing repairServerNormalizeSearchDate');
+ const ctx=vm.createContext({});
+ vm.runInContext(source.slice(start,end<0?source.length:end),ctx);
+ assert.equal(ctx.repairServerNormalizeSearchDate('29/09/2026'),'2026-09-29');
+ assert.equal(ctx.repairServerNormalizeSearchDate('2026-09-29'),'2026-09-29');
+ assert.match(source,/params\.set\('search',\s*repairServerNormalizeSearchDate\(search\)\)/);
 });
