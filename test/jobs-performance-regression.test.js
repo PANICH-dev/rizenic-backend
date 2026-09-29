@@ -21,10 +21,10 @@ test('adaptive table helper captures wheel/touch only in docked stage and releas
   assert.match(js, /addEventListener\s*\(\s*['"]touchmove['"][\s\S]{0,120}passive:\s*false/);
 });
 
-test('jobs table loading surface is opaque so stale rows cannot show through', () => {
+test('jobs table does not stack a page-specific loader over the shared API loader', () => {
   const html = fs.readFileSync(path.join(pub, 'jobs_table.html'), 'utf8');
-  assert.match(html, /\.jobs-table-loading-layer[\s\S]*background:\s*#f8fafc/);
-  assert.doesNotMatch(html, /\.jobs-table-loading-layer[\s\S]{0,500}backdrop-filter/);
+  assert.doesNotMatch(html, /\.jobs-table-loading-layer/);
+  assert.doesNotMatch(html, /id=[\"']jobs_table_loading[\"']/);
 });
 
 test('jobs server mode starts the server-side initial loader after suppressing legacy bootstrap', () => {

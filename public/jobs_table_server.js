@@ -7,31 +7,6 @@ let jobsServerRequestSeq = 0;
 let jobsServerAbortController = null;
 
 
-function setJobsTableLoading(visible, message = 'กำลังโหลดข้อมูล...') {
-    const layer = document.getElementById('jobs_table_loading');
-    const text = document.getElementById('jobs_table_loading_text');
-    const icon = document.getElementById('jobs_table_loading_icon');
-    if (!layer) return;
-
-    if (text) text.textContent = message;
-    if (icon) icon.className = 'fa-solid fa-circle-notch fa-spin text-3xl text-green-800 mb-3';
-    layer.classList.remove('is-error');
-    layer.classList.toggle('is-hidden', !visible);
-    layer.setAttribute('aria-busy', visible ? 'true' : 'false');
-}
-
-function setJobsTableLoadingError(message = 'เกิดข้อผิดพลาดในการโหลดข้อมูล') {
-    const layer = document.getElementById('jobs_table_loading');
-    const text = document.getElementById('jobs_table_loading_text');
-    const icon = document.getElementById('jobs_table_loading_icon');
-    if (!layer) return;
-
-    if (text) text.textContent = message;
-    if (icon) icon.className = 'fa-solid fa-triangle-exclamation text-3xl text-red-600 mb-3';
-    layer.classList.remove('is-hidden');
-    layer.classList.add('is-error');
-    layer.setAttribute('aria-busy', 'false');
-}
 
 function jobsIsManager() {
     return ['BA', 'Manager', 'Admin', 'แอดมิน'].includes(userRole);
@@ -89,10 +64,6 @@ async function fetchJobsServerPage({ showLoading = true } = {}) {
     if (jobsServerAbortController) jobsServerAbortController.abort();
     const requestController = new AbortController();
     jobsServerAbortController = requestController;
-
-    if (showLoading) setJobsTableLoading(true, 'กำลังโหลดข้อมูล...');
-    let requestFailed = false;
-
     try {
         const params = buildJobsServerParams(true);
         const res = await fetch(`${API_BASE_URL}/api/reports?${params.toString()}`, { signal: jobsServerAbortController.signal });
@@ -131,17 +102,13 @@ async function fetchJobsServerPage({ showLoading = true } = {}) {
         restoreTableIndicators();
     } catch (error) {
         if (error?.name === 'AbortError') return;
-        requestFailed = true;
         if (seq === jobsServerRequestSeq) {
-            setJobsTableLoadingError(error?.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
+            showToast(error?.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล', 'error');
         }
         throw error;
     } finally {
         if (jobsServerAbortController === requestController) {
             jobsServerAbortController = null;
-            if (showLoading && seq === jobsServerRequestSeq && !requestFailed) {
-                setJobsTableLoading(false);
-            }
         }
     }
 }
@@ -201,7 +168,6 @@ buildSADropdown = function () {
 };
 
 loadJobsData = async function () {
-    setJobsTableLoading(true, 'กำลังโหลดข้อมูล...');
     const secondaryPromise = Promise.allSettled([
         fetch(`${API_BASE_URL}/api/body-parts`).then(r => r.json()),
         fetch(`${API_BASE_URL}/api/customer-types`).then(r => r.json()),
@@ -232,7 +198,7 @@ loadJobsData = async function () {
         if (dlModels) dlModels.innerHTML = [...new Set(allCarModels.map(c => c.car_model).filter(Boolean))].sort().map(m => `<option value="${m}">`).join('');
         renderTable(currentFilteredData);
     } catch (error) {
-        setJobsTableLoadingError(error?.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
+        showToast(error?.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล', 'error');
     }
 };
 

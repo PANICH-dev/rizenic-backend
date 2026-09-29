@@ -6,11 +6,13 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = rel => fs.readFileSync(path.join(root, rel), 'utf8');
 
-test('jobs table loading layer is fully opaque and does not show stale rows behind it', () => {
+test('jobs table relies on the shared blocking loader instead of stacking a second local layer', () => {
   const html = read('public/jobs_table.html');
-  assert.match(html, /\.jobs-table-loading-layer\s*\{[\s\S]*background:\s*#f8fafc\s*;/);
-  assert.doesNotMatch(html, /\.jobs-table-loading-layer\s*\{[\s\S]*background:\s*rgba\(248,\s*250,\s*252,\s*0\.9\)/);
-  assert.doesNotMatch(html, /backdrop-filter:\s*blur\(/);
+  const guard = read('public/session_guard.js');
+  assert.doesNotMatch(html, /\.jobs-table-loading-layer/);
+  assert.doesNotMatch(html, /id=["']jobs_table_loading["']/);
+  assert.match(guard, /#rz-api-loading-layer/);
+  assert.match(guard, /pointer-events:\s*auto/);
 });
 
 test('repair page keeps only the paginator count and removes the duplicate bottom vehicle count', () => {
