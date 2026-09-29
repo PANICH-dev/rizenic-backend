@@ -21,7 +21,9 @@ test('secondary SA and dashboard part loads no longer scan all reports first', (
   const views = read('server_side_views.js');
   const dashboard = views.match(/app\.get\('\/api\/server\/dashboard-parts'[\s\S]*?\n  \}\);/)[0];
   const sa = views.match(/app\.get\('\/api\/server\/sa-parts'[\s\S]*?\n  \}\);/)[0];
-  const helper = views.match(/async function buildScopedPartOrdersForReports[\s\S]*?return result\.rows;\n}/)[0];
+  const helperStart = views.indexOf('async function buildScopedPartOrdersForReports');
+  const helperEnd = views.indexOf('const ADMIN_RESOURCES', helperStart);
+  const helper = views.slice(helperStart, helperEnd);
   assert.match(helper, /FROM rizenic_part_orders/);
   assert.doesNotMatch(helper, /FROM rizenicreport/);
   for (const block of [dashboard, sa]) {

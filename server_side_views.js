@@ -143,16 +143,30 @@ async function buildScopedPartOrdersForReports(pool, reports, rawBranch, fields 
   const plates = [...new Set((reports || []).map(row => clean(row.car_plate)).filter(Boolean))];
   if (!ids.length && !plates.length) return [];
 
-  const where = [];
-  const values = [];
-  const idParam = `$${values.length + 1}`;
-  values.push(ids);
-  const plateParam = `$${values.length + 1}`;
-  values.push(plates);
-  where.push(`(job_id::text = ANY(${idParam}::text[]) OR car_plate = ANY(${plateParam}::text[]))`);
-  addBranch(where, values, rawBranch);
-  const result = await pool.query(`SELECT ${fields.join(', ')} FROM rizenic_part_orders WHERE ${where.join(' AND ')} ORDER BY order_id DESC`, values);
-  return result.rows;
+  const runScoped = (condition, firstValue) => {
+    const where = [condition];
+    const values = [firstValue];
+    addBranch(where, values, rawBranch);
+    return pool.query(`SELECT ${fields.join(', ')} FROM rizenic_part_orders WHERE ${where.join(' AND ')} ORDER BY order_id DESC`, values);
+  };
+
+  const byJobPromise = ids.length
+    ? runScoped(`job_id::text = ANY($1::text[])`, ids)
+    : Promise.resolve({ rows: [] });
+  const byPlateFallbackPromise = plates.length
+    ? runScoped(`NULLIF(BTRIM(COALESCE(job_id::text, '')), '') IS NULL AND car_plate = ANY($1::text[])`, plates)
+    : Promise.resolve({ rows: [] });
+  const [byJob, byPlateFallback] = await Promise.all([byJobPromise, byPlateFallbackPromise]);
+
+  const seen = new Set();
+  return [...byJob.rows, ...byPlateFallback.rows]
+    .filter(row => {
+      const key = clean(row.order_id) || JSON.stringify(row);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => Number(b.order_id || 0) - Number(a.order_id || 0));
 }
 
 const ADMIN_RESOURCES = Object.freeze({
@@ -303,9 +317,10 @@ function registerServerSideViews(app, pool) {
         if (endParam) parts.push(`${field}::date <= ${endParam}::date`);
         return parts.length ? parts.join(' AND ') : 'TRUE';
       };
+      const includeBranches = clean(req.query.includeBranches) !== '0';
       const [reportsResult, branches, summaryResult, statusCounts, stationCounts, saCounts] = await Promise.all([
         pool.query(reportSql, values),
-        pool.query(`SELECT DISTINCT branch_name FROM rizenicreport WHERE NULLIF(BTRIM(COALESCE(branch_name, '')), '') IS NOT NULL ORDER BY branch_name ASC`),
+        includeBranches ? pool.query(`SELECT DISTINCT branch_name FROM rizenicreport WHERE NULLIF(BTRIM(COALESCE(branch_name, '')), '') IS NOT NULL ORDER BY branch_name ASC`) : Promise.resolve({ rows: [] }),
         pool.query(`SELECT COUNT(*)::int AS total,
           COUNT(*) FILTER (WHERE ${dateRange('contact_date')})::int AS contacted,
           COUNT(*) FILTER (WHERE COALESCE(job_status,'') LIKE ANY(ARRAY['01%','02%','03%','04%','05%','06%','07%','08%','09%','10%','11%']) AND ${dateRange('COALESCE(appointment_date, arrived_date)')})::int AS parked_range,
@@ -617,18 +632,19 @@ function registerServerSideViews(app, pool) {
       const reportWhere = [];
       const reportValues = [];
       addBranch(reportWhere, reportValues, req.query.branch);
-      const reportsResult = await pool.query(
-        `SELECT ${REPORT_DASHBOARD_FIELDS.join(', ')} FROM rizenicreport${reportWhere.length ? ` WHERE ${reportWhere.join(' AND ')}` : ''} ORDER BY id DESC`,
-        reportValues
-      );
-
       const partWhere = [`COALESCE(order_status,'') <> 'ยกเลิก'`];
       const partValues = [];
       addBranch(partWhere, partValues, req.query.branch);
-      const partOrdersResult = await pool.query(
-        `SELECT ${PART_ORDER_DASHBOARD_FIELDS.join(', ')} FROM rizenic_part_orders WHERE ${partWhere.join(' AND ')} ORDER BY order_id DESC`,
-        partValues
-      );
+      const [reportsResult, partOrdersResult] = await Promise.all([
+        pool.query(
+          `SELECT ${REPORT_DASHBOARD_FIELDS.join(', ')} FROM rizenicreport${reportWhere.length ? ` WHERE ${reportWhere.join(' AND ')}` : ''} ORDER BY id DESC`,
+          reportValues
+        ),
+        pool.query(
+          `SELECT ${PART_ORDER_DASHBOARD_FIELDS.join(', ')} FROM rizenic_part_orders WHERE ${partWhere.join(' AND ')} ORDER BY order_id DESC`,
+          partValues
+        )
+      ]);
 
       res.json({ reports: reportsResult.rows, partOrders: partOrdersResult.rows });
     } catch (error) {
@@ -645,6 +661,7 @@ function registerServerSideViews(app, pool) {
       const selectedSAs = splitQueryList(req.query.sa, 500);
       const selectedStatuses = splitQueryList(req.query.status, 100);
       const selectedParked = splitQueryList(req.query.parked, 10);
+      const includeFacets = clean(req.query.includeFacets) !== '0';
 
       const values = [];
       const branchWhere = [];
@@ -745,9 +762,10 @@ function registerServerSideViews(app, pool) {
         ARRAY_AGG(DISTINCT sa_name ORDER BY sa_name) AS sas,
         ARRAY_AGG(DISTINCT worst_status ORDER BY worst_status) AS statuses,
         ARRAY_AGG(DISTINCT parked_label ORDER BY parked_label) AS parked FROM enriched`;
-      const facetResult = await pool.query(facetCte, facetValues);
+      const facetResult = includeFacets ? await pool.query(facetCte, facetValues) : { rows: [] };
       const f = facetResult.rows[0] || {};
-      res.json({ entries, facets: { plate: f.plates || [], sa: f.sas || [], status: f.statuses || [], parked: f.parked || [] }, ...meta });
+      const facets = includeFacets ? { plate: f.plates || [], sa: f.sas || [], status: f.statuses || [], parked: f.parked || [] } : null;
+      res.json({ entries, facets, ...meta });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
@@ -788,6 +806,7 @@ function registerServerSideViews(app, pool) {
   app.get('/api/server/sa-overview', async (req, res) => {
     try {
       const { page, pageSize, offset } = pagedRequest(req, 50, 50);
+      const includeMeta = clean(req.query.includeMeta) !== '0';
       const where = [];
       const values = [];
       addBranch(where, values, req.query.branch);
@@ -805,10 +824,10 @@ function registerServerSideViews(app, pool) {
       const summaryWhere = [];
       const summaryValues = [];
       addBranch(summaryWhere, summaryValues, req.query.branch);
-      const [reportsResult, branches, summary] = await Promise.all([
-        pool.query(reportSql, values),
-        pool.query(`SELECT DISTINCT branch_name FROM rizenicemployeemaster WHERE NULLIF(BTRIM(COALESCE(branch_name, '')), '') IS NOT NULL ORDER BY branch_name ASC`),
-        pool.query(`SELECT COALESCE(NULLIF(BTRIM(sa_owner), ''), 'ไม่ระบุ SA') AS sa_owner,
+      const branchesPromise = includeMeta
+        ? pool.query(`SELECT DISTINCT branch_name FROM rizenicemployeemaster WHERE NULLIF(BTRIM(COALESCE(branch_name, '')), '') IS NOT NULL ORDER BY branch_name ASC`)
+        : Promise.resolve({ rows: [] });
+      const summaryPromise = includeMeta ? pool.query(`SELECT COALESCE(NULLIF(BTRIM(sa_owner), ''), 'ไม่ระบุ SA') AS sa_owner,
           COUNT(*)::int AS total,
           COUNT(*) FILTER (WHERE COALESCE(job_status,'') LIKE ANY(ARRAY['01%','02%','03%','04%','05%','06%','07%','08%','09%','10%','11%','12%','21%']))::int AS pending,
           COUNT(*) FILTER (WHERE COALESCE(job_status,'') ILIKE '%รอออกบิล%')::int AS wait_bill,
@@ -823,6 +842,11 @@ function registerServerSideViews(app, pool) {
           COUNT(*) FILTER (WHERE arrived_date::date <= CURRENT_DATE AND COALESCE(is_parked::text,'') NOT ILIKE '%จอดซ่อม%' AND COALESCE(job_status,'') LIKE ANY(ARRAY['01%','02%','03%','04%','05%','06%','07%','08%']))::int AS ov_app
           FROM rizenicreport${summaryWhere.length ? ` WHERE ${summaryWhere.join(' AND ')}` : ''}
           GROUP BY COALESCE(NULLIF(BTRIM(sa_owner), ''), 'ไม่ระบุ SA') ORDER BY pending DESC, sa_owner ASC`, summaryValues)
+        : Promise.resolve({ rows: [] });
+      const [reportsResult, branches, summary] = await Promise.all([
+        pool.query(reportSql, values),
+        branchesPromise,
+        summaryPromise
       ]);
       const meta = pageMeta(reportsResult.rows, page, pageSize);
       const reports = stripWindowCount(reportsResult.rows);
@@ -857,8 +881,11 @@ function registerServerSideViews(app, pool) {
         OR COALESCE(job_status, '') ILIKE ANY(${statusPatternsParam}::text[])
         OR EXISTS (
           SELECT 1 FROM rizenic_part_orders po
-          WHERE po.job_id::text = rizenicreport.id::text
-             OR (NULLIF(BTRIM(COALESCE(po.car_plate, '')), '') IS NOT NULL AND po.car_plate = rizenicreport.car_plate)
+          WHERE COALESCE(po.branch_name, '') = COALESCE(rizenicreport.branch_name, '')
+            AND (po.job_id::text = rizenicreport.id::text
+              OR (NULLIF(BTRIM(COALESCE(po.job_id::text, '')), '') IS NULL
+                AND NULLIF(BTRIM(COALESCE(po.car_plate, '')), '') IS NOT NULL
+                AND po.car_plate = rizenicreport.car_plate))
         ))`);
       addSearch(where, values, req.query.search, ['car_plate','customer_name','sa_owner','vin_no','qt_no','so_no','car_model','job_status']);
       values.push(pageSize);
@@ -958,6 +985,7 @@ function registerServerSideViews(app, pool) {
   app.get('/api/server/repair-page', async (req, res) => {
     try {
       const { page, pageSize, offset } = pagedRequest(req, 50, 50);
+      const includeMeta = clean(req.query.includeMeta) !== '0';
       const reportWhere = ["COALESCE(job_status, '') NOT ILIKE '%ยกเลิก%'", "COALESCE(job_status, '') NOT ILIKE '%ส่งมอบแล้ว%'", "COALESCE(job_status, '') <> '12.ส่งมอบ'"];
       const reportValues = [];
       addBranch(reportWhere, reportValues, req.query.branch);
@@ -984,14 +1012,14 @@ function registerServerSideViews(app, pool) {
 
       const [reportsResult, quotas, bodyParts, kpis] = await Promise.all([
         pool.query(`SELECT ${REPORT_REPAIR_FIELDS.join(', ')}, COUNT(*) OVER() AS __total_count FROM rizenicreport WHERE ${reportWhere.join(' AND ')} ORDER BY ${sortField} ${sortDir} NULLS LAST LIMIT ${limitParam} OFFSET ${offsetParam}`, reportValues),
-        pool.query(`SELECT * FROM rizenic_quotas${quotaWhere.length ? ` WHERE ${quotaWhere.join(' AND ')}` : ''} ORDER BY quota_type ASC, quota_date DESC`, quotaValues),
-        pool.query('SELECT * FROM rizenic_body_parts ORDER BY id ASC'),
-        pool.query(`SELECT
+        includeMeta ? pool.query(`SELECT * FROM rizenic_quotas${quotaWhere.length ? ` WHERE ${quotaWhere.join(' AND ')}` : ''} ORDER BY quota_type ASC, quota_date DESC`, quotaValues) : Promise.resolve({ rows: [] }),
+        includeMeta ? pool.query('SELECT * FROM rizenic_body_parts ORDER BY id ASC') : Promise.resolve({ rows: [] }),
+        includeMeta ? pool.query(`SELECT
           COUNT(*) FILTER (WHERE COALESCE(job_status,'') ILIKE '%จอดรอเข้าซ่อม%' OR COALESCE(job_status,'') ILIKE '%พักซ่อม%')::int AS arrived,
           COUNT(*) FILTER (WHERE department_routing = 'ซ่อม' AND COALESCE(station_ready::text,'') NOT IN ('true','TRUE','1'))::int AS repairing,
           COUNT(*) FILTER (WHERE department_routing = 'ซ่อม' AND COALESCE(station_ready::text,'') IN ('true','TRUE','1'))::int AS done,
           COUNT(*) FILTER (WHERE department_routing = 'ซ่อม' AND target_finish_date::date < CURRENT_DATE AND NULLIF(BTRIM(COALESCE(repair_finish_date::text,'')), '') IS NULL)::int AS delayed
-          FROM rizenicreport WHERE ${summaryWhere.join(' AND ')}`, summaryValues)
+          FROM rizenicreport WHERE ${summaryWhere.join(' AND ')}`, summaryValues) : Promise.resolve({ rows: [] })
       ]);
       const meta = pageMeta(reportsResult.rows, page, pageSize);
       const reports = stripWindowCount(reportsResult.rows);

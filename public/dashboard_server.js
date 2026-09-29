@@ -25,6 +25,10 @@ let dashboardPOServerSupported = true;
 let dashboardPOController = null;
 let dashboardPOServerPageInfo = null;
 let dashboardPOFacets = { plate: [], sa: [], status: [], parked: [] };
+let dashboardPOFacetsBranch = null;
+let dashboardBranchesLoaded = false;
+let dashboardStatusesPromise = null;
+let dashboardStatusesCache = null;
 window.dashboardServerSummary = null;
 window.dashboardServerAnalytics = null;
 window.dashboardServerBranches = [];
@@ -38,6 +42,21 @@ function dashboardBranchParams(branch) {
     const params = new URLSearchParams();
     if (branch && branch !== 'all') params.set('branch', branch);
     return params;
+}
+
+function fetchDashboardStatusesOnce() {
+    if (dashboardStatusesCache) return Promise.resolve(dashboardStatusesCache);
+    if (!dashboardStatusesPromise) {
+        dashboardStatusesPromise = fetch(`${API_BASE_URL}/api/statuses`)
+            .then(res => res.ok ? res.json() : [])
+            .then(rows => {
+                dashboardStatusesCache = Array.isArray(rows) ? rows : [];
+                return dashboardStatusesCache;
+            })
+            .catch(() => [])
+            .finally(() => { dashboardStatusesPromise = null; });
+    }
+    return dashboardStatusesPromise;
 }
 
 function dashboardCurrentAnalyticsParams(branch) {
@@ -214,14 +233,14 @@ async function fetchDashboardServerView(branchOverride = null, page = 1) {
     params.set('page', String(Math.max(1, Number(page) || 1)));
     params.set('limit', String(DASHBOARD_SERVER_PAGE_SIZE));
     params.set('includeParts', '0');
+    const includeBranches = isManager && !dashboardBranchesLoaded;
+    params.set('includeBranches', includeBranches ? '1' : '0');
     const startDate = document.getElementById('dash_start_date')?.value;
     const endDate = document.getElementById('dash_end_date')?.value;
     if (startDate) params.set('start', startDate);
     if (endDate) params.set('end', endDate);
 
-    const statusPromise = fetch(`${API_BASE_URL}/api/statuses`, { signal: requestController.signal })
-        .then(r => r.ok ? r.json() : [])
-        .catch(error => error?.name === 'AbortError' ? [] : []);
+    const statusPromise = fetchDashboardStatusesOnce();
     const analyticsPromise = fetchDashboardAnalytics(requestedBranch, requestController.signal);
     const res = await fetch(`${API_BASE_URL}/api/server/dashboard?${params.toString()}`, { signal: requestController.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -237,7 +256,10 @@ async function fetchDashboardServerView(branchOverride = null, page = 1) {
     filteredPartOrders = allPartOrders.slice();
     window.dashboardServerSummary = payload.summary || null;
     window.dashboardServerAnalytics = analytics || null;
-    window.dashboardServerBranches = Array.isArray(payload.branches) ? payload.branches.slice() : [];
+    if (includeBranches) {
+        window.dashboardServerBranches = Array.isArray(payload.branches) ? payload.branches.slice() : [];
+        dashboardBranchesLoaded = true;
+    }
     allQuotas = Array.isArray(analytics?.quotas) ? analytics.quotas : (legacyFallback?.quotas || allQuotas);
     hydrateDashboardDateCountsFromAnalytics();
     dashboardServerLoadedBranch = requestedBranch || 'all';
@@ -247,8 +269,9 @@ async function fetchDashboardServerView(branchOverride = null, page = 1) {
     const filterSelect = document.getElementById('branchFilter');
     if (filterSelect && isManager) {
         const selected = requestedBranch || 'all';
-        filterSelect.innerHTML = `<option value="all">-- ทุกสาขา --</option>` + (payload.branches || []).map(b => `<option value="${b}">${b}</option>`).join('');
-        filterSelect.value = selected === 'all' || (payload.branches || []).includes(selected) ? selected : 'all';
+        const branches = window.dashboardServerBranches || [];
+        filterSelect.innerHTML = `<option value="all">-- ทุกสาขา --</option>` + branches.map(b => `<option value="${b}">${b}</option>`).join('');
+        filterSelect.value = selected === 'all' || branches.includes(selected) ? selected : 'all';
         filterSelect.disabled = false;
     }
 
@@ -322,6 +345,8 @@ async function fetchDashboardPOPage(page = 1) {
     const params = dashboardBranchParams(branch);
     params.set('page', String(Math.max(1, Number(page) || 1)));
     params.set('limit', String(dashboardPOPager.pageSize || 20));
+    const needsFacets = dashboardPOFacetsBranch !== branch;
+    params.set('includeFacets', needsFacets ? '1' : '0');
     dashboardPOFilterParams(params);
     try {
         const res = await fetch(`${API_BASE_URL}/api/server/dashboard-po?${params.toString()}`, { signal: controller.signal });
@@ -332,7 +357,10 @@ async function fetchDashboardPOPage(page = 1) {
         }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const payload = await res.json();
-        dashboardPOFacets = payload.facets || dashboardPOFacets;
+        if (payload.facets) {
+            dashboardPOFacets = payload.facets;
+            dashboardPOFacetsBranch = branch;
+        }
         const normalized = RizenicPagination.fromServerResponse({
             items: payload.entries || [], page: payload.page, pageSize: payload.pageSize,
             total: payload.total, totalPages: payload.totalPages

@@ -210,15 +210,16 @@ loadJobsData = async function () {
         fetch(`${API_BASE_URL}/api/car-models`).then(r => r.json())
     ]);
     try {
-        const statusRes = await fetch(`${API_BASE_URL}/api/statuses`);
-        if (statusRes.ok) {
-            globalStatuses = await statusRes.json();
-            globalStatusOptionsHtml = globalStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
-        }
-        await fetchJobsServerPage({ showLoading: true });
+        const statusPromise = fetch(`${API_BASE_URL}/api/statuses`)
+            .then(async statusRes => statusRes.ok ? statusRes.json() : [])
+            .catch(() => []);
+        const pagePromise = fetchJobsServerPage({ showLoading: true });
+        await pagePromise;
         refreshJobsBasicFacets();
 
-        const secondary = await secondaryPromise;
+        const [statuses, secondary] = await Promise.all([statusPromise, secondaryPromise]);
+        globalStatuses = Array.isArray(statuses) ? statuses : [];
+        globalStatusOptionsHtml = globalStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
         if (secondary[0].status === 'fulfilled') allMasterParts = secondary[0].value;
         if (secondary[1].status === 'fulfilled') allCustomerTypes = secondary[1].value;
         if (secondary[2].status === 'fulfilled') allInsurances = secondary[2].value;

@@ -8,6 +8,7 @@ let repairPartsAbortController = null;
 let repairServerPageInfo = null;
 let repairServerKpis = null;
 let repairServerFilterTimer = null;
+let repairServerMetaBranch = null;
 
 function repairServerFiltersPayload() {
     const out = {};
@@ -84,10 +85,13 @@ async function fetchRepairServerView(branch = selectedBranchFilter, page = repai
     repairServerAbortController = requestController;
     repairPager.page = Math.max(1, Number(page) || 1);
 
+    const branchKey = branch && String(branch).toUpperCase() !== 'ALL' ? String(branch) : 'ALL';
+    const includeMeta = repairServerMetaBranch !== branchKey;
     const params = new URLSearchParams({
         page: String(repairPager.page),
         limit: String(REPAIR_SERVER_PAGE_SIZE),
-        includeParts: '0'
+        includeParts: '0',
+        includeMeta: includeMeta ? '1' : '0'
     });
     if (branch && String(branch).toUpperCase() !== 'ALL') params.set('branch', branch);
     const search = (document.getElementById('global_search_input')?.value || '').trim();
@@ -113,11 +117,14 @@ async function fetchRepairServerView(branch = selectedBranchFilter, page = repai
             total: payload.total, totalPages: payload.totalPages
         }, repairPager);
         repairServerPageInfo = normalized.pageInfo;
-        repairServerKpis = payload.kpis || null;
+        if (includeMeta) {
+            repairServerKpis = payload.kpis || null;
+            allQuotas = payload.quotas || [];
+            allBodyPartsMaster = payload.bodyParts || [];
+            repairServerMetaBranch = branchKey;
+        }
         originalRepairJobs = normalized.items.map(job => ({ ...job, calculated_station: computeHighestStationIFS(job) }));
         allPartOrders = [];
-        allQuotas = payload.quotas || [];
-        allBodyPartsMaster = payload.bodyParts || [];
 
         const partsPromise = fetchRepairPageParts(originalRepairJobs, branch, requestController);
         updateKPIs();

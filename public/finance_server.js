@@ -4,6 +4,7 @@ let financeServerSortField = 'id';
 let financeServerSortDir = 'desc';
 let financeServerAbortController = null;
 let financeServerMeta = { branches: [], years: [] };
+let financeTotalsKey = '';
 
 const financeLegacyRenderTable = renderTable;
 const financeLegacyExportToExcel = exportToExcel;
@@ -56,12 +57,22 @@ function buildFinanceServerParams({ paged = true, facet = '' } = {}) {
     return params;
 }
 
-async function fetchFinanceTotals() {
+function buildFinanceTotalsKey() {
     const params = buildFinanceServerParams({ paged: false });
     params.delete('full');
+    params.delete('sort');
+    params.delete('dir');
+    return params.toString();
+}
+
+async function fetchFinanceTotals({ force = false } = {}) {
+    const key = buildFinanceTotalsKey();
+    if (!force && key === financeTotalsKey) return;
+    const params = new URLSearchParams(key);
     const res = await fetch(`${API_BASE_URL}/api/server/finance-totals?${params.toString()}`);
     if (!res.ok) return;
     const totals = await res.json();
+    financeTotalsKey = key;
     const fmt = value => Number(value || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 });
     if (document.getElementById('sum_labor')) document.getElementById('sum_labor').innerText = fmt(totals.labor);
     if (document.getElementById('sum_part')) document.getElementById('sum_part').innerText = fmt(totals.part);
@@ -70,11 +81,11 @@ async function fetchFinanceTotals() {
     if (document.getElementById('row_count')) document.getElementById('row_count').innerText = String(totals.count || 0);
 }
 
-async function fetchFinanceServerPage() {
+async function fetchFinanceServerPage({ refreshTotals = true, forceTotals = false } = {}) {
     if (financeServerAbortController) financeServerAbortController.abort();
     financeServerAbortController = new AbortController();
     const params = buildFinanceServerParams({ paged: true });
-    const totalsPromise = fetchFinanceTotals().catch(() => {});
+    const totalsPromise = refreshTotals ? fetchFinanceTotals({ force: forceTotals }).catch(() => {}) : Promise.resolve();
     try {
         const res = await fetch(`${API_BASE_URL}/api/reports?${params.toString()}`, { signal: financeServerAbortController.signal });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -106,12 +117,12 @@ renderTable = function(data) {
 
 goFinancePage = function(page) {
     financePager.page = page;
-    fetchFinanceServerPage();
+    fetchFinanceServerPage({ refreshTotals: false });
 };
 
 applyFilters = function(resetPage = true) {
     if (resetPage) financePager.page = 1;
-    return fetchFinanceServerPage();
+    return fetchFinanceServerPage({ refreshTotals: true, forceTotals: true });
 };
 
 sortTable = function(colIndex) {
@@ -129,7 +140,7 @@ sortTable = function(colIndex) {
         const clickedIcon = document.querySelector(`#th_${colIndex} .sort-icon`);
         if (clickedIcon) clickedIcon.className = financeServerSortDir === 'asc' ? 'fa-solid fa-sort-up ml-1 text-amber-400 opacity-100' : 'fa-solid fa-sort-down ml-1 text-amber-400 opacity-100';
     }
-    fetchFinanceServerPage();
+    fetchFinanceServerPage({ refreshTotals: false });
 };
 
 openExcelFilter = async function(e, colIndex, title) {
@@ -221,20 +232,45 @@ function buildFinanceYearDropdownFromMeta() {
     ySelect.dataset.initialized = 'true';
 }
 
+function primeFinanceFilterDefaults() {
+    const manager = ['Manager', 'Admin', 'BA', 'แอดมิน'].includes(userRole);
+    const branchSelect = document.getElementById('branch_filter_select');
+    if (branchSelect && !manager) {
+        branchSelect.innerHTML = `<option value="${userBranch}">${userBranch}</option>`;
+        branchSelect.value = userBranch;
+        branchSelect.disabled = true;
+    }
+
+    const yearSelect = document.getElementById('year_filter_select');
+    if (yearSelect && !yearSelect.dataset.initialized) {
+        const currentYear = String(new Date().getFullYear());
+        if (![...yearSelect.options].some(option => option.value === currentYear)) {
+            yearSelect.insertAdjacentHTML('beforeend', `<option value="${currentYear}">${currentYear}</option>`);
+        }
+        yearSelect.value = currentYear;
+        yearSelect.dataset.initialized = 'true';
+    }
+}
+
 loadAccountingData = async function() {
     try {
-        const [metaRes, statusRes] = await Promise.all([
+        primeFinanceFilterDefaults();
+        const dashboardActive = document.getElementById('tab-dashboard')?.classList.contains('active');
+        const summaryPromise = dashboardActive ? updateDashboard() : applyFilters();
+        const metaPromise = Promise.all([
             fetch(`${API_BASE_URL}/api/server/finance-meta`),
             fetch(`${API_BASE_URL}/api/statuses`)
-        ]);
-        if (metaRes.ok) financeServerMeta = await metaRes.json();
-        if (statusRes.ok) {
-            const allStats = await statusRes.json();
-            accStatuses = allStats.filter(s => s.department === 'บัญชี').map(s => s.status_name);
-        }
-        buildFinanceBranchDropdownFromMeta();
-        buildFinanceYearDropdownFromMeta();
-        applyGlobalFilters();
+        ]).then(async ([metaRes, statusRes]) => {
+            const [meta, allStats] = await Promise.all([
+                metaRes.ok ? metaRes.json() : Promise.resolve(null),
+                statusRes.ok ? statusRes.json() : Promise.resolve([])
+            ]);
+            if (meta) financeServerMeta = meta;
+            accStatuses = (Array.isArray(allStats) ? allStats : []).filter(s => s.department === 'บัญชี').map(s => s.status_name);
+            buildFinanceBranchDropdownFromMeta();
+            buildFinanceYearDropdownFromMeta();
+        });
+        await Promise.all([metaPromise, summaryPromise]);
     } catch (error) {
         console.error('Finance bootstrap failed:', error);
         const tbody = document.getElementById('acc_table_body');

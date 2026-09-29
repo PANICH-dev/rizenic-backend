@@ -7,6 +7,8 @@ let jobsServerLoadedBranch = null;
 let jobsServerAbortController = null;
 let jobsServerDetailController = null;
 let jobsServerDetailPageInfo = null;
+let jobsMasterDataPromise = null;
+let jobsMasterDataCache = null;
 window.jobsServerSaSummary = [];
 
 function jobsOverviewIsManager() {
@@ -15,6 +17,20 @@ function jobsOverviewIsManager() {
 
 function jobsCurrentBranchParam(branch, params) {
     if (branch && String(branch).toUpperCase() !== 'ALL') params.set('branch', branch);
+}
+
+function fetchJobsMasterDataOnce() {
+    if (jobsMasterDataCache) return Promise.resolve(jobsMasterDataCache);
+    if (!jobsMasterDataPromise) {
+        jobsMasterDataPromise = Promise.allSettled([
+            fetch(`${API_BASE_URL}/api/statuses`).then(r => r.ok ? r.json() : []),
+            fetch(`${API_BASE_URL}/api/part-statuses`).then(r => r.ok ? r.json() : [])
+        ]).then(result => {
+            jobsMasterDataCache = result;
+            return result;
+        }).finally(() => { jobsMasterDataPromise = null; });
+    }
+    return jobsMasterDataPromise;
 }
 
 function jobsPageKeys(reports) {
@@ -65,10 +81,7 @@ async function fetchJobsServerView(branch, page = 1) {
     const params = new URLSearchParams({ page: String(Math.max(1, Number(page) || 1)), limit: String(SA_SERVER_PAGE_SIZE), includeParts: '0' });
     jobsCurrentBranchParam(branch, params);
 
-    const secondaryPromise = Promise.allSettled([
-        fetch(`${API_BASE_URL}/api/statuses`, { signal: requestController.signal }).then(r => r.ok ? r.json() : []),
-        fetch(`${API_BASE_URL}/api/part-statuses`, { signal: requestController.signal }).then(r => r.ok ? r.json() : [])
-    ]);
+    const secondaryPromise = fetchJobsMasterDataOnce();
 
     const res = await fetch(`${API_BASE_URL}/api/server/sa-overview?${params.toString()}`, { signal: requestController.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -115,7 +128,8 @@ async function fetchSADetailPage(saName, page = 1) {
         sa_owner: saName,
         page: String(Math.max(1, Number(page) || 1)),
         limit: String(SA_SERVER_PAGE_SIZE),
-        includeParts: '0'
+        includeParts: '0',
+        includeMeta: '0'
     });
     jobsCurrentBranchParam(selectedBranchFilter, params);
     const res = await fetch(`${API_BASE_URL}/api/server/sa-overview?${params.toString()}`, { signal: requestController.signal });
@@ -165,7 +179,7 @@ goPOPage = function(page) {
 globalSearchCar = async function() {
     const plate = document.getElementById('global_search_plate')?.value.trim();
     if (!plate) return;
-    const params = new URLSearchParams({ page: '1', limit: String(SA_SERVER_PAGE_SIZE), search: plate, includeParts: '0' });
+    const params = new URLSearchParams({ page: '1', limit: String(SA_SERVER_PAGE_SIZE), search: plate, includeParts: '0', includeMeta: '0' });
     jobsCurrentBranchParam(selectedBranchFilter, params);
     try {
         const res = await fetch(`${API_BASE_URL}/api/server/sa-overview?${params.toString()}`);
