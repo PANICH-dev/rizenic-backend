@@ -404,7 +404,9 @@ function checkOverdue(job) {
 }
 
 function isJobDone(status) {
-    return /^(1[1-9]|2[0-2])(?:[.\s]|$)/.test(String(status || '').trim());
+    const normalizedStatus = String(status || '')
+        .replace(/^[\s\u200B\u200C\u200D\u2060\uFEFF]+/u, '');
+    return /^(1[1-9]|2[0-2])(?:[.\s]|$)/.test(normalizedStatus);
 }
 
 function updateKPIs() {
@@ -514,31 +516,87 @@ function openKpiModal(type) {
     document.getElementById('dayListModal').classList.remove('hidden');
 }
 
-function openDayListForTarget(dateStr) {
-    const targetJobs = originalRepairJobs.filter(j => 
+async function openDayListForTarget(dateStr) {
+    const titleEl = document.getElementById('dayListDateTitle');
+    const contentEl = document.getElementById('dayListContent');
+    const modalEl = document.getElementById('dayListModal');
+    const title = `เป้าซ่อมเสร็จ วันที่ ${formatThaiDate(dateStr)}`;
+
+    if (titleEl) titleEl.innerHTML = `<span class="text-[#00320D]"><i class="fa-solid fa-bullseye text-amber-500"></i> ${title}</span>`;
+    if (contentEl) contentEl.innerHTML = `<div class="text-center py-10 text-slate-400 font-bold"><i class="fa-solid fa-circle-notch fa-spin text-amber-500 mr-2"></i>กำลังโหลดรายการเป้าซ่อมเสร็จ...</div>`;
+    if (modalEl) modalEl.classList.remove('hidden');
+
+    let targetJobs = originalRepairJobs.filter(j =>
         (selectedBranchFilter === 'ALL' || j.branch_name === selectedBranchFilter) &&
         j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr
     );
-    
+    let targetPartOrders = typeof allPartOrders !== 'undefined' ? allPartOrders : [];
+
+    // The visible repair table is server-side paged and only contains the current page.
+    // Load the complete target-date scope through the existing repair-page API so the
+    // popup count/details always match the calendar aggregate, including status 11-22.
+    if (typeof fetch === 'function' && typeof URLSearchParams !== 'undefined' && typeof API_BASE_URL !== 'undefined') {
+        try {
+            const reports = [];
+            const partOrders = [];
+            let page = 1;
+            let totalPages = 1;
+            let knownTotal = null;
+            do {
+                const params = new URLSearchParams({
+                    page: String(page),
+                    limit: '50',
+                    calendar: '1',
+                    includeMeta: '0',
+                    includeParts: '1',
+                    filters: JSON.stringify({ target_finish_date: [dateStr] })
+                });
+                if (selectedBranchFilter && String(selectedBranchFilter).toUpperCase() !== 'ALL') params.set('branch', selectedBranchFilter);
+                if (knownTotal !== null) params.set('known_total', String(knownTotal));
+                const res = await fetch(`${API_BASE_URL}/api/server/repair-page?${params.toString()}`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const payload = await res.json();
+                reports.push(...(Array.isArray(payload.reports) ? payload.reports : []));
+                partOrders.push(...(Array.isArray(payload.partOrders) ? payload.partOrders : []));
+                knownTotal = Number.isFinite(Number(payload.total)) ? Number(payload.total) : reports.length;
+                totalPages = Math.max(1, Number(payload.totalPages || 1));
+                page += 1;
+            } while (page <= totalPages);
+
+            targetJobs = reports;
+            const seenPartOrders = new Set();
+            targetPartOrders = partOrders.filter(po => {
+                const key = po.order_id != null ? `id:${po.order_id}` : JSON.stringify(po);
+                if (seenPartOrders.has(key)) return false;
+                seenPartOrders.add(key);
+                return true;
+            });
+        } catch (error) {
+            console.error('โหลดรายละเอียด Target ไม่สำเร็จ:', error);
+            if (contentEl) contentEl.innerHTML = `<div class="text-center py-10 text-red-500 font-bold"><i class="fa-solid fa-triangle-exclamation mr-2"></i>โหลดรายละเอียดเป้าซ่อมเสร็จไม่สำเร็จ กรุณาลองใหม่</div>`;
+            if (typeof showToast === 'function') showToast('โหลดรายละเอียดเป้าซ่อมเสร็จไม่สำเร็จ กรุณาลองใหม่', 'error');
+            return;
+        }
+    }
+
     const doneJobs = targetJobs.filter(j => isJobDone(j.job_status));
     const pendingJobs = targetJobs.filter(j => !isJobDone(j.job_status));
 
-    const title = `เป้าซ่อมเสร็จ วันที่ ${formatThaiDate(dateStr)}`;
-    document.getElementById('dayListDateTitle').innerHTML = `<span class="text-[#00320D]"><i class="fa-solid fa-bullseye text-amber-500"></i> ${title} <span class="text-emerald-600 font-mono ml-2">(เสร็จแล้ว ${doneJobs.length}/${targetJobs.length} คัน)</span></span>`;
-    
+    if (titleEl) titleEl.innerHTML = `<span class="text-[#00320D]"><i class="fa-solid fa-bullseye text-amber-500"></i> ${title} <span class="text-emerald-600 font-mono ml-2">(เสร็จแล้ว ${doneJobs.length}/${targetJobs.length} คัน)</span></span>`;
+
     let html = '';
-    
+
     if (pendingJobs.length > 0) {
         html += `<h3 class="text-sm font-black text-amber-600 mb-2 border-b border-amber-200 pb-2"><i class="fa-solid fa-spinner fa-spin"></i> กำลังดำเนินการซ่อม (${pendingJobs.length} คัน)</h3>`;
         html += `<div class="bg-amber-50/50 border border-amber-200 rounded-xl overflow-hidden mb-6 shadow-sm"><div class="p-4 space-y-3">`;
-        pendingJobs.forEach(j => html += generateMiniCardHTML(j, 'target'));
+        pendingJobs.forEach(j => html += generateMiniCardHTML(j, 'target', targetPartOrders));
         html += `</div></div>`;
     }
 
     if (doneJobs.length > 0) {
         html += `<h3 class="text-sm font-black text-emerald-600 mb-2 border-b border-emerald-200 pb-2"><i class="fa-solid fa-check-double"></i> ซ่อมเสร็จแล้ว (${doneJobs.length} คัน)</h3>`;
         html += `<div class="bg-emerald-50/50 border border-emerald-200 rounded-xl overflow-hidden mb-6 shadow-sm"><div class="p-4 space-y-3">`;
-        doneJobs.forEach(j => html += generateMiniCardHTML(j, 'target_done'));
+        doneJobs.forEach(j => html += generateMiniCardHTML(j, 'target_done', targetPartOrders));
         html += `</div></div>`;
     }
 
@@ -546,8 +604,7 @@ function openDayListForTarget(dateStr) {
         html = `<div class="text-center py-10 text-slate-400 font-bold">ไม่มีเป้าซ่อมเสร็จในวันนี้</div>`;
     }
 
-    document.getElementById('dayListContent').innerHTML = html;
-    document.getElementById('dayListModal').classList.remove('hidden');
+    if (contentEl) contentEl.innerHTML = html;
 }
 
 async function fetchJobList() {
@@ -954,13 +1011,13 @@ function renderCalendar() {
         const hasOverdue = overdueQty > 0;
         const quota = repairQuotaForCalendarDate(dateStr);
         const maxMain = quota.main, maxSub = quota.sub;
-        const overMain = quota.configured && sumMainDay > maxMain;
-        const overSub = quota.configured && sumSubDay > maxSub;
+        const overMain = maxMain > 0 && sumMainDay > maxMain;
+        const overSub = maxSub > 0 && sumSubDay > maxSub;
 
         let partsInfoHtml = '';
         if(quota.configured || sumMainDay > 0 || sumSubDay > 0) {
-            const mainText = `${sumMainDay}${quota.configured ? '/' + maxMain : '/—'}`;
-            const subText = `${sumSubDay}${quota.configured ? '/' + maxSub : '/—'}`;
+            const mainText = `${sumMainDay}/${maxMain > 0 ? maxMain : '—'}`;
+            const subText = `${sumSubDay}/${maxSub > 0 ? maxSub : '—'}`;
             partsInfoHtml = `<div class="repair-quota-stack">
                 ${quota.configured || sumMainDay > 0 ? `<div class="repair-quota-row repair-quota-main ${overMain ? 'is-over' : ''}"><span>หลัก:</span><strong>${mainText}</strong></div>` : ''}
                 ${quota.configured || sumSubDay > 0 ? `<div class="repair-quota-row repair-quota-sub ${overSub ? 'is-over' : ''}"><span>รอง:</span><strong>${subText}</strong></div>` : ''}
@@ -980,9 +1037,9 @@ function renderCalendar() {
                 </div>`;
             }
             if(targetQty > 0) {
-                const widthPct = Math.max(18, Math.round((targetQty / monthMaxQty) * 100));
                 const pctDone = targetQty ? Math.min(100, Math.round((doneQty / targetQty) * 100)) : 0;
-                barBlock += `<div class="repair-day-bar repair-day-bar-target" onclick="event.stopPropagation(); filterBoardByDate('${dateStr}', 'target')" title="เป้าซ่อมเสร็จ: ${targetQty} คัน (เสร็จแล้ว ${doneQty} คัน, ${pctDone}%)">
+                const widthPct = pctDone;
+                barBlock += `<div class="repair-day-bar repair-day-bar-target" onclick="event.stopPropagation(); openDayListForTarget('${dateStr}')" title="เป้าซ่อมเสร็จ: ${targetQty} คัน (เสร็จแล้ว ${doneQty} คัน, ${pctDone}%)">
                     <div class="repair-day-bar-line repair-day-bar-line-target">
                         <div class="repair-day-bar-fill repair-day-bar-fill-target" style="width:${widthPct}%"></div>
                         <span class="repair-bar-count repair-bar-count-target">${doneQty}/${targetQty}</span>

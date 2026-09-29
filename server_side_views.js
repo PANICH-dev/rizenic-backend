@@ -239,13 +239,18 @@ const ADMIN_RESOURCES = Object.freeze({
   }
 });
 
+function normalizedRepairJobStatusSql() {
+  return "TRANSLATE(BTRIM(COALESCE(job_status,'')), U&'\\200B\\200C\\200D\\2060\\FEFF', '')";
+}
+
 function repairQueueConditions(calendarMode = false) {
   if (calendarMode) return ['TRUE'];
+  const statusExpr = normalizedRepairJobStatusSql();
   return [
-    "BTRIM(COALESCE(job_status,'')) ~ '^(09|10|11)([.[:space:]]|$)'",
+    `${statusExpr} ~ '^(09|10|11)([.[:space:]]|$)'`,
     "COALESCE(job_status,'') NOT ILIKE '%ยกเลิก%'",
     "COALESCE(job_status,'') NOT ILIKE '%ส่งมอบแล้ว%'",
-    "BTRIM(COALESCE(job_status,'')) <> '12.ส่งมอบ'"
+    `${statusExpr} <> '12.ส่งมอบ'`
   ];
 }
 
@@ -1112,7 +1117,7 @@ function registerServerSideViews(app, pool) {
       const endP = `$${values.length}`;
       const mainQtyExpr = `COALESCE(main_part_qty,0)`;
       const subQtyExpr = `COALESCE(sub_part_qty,0)`;
-      const doneExpr = `BTRIM(COALESCE(job_status,'')) ~ '^(11|12|13|14|15|16|17|18|19|20|21|22)([.[:space:]]|$)'`;
+      const doneExpr = `${normalizedRepairJobStatusSql()} ~ '^(11|12|13|14|15|16|17|18|19|20|21|22)([.[:space:]]|$)'`;
       const sql = `WITH base AS (
           SELECT appointment_date::date AS appointment_day,
                  target_finish_date::date AS target_day,

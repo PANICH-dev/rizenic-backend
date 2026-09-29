@@ -45,11 +45,96 @@ test('repair-board endpoint excludes cancellations and completed delivery, regar
  assert.match(sql,/09\|10\|11/);assert.match(sql,/ยกเลิก/);assert.match(sql,/ส่งมอบแล้ว/);
  assert.doesNotMatch(sql,/department_routing/);
 });
+
+test('calendar and normal repair queue normalize invisible status prefixes before numeric status matching',async()=>{
+ const calendarCalls=await capture('/api/server/repair-calendar',{year:'2026',month:'9',branch:'A'});
+ const calendarSql=calendarCalls.find(c=>/WITH base/.test(c.sql)).sql;
+ assert.match(calendarSql,/TRANSLATE\(BTRIM\(COALESCE\(job_status,''\)\),\s*U&'\\200B\\200C\\200D\\2060\\FEFF'/);
+ assert.match(calendarSql,/\^\(11\|12\|13\|14\|15\|16\|17\|18\|19\|20\|21\|22\)/);
+
+ const pageSql=(await capture('/api/server/repair-page',{branch:'A',page:'1',limit:'50',includeMeta:'0',includeParts:'0',known_total:'0'}))[0].sql;
+ assert.match(pageSql,/TRANSLATE\(BTRIM\(COALESCE\(job_status,''\)\),\s*U&'\\200B\\200C\\200D\\2060\\FEFF'/);
+ assert.match(pageSql,/09\|10\|11/);
+ assert.match(pageSql,/<> '12\.ส่งมอบ'/);
+});
 test('done classification includes 11 through 22 with exact numeric prefix boundaries',()=>{
  const ctx=loadFunctions();
  for(let n=11;n<=22;n++) assert.equal(ctx.isJobDone(` ${n}.สถานะ`),true);
  for(const s of ['10.กำลังซ่อม','23.รอตรวจ','110.bad','',null]) assert.equal(ctx.isJobDone(s),false);
 });
+
+test('target modal groups status 11-22 as completed even when an invisible prefix exists',()=>{
+ const source=fs.readFileSync('public/repair.js','utf8');
+ const title={innerHTML:''},content={innerHTML:''},modal={classList:{remove(){}}};
+ const ctx=vm.createContext({
+  selectedBranchFilter:'A',
+  originalRepairJobs:[
+   {car_plate:'DONE12',branch_name:'A',target_finish_date:'2026-09-16T00:00:00.000Z',job_status:'\u200B12.รอส่งมอบ'},
+   {car_plate:'PENDING10',branch_name:'A',target_finish_date:'2026-09-16T00:00:00.000Z',job_status:'10.กำลังซ่อม'}
+  ],
+  document:{getElementById:id=>id==='dayListDateTitle'?title:id==='dayListContent'?content:modal},
+  formatThaiDate:d=>d,
+  generateMiniCardHTML:(j,type)=>`<article data-plate="${j.car_plate}" data-type="${type}">${j.job_status}</article>`
+ });
+ for (const name of ['isJobDone','openDayListForTarget']) {
+  const asyncStart=source.indexOf(`async function ${name}(`);
+  const syncStart=source.indexOf(`function ${name}(`);
+  const start=asyncStart>=0?asyncStart:syncStart;
+  assert.ok(start>=0,`missing ${name}`);
+  const nextSync=source.indexOf('\nfunction ',start+1);
+  const nextAsync=source.indexOf('\nasync function ',start+1);
+  const candidates=[nextSync,nextAsync].filter(v=>v>=0);
+  const end=candidates.length?Math.min(...candidates):source.length;
+  vm.runInContext(source.slice(start,end),ctx);
+ }
+ ctx.openDayListForTarget('2026-09-16');
+ assert.match(title.innerHTML,/เสร็จแล้ว 1\/2 คัน/);
+ assert.match(content.innerHTML,/กำลังดำเนินการซ่อม \(1 คัน\)/);
+ assert.match(content.innerHTML,/ซ่อมเสร็จแล้ว \(1 คัน\)/);
+ assert.match(content.innerHTML,/data-plate="DONE12" data-type="target_done"/);
+ assert.match(content.innerHTML,/data-plate="PENDING10" data-type="target"/);
+});
+test('target popup loads the complete calendar date scope from the server instead of the visible table page',async()=>{
+ const source=fs.readFileSync('public/repair.js','utf8');
+ const title={innerHTML:''},content={innerHTML:''},modal={classList:{remove(){}}};
+ const urls=[];
+ const ctx=vm.createContext({
+  selectedBranchFilter:'A',API_BASE_URL:'',URLSearchParams,
+  originalRepairJobs:[],
+  fetch:async url=>{urls.push(String(url));return {ok:true,json:async()=>({
+   reports:[
+    {id:1,car_plate:'DONE12',branch_name:'A',target_finish_date:'2026-09-16',job_status:'12.รอส่งมอบ'},
+    {id:2,car_plate:'PENDING10',branch_name:'A',target_finish_date:'2026-09-16',job_status:'10.กำลังซ่อม'}
+   ],partOrders:[],total:2,page:1,totalPages:1
+  })};},
+  document:{getElementById:id=>id==='dayListDateTitle'?title:id==='dayListContent'?content:modal},
+  formatThaiDate:d=>d,
+  generateMiniCardHTML:(j,type)=>`<article data-plate="${j.car_plate}" data-type="${type}">${j.job_status}</article>`,
+  showToast:()=>{}
+ });
+ for (const name of ['isJobDone','openDayListForTarget']) {
+  const asyncStart=source.indexOf(`async function ${name}(`);
+  const syncStart=source.indexOf(`function ${name}(`);
+  const start=asyncStart>=0?asyncStart:syncStart;
+  assert.ok(start>=0,`missing ${name}`);
+  const nextSync=source.indexOf('\nfunction ',start+1);
+  const nextAsync=source.indexOf('\nasync function ',start+1);
+  const candidates=[nextSync,nextAsync].filter(v=>v>=0);
+  const end=candidates.length?Math.min(...candidates):source.length;
+  vm.runInContext(source.slice(start,end),ctx);
+ }
+ await ctx.openDayListForTarget('2026-09-16');
+ assert.equal(urls.length,1);
+ const url=new URL(urls[0],'http://local');
+ assert.equal(url.pathname,'/api/server/repair-page');
+ assert.equal(url.searchParams.get('calendar'),'1');
+ assert.equal(url.searchParams.get('includeMeta'),'0');
+ assert.deepEqual(JSON.parse(url.searchParams.get('filters')),{target_finish_date:['2026-09-16']});
+ assert.match(title.innerHTML,/เสร็จแล้ว 1\/2 คัน/);
+ assert.match(content.innerHTML,/data-plate="DONE12" data-type="target_done"/);
+ assert.match(content.innerHTML,/data-plate="PENDING10" data-type="target"/);
+});
+
 test('quota chooses special day over default, respects branch and configured zero',()=>{
  const ctx=loadFunctions();
  ctx.allQuotas=[{branch_name:'A',quota_type:'default',quota_main_parts:10,quota_sub_parts:8},{branch_name:'A',quota_type:'special',quota_date:'2026-09-29',quota_main_parts:0,quota_sub_parts:2},{branch_name:'B',quota_type:'default',quota_main_parts:20,quota_sub_parts:3}];
@@ -86,6 +171,16 @@ test('calendar rendering shows 5/10 progress, correct quota warning and green de
 });
 
 
+test('clicking a target calendar bar opens the target popup instead of navigating to the table',()=>{
+ const source=fs.readFileSync('public/repair.js','utf8');
+ const start=source.indexOf('function renderCalendar()');
+ assert.ok(start>=0,'missing renderCalendar');
+ const end=source.indexOf('\nfunction ',start+1);
+ const renderSource=source.slice(start,end<0?source.length:end);
+ assert.match(renderSource,/repair-day-bar-target[^`]*onclick=\"event\.stopPropagation\(\); openDayListForTarget\('\$\{dateStr\}'\)\"/s);
+ assert.doesNotMatch(renderSource,/repair-day-bar-target[^`]*filterBoardByDate\('\$\{dateStr\}',\s*'target'\)/s);
+});
+
 test('completed target stays orange and never reuses delivery green styling',()=>{
  const source=fs.readFileSync('public/repair.js','utf8');
  const grid={innerHTML:'',style:{setProperty(){}},dataset:{}},title={innerText:''};
@@ -105,4 +200,46 @@ test('completed target stays orange and never reuses delivery green styling',()=
  assert.doesNotMatch(grid.innerHTML,/repair-day-bar-fill-target is-done/);
  assert.doesNotMatch(grid.innerHTML,/repair-bar-count-target is-done/);
  assert.doesNotMatch(grid.innerHTML,/repair-day-bar-line-target is-done/);
+});
+
+
+test('target progress fill uses completion percentage and reaches 100 percent when done',()=>{
+ const source=fs.readFileSync('public/repair.js','utf8');
+ const grid={innerHTML:'',style:{setProperty(){}},dataset:{}},title={innerText:''};
+ const ctx=vm.createContext({
+  currentYear:2026,currentMonth:8,repairCalendarLoaded:true,selectedBranchFilter:'A',
+  allQuotas:[],
+  repairCalendarDays:new Map([
+   ['2026-09-03',{appointment:0,target:10,done:10,delivery:0,main_parts:0,sub_parts:0,overdue:0}],
+   ['2026-09-04',{appointment:0,target:30,done:15,delivery:0,main_parts:0,sub_parts:0,overdue:0}]
+  ]),
+  getTodayString:()=> '2026-09-29',document:{getElementById:id=>id==='calendar_grid'?grid:title}
+ });
+ for (const name of ['repairQuotaForCalendarDate','renderCalendar']) {
+  const start=source.indexOf(`function ${name}(`),end=source.indexOf('\nfunction ',start+1);
+  vm.runInContext(source.slice(start,end),ctx);
+ }
+ ctx.renderCalendar();
+ assert.match(grid.innerHTML,/openDayListForTarget\('2026-09-03'\)[\s\S]*?100%[\s\S]*?width:100%[\s\S]*?10\/10/);
+ assert.match(grid.innerHTML,/openDayListForTarget\('2026-09-04'\)[\s\S]*?50%[\s\S]*?width:50%[\s\S]*?15\/30/);
+});
+
+test('zero part quota is treated as unlimited and does not show full warning',()=>{
+ const source=fs.readFileSync('public/repair.js','utf8');
+ const grid={innerHTML:'',style:{setProperty(){}},dataset:{}},title={innerText:''};
+ const ctx=vm.createContext({
+  currentYear:2026,currentMonth:8,repairCalendarLoaded:true,selectedBranchFilter:'A',
+  allQuotas:[{branch_name:'A',quota_type:'default',quota_main_parts:0,quota_sub_parts:0}],
+  repairCalendarDays:new Map([['2026-09-29',{appointment:0,target:1,done:0,delivery:0,main_parts:31,sub_parts:17,overdue:0}]]),
+  getTodayString:()=> '2026-09-28',document:{getElementById:id=>id==='calendar_grid'?grid:title}
+ });
+ for (const name of ['repairQuotaForCalendarDate','renderCalendar']) {
+  const start=source.indexOf(`function ${name}(`),end=source.indexOf('\nfunction ',start+1);
+  vm.runInContext(source.slice(start,end),ctx);
+ }
+ ctx.renderCalendar();
+ assert.match(grid.innerHTML,/31\/—/);
+ assert.match(grid.innerHTML,/17\/—/);
+ assert.doesNotMatch(grid.innerHTML,/🔥 เต็ม/);
+ assert.doesNotMatch(grid.innerHTML,/repair-quota-full/);
 });

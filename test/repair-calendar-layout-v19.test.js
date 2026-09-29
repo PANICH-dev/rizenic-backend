@@ -11,7 +11,7 @@ test('repair calendar v23 fits the whole month inside the tab without an interna
   const js = read('public/repair.js');
 
   assert.match(html, /repair_calendar\.css\?v=23/);
-  assert.match(html, /repair\.js\?v=12&calendar=23/);
+  assert.match(html, /repair\.js\?v=12&calendar=27/);
   assert.match(css, /#tab-calendar\s*#repair_calendar_scroll\s*\{[^}]*overflow:\s*hidden/s);
   assert.match(css, /#tab-calendar\s+\.calendar-grid-container\s*\{[^}]*height:\s*100%/s);
   assert.match(css, /grid-template-rows:\s*repeat\(var\(--repair-calendar-weeks,\s*5\),\s*minmax\(0,\s*1fr\)\)/);
