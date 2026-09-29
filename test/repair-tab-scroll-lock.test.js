@@ -12,11 +12,13 @@ test('repair page keeps outer viewport locked and delegates scrolling to active 
   assert.match(html, /id="repair_summary_scroll"[^>]*class="[^"]*repair-tab-scroll[^"]*"/);
 });
 
-test('calendar and summary headers stay fixed while their content scrolls', () => {
+test('calendar is fully contained without a nested scrollbar while summary keeps its own sticky scroll surface', () => {
   assert.match(html, /class="[^"]*repair-calendar-head[^"]*"/);
   assert.match(html, /class="[^"]*repair-calendar-weekdays[^"]*"/);
   assert.match(html, /class="[^"]*repair-summary-card-head[^"]*"/);
-  assert.match(html, /\.repair-calendar-head\s*\{[^}]*position:\s*sticky;/s);
-  assert.match(html, /\.repair-calendar-weekdays\s*\{[^}]*position:\s*sticky;/s);
+  assert.match(html, /#tab-calendar\s*\{[^}]*overflow:\s*hidden;/s);
+  assert.match(html, /\.repair-calendar-head\s*\{[^}]*position:\s*relative;/s);
+  assert.match(html, /\.repair-calendar-weekdays\s*\{[^}]*position:\s*relative;/s);
+  assert.match(html, /#repair_calendar_scroll\s*\{[^}]*overflow:\s*hidden;/s);
   assert.match(html, /\.repair-summary-card-head\s*\{[^}]*position:\s*sticky;/s);
 });

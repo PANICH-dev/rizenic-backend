@@ -47,7 +47,7 @@ const REPORT_PARTS_FIELDS = [
 
 const REPORT_REPAIR_FIELDS = [
   'id','branch_name','sa_owner','car_plate','vin_no','car_brand','car_model','car_color','qt_no','so_no',
-  'arrived_date','target_finish_date','repair_finish_date','delivery_date','main_part_name','main_part_qty','sub_part_name',
+  'appointment_date','arrived_date','target_finish_date','repair_finish_date','delivery_date','main_part_name','main_part_qty','sub_part_name',
   'sub_part_qty','job_status','department_routing','repair_notes','station_kho','station_pou','station_puan','station_pon',
   'station_prak','station_kat','station_qc','station_mag','station_kraj','station_film','station_pak','station_ready'
 ];
@@ -121,9 +121,39 @@ function addSearch(where, values, rawSearch, fields) {
 }
 
 const REPAIR_FILTER_FIELDS = new Set([
-  'car_plate','vin_no','sa_owner','car_brand','car_model','car_color','arrived_date','target_finish_date',
-  'repair_finish_date','delivery_date','main_part_name','main_part_qty','sub_part_name','sub_part_qty','job_status','department_routing'
+  'car_plate','vin_no','sa_owner','car_brand','car_model','car_color','appointment_date','arrived_date','target_finish_date',
+  'repair_finish_date','delivery_date','main_part_name','main_part_qty','sub_part_name','sub_part_qty','job_status','department_routing','calculated_station'
 ]);
+
+const REPAIR_STATION_SQL = `(CASE
+  WHEN COALESCE(station_ready::text,'') IN ('true','TRUE','1') THEN '12.รอส่งมอบ'
+  WHEN COALESCE(station_pak::text,'') IN ('true','TRUE','1') THEN '11.พักซ่อม'
+  WHEN COALESCE(station_film::text,'') IN ('true','TRUE','1') THEN '10.ฟิล์ม'
+  WHEN COALESCE(station_kraj::text,'') IN ('true','TRUE','1') THEN '09.กระจก'
+  WHEN COALESCE(station_mag::text,'') IN ('true','TRUE','1') THEN '08.แม็ก'
+  WHEN COALESCE(station_qc::text,'') IN ('true','TRUE','1') THEN '07.QC'
+  WHEN COALESCE(station_kat::text,'') IN ('true','TRUE','1') THEN '06.ขัดสี'
+  WHEN COALESCE(station_prak::text,'') IN ('true','TRUE','1') THEN '05.ประกอบ'
+  WHEN COALESCE(station_pon::text,'') IN ('true','TRUE','1') THEN '04.พ่นสี'
+  WHEN COALESCE(station_puan::text,'') IN ('true','TRUE','1') THEN '03.เตรียมพื้น'
+  WHEN COALESCE(station_pou::text,'') IN ('true','TRUE','1') THEN '02.โป๊ว'
+  WHEN COALESCE(station_kho::text,'') IN ('true','TRUE','1') THEN '01.เคาะ'
+  ELSE 'ส่งจ๊อบ' END)`;
+
+function repairFilterExpression(field) {
+  if (field === 'calculated_station') return REPAIR_STATION_SQL;
+  if (field === 'car_brand') return `CONCAT_WS(' ', COALESCE(car_brand::text,''), COALESCE(car_model::text,''))`;
+  if (['appointment_date','arrived_date','target_finish_date','repair_finish_date','delivery_date'].includes(field)) {
+    return `COALESCE(${field}::date::text, '')`;
+  }
+  if (field === 'main_part_qty') {
+    return `(CASE WHEN COALESCE(main_part_qty,0) > 0 THEN COALESCE(main_part_qty,0) WHEN NULLIF(BTRIM(COALESCE(main_part_name,'')),'') IS NOT NULL THEN array_length(string_to_array(main_part_name, ','),1) ELSE 0 END)::text`;
+  }
+  if (field === 'sub_part_qty') {
+    return `(CASE WHEN COALESCE(sub_part_qty,0) > 0 THEN COALESCE(sub_part_qty,0) WHEN NULLIF(BTRIM(COALESCE(sub_part_name,'')),'') IS NOT NULL THEN array_length(string_to_array(sub_part_name, ','),1) ELSE 0 END)::text`;
+  }
+  return `COALESCE(${field}::text, '')`;
+}
 
 function addRepairFilters(where, values, rawFilters) {
   if (!rawFilters) return;
@@ -138,13 +168,7 @@ function addRepairFilters(where, values, rawFilters) {
     if (!selected.length) continue;
     values.push(selected);
     const p = `$${values.length}`;
-    if (['arrived_date','target_finish_date','repair_finish_date','delivery_date'].includes(field)) {
-      where.push(`COALESCE(${field}::date::text, '') = ANY(${p}::text[])`);
-    } else if (field === 'car_brand') {
-      where.push(`CONCAT_WS(' ', COALESCE(car_brand::text,''), COALESCE(car_model::text,'')) = ANY(${p}::text[])`);
-    } else {
-      where.push(`COALESCE(${field}::text, '') = ANY(${p}::text[])`);
-    }
+    where.push(`${repairFilterExpression(field)} = ANY(${p}::text[])`);
   }
 }
 
@@ -214,6 +238,16 @@ const ADMIN_RESOURCES = Object.freeze({
     search: ['quota_type','branch_name','quota_date'], order: 'quota_type ASC, quota_date DESC NULLS LAST, id DESC'
   }
 });
+
+function repairQueueConditions(calendarMode = false) {
+  if (calendarMode) return ['TRUE'];
+  return [
+    "BTRIM(COALESCE(job_status,'')) ~ '^(09|10|11)([.[:space:]]|$)'",
+    "COALESCE(job_status,'') NOT ILIKE '%ยกเลิก%'",
+    "COALESCE(job_status,'') NOT ILIKE '%ส่งมอบแล้ว%'",
+    "BTRIM(COALESCE(job_status,'')) <> '12.ส่งมอบ'"
+  ];
+}
 
 function registerServerSideViews(app, pool) {
   app.get('/api/server/parts-master', async (req, res) => {
@@ -999,12 +1033,152 @@ function registerServerSideViews(app, pool) {
     }
   });
 
+  app.get('/api/server/repair-facet', async (req, res) => {
+    try {
+      const field = clean(req.query.field);
+      if (!REPAIR_FILTER_FIELDS.has(field)) return res.status(400).json({ error: 'invalid repair facet field' });
+      const calendarMode = clean(req.query.calendar) === '1';
+      const where = repairQueueConditions(calendarMode);
+      const values = [];
+      addBranch(where, values, req.query.branch);
+      addSearch(where, values, req.query.search, ['car_plate','vin_no','sa_owner','car_brand','car_model','car_color','job_status','department_routing','main_part_name','sub_part_name']);
+      addRepairFilters(where, values, req.query.filters);
+      const kpi = clean(req.query.kpi);
+      if (kpi === 'repairing') where.push(`department_routing = 'ซ่อม' AND COALESCE(station_ready::text,'') NOT IN ('true','TRUE','1')`);
+      if (kpi === 'done') where.push(`department_routing = 'ซ่อม' AND COALESCE(station_ready::text,'') IN ('true','TRUE','1')`);
+      if (kpi === 'delayed') where.push(`department_routing = 'ซ่อม' AND target_finish_date::date < CURRENT_DATE AND NULLIF(BTRIM(COALESCE(repair_finish_date::text,'')), '') IS NULL`);
+      const expr = repairFilterExpression(field);
+      const result = await pool.query(
+        `SELECT DISTINCT ${expr} AS value FROM rizenicreport WHERE ${where.join(' AND ')} ORDER BY value ASC LIMIT 500`,
+        values
+      );
+      res.json({ field, values: result.rows.map(row => clean(row.value)) });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/api/server/repair-kpi-drilldown', async (req, res) => {
+    try {
+      const bucket = clean(req.query.bucket);
+      if (!['arrived', 'repairing', 'done', 'delayed'].includes(bucket)) {
+        return res.status(400).json({ error: 'invalid repair KPI bucket' });
+      }
+      const { page, pageSize, offset } = pagedRequest(req, 20, 50);
+      const knownTotal = parseKnownTotal(req.query.known_total);
+      const where = ["COALESCE(job_status, '') NOT ILIKE '%ยกเลิก%'", "COALESCE(job_status, '') NOT ILIKE '%ส่งมอบแล้ว%'", "COALESCE(job_status, '') <> '12.ส่งมอบ'"];
+      const values = [];
+      addBranch(where, values, req.query.branch);
+      if (bucket === 'arrived') {
+        where.push(`(COALESCE(job_status,'') ILIKE '%จอดรอเข้าซ่อม%' OR COALESCE(job_status,'') ILIKE '%พักซ่อม%')`);
+      } else if (bucket === 'repairing') {
+        where.push(`department_routing = 'ซ่อม' AND COALESCE(station_ready::text,'') NOT IN ('true','TRUE','1')`);
+      } else if (bucket === 'done') {
+        where.push(`department_routing = 'ซ่อม' AND COALESCE(station_ready::text,'') IN ('true','TRUE','1')`);
+      } else if (bucket === 'delayed') {
+        where.push(`department_routing = 'ซ่อม' AND target_finish_date::date < CURRENT_DATE AND NULLIF(BTRIM(COALESCE(repair_finish_date::text,'')), '') IS NULL`);
+      }
+      values.push(pageSize);
+      const limitParam = `$${values.length}`;
+      values.push(offset);
+      const offsetParam = `$${values.length}`;
+      const result = await pool.query(
+        `SELECT ${REPORT_REPAIR_FIELDS.join(', ')}${pageCountProjection(knownTotal)}
+         FROM rizenicreport
+         WHERE ${where.join(' AND ')}
+         ORDER BY id DESC
+         LIMIT ${limitParam} OFFSET ${offsetParam}`,
+        values
+      );
+      const meta = pageMeta(result.rows, page, pageSize, knownTotal);
+      const reports = stripWindowCount(result.rows);
+      const partOrders = await buildScopedPartOrdersForReports(pool, reports, req.query.branch, PART_ORDER_REPAIR_FIELDS);
+      res.json({ reports, partOrders, ...meta, bucket });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/api/server/repair-calendar', async (req, res) => {
+    try {
+      const bounds = monthBounds(req.query.year, req.query.month);
+      if (!bounds) return res.status(400).json({ error: 'valid year and month are required' });
+      const baseWhere = ['TRUE'];
+      const values = [];
+      addBranch(baseWhere, values, req.query.branch);
+      values.push(bounds.start);
+      const startP = `$${values.length}`;
+      values.push(bounds.end);
+      const endP = `$${values.length}`;
+      const mainQtyExpr = `COALESCE(main_part_qty,0)`;
+      const subQtyExpr = `COALESCE(sub_part_qty,0)`;
+      const doneExpr = `BTRIM(COALESCE(job_status,'')) ~ '^(11|12|13|14|15|16|17|18|19|20|21|22)([.[:space:]]|$)'`;
+      const sql = `WITH base AS (
+          SELECT appointment_date::date AS appointment_day,
+                 target_finish_date::date AS target_day,
+                 delivery_date::date AS delivery_day,
+                 repair_finish_date, job_status,
+                 ${mainQtyExpr} AS main_qty,
+                 ${subQtyExpr} AS sub_qty
+          FROM rizenicreport
+          WHERE ${baseWhere.join(' AND ')}
+            AND (
+              (appointment_date >= ${startP}::date AND appointment_date < ${endP}::date)
+              OR (target_finish_date >= ${startP}::date AND target_finish_date < ${endP}::date)
+              OR (delivery_date >= ${startP}::date AND delivery_date < ${endP}::date)
+            )
+        ), events AS (
+          SELECT appointment_day AS day, COUNT(*)::int AS appointment_count, 0::int AS target_count,
+                 0::int AS done_count, 0::int AS delivery_count, 0::numeric AS main_parts,
+                 0::numeric AS sub_parts, 0::int AS overdue_count
+          FROM base WHERE appointment_day IS NOT NULL GROUP BY appointment_day
+          UNION ALL
+          SELECT target_day AS day, 0::int, COUNT(*)::int,
+                 COUNT(*) FILTER (WHERE ${doneExpr})::int,
+                 0::int, COALESCE(SUM(main_qty),0)::numeric, COALESCE(SUM(sub_qty),0)::numeric,
+                 COUNT(*) FILTER (WHERE target_day < (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Bangkok')::date AND NULLIF(BTRIM(COALESCE(repair_finish_date::text,'')), '') IS NULL)::int
+          FROM base WHERE target_day IS NOT NULL GROUP BY target_day
+          UNION ALL
+          SELECT delivery_day AS day, 0::int, 0::int, 0::int, COUNT(*)::int,
+                 0::numeric, 0::numeric, 0::int
+          FROM base WHERE delivery_day IS NOT NULL GROUP BY delivery_day
+        )
+        SELECT day::text AS date,
+               SUM(appointment_count)::int AS appointment,
+               SUM(target_count)::int AS target,
+               SUM(done_count)::int AS done,
+               SUM(delivery_count)::int AS delivery,
+               SUM(main_parts)::numeric AS main_parts,
+               SUM(sub_parts)::numeric AS sub_parts,
+               SUM(overdue_count)::int AS overdue
+        FROM events WHERE day >= ${startP}::date AND day < ${endP}::date GROUP BY day ORDER BY day ASC`;
+      const result = await pool.query(sql, values);
+      res.json({ days: result.rows });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/api/server/repair-summary', async (req, res) => {
+    try {
+      const where = ["COALESCE(job_status, '') NOT ILIKE '%ยกเลิก%'", "COALESCE(job_status, '') NOT ILIKE '%ส่งมอบแล้ว%'", "COALESCE(job_status, '') <> '12.ส่งมอบ'", "department_routing = 'ซ่อม'"];
+      const values = [];
+      addBranch(where, values, req.query.branch);
+      const fields = ['id','branch_name','car_plate','car_brand','car_model','target_finish_date','repair_finish_date','job_status','department_routing','station_kho','station_pou','station_puan','station_pon','station_prak','station_kat','station_qc','station_mag','station_kraj','station_film','station_pak','station_ready'];
+      const result = await pool.query(`SELECT ${fields.join(', ')} FROM rizenicreport WHERE ${where.join(' AND ')} ORDER BY id DESC`, values);
+      res.json({ reports: result.rows });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get('/api/server/repair-page', async (req, res) => {
     try {
       const { page, pageSize, offset } = pagedRequest(req, 50, 50);
       const knownTotal = parseKnownTotal(req.query.known_total);
       const includeMeta = clean(req.query.includeMeta) !== '0';
-      const reportWhere = ["COALESCE(job_status, '') NOT ILIKE '%ยกเลิก%'", "COALESCE(job_status, '') NOT ILIKE '%ส่งมอบแล้ว%'", "COALESCE(job_status, '') <> '12.ส่งมอบ'"];
+      const calendarMode = clean(req.query.calendar) === '1';
+      const reportWhere = repairQueueConditions(calendarMode);
       const reportValues = [];
       addBranch(reportWhere, reportValues, req.query.branch);
       addSearch(reportWhere, reportValues, req.query.search, ['car_plate','vin_no','sa_owner','car_brand','car_model','car_color','job_status','department_routing','main_part_name','sub_part_name']);
@@ -1013,7 +1187,7 @@ function registerServerSideViews(app, pool) {
       if (kpi === 'repairing') reportWhere.push(`department_routing = 'ซ่อม' AND COALESCE(station_ready::text,'') NOT IN ('true','TRUE','1')`);
       if (kpi === 'done') reportWhere.push(`department_routing = 'ซ่อม' AND COALESCE(station_ready::text,'') IN ('true','TRUE','1')`);
       if (kpi === 'delayed') reportWhere.push(`department_routing = 'ซ่อม' AND target_finish_date::date < CURRENT_DATE AND NULLIF(BTRIM(COALESCE(repair_finish_date::text,'')), '') IS NULL`);
-      const repairSortFields = new Set(['id','car_plate','vin_no','sa_owner','car_brand','car_model','car_color','arrived_date','target_finish_date','repair_finish_date','delivery_date','main_part_qty','sub_part_qty','job_status','department_routing']);
+      const repairSortFields = new Set(['id','car_plate','vin_no','sa_owner','car_brand','car_model','car_color','appointment_date','arrived_date','target_finish_date','repair_finish_date','delivery_date','main_part_qty','sub_part_qty','job_status','department_routing']);
       const sortField = repairSortFields.has(clean(req.query.sort)) ? clean(req.query.sort) : 'id';
       const sortDir = clean(req.query.dir).toLowerCase() === 'asc' ? 'ASC' : 'DESC';
       reportValues.push(pageSize);
@@ -1068,10 +1242,9 @@ function registerServerSideViews(app, pool) {
           job_status, repair_notes, station_kho, station_pou, station_puan, station_pon, station_prak, station_kat,
           station_qc, station_mag, station_kraj, station_film, station_pak, station_ready
         FROM rizenicreport
-        WHERE branch_name = $1 AND (department_routing = 'ซ่อม' OR job_status = ANY($2::text[]))
+        WHERE branch_name = $1 AND ${repairQueueConditions().join(' AND ')}
         ORDER BY id DESC`;
-      const statuses = ['09.จอดรอเข้าซ่อม', '10.กำลังซ่อม', '11.รถซ่อมเสร็จรอส่งมอบ'];
-      const result = await pool.query(sql, [branch, statuses]);
+      const result = await pool.query(sql, [branch]);
       const grouped = {};
       const stationOf = row => {
         const truthy = value => value === true || value === 1 || value === '1' || value === 'TRUE' || value === 'true';

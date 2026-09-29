@@ -20,7 +20,44 @@ let savedSortCol = null;
 let savedSortDir = 'asc';
 let kpiData = { arrived: [], repairing: [], done: [], delayed: [] };
 let currentRepairFilteredData = [];
+let repairCalendarDays = new Map();
+let repairCalendarLoaded = false;
+let repairSummaryJobs = [];
+let repairSummaryLoaded = false;
 const repairPager = RizenicPagination.createState(50);
+const REPAIR_STATION_FILTER_COL = 11;
+
+function getStationFilterValue(labelName) {
+    const mapping = {
+        'รอส่งมอบ': '12.รอส่งมอบ',
+        'พักซ่อม': '11.พักซ่อม',
+        'ฟิล์ม': '10.ฟิล์ม',
+        'กระจก': '09.กระจก',
+        'แม็ก': '08.แม็ก',
+        'QC': '07.QC',
+        'ขัดสี': '06.ขัดสี',
+        'ประกอบ': '05.ประกอบ',
+        'พ่นสี': '04.พ่นสี',
+        'เตรียมพื้น': '03.เตรียมพื้น',
+        'โป๊ว': '02.โป๊ว',
+        'เคาะ': '01.เคาะ',
+        'ส่งจ๊อบ': 'ส่งจ๊อบ'
+    };
+    return mapping[labelName] || labelName;
+}
+
+function jumpToBoardWithStationFilter(labelName) {
+    const filterVal = getStationFilterValue(labelName);
+    switchTab('tab-board');
+    activeKpiFilter = null;
+    isCalendarFilterActive = false;
+    activeFilters = { [REPAIR_STATION_FILTER_COL]: new Set([filterVal]) };
+    const searchInput = document.getElementById('global_search_input');
+    if (searchInput) searchInput.value = '';
+    document.querySelectorAll('.filter-icon').forEach(icon => icon.classList.remove('active'));
+    runTableFilters(true);
+    showToast(`กรองตารางเป็นสถานี "${labelName}" แล้ว`, 'info');
+}
 
 const statusOptions = [
     "09.จอดรอเข้าซ่อม", "10.กำลังซ่อม", "11.รถซ่อมเสร็จรอส่งมอบ", "12.รอส่งมอบ", "21.พักซ่อม"
@@ -44,7 +81,7 @@ let columnsDef = [
     { idx: 2, key: 'car_brand', title: 'ยี่ห้อ/รุ่น', w: 180, filter: true },
     { idx: 37, key: 'car_color', title: 'สีรถ', w: 110, filter: true },
     { idx: 16, key: 'vin_no', title: 'เลขตัวถัง/เครื่อง', w: 180, filter: true },
-    { idx: 3, key: 'arrived_date', title: 'รถเข้า', w: 120, filter: true, showCount: true },
+    { idx: 3, key: 'appointment_date', title: 'วันนัดเข้า', w: 120, filter: true, showCount: true },
     { idx: 4, key: 'target_finish_date', title: 'เป้าเสร็จ', w: 120, filter: true, showCount: true },
     { idx: 5, key: 'repair_finish_date', title: 'เสร็จจริง', w: 150, filter: true, showCount: true },
     { idx: 6, key: 'delivery_date', title: 'ส่งมอบ', w: 120, filter: true, showCount: true },
@@ -53,7 +90,7 @@ let columnsDef = [
     { idx: 9, key: 'sub_part_name', title: 'ชิ้นรอง', w: 260, filter: true },
     { idx: 10, key: 'sub_part_qty', title: 'จำนวน(รอง)', w: 110, filter: true, showCount: true },
     { idx: 11, key: 'calculated_station', title: 'ความคืบหน้าสถานี', w: 170, filter: true },
-    { idx: 12, key: 'job_status', title: 'สเตตัส', w: 180, filter: true },
+    { idx: 12, key: 'job_status', title: 'สถานะ', w: 180, filter: true },
     { idx: 15, key: 'department_routing', title: 'ส่งต่อแผนก', w: 130, filter: true },
     { idx: 13, key: 'repair_notes', title: 'หมายเหตุ', w: 220, filter: true }
 ];
@@ -231,8 +268,22 @@ function switchTab(tabId) {
     document.getElementById('btn-' + tabId).classList.add('active');
     document.getElementById(tabId).classList.add('active');
     
-    if(tabId === 'tab-summary') renderPieChartAndList();
-    if(tabId === 'tab-calendar') renderCalendar();
+    if(tabId === 'tab-summary') {
+        if (typeof loadRepairSummaryData === 'function') loadRepairSummaryData();
+        else renderPieChartAndList();
+    }
+    if(tabId === 'tab-calendar') {
+        if (typeof loadRepairCalendarData === 'function') loadRepairCalendarData();
+        else renderCalendar();
+    }
+}
+
+function changeMonth(delta) {
+    currentMonth += Number(delta) || 0;
+    if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+    if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+    if (typeof loadRepairCalendarData === 'function') loadRepairCalendarData(true);
+    else renderCalendar();
 }
 
 function buildTableHeaders() {
@@ -353,9 +404,7 @@ function checkOverdue(job) {
 }
 
 function isJobDone(status) {
-    if (!status) return false;
-    const prefixes = ['11', '12', '13', '14', '15', '16', '17', '19', '20', '21'];
-    return prefixes.some(p => status.startsWith(p));
+    return /^(1[1-9]|2[0-2])(?:[.\s]|$)/.test(String(status || '').trim());
 }
 
 function updateKPIs() {
@@ -393,7 +442,7 @@ function runTableFilters(resetPage = true) {
     
     const filteredData = originalRepairJobs.filter(job => {
         if (selectedBranchFilter !== 'ALL' && job.branch_name !== selectedBranchFilter) return false;
-        if (!isCalendarFilterActive && job.department_routing !== 'ซ่อม') return false;
+        if (!isCalendarFilterActive && (!/^(09|10|11)(?:[.\s]|$)/.test(String(job.job_status || '').trim()) || /ยกเลิก|ส่งมอบแล้ว/.test(job.job_status || ''))) return false;
 
         if (activeKpiFilter) {
             if (activeKpiFilter === 'repairing') {
@@ -413,7 +462,7 @@ function runTableFilters(resetPage = true) {
             const colDef = columnsDef.find(c => c.idx == colIdx);
             if(!colDef) continue;
             const key = colDef.key; let val = '';
-            if(['arrived_date', 'target_finish_date', 'repair_finish_date', 'delivery_date'].includes(key)) { val = job[key] ? String(job[key]).split('T')[0] : ''; } 
+            if(['appointment_date', 'arrived_date', 'target_finish_date', 'repair_finish_date', 'delivery_date'].includes(key)) { val = job[key] ? String(job[key]).split('T')[0] : ''; } 
             else if (key === 'car_brand') { val = `${job.car_brand || ''} ${job.car_model || ''}`.trim(); } 
             else if (key === 'main_part_qty') { val = String(Number(job.main_part_qty) || (job.main_part_name ? job.main_part_name.split(',').filter(Boolean).length : 0)); }
             else if (key === 'sub_part_qty') { val = String(Number(job.sub_part_qty) || (job.sub_part_name ? job.sub_part_name.split(',').filter(Boolean).length : 0)); }
@@ -567,6 +616,7 @@ async function fastUpdateField(id, field, value) {
     try {
         const res = await fetch(`${API_BASE_URL}/api/report/${id}/fast-date`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ field, value }) });
         if(res.ok) {
+            if (typeof invalidateRepairCalendar === 'function') invalidateRepairCalendar();
             const jobIndex = originalRepairJobs.findIndex(j => String(j.id) === String(id));
             if(jobIndex > -1) { 
                 originalRepairJobs[jobIndex][field] = (isDate && value) ? value + 'T00:00:00.000Z' : value; 
@@ -637,9 +687,9 @@ function renderRepairListTable(data) {
     });
     if(!data || data.length === 0) { tbody.innerHTML = `<tr><td colspan="${columnsDef.length}" class="p-12 text-center text-slate-400 font-bold bg-white text-base">📭 ไม่พบข้อมูลรถที่ตรงตามเงื่อนไข</td></tr>`; return; }
 
-    let cArr = 0, cTar = 0, cRep = 0, cDel = 0, sumMain = 0, sumSub = 0;
+    let cAppt = 0, cTar = 0, cRep = 0, cDel = 0, sumMain = 0, sumSub = 0;
     data.forEach(j => {
-        if(j.arrived_date) cArr++;
+        if(j.appointment_date) cAppt++;
         if(j.target_finish_date) cTar++;
         if(j.repair_finish_date) cRep++;
         if(j.delivery_date) cDel++;
@@ -649,7 +699,7 @@ function renderRepairListTable(data) {
 
     let allRowsHtml = '';
     pageInfo.items.forEach(j => {
-        const arrDateStr = j.arrived_date ? j.arrived_date.split('T')[0] : '';
+        const appointmentDateStr = j.appointment_date ? j.appointment_date.split('T')[0] : '';
         const targetDateStr = j.target_finish_date ? j.target_finish_date.split('T')[0] : '';
         const finishDateStr = j.repair_finish_date ? j.repair_finish_date.split('T')[0] : '';
         const deliveryDateStr = j.delivery_date ? j.delivery_date.split('T')[0] : '';
@@ -679,8 +729,8 @@ function renderRepairListTable(data) {
                 case 'car_color': 
                     cellData = `<div class="px-2 py-1.5 w-full"><input type="text" value="${j.car_color || ''}" placeholder="-" onchange="fastUpdateField('${j.id}', 'car_color', this.value)" class="inline-edit-input text-left w-full text-base font-bold"></div>`; 
                     break;
-                case 'arrived_date': 
-                    cellData = `<div class="text-slate-500 text-[14px] font-mono font-bold text-center px-2 py-2">${formatThaiDate(j.arrived_date)}</div>`; 
+                case 'appointment_date': 
+                    cellData = `<div class="text-blue-600 text-[14px] font-mono font-bold text-center px-2 py-2">${formatThaiDate(j.appointment_date)}</div>`; 
                     break;
                 case 'target_finish_date': 
                     cellData = `<div class="${isOverdue ? 'text-rose-600' : 'text-amber-600'} text-[14px] font-mono font-bold text-center px-2 py-2">${formatThaiDate(j.target_finish_date)}</div>`; 
@@ -736,7 +786,7 @@ function renderRepairListTable(data) {
     });
     tbody.innerHTML = allRowsHtml;
     
-    if(document.getElementById('hdr_cnt_arrived_date')) document.getElementById('hdr_cnt_arrived_date').innerText = cArr;
+    if(document.getElementById('hdr_cnt_appointment_date')) document.getElementById('hdr_cnt_appointment_date').innerText = cAppt;
     if(document.getElementById('hdr_cnt_target_finish_date')) document.getElementById('hdr_cnt_target_finish_date').innerText = cTar;
     if(document.getElementById('hdr_cnt_repair_finish_date')) document.getElementById('hdr_cnt_repair_finish_date').innerText = cRep;
     if(document.getElementById('hdr_cnt_delivery_date')) document.getElementById('hdr_cnt_delivery_date').innerText = cDel;
@@ -752,7 +802,7 @@ function openExcelFilter(e, colIndex, title) {
         if (selectedBranchFilter !== 'ALL' && job.branch_name !== selectedBranchFilter) return;
 
         let val = ''; const key = columnsDef.find(c => c.idx === colIndex).key;
-        if(['arrived_date', 'target_finish_date', 'repair_finish_date', 'delivery_date'].includes(key)) { val = job[key] ? String(job[key]).split('T')[0] : ''; } 
+        if(['appointment_date', 'arrived_date', 'target_finish_date', 'repair_finish_date', 'delivery_date'].includes(key)) { val = job[key] ? String(job[key]).split('T')[0] : ''; } 
         else if (key === 'car_brand') { val = `${job.car_brand || ''} ${job.car_model || ''}`.trim(); } 
         else if (key === 'main_part_qty') { val = String(Number(job.main_part_qty) || (job.main_part_name ? job.main_part_name.split(',').filter(Boolean).length : 0)); }
         else if (key === 'sub_part_qty') { val = String(Number(job.sub_part_qty) || (job.sub_part_name ? job.sub_part_name.split(',').filter(Boolean).length : 0)); }
@@ -848,151 +898,157 @@ function sortTableDirectly(colIndex, dir) {
     updateRepairSortIndicator(colIndex, dir);
 }
 
+function repairQuotaForCalendarDate(dateStr) {
+    const quotas = allQuotas.filter(q => selectedBranchFilter === 'ALL' || q.branch_name === selectedBranchFilter);
+    const branches = [...new Set(quotas.map(q => q.branch_name))];
+    let configured = false, main = 0, sub = 0;
+    for (const branch of branches) {
+        const rows = quotas.filter(q => q.branch_name === branch);
+        const special = rows.find(q => q.quota_type === 'special' && String(q.quota_date || '').slice(0,10) === dateStr);
+        const quota = special || rows.find(q => q.quota_type === 'default');
+        if (!quota) continue;
+        configured = true;
+        main += Number(quota.quota_main_parts || 0);
+        sub += Number(quota.quota_sub_parts || 0);
+    }
+    return { configured, main, sub };
+}
+
 function renderCalendar() {
-    const grid = document.getElementById('calendar_grid'); grid.innerHTML = '';
+    const grid = document.getElementById('calendar_grid');
+    if (!grid) return;
+    grid.innerHTML = '';
     const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
     document.getElementById('calendar_month_title').innerText = `${monthNames[currentMonth]} ${currentYear}`;
 
     const firstDay = new Date(currentYear, currentMonth, 1).getDay();
     const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const calendarWeeks = Math.ceil((firstDay + totalDays) / 7);
+    if (grid.style && typeof grid.style.setProperty === 'function') grid.style.setProperty('--repair-calendar-weeks', String(calendarWeeks));
+    if (grid.dataset) grid.dataset.weeks = String(calendarWeeks);
+    for(let i = 0; i < firstDay; i++) grid.innerHTML += `<div class="calendar-empty"></div>`;
 
-    for(let i = 0; i < firstDay; i++) { grid.innerHTML += `<div class="bg-slate-50/50"></div>`; }
-
-    const jobsForCalendar = originalRepairJobs.filter(j => selectedBranchFilter === 'ALL' || j.branch_name === selectedBranchFilter);
-
-    let monthMaxQty = 1; 
-    for(let day = 1; day <= totalDays; day++) {
-        const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-        const aQty = jobsForCalendar.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length;
-        const tQty = jobsForCalendar.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).length;
-        const dQty = jobsForCalendar.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
-        const maxInDay = Math.max(aQty, tQty, dQty);
-        if (maxInDay > monthMaxQty) monthMaxQty = maxInDay;
+    if (typeof repairCalendarError !== 'undefined' && repairCalendarError) {
+        grid.innerHTML = `<div class="repair-calendar-message"><span>โหลดปฏิทินไม่สำเร็จ</span><button type="button" onclick="loadRepairCalendarData(true)">ลองใหม่</button></div>`;
+        return;
+    }
+    if (!repairCalendarLoaded) {
+        grid.innerHTML = `<div class="repair-calendar-message is-loading"><i class="fa-solid fa-circle-notch fa-spin"></i><span>กำลังโหลดปฏิทิน...</span></div>`;
+        return;
     }
 
-    const branchQuota = allQuotas.find(q => q.branch_name === (selectedBranchFilter === 'ALL' ? currentBranch : selectedBranchFilter)) || { max_main_parts: 0, max_sub_parts: 0 };
-    const maxMain = branchQuota.max_main_parts || 0;
-    const maxSub = branchQuota.max_sub_parts || 0;
+    const monthRows = [...repairCalendarDays.values()];
+    const monthMaxQty = Math.max(1, ...monthRows.map(row => Math.max(Number(row.appointment || 0), Number(row.target || 0), Number(row.delivery || 0))));
+    
 
     for(let day = 1; day <= totalDays; day++) {
         const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-        
-        const arrivedQty = jobsForCalendar.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length;
-        const targetJobsInDay = jobsForCalendar.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr);
-        const targetQty = targetJobsInDay.length;
-        
-        const doneQty = targetJobsInDay.filter(j => isJobDone(j.job_status)).length;
-        
-        const deliveryQty = jobsForCalendar.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
-
-        let sumMainDay = 0, sumSubDay = 0;
-        targetJobsInDay.forEach(j => {
-            sumMainDay += Number(j.main_part_qty) || (j.main_part_name ? j.main_part_name.split(',').filter(Boolean).length : 0);
-            sumSubDay += Number(j.sub_part_qty) || (j.sub_part_name ? j.sub_part_name.split(',').filter(Boolean).length : 0);
-        });
-
-        const overdueJobsInDay = jobsForCalendar.filter(j => (j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr) && checkOverdue(j));
-        const hasOverdue = overdueJobsInDay.length > 0;
-        
-        const overMain = maxMain > 0 && sumMainDay > maxMain;
-        const overSub = maxSub > 0 && sumSubDay > maxSub;
+        const dayData = repairCalendarDays.get(dateStr) || {};
+        const appointmentQty = Number(dayData.appointment || 0);
+        const targetQty = Number(dayData.target || 0);
+        const doneQty = Number(dayData.done || 0);
+        const deliveryQty = Number(dayData.delivery || 0);
+        const sumMainDay = Number(dayData.main_parts || 0);
+        const sumSubDay = Number(dayData.sub_parts || 0);
+        const overdueQty = Number(dayData.overdue || 0);
+        const hasOverdue = overdueQty > 0;
+        const quota = repairQuotaForCalendarDate(dateStr);
+        const maxMain = quota.main, maxSub = quota.sub;
+        const overMain = quota.configured && sumMainDay > maxMain;
+        const overSub = quota.configured && sumSubDay > maxSub;
 
         let partsInfoHtml = '';
-        if(sumMainDay > 0 || sumSubDay > 0) {
-            partsInfoHtml = `<div class="text-[11px] font-bold mb-1 leading-tight w-full space-y-1">
-                ${sumMainDay > 0 ? `<div class="flex justify-between items-center ${overMain ? 'bg-red-100 text-red-700' : 'bg-blue-50 text-blue-700'} px-2 py-0.5 rounded border ${overMain ? 'border-red-300' : 'border-blue-200'}" title="ชิ้นส่วนหลัก"><span>หลัก:</span> <span>${sumMainDay}${maxMain > 0 ? '/' + maxMain : ''}</span></div>` : ''}
-                ${sumSubDay > 0 ? `<div class="flex justify-between items-center ${overSub ? 'bg-red-100 text-red-700' : 'bg-amber-50 text-amber-700'} px-2 py-0.5 rounded border ${overSub ? 'border-red-300' : 'border-amber-200'}" title="ชิ้นส่วนรอง"><span>รอง:</span> <span>${sumSubDay}${maxSub > 0 ? '/' + maxSub : ''}</span></div>` : ''}
+        if(quota.configured || sumMainDay > 0 || sumSubDay > 0) {
+            const mainText = `${sumMainDay}${quota.configured ? '/' + maxMain : '/—'}`;
+            const subText = `${sumSubDay}${quota.configured ? '/' + maxSub : '/—'}`;
+            partsInfoHtml = `<div class="repair-quota-stack">
+                ${quota.configured || sumMainDay > 0 ? `<div class="repair-quota-row repair-quota-main ${overMain ? 'is-over' : ''}"><span>หลัก:</span><strong>${mainText}</strong></div>` : ''}
+                ${quota.configured || sumSubDay > 0 ? `<div class="repair-quota-row repair-quota-sub ${overSub ? 'is-over' : ''}"><span>รอง:</span><strong>${subText}</strong></div>` : ''}
             </div>`;
         }
 
         let barBlock = '';
-        if(arrivedQty > 0 || targetQty > 0 || deliveryQty > 0) {
-            barBlock = `<div class="flex items-end justify-center gap-1.5 w-full h-[65px] mt-auto pb-0.5">`;
-            
-            if(arrivedQty > 0) { 
-                const h = Math.max(25, (arrivedQty / monthMaxQty) * 100); 
-                barBlock += `<div class="flex flex-col items-center justify-end h-full w-[20px] cursor-pointer group-hover:scale-105 transition-transform" onclick="event.stopPropagation(); filterBoardByDate('${dateStr}', 'arrived')" title="รถเข้าจอด: ${arrivedQty} คัน">
-                    <span class="text-[10px] font-black text-white bg-blue-500 rounded-sm w-5 h-5 flex items-center justify-center mb-1 shadow-sm">${arrivedQty}</span>
-                    <div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-sm shadow-sm" style="height: ${h}%;"></div>
-                </div>`; 
-            }
-            
-            if(targetQty > 0) { 
-                const h = Math.max(25, (targetQty / monthMaxQty) * 100); 
-                const pctDone = (doneQty / targetQty) * 100;
-                const isAllDone = doneQty === targetQty;
-                
-                barBlock += `<div class="flex flex-col items-center justify-end h-full w-[26px] cursor-pointer group-hover:scale-105 transition-transform" onclick="event.stopPropagation(); openDayListForTarget('${dateStr}')" title="เป้าซ่อมเสร็จ: ${targetQty} คัน (เสร็จแล้ว ${doneQty} คัน)">
-                    <span class="text-[9px] font-black ${isAllDone ? 'text-emerald-700 bg-emerald-100 border-emerald-400' : 'text-amber-700 bg-amber-100 border-amber-400'} border rounded-sm w-full h-4 flex items-center justify-center mb-1 shadow-sm z-10">${doneQty}/${targetQty}</span>
-                    <div class="w-full bg-slate-200 rounded-sm shadow-inner relative overflow-hidden" style="height: ${h}%;">
-                        <div class="absolute bottom-0 left-0 w-full bg-gradient-to-t ${isAllDone ? 'from-emerald-500 to-emerald-400' : 'from-amber-500 to-amber-300'} transition-all duration-500 ease-in-out" style="height: ${pctDone}%;"></div>
+        if(appointmentQty > 0 || targetQty > 0 || deliveryQty > 0) {
+            barBlock = `<div class="repair-day-bars">`;
+            if(appointmentQty > 0) {
+                const widthPct = Math.max(18, Math.round((appointmentQty / monthMaxQty) * 100));
+                barBlock += `<div class="repair-day-bar repair-day-bar-arrived" onclick="event.stopPropagation(); filterBoardByDate('${dateStr}', 'appointment')" title="นัดรถเข้า: ${appointmentQty} คัน">
+                    <div class="repair-day-bar-line repair-day-bar-line-arrived">
+                        <div class="repair-day-bar-fill repair-day-bar-fill-arrived" style="width:${widthPct}%"></div>
+                        <span class="repair-bar-count repair-bar-count-arrived">${appointmentQty}</span>
                     </div>
-                </div>`; 
+                </div>`;
             }
-            
-            if(deliveryQty > 0) { 
-                const h = Math.max(25, (deliveryQty / monthMaxQty) * 100); 
-                barBlock += `<div class="flex flex-col items-center justify-end h-full w-[20px] cursor-pointer group-hover:scale-105 transition-transform" onclick="event.stopPropagation(); filterBoardByDate('${dateStr}', 'delivery')" title="นัดส่งมอบ: ${deliveryQty} คัน">
-                    <span class="text-[10px] font-black text-white bg-indigo-500 rounded-sm w-5 h-5 flex items-center justify-center mb-1 shadow-sm">${deliveryQty}</span>
-                    <div class="w-full bg-gradient-to-t from-indigo-500 to-indigo-400 rounded-sm shadow-sm" style="height: ${h}%;"></div>
-                </div>`; 
+            if(targetQty > 0) {
+                const widthPct = Math.max(18, Math.round((targetQty / monthMaxQty) * 100));
+                const pctDone = targetQty ? Math.min(100, Math.round((doneQty / targetQty) * 100)) : 0;
+                const isAllDone = doneQty === targetQty;
+                barBlock += `<div class="repair-day-bar repair-day-bar-target" onclick="event.stopPropagation(); filterBoardByDate('${dateStr}', 'target')" title="เป้าซ่อมเสร็จ: ${targetQty} คัน (เสร็จแล้ว ${doneQty} คัน, ${pctDone}%)">
+                    <div class="repair-day-bar-line repair-day-bar-line-target ${isAllDone ? 'is-done' : ''}">
+                        <div class="repair-day-bar-fill repair-day-bar-fill-target ${isAllDone ? 'is-done' : ''}" style="width:${widthPct}%"></div>
+                        <span class="repair-bar-count repair-bar-count-target ${isAllDone ? 'is-done' : ''}">${doneQty}/${targetQty}</span>
+                    </div>
+                </div>`;
+            }
+            if(deliveryQty > 0) {
+                const widthPct = Math.max(18, Math.round((deliveryQty / monthMaxQty) * 100));
+                barBlock += `<div class="repair-day-bar repair-day-bar-delivery" onclick="event.stopPropagation(); filterBoardByDate('${dateStr}', 'delivery')" title="นัดส่งมอบ: ${deliveryQty} คัน">
+                    <div class="repair-day-bar-line repair-day-bar-line-delivery">
+                        <div class="repair-day-bar-fill repair-day-bar-fill-delivery" style="width:${widthPct}%"></div>
+                        <span class="repair-bar-count repair-bar-count-delivery">${deliveryQty}</span>
+                    </div>
+                </div>`;
             }
             barBlock += `</div>`;
-        } else { 
-            barBlock = `<div class="flex items-center justify-center h-[65px] w-full mt-auto"><span class="text-xs text-slate-300">ว่าง</span></div>`; 
+        } else {
+            barBlock = `<div class="repair-day-bars is-empty">ว่าง</div>`;
         }
 
-        const todayStr = getTodayString();
-        const isToday = dateStr === todayStr;
-
-        grid.innerHTML += `
-            <div class="calendar-cell group ${hasOverdue ? 'bg-red-50/50' : ''} ${isToday ? 'today' : ''}" onclick="clickCalendarDate('${dateStr}')">
-                <div class="flex justify-between items-start z-10 w-full mb-1">
-                    <span class="calendar-day-label">${day}</span>
-                    ${hasOverdue ? `<i class="fa-solid fa-circle-exclamation text-red-500 animate-pulse text-sm" title="มีรถดีเลย์ ${overdueJobsInDay.length} คัน!"></i>` : ''}
-                </div>
-                ${partsInfoHtml}
-                <div class="w-full z-10 flex-1 flex flex-col justify-end">${barBlock}</div>
-            </div>`;
+        const isToday = dateStr === getTodayString();
+        const alertsHtml = `<span class="repair-day-alerts">${overMain || overSub ? '<span class="repair-quota-warning" title="ชิ้นส่วนเกินโควต้า">🔥 เต็ม</span>' : ''}${hasOverdue ? `<i class="fa-solid fa-circle-exclamation repair-overdue-alert" title="มีรถล่าช้า ${overdueQty} คัน"></i>` : ''}</span>`;
+        grid.innerHTML += `<div class="calendar-cell group ${overMain || overSub ? 'repair-quota-full' : ''} ${hasOverdue ? 'has-overdue' : ''} ${isToday ? 'today' : ''}" onclick="clickCalendarDate('${dateStr}')">
+            <div class="repair-day-top"><span class="calendar-day-label">${day}</span>${alertsHtml}</div>
+            ${partsInfoHtml}<div class="repair-day-chart">${barBlock}</div>
+        </div>`;
     }
+    for (let i = firstDay + totalDays; i % 7 !== 0; i++) grid.innerHTML += `<div class="calendar-empty"></div>`;
 }
 
 function filterBoardByDate(dateStr, type) {
     switchTab('tab-board');
-    activeFilters = {}; 
+    activeFilters = {};
     activeKpiFilter = null;
-    isCalendarFilterActive = true; 
-    
-    let colIdx;
-    if (type === 'arrived') colIdx = columnsDef.find(c => c.key === 'arrived_date').idx;
-    if (type === 'target') colIdx = columnsDef.find(c => c.key === 'target_finish_date').idx;
-    if (type === 'delivery') colIdx = columnsDef.find(c => c.key === 'delivery_date').idx;
-    
-    activeFilters[colIdx] = new Set([dateStr]);
-    
+    isCalendarFilterActive = true;
+
+    const keyByType = {
+        appointment: 'appointment_date',
+        target: 'target_finish_date',
+        delivery: 'delivery_date'
+    };
+    const key = keyByType[type];
+    const column = columnsDef.find(c => c.key === key);
+    if (!column) return;
+    activeFilters[column.idx] = new Set([dateStr]);
+
+    const searchInput = document.getElementById('global_search_input');
+    if (searchInput) searchInput.value = '';
     document.querySelectorAll('.filter-icon').forEach(icon => icon.classList.remove('active'));
-    const thIcon = document.getElementById(`th_${colIdx}`)?.querySelector('.filter-icon');
+    const thIcon = document.getElementById(`th_${column.idx}`)?.querySelector('.filter-icon');
     if (thIcon) thIcon.classList.add('active');
-    
-    runTableFilters();
+    runTableFilters(true);
 }
 
 function clickCalendarDate(dateString) {
-    switchTab('tab-board');
-    activeFilters = {}; 
-    activeKpiFilter = null;
-    isCalendarFilterActive = true; 
-    document.getElementById('global_search_input').value = formatThaiDate(dateString);
-    runTableFilters();
+    filterBoardByDate(dateString, 'appointment');
 }
 
-function generateMiniCardHTML(j, type) {
+function generateMiniCardHTML(j, type, partOrders = allPartOrders) {
     const isOverdue = checkOverdue(j);
     const station = computeHighestStationIFS(j);
     const mainPartsStr = j.main_part_name && j.main_part_name.trim() !== '' ? j.main_part_name : '-';
     const subPartsStr = j.sub_part_name && j.sub_part_name.trim() !== '' ? j.sub_part_name : '-';
     
-    const carParts = allPartOrders.filter(po => {
+    const carParts = (partOrders || []).filter(po => {
         if (po.order_status === 'ยกเลิก') return false;
         if (po.job_id) return String(po.job_id) === String(j.id); 
         if (po.car_plate !== j.car_plate) return false;
@@ -1049,7 +1105,8 @@ function renderPieChartAndList() {
     const stationJobs = {}; 
     Object.keys(counters).forEach(k => stationJobs[k] = []); 
 
-    originalRepairJobs.forEach(j => {
+    const summarySource = repairSummaryLoaded ? repairSummaryJobs : originalRepairJobs;
+    summarySource.forEach(j => {
         if (selectedBranchFilter !== 'ALL' && j.branch_name !== selectedBranchFilter) return;
 
         const st = j.job_status || '';
@@ -1101,24 +1158,7 @@ function renderPieChartAndList() {
                 if (elements.length > 0) {
                     const index = elements[0].index;
                     const labelName = chartInstance.data.labels[index];
-                    switchTab('tab-board');
-                    
-                    let filterVal = labelName;
-                    if(labelName === 'รอส่งมอบ') filterVal = '12.รอส่งมอบ';
-                    else if(labelName === 'พักซ่อม') filterVal = '11.พักซ่อม';
-                    else if(labelName === 'ฟิล์ม') filterVal = '10.ฟิล์ม';
-                    else if(labelName === 'กระจก') filterVal = '09.กระจก';
-                    else if(labelName === 'แม็ก') filterVal = '08.แม็ก';
-                    else if(labelName === 'QC') filterVal = '07.QC';
-                    else if(labelName === 'ขัดสี') filterVal = '06.ขัดสี';
-                    else if(labelName === 'ประกอบ') filterVal = '05.ประกอบ';
-                    else if(labelName === 'พ่นสี') filterVal = '04.พ่นสี';
-                    else if(labelName === 'เตรียมพื้น') filterVal = '03.เตรียมพื้น';
-                    else if(labelName === 'โป๊ว') filterVal = '02.โป๊ว';
-                    else if(labelName === 'เคาะ') filterVal = '01.เคาะ';
-
-                    document.getElementById('global_search_input').value = filterVal;
-                    runTableFilters();
+                    jumpToBoardWithStationFilter(labelName);
                 }
             }
         }
@@ -1136,11 +1176,15 @@ function renderPieChartAndList() {
             const safeKeyId = stationKey.replace(/[\s\.\/]/g, '_');
             listHTML += `
                 <div class="mb-4 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm transition-all duration-300">
-                    <div onclick="document.getElementById('collapse_${safeKeyId}').classList.toggle('hidden'); this.querySelector('.fa-chevron-down').classList.toggle('rotate-180');" class="bg-slate-50 hover:bg-slate-100 px-5 py-4 flex justify-between items-center border-b border-slate-200 cursor-pointer select-none transition-colors">
-                        <h4 class="font-bold text-[#00320D] text-base flex items-center gap-2"><i class="fa-solid fa-layer-group text-amber-500"></i> สถานี: ${stationKey}</h4>
+                    <div class="bg-slate-50 hover:bg-slate-100 px-5 py-4 flex justify-between items-center border-b border-slate-200 select-none transition-colors">
+                        <button type="button" onclick="jumpToBoardWithStationFilter(decodeURIComponent('${encodeURIComponent(stationKey)}'))" class="text-left font-bold text-[#00320D] text-base flex items-center gap-2 hover:text-amber-700 transition">
+                            <i class="fa-solid fa-layer-group text-amber-500"></i> สถานี: ${stationKey}
+                        </button>
                         <div class="flex items-center gap-3">
-                            <span class="bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold px-3 py-1 rounded-full">${stationJobs[stationKey].length} คัน</span>
-                            <i class="fa-solid fa-chevron-down text-slate-400 transition-transform duration-300"></i>
+                            <button type="button" onclick="jumpToBoardWithStationFilter(decodeURIComponent('${encodeURIComponent(stationKey)}'))" class="bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-200 text-xs font-bold px-3 py-1 rounded-full transition">${stationJobs[stationKey].length} คัน</button>
+                            <button type="button" onclick="document.getElementById('collapse_${safeKeyId}').classList.toggle('hidden'); this.querySelector('.fa-chevron-down').classList.toggle('rotate-180');" class="w-8 h-8 rounded-lg hover:bg-white border border-slate-200 text-slate-400 transition">
+                                <i class="fa-solid fa-chevron-down transition-transform duration-300"></i>
+                            </button>
                         </div>
                     </div>
                     <div id="collapse_${safeKeyId}" class="divide-y divide-slate-100 hidden">
