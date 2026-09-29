@@ -136,9 +136,10 @@ function closeModal(modalId) {
     if(el) el.classList.add('hidden'); 
 }
 
-function logout() { 
-    sessionStorage.clear(); 
-    window.location.href = 'index.html'; 
+function logout() {
+    if (window.rizenicLogout) return window.rizenicLogout();
+    sessionStorage.clear();
+    window.location.href = 'index.html';
 }
 
 function computeHighestStationIFS(j) {

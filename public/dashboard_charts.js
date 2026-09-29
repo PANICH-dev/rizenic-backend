@@ -9,6 +9,16 @@ if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
     }
 }
 
+function getDashboardServerAnalytics() {
+    return (typeof window !== 'undefined' && window.dashboardServerAnalytics) ? window.dashboardServerAnalytics : null;
+}
+
+function dashboardRowsToCountMap(rows, key = 'label', value = 'count') {
+    const map = {};
+    (Array.isArray(rows) ? rows : []).forEach(row => { map[row?.[key] ?? ''] = Number(row?.[value] || 0); });
+    return map;
+}
+
 function renderKPIs(start, end) {
     const contacted = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end)).length;
     
@@ -55,68 +65,63 @@ function renderKPIs(start, end) {
 function renderDailyReport() {
     const start = document.getElementById('report_start_date')?.value || getFirstDayOfMonth();
     const end = document.getElementById('report_end_date')?.value || getLastDayOfMonth();
-    const todayDate = new Date().toISOString().split('T')[0]; 
-
-    const activeContacts = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end));
-    const uniqueCustomerTypes = [...new Set(activeContacts.map(j => (j.customer_type || 'ไม่ระบุ').trim()))].sort();
-
+    const todayDate = new Date().toISOString().split('T')[0];
+    const analytics = getDashboardServerAnalytics()?.dailyReport;
+    const activeContacts = analytics ? [] : filteredJobs.filter(j => isDateInRange(j.contact_date, start, end));
+    const customerTypeRows = analytics?.customerTypes;
+    const uniqueCustomerTypes = Array.isArray(customerTypeRows)
+        ? customerTypeRows.map(row => String(row.label || 'ไม่ระบุ'))
+        : [...new Set(activeContacts.map(j => (j.customer_type || 'ไม่ระบุ').trim()))].sort();
+    const customerTypeCounts = Array.isArray(customerTypeRows) ? dashboardRowsToCountMap(customerTypeRows) : {};
     const dynamicCustomerTypes = uniqueCustomerTypes.map(type => ({
-        label: `${type}`,
-        icon: "🏷️",
+        label: `${type}`, icon: "🏷️", serverCount: analytics ? Number(customerTypeCounts[type] || 0) : null,
         filter: j => (j.customer_type || 'ไม่ระบุ').trim() === type && isDateInRange(j.contact_date, start, end)
     }));
-
+    const work = analytics?.workStatus || {};
+    const finance = analytics?.finance || {};
     const reportDef = {
         customers: [
-            { label: "ติดต่อประจำวัน (Today)", icon: "🔥", filter: j => j.contact_date && j.contact_date.split('T')[0] === todayDate },
-            { label: "ติดต่อรวมช่วงเวลาที่เลือก", icon: "📅", filter: j => isDateInRange(j.contact_date, start, end) },
+            { label: "ติดต่อประจำวัน (Today)", icon: "🔥", serverCount: analytics ? Number(analytics.customers?.today || 0) : null, filter: j => j.contact_date && j.contact_date.split('T')[0] === todayDate },
+            { label: "ติดต่อรวมช่วงเวลาที่เลือก", icon: "📅", serverCount: analytics ? Number(analytics.customers?.range || 0) : null, filter: j => isDateInRange(j.contact_date, start, end) },
             ...dynamicCustomerTypes
         ],
         workStatus: [
-            { label: "รถเข้าจอด (ประจำวัน Today)", icon: "🔥", filter: j => j.arrived_date && j.arrived_date.split('T')[0] === todayDate },
-            { label: "ซ่อมเสร็จ (ประจำวัน Today)", icon: "🔥", filter: j => j.repair_finish_date && j.repair_finish_date.split('T')[0] === todayDate },
-            { label: "ส่งมอบ (ประจำวัน Today)", icon: "🔥", filter: j => (j.job_status||'').includes('ส่งมอบ') && !(j.job_status||'').includes('ซ่อมเสร็จรอส่งมอบ') && j.delivery_date && j.delivery_date.split('T')[0] === todayDate },
-            { label: "รอเสนอประกัน", icon: "⏳", filter: j => (j.job_status||'').includes('รอเสนอประกัน') },
-            { label: "รอประกันอนุมัติ", icon: "📝", filter: j => (j.job_status||'').includes('รอประกันอนุมัติ') },
-            { label: "รอลูกค้าอนุมัติ (เงินสด)", icon: "💵", filter: j => (j.job_status||'').includes('รอลูกค้าอนุมัติ') },
-            { label: "อนุมัติแล้ว", icon: "✅", filter: j => (j.job_status||'').includes('อนุมัติแล้ว') },
-            { label: "สั่งอะไหล่", icon: "🛠️", filter: j => (j.job_status||'').includes('สั่งอะไหล่') },
-            { label: "รอนัดหมายเข้าซ่อม", icon: "📅", filter: j => (j.job_status||'').includes('รอนัดหมายเข้าซ่อม') },
-            { label: "นัดหมายแล้วรอเข้าซ่อม", icon: "🕒", filter: j => (j.job_status||'').includes('นัดหมายแล้วรอเข้าซ่อม') },
-            { label: "จอดรอเข้าซ่อม", icon: "🚗", filter: j => (j.job_status||'').includes('จอดรอเข้าซ่อม') },
-            { label: "กำลังซ่อม", icon: "🔧", filter: j => (j.job_status||'').includes('กำลังซ่อม') },
-            { label: "ซ่อมTC", icon: "🏷️", filter: j => (j.job_status||'').includes('ซ่อม TC') || (j.job_status||'').includes('ซ่อมTC') },
-            { label: "รถซ่อมเสร็จรอส่งมอบ", icon: "🎁", filter: j => (j.job_status||'').includes('ซ่อมเสร็จรอส่งมอบ') },
-            { label: "ส่งมอบ", icon: "🏁", filter: j => j.job_status === '12.ส่งมอบแล้ว' || j.job_status === 'ส่งมอบแล้ว' },
-            { label: "พักซ่อม", icon: "👥", filter: j => (j.job_status||'').includes('พักซ่อม') }
+            { label: "รถเข้าจอด (ประจำวัน Today)", icon: "🔥", serverCount: analytics ? Number(work.arrivedToday || 0) : null, filter: j => j.arrived_date && j.arrived_date.split('T')[0] === todayDate },
+            { label: "ซ่อมเสร็จ (ประจำวัน Today)", icon: "🔥", serverCount: analytics ? Number(work.repairFinishToday || 0) : null, filter: j => j.repair_finish_date && j.repair_finish_date.split('T')[0] === todayDate },
+            { label: "ส่งมอบ (ประจำวัน Today)", icon: "🔥", serverCount: analytics ? Number(work.deliveryToday || 0) : null, filter: j => (j.job_status||'').includes('ส่งมอบ') && !(j.job_status||'').includes('ซ่อมเสร็จรอส่งมอบ') && j.delivery_date && j.delivery_date.split('T')[0] === todayDate },
+            { label: "รอเสนอประกัน", icon: "⏳", serverCount: analytics ? Number(work.waitQuote || 0) : null, filter: j => (j.job_status||'').includes('รอเสนอประกัน') },
+            { label: "รอประกันอนุมัติ", icon: "📝", serverCount: analytics ? Number(work.waitInsurance || 0) : null, filter: j => (j.job_status||'').includes('รอประกันอนุมัติ') },
+            { label: "รอลูกค้าอนุมัติ (เงินสด)", icon: "💵", serverCount: analytics ? Number(work.waitCustomer || 0) : null, filter: j => (j.job_status||'').includes('รอลูกค้าอนุมัติ') },
+            { label: "อนุมัติแล้ว", icon: "✅", serverCount: analytics ? Number(work.approved || 0) : null, filter: j => (j.job_status||'').includes('อนุมัติแล้ว') },
+            { label: "สั่งอะไหล่", icon: "🛠️", serverCount: analytics ? Number(work.orderingParts || 0) : null, filter: j => (j.job_status||'').includes('สั่งอะไหล่') },
+            { label: "รอนัดหมายเข้าซ่อม", icon: "📅", serverCount: analytics ? Number(work.waitAppointment || 0) : null, filter: j => (j.job_status||'').includes('รอนัดหมายเข้าซ่อม') },
+            { label: "นัดหมายแล้วรอเข้าซ่อม", icon: "🕒", serverCount: analytics ? Number(work.appointedWait || 0) : null, filter: j => (j.job_status||'').includes('นัดหมายแล้วรอเข้าซ่อม') },
+            { label: "จอดรอเข้าซ่อม", icon: "🚗", serverCount: analytics ? Number(work.parkedWait || 0) : null, filter: j => (j.job_status||'').includes('จอดรอเข้าซ่อม') },
+            { label: "กำลังซ่อม", icon: "🔧", serverCount: analytics ? Number(work.repairing || 0) : null, filter: j => (j.job_status||'').includes('กำลังซ่อม') },
+            { label: "ซ่อมTC", icon: "🏷️", serverCount: analytics ? Number(work.repairTc || 0) : null, filter: j => (j.job_status||'').includes('ซ่อม TC') || (j.job_status||'').includes('ซ่อมTC') },
+            { label: "รถซ่อมเสร็จรอส่งมอบ", icon: "🎁", serverCount: analytics ? Number(work.readyDelivery || 0) : null, filter: j => (j.job_status||'').includes('ซ่อมเสร็จรอส่งมอบ') },
+            { label: "ส่งมอบ", icon: "🏁", serverCount: analytics ? Number(work.deliveredDone || 0) : null, filter: j => j.job_status === '12.ส่งมอบแล้ว' || j.job_status === 'ส่งมอบแล้ว' },
+            { label: "พักซ่อม", icon: "👥", serverCount: analytics ? Number(work.repairHold || 0) : null, filter: j => (j.job_status||'').includes('พักซ่อม') }
         ],
         finance: [
-            { label: "วางบิลประกัน (ตามช่วงเวลา)", icon: "💳", filter: j => (j.job_status||'').includes('วางบิลประกัน') && isDateInRange(j.billing_date, start, end) },
-            { label: "ชำระเงินสด (ตามช่วงเวลา)", icon: "💵", filter: j => (j.job_status||'').includes('ชำระเงินสด') && isDateInRange(j.billing_date, start, end) },
-            { label: "วางบิล Tesla (ตามช่วงเวลา)", icon: "🏎️", filter: j => (j.job_status||'').includes('วางบิล Tesla') && isDateInRange(j.billing_date, start, end) },
-            { label: "วางบิล EV ME (ตามช่วงเวลา)", icon: "⚡", filter: j => ((j.job_status||'').includes('วางบิล EV ME') || (j.job_status||'').includes('วางบิล EVME')) && isDateInRange(j.billing_date, start, end) },
-            { label: "รอออกบิล (สะสมรวม)", icon: "⏳", filter: j => (j.job_status||'').includes('รอออกบิล') },
-            { label: "ลูกค้ายกเลิก", icon: "❌", filter: j => (j.job_status||'').includes('ยกเลิก') },
-            { label: "ออกบิลแล้ว (ตามช่วงเวลา)", icon: "📄", filter: j => (j.job_status||'').includes('ออกบิลแล้ว') && isDateInRange(j.billing_date, start, end) },
-            { label: "สรุปออกบิลรวม (ตามช่วงเวลา)", icon: "📄", filter: j => isDateInRange(j.billing_date, start, end) }
+            { label: "วางบิลประกัน (ตามช่วงเวลา)", icon: "💳", serverCount: analytics ? Number(finance.billInsurance || 0) : null, filter: j => (j.job_status||'').includes('วางบิลประกัน') && isDateInRange(j.billing_date, start, end) },
+            { label: "ชำระเงินสด (ตามช่วงเวลา)", icon: "💵", serverCount: analytics ? Number(finance.cashPaid || 0) : null, filter: j => (j.job_status||'').includes('ชำระเงินสด') && isDateInRange(j.billing_date, start, end) },
+            { label: "วางบิล Tesla (ตามช่วงเวลา)", icon: "🏎️", serverCount: analytics ? Number(finance.billTesla || 0) : null, filter: j => (j.job_status||'').includes('วางบิล Tesla') && isDateInRange(j.billing_date, start, end) },
+            { label: "วางบิล EV ME (ตามช่วงเวลา)", icon: "⚡", serverCount: analytics ? Number(finance.billEvme || 0) : null, filter: j => ((j.job_status||'').includes('วางบิล EV ME') || (j.job_status||'').includes('วางบิล EVME')) && isDateInRange(j.billing_date, start, end) },
+            { label: "รอออกบิล (สะสมรวม)", icon: "⏳", serverCount: analytics ? Number(finance.waitBill || 0) : null, filter: j => (j.job_status||'').includes('รอออกบิล') },
+            { label: "ลูกค้ายกเลิก", icon: "❌", serverCount: analytics ? Number(finance.cancelled || 0) : null, filter: j => (j.job_status||'').includes('ยกเลิก') },
+            { label: "ออกบิลแล้ว (ตามช่วงเวลา)", icon: "📄", serverCount: analytics ? Number(finance.billedDone || 0) : null, filter: j => (j.job_status||'').includes('ออกบิลแล้ว') && isDateInRange(j.billing_date, start, end) },
+            { label: "สรุปออกบิลรวม (ตามช่วงเวลา)", icon: "📄", serverCount: analytics ? Number(finance.billedRange || 0) : null, filter: j => isDateInRange(j.billing_date, start, end) }
         ]
     };
-
     window.currentReportDef = reportDef;
-
     ['customers', 'workStatus', 'finance'].forEach((cat, colIdx) => {
         const containerId = colIdx === 0 ? 'report_col_customers' : (colIdx === 1 ? 'report_col_status' : 'report_col_finance');
         const container = document.getElementById(containerId);
         if(!container) return;
-        
         container.innerHTML = reportDef[cat].map((item, itemIdx) => {
-            const count = filteredJobs.filter(item.filter).length;
-            return `
-                <div onclick="openReportModal('${cat}', ${itemIdx})" class="flex justify-between items-center py-2 px-3 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors group border border-transparent hover:border-slate-200">
-                    <span class="text-sm font-medium text-slate-700 group-hover:text-blue-600 transition-colors">${item.icon} ${item.label}</span>
-                    <span class="text-base font-black ${count > 0 ? 'text-blue-600' : 'text-slate-400'}">${count}</span>
-                </div>
-            `;
+            const count = item.serverCount == null ? filteredJobs.filter(item.filter).length : item.serverCount;
+            return `<div onclick="openReportModal('${cat}', ${itemIdx})" class="flex justify-between items-center py-2 px-3 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors group border border-transparent hover:border-slate-200"><span class="text-sm font-medium text-slate-700 group-hover:text-blue-600 transition-colors">${item.icon} ${item.label}</span><span class="text-base font-black ${count > 0 ? 'text-blue-600' : 'text-slate-400'}">${count}</span></div>`;
         }).join('');
     });
 }
@@ -151,18 +156,23 @@ function renderStatusChart() {
     const statusCounts = {};
     targetStatuses.forEach(s => statusCounts[s] = 0);
 
-    filteredJobs.forEach(job => {
-        const st = (job.job_status || "").trim();
-        const prefix = st.substring(0, 2);
-        const matchedStatus = targetStatuses.find(t => t.startsWith(prefix));
-        
-        if (matchedStatus) {
-            if (matchedStatus.includes('วางบิล') || matchedStatus.includes('ชำระเงินสด') || matchedStatus.includes('ออกบิลแล้ว') || matchedStatus.includes('ส่งมอบ')) {
-                if (!isDateInRange(job.billing_date || job.delivery_date || job.repair_finish_date, start, end)) return;
+    const serverStatusRows = getDashboardServerAnalytics()?.statusChartCounts;
+    if (Array.isArray(serverStatusRows)) {
+        const serverStatusMap = dashboardRowsToCountMap(serverStatusRows, 'code', 'count');
+        targetStatuses.forEach(status => { statusCounts[status] = Number(serverStatusMap[status.substring(0, 2)] || 0); });
+    } else {
+        filteredJobs.forEach(job => {
+            const st = (job.job_status || "").trim();
+            const prefix = st.substring(0, 2);
+            const matchedStatus = targetStatuses.find(t => t.startsWith(prefix));
+            if (matchedStatus) {
+                if (matchedStatus.includes('วางบิล') || matchedStatus.includes('ชำระเงินสด') || matchedStatus.includes('ออกบิลแล้ว') || matchedStatus.includes('ส่งมอบ')) {
+                    if (!isDateInRange(job.billing_date || job.delivery_date || job.repair_finish_date, start, end)) return;
+                }
+                statusCounts[matchedStatus]++;
             }
-            statusCounts[matchedStatus]++;
-        }
-    });
+        });
+    }
 
     const activeDataPairs = [];
     targetStatuses.forEach(s => {
@@ -264,15 +274,16 @@ function renderInsuranceChart() {
     const end = document.getElementById('dash_end_date')?.value;
 
     const customerTypes = {};
-    filteredJobs.forEach(j => {
-        // 🌟 กรองข้อมูลตามวันที่ (ถ้ารถไม่ได้เข้าหรือติดต่อในช่วงเวลานี้ ให้ข้ามไปเลย)
-        if (start && end && !isDateInRange(j.arrived_date || j.contact_date || j.appointment_date, start, end)) {
-            return;
-        }
-
-        const type = (j.customer_type || 'ไม่มีข้อมูล').trim();
-        customerTypes[type] = (customerTypes[type] || 0) + 1;
-    });
+    const serverInsuranceRows = getDashboardServerAnalytics()?.insuranceCounts;
+    if (Array.isArray(serverInsuranceRows)) {
+        Object.assign(customerTypes, dashboardRowsToCountMap(serverInsuranceRows));
+    } else {
+        filteredJobs.forEach(j => {
+            if (start && end && !isDateInRange(j.arrived_date || j.contact_date || j.appointment_date, start, end)) return;
+            const type = (j.customer_type || 'ไม่มีข้อมูล').trim();
+            customerTypes[type] = (customerTypes[type] || 0) + 1;
+        });
+    }
 
     const sortedTypes = Object.entries(customerTypes).sort((a,b) => b[1] - a[1]);
     const labels = sortedTypes.map(i => i[0]);
@@ -369,7 +380,9 @@ function renderPaymentChart(start, end) {
     if (!canvas) return;
 
     const counts = {};
-    filteredJobs.filter(j => isDateInRange(j.arrived_date || j.contact_date, start, end)).forEach(j => {
+    const serverPaymentRows = getDashboardServerAnalytics()?.paymentCounts;
+    if (Array.isArray(serverPaymentRows)) Object.assign(counts, dashboardRowsToCountMap(serverPaymentRows));
+    else filteredJobs.filter(j => isDateInRange(j.arrived_date || j.contact_date, start, end)).forEach(j => {
         const type = (j.payment_type || 'ไม่ระบุ').trim();
         counts[type] = (counts[type] || 0) + 1;
     });
@@ -412,13 +425,13 @@ function renderFinanceChart(start, end) {
     if (!canvas) return;
 
     const billedStatuses = ['ชำระเงินสด', 'ออกบิลแล้ว', 'วางบิล'];
-    const managed = filteredJobs.filter(j => {
+    const serverFinance = getDashboardServerAnalytics()?.financeCounts;
+    const managed = serverFinance ? Number(serverFinance.managed || 0) : filteredJobs.filter(j => {
         const st = j.job_status || '';
         const isBilled = billedStatuses.some(b => st.includes(b));
         return isBilled && isDateInRange(j.billing_date, start, end);
     }).length;
-
-    const unmanaged = filteredJobs.filter(j => (j.job_status || '').includes('รอออกบิล')).length;
+    const unmanaged = serverFinance ? Number(serverFinance.unmanaged || 0) : filteredJobs.filter(j => (j.job_status || '').includes('รอออกบิล')).length;
 
     if (financeChartInstance) financeChartInstance.destroy();
     const ctx = canvas.getContext('2d');
@@ -470,28 +483,25 @@ function renderDamageChart(start, end) {
         'ไม่ระบุ': { count: 0, color: '#94a3b8' } 
     };
 
-    const parkedStatuses = ['09.จอดรอเข้าซ่อม', '10.กำลังซ่อม', '11.รถซ่อมเสร็จรอส่งมอบ'];
-
-    const targetJobs = filteredJobs.filter(j => {
-        const st = (j.job_status || '').trim();
-        if (damageFilterMode === 'parked') {
-            return parkedStatuses.some(ps => st.includes(ps) || st.includes(ps.replace(/^[0-9]+\./, '')));
-        } else {
+    const serverDamageRows = getDashboardServerAnalytics()?.damageCounts?.[damageFilterMode];
+    if (Array.isArray(serverDamageRows)) {
+        serverDamageRows.forEach(row => { if (damageMap[row.label]) damageMap[row.label].count = Number(row.count || 0); });
+    } else {
+        const parkedStatuses = ['09.จอดรอเข้าซ่อม', '10.กำลังซ่อม', '11.รถซ่อมเสร็จรอส่งมอบ'];
+        const targetJobs = filteredJobs.filter(j => {
+            const st = (j.job_status || '').trim();
+            if (damageFilterMode === 'parked') return parkedStatuses.some(ps => st.includes(ps) || st.includes(ps.replace(/^[0-9]+\./, '')));
             return isDateInRange(j.arrived_date || j.contact_date, start, end);
-        }
-    });
-
-    targetJobs.forEach(j => {
-        const dmg = (j.damage_level || 'ไม่ระบุ').trim();
-        if (damageMap[dmg]) {
-            damageMap[dmg].count++;
-        } else {
-            if (dmg.includes('เบา')) damageMap['เบา'].count++;
+        });
+        targetJobs.forEach(j => {
+            const dmg = (j.damage_level || 'ไม่ระบุ').trim();
+            if (damageMap[dmg]) damageMap[dmg].count++;
+            else if (dmg.includes('เบา')) damageMap['เบา'].count++;
             else if (dmg.includes('กลาง')) damageMap['กลาง'].count++;
             else if (dmg.includes('หนัก')) damageMap['หนัก'].count++;
             else damageMap['ไม่ระบุ'].count++;
-        }
-    });
+        });
+    }
 
     const labels = []; const data = []; const colors = [];
     Object.keys(damageMap).forEach(key => {
@@ -550,28 +560,31 @@ function renderPartsStatusChart() {
         'รออัปเดต': { cars: 0, parts: 0 }
     };
 
-    const orderingJobs = filteredJobs.filter(j => (j.job_status || '').trim().includes('สั่งอะไหล่'));
-    const cleanPlate = str => String(str || '').replace(/\s+/g, '').toLowerCase();
-
-    orderingJobs.forEach(job => {
-        const jobIdStr = String(job.id);
-        const jobPlate = cleanPlate(job.car_plate);
-
-        const carParts = getDashboardPartOrdersForJob(job);
-
-        let carStatus = 'รอสั่งซื้อ';
-        if (carParts.length > 0) {
-            const statuses = carParts.map(p => (p.order_status || '').trim());
-            if (statuses.some(s => s.includes('รอสั่งซื้อ'))) carStatus = 'รอสั่งซื้อ';
-            else if (statuses.some(s => s.includes('Back Order') || s.includes('ติด Back Order'))) carStatus = 'ติด Back Order';
-            else if (statuses.some(s => s.includes('รออะไหล่'))) carStatus = 'รออะไหล่';
-            else if (statuses.every(s => s.includes('ครบ') || s.includes('มีของ'))) carStatus = 'มีของ/ครบ';
-            else carStatus = 'รออัปเดต';
-        }
-
-        statusSummary[carStatus].cars += 1;
-        statusSummary[carStatus].parts += carParts.length;
-    });
+    const serverPartsRows = getDashboardServerAnalytics()?.partsStatusCounts;
+    if (Array.isArray(serverPartsRows)) {
+        serverPartsRows.forEach(row => {
+            const key = row.label;
+            if (!statusSummary[key]) statusSummary[key] = { cars: 0, parts: 0 };
+            statusSummary[key].cars = Number(row.cars || 0);
+            statusSummary[key].parts = Number(row.parts || 0);
+        });
+    } else {
+        const orderingJobs = filteredJobs.filter(j => (j.job_status || '').trim().includes('สั่งอะไหล่'));
+        orderingJobs.forEach(job => {
+            const carParts = getDashboardPartOrdersForJob(job);
+            let carStatus = 'รอสั่งซื้อ';
+            if (carParts.length > 0) {
+                const statuses = carParts.map(p => (p.order_status || '').trim());
+                if (statuses.some(s => s.includes('รอสั่งซื้อ'))) carStatus = 'รอสั่งซื้อ';
+                else if (statuses.some(s => s.includes('Back Order') || s.includes('ติด Back Order'))) carStatus = 'ติด Back Order';
+                else if (statuses.some(s => s.includes('รออะไหล่'))) carStatus = 'รออะไหล่';
+                else if (statuses.every(s => s.includes('ครบ') || s.includes('มีของ'))) carStatus = 'มีของ/ครบ';
+                else carStatus = 'รออัปเดต';
+            }
+            statusSummary[carStatus].cars += 1;
+            statusSummary[carStatus].parts += carParts.length;
+        });
+    }
 
     const labels = []; const carData = []; const partsData = [];
     Object.keys(statusSummary).forEach(st => {
@@ -634,19 +647,28 @@ function renderMechanicChart() {
     const canvas = document.getElementById('mechanicChart');
     if (!canvas) return;
 
-    const activeStations = ["01.เคาะ", "02.โป๊ว", "03.เตรียมพื้น", "04.พ่นสี", "05.ประกอบ", "06.ขัดสี", "08.เก็บงาน", "09.ซ่อมแม็ก", "10.กระจก", "11.ฟิล์ม"];
+    const activeStations = ["01.เคาะ", "02.โป๊ว", "03.เตรียมพื้น", "04.พ่นสี", "05.ประกอบ", "06.ขัดสี", "07.QC", "08.แม็ก", "09.กระจก", "10.ฟิล์ม"];
     const targetStatuses = ["09.จอดรอเข้าซ่อม", "10.กำลังซ่อม", "11.รถซ่อมเสร็จรอส่งมอบ", "จอดรอเข้าซ่อม", "กำลังซ่อม", "รถซ่อมเสร็จรอส่งมอบ"];
     
     const counts = {};
-    const targetJobs = filteredJobs.filter(j => targetStatuses.some(ts => (j.job_status || '').trim().includes(ts)));
-
-    targetJobs.forEach(j => {
-        const s = computeHighestStationIFS(j);
-        if(activeStations.includes(s)) {
-            const shortName = s.replace(/[0-9.]/g, ''); 
-            counts[shortName] = (counts[shortName] || 0) + 1;
-        }
-    });
+    const serverMechanicRows = getDashboardServerAnalytics()?.mechanicCounts;
+    if (Array.isArray(serverMechanicRows)) {
+        serverMechanicRows.forEach(row => {
+            if (activeStations.includes(row.label)) {
+                const shortName = String(row.label).replace(/[0-9.]/g, '');
+                counts[shortName] = Number(row.count || 0);
+            }
+        });
+    } else {
+        const targetJobs = filteredJobs.filter(j => targetStatuses.some(ts => (j.job_status || '').trim().includes(ts)));
+        targetJobs.forEach(j => {
+            const station = computeHighestStationIFS(j);
+            if(activeStations.includes(station)) {
+                const shortName = station.replace(/[0-9.]/g, '');
+                counts[shortName] = (counts[shortName] || 0) + 1;
+            }
+        });
+    }
 
     const labels = Object.keys(counts); 
     const data = Object.values(counts);

@@ -15,6 +15,20 @@
         const rows = Array.isArray(data) ? data : [];
         const safeState = state || createState();
         const pageSize = Math.max(1, Number(safeState.pageSize) || DEFAULT_PAGE_SIZE);
+        if (safeState.serverMeta) {
+            const meta = safeState.serverMeta;
+            const total = Math.max(0, Number(meta.total) || 0);
+            const totalPages = Math.max(1, Number(meta.totalPages) || Math.ceil(total / pageSize) || 1);
+            const page = Math.min(Math.max(1, Number(meta.page) || Number(safeState.page) || 1), totalPages);
+            safeState.page = page;
+            const startIndex = total === 0 ? 0 : (page - 1) * pageSize;
+            const endIndex = total === 0 ? 0 : Math.min(startIndex + rows.length, total);
+            return {
+                items: rows, page, pageSize, total, totalPages, startIndex, endIndex,
+                startNumber: total === 0 ? 0 : startIndex + 1,
+                endNumber: endIndex
+            };
+        }
         const total = rows.length;
         const totalPages = Math.max(1, Math.ceil(total / pageSize));
         const requestedPage = Math.max(1, Number(safeState.page) || 1);
@@ -35,6 +49,33 @@
             endIndex,
             startNumber: total === 0 ? 0 : startIndex + 1,
             endNumber: endIndex
+        };
+    }
+
+    function fromServerResponse(response, state) {
+        const payload = response && typeof response === 'object' ? response : {};
+        const items = Array.isArray(payload.items) ? payload.items : [];
+        const safeState = state || createState(payload.pageSize || DEFAULT_PAGE_SIZE);
+        const pageSize = Math.max(1, Number(payload.pageSize) || Number(safeState.pageSize) || DEFAULT_PAGE_SIZE);
+        const hasServerTotal = payload.total !== undefined && payload.total !== null && payload.total !== '';
+        const total = hasServerTotal ? Math.max(0, Number(payload.total) || 0) : items.length;
+        const hasServerTotalPages = payload.totalPages !== undefined && payload.totalPages !== null && payload.totalPages !== '';
+        const totalPages = Math.max(1, hasServerTotalPages ? (Number(payload.totalPages) || 1) : (Math.ceil(total / pageSize) || 1));
+        const page = Math.min(Math.max(1, Number(payload.page) || Number(safeState.page) || 1), totalPages);
+        safeState.page = page;
+        safeState.pageSize = pageSize;
+        safeState.serverMeta = { page, pageSize, total, totalPages };
+        const startIndex = total === 0 ? 0 : (page - 1) * pageSize;
+        const legacyUnpagedResponse = !hasServerTotal && !hasServerTotalPages;
+        const normalizedItems = legacyUnpagedResponse ? items.slice(startIndex, startIndex + pageSize) : items;
+        const endIndex = total === 0 ? 0 : Math.min(startIndex + normalizedItems.length, total);
+        return {
+            items: normalizedItems,
+            pageInfo: {
+                items: normalizedItems, page, pageSize, total, totalPages, startIndex, endIndex,
+                startNumber: total === 0 ? 0 : startIndex + 1,
+                endNumber: endIndex
+            }
         };
     }
 
@@ -156,6 +197,7 @@
         createState,
         reset,
         paginate,
+        fromServerResponse,
         getPageNumbers,
         findScrollHost,
         renderControls

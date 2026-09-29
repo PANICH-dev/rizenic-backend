@@ -9,7 +9,7 @@ function ensureXlsxLoaded() {
     if (xlsxLoadPromise) return xlsxLoadPromise;
     xlsxLoadPromise = new Promise((resolve, reject) => {
         const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+        script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
         script.async = true;
         script.onload = () => resolve(window.XLSX);
         script.onerror = () => {
@@ -193,7 +193,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 });
 
-function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
+function logout() { return window.rizenicLogout ? window.rizenicLogout() : (sessionStorage.clear(), window.location.href = 'index.html'); }
 
 async function loadUserColumnPreferences() {
     const empName = sessionStorage.getItem('emp_name'); if (!empName) return;

@@ -7,42 +7,17 @@
     <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RIZENIC ERP - Admin Panel</title>
-    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="table_scroll_fix.css?v=1.6">
-    
-    <style type="text/tailwindcss">
-        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Kanit', sans-serif; background-color: #f4f6f9; }
-        .bg-rizenic-green { background-color: #00320D; }
-        .text-rizenic-green { color: #00320D; }
-        .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
-        
-        .minimal-input { @apply w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none text-sm font-bold text-[#00320D] focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 shadow-sm transition-all; }
-        .minimal-input:disabled { @apply bg-slate-100 text-slate-500 cursor-not-allowed; }
-
-        .admin-panel { display: none; animation: fadeIn 0.3s ease-in-out; }
-        .admin-panel.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        .label-text { @apply flex items-center gap-1 text-[12px] font-bold text-slate-500 mb-1.5 tracking-wide uppercase; }
-        
-        .nav-btn { @apply w-full text-left px-4 py-3 rounded-xl font-bold text-sm text-slate-400 hover:bg-[#004a1f] hover:text-white transition-all mb-1.5 flex items-center gap-3; }
-        .nav-btn.active { @apply bg-[#004a1f] text-white shadow-inner; }
-
-        .modal-fade { animation: fadeInScale 0.2s ease-out forwards; }
-        @keyframes fadeInScale {
-            from { opacity: 0; transform: scale(0.95) translateY(10px); }
-            to { opacity: 1; transform: scale(1) translateY(0); }
-        }
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap">
+    <link rel="stylesheet" href="table_scroll_fix.css?v=1.6&adaptive=4">
+<link rel="stylesheet" href="ui_global.css?v=1.2">
+    <link rel="stylesheet" href="/compiled/admin.tailwind.css?v=1.2">
+    <style id="admin-panel-bottom-pager-fix">
+        .admin-panel.active { display: flex !important; flex: 1 1 auto !important; min-height: 0 !important; flex-direction: column !important; }
     </style>
-    <link rel="stylesheet" href="ui_global.css?v=1.1">
+    <script src="session_guard.js?v=1.1"></script>
 </head>
-<body class="text-slate-800 flex h-screen overflow-hidden selection:bg-[#00320D] selection:text-white">
+<body data-rz-table-dock="off" class="text-slate-800 flex h-screen overflow-hidden selection:bg-[#00320D] selection:text-white">
 
     <aside class="w-64 bg-[#00320D] text-white flex flex-col h-full shrink-0 shadow-2xl z-20">
         <div class="p-6 border-b border-green-800 mb-4 text-center">
@@ -72,12 +47,12 @@
         </div>
     </aside>
 
-    <main class="flex-1 overflow-hidden flex flex-col bg-slate-100 relative">
-        <div class="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8">
-            <div class="max-w-[1400px] mx-auto bg-white rounded-3xl shadow-sm border border-slate-200 min-h-[85vh] flex flex-col">
+    <main class="flex-1 min-h-0 overflow-hidden flex flex-col bg-slate-100 relative">
+        <div id="admin-scroll-shell" class="flex-1 min-h-0 overflow-hidden p-6 md:p-8">
+            <div class="max-w-[1400px] mx-auto bg-white rounded-3xl shadow-sm border border-slate-200 h-full min-h-0 flex flex-col">
                 
                 <!-- 👥 1. จัดการพนักงาน -->
-                <div id="emp-panel" class="admin-panel active h-full flex flex-col">
+                <div id="emp-panel" class="admin-panel active h-full min-h-0 flex flex-col">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center p-6 border-b border-slate-100 bg-slate-50/50 rounded-t-3xl shrink-0 gap-4">
                         <h2 class="text-xl font-black text-[#00320D]"><i class="fa-solid fa-users text-blue-500 mr-2 bg-blue-100 p-2 rounded-lg"></i> จัดการพนักงานและสิทธิ์</h2>
                         <div class="flex items-center gap-3 w-full md:w-auto">
@@ -88,7 +63,7 @@
                             <button onclick="resetEmpForm(); openModal('empModal')" class="px-5 py-2 bg-blue-600 text-white font-bold rounded-xl text-xs shadow-md hover:bg-blue-700 transition flex items-center gap-2 whitespace-nowrap"><i class="fa-solid fa-plus"></i> เพิ่มพนักงาน</button>
                         </div>
                     </div>
-                    <div class="flex-1 overflow-auto custom-scrollbar p-0">
+                    <div class="flex-1 min-h-0 overflow-auto custom-scrollbar p-0">
                         <table class="w-full text-left text-sm whitespace-nowrap">
                             <thead class="bg-white border-b-2 border-slate-200 sticky top-0 z-10 shadow-sm"><tr><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider">รหัส</th><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider">ชื่อ-นามสกุล</th><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider">ตำแหน่ง</th><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider">สาขา</th><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider">หน้าจอที่เข้าได้</th><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider text-center">จัดการ</th></tr></thead>
                             <tbody id="emp_table_body" class="divide-y divide-slate-100"></tbody>
@@ -97,7 +72,7 @@
                 </div>
 
                 <!-- 🚗 2. รุ่นรถยนต์ -->
-                <div id="car-panel" class="admin-panel h-full flex flex-col">
+                <div id="car-panel" class="admin-panel h-full min-h-0 flex flex-col">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center p-6 border-b border-slate-100 bg-slate-50/50 rounded-t-3xl shrink-0 gap-4">
                         <h2 class="text-xl font-black text-[#00320D]"><i class="fa-solid fa-car text-indigo-500 mr-2 bg-indigo-100 p-2 rounded-lg"></i> ฐานข้อมูลรุ่นรถยนต์</h2>
                         <div class="flex items-center gap-3 w-full md:w-auto">
@@ -108,7 +83,7 @@
                             <button onclick="resetCarForm(); openModal('carModal')" class="px-5 py-2 bg-indigo-600 text-white font-bold rounded-xl text-xs shadow-md hover:bg-indigo-700 transition flex items-center gap-2 whitespace-nowrap"><i class="fa-solid fa-plus"></i> เพิ่มรุ่นรถ</button>
                         </div>
                     </div>
-                    <div class="flex-1 overflow-auto custom-scrollbar p-0">
+                    <div class="flex-1 min-h-0 overflow-auto custom-scrollbar p-0">
                         <table class="w-full text-left text-sm whitespace-nowrap">
                             <thead class="bg-white border-b-2 border-slate-200 sticky top-0 z-10 shadow-sm"><tr><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider">ยี่ห้อรถ</th><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider">รุ่นรถ</th><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider text-center w-32">จัดการ</th></tr></thead>
                             <tbody id="car_table_body" class="divide-y divide-slate-100"></tbody>
@@ -117,7 +92,7 @@
                 </div>
 
                 <!-- 🛡️ 3. ประกันภัย -->
-                <div id="ins-panel" class="admin-panel h-full flex flex-col">
+                <div id="ins-panel" class="admin-panel h-full min-h-0 flex flex-col">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center p-6 border-b border-slate-100 bg-slate-50/50 rounded-t-3xl shrink-0 gap-4">
                         <h2 class="text-xl font-black text-[#00320D]"><i class="fa-solid fa-shield-halved text-emerald-500 mr-2 bg-emerald-100 p-2 rounded-lg"></i> ฐานข้อมูลประกันภัย</h2>
                         <div class="flex items-center gap-3 w-full md:w-auto">
@@ -128,7 +103,7 @@
                             <button onclick="resetInsForm(); openModal('insModal')" class="px-5 py-2 bg-emerald-600 text-white font-bold rounded-xl text-xs shadow-md hover:bg-emerald-700 transition flex items-center gap-2 whitespace-nowrap"><i class="fa-solid fa-plus"></i> เพิ่มบริษัท</button>
                         </div>
                     </div>
-                    <div class="flex-1 overflow-auto custom-scrollbar p-0">
+                    <div class="flex-1 min-h-0 overflow-auto custom-scrollbar p-0">
                         <table class="w-full text-left text-sm whitespace-nowrap">
                             <thead class="bg-white border-b-2 border-slate-200 sticky top-0 z-10 shadow-sm"><tr><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider w-32">รหัส</th><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider">บริษัทประกันภัย</th><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider">ประเภท</th><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider text-center w-32">จัดการ</th></tr></thead>
                             <tbody id="ins_table_body" class="divide-y divide-slate-100"></tbody>
@@ -137,7 +112,7 @@
                 </div>
 
                 <!-- 👥 4. ประเภทลูกค้า -->
-                <div id="ctype-panel" class="admin-panel h-full flex flex-col">
+                <div id="ctype-panel" class="admin-panel h-full min-h-0 flex flex-col">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center p-6 border-b border-slate-100 bg-slate-50/50 rounded-t-3xl shrink-0 gap-4">
                         <h2 class="text-xl font-black text-[#00320D]"><i class="fa-solid fa-user-tag text-teal-500 mr-2 bg-teal-100 p-2 rounded-lg"></i> ประเภทลูกค้า</h2>
                         <div class="flex items-center gap-3 w-full md:w-auto">
@@ -148,7 +123,7 @@
                             <button onclick="resetCtypeForm(); openModal('ctypeModal')" class="px-5 py-2 bg-teal-600 text-white font-bold rounded-xl text-xs shadow-md hover:bg-teal-700 transition flex items-center gap-2 whitespace-nowrap"><i class="fa-solid fa-plus"></i> เพิ่มประเภท</button>
                         </div>
                     </div>
-                    <div class="flex-1 overflow-auto custom-scrollbar p-0">
+                    <div class="flex-1 min-h-0 overflow-auto custom-scrollbar p-0">
                         <table class="w-full text-left text-sm whitespace-nowrap">
                             <thead class="bg-white border-b-2 border-slate-200 sticky top-0 z-10 shadow-sm"><tr><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider w-32">รหัส</th><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider">ชื่อประเภทลูกค้า</th><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider text-center w-32">จัดการ</th></tr></thead>
                             <tbody id="ctype_table_body" class="divide-y divide-slate-100"></tbody>
@@ -157,7 +132,7 @@
                 </div>
 
                 <!-- 🚗🛠️ 5. ชิ้นส่วนซ่อมสี (Body Parts) -->
-                <div id="body-parts-panel" class="admin-panel h-full flex flex-col">
+                <div id="body-parts-panel" class="admin-panel h-full min-h-0 flex flex-col">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center p-6 border-b border-slate-100 bg-slate-50/50 rounded-t-3xl shrink-0 gap-4">
                         <h2 class="text-xl font-black text-[#00320D]"><i class="fa-solid fa-car-side text-rose-500 mr-2 bg-rose-100 p-2 rounded-lg"></i> ชิ้นส่วนซ่อมสี (Body Parts)</h2>
                         <div class="flex items-center gap-3 w-full md:w-auto">
@@ -168,7 +143,7 @@
                             <button onclick="resetBodyPartForm(); openModal('bodyPartsModal')" class="px-5 py-2 bg-rose-600 text-white font-bold rounded-xl text-xs shadow-md hover:bg-rose-700 transition flex items-center gap-2 whitespace-nowrap"><i class="fa-solid fa-plus"></i> เพิ่มชิ้นส่วน</button>
                         </div>
                     </div>
-                    <div class="flex-1 overflow-auto custom-scrollbar p-0">
+                    <div class="flex-1 min-h-0 overflow-auto custom-scrollbar p-0">
                         <table class="w-full text-left text-sm whitespace-nowrap">
                             <thead class="bg-white border-b-2 border-slate-200 sticky top-0 z-10 shadow-sm"><tr><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider w-40 text-center">หมวดหมู่</th><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider">ชื่อชิ้นส่วน</th><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider text-center w-32">จัดการ</th></tr></thead>
                             <tbody id="body_parts_table_body" class="divide-y divide-slate-100"></tbody>
@@ -177,7 +152,7 @@
                 </div>
 
                 <!-- 🟢 6. สถานะหลัก & การส่งต่อ -->
-                <div id="main-status-panel" class="admin-panel h-full flex flex-col">
+                <div id="main-status-panel" class="admin-panel h-full min-h-0 flex flex-col">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center p-6 border-b border-slate-100 bg-slate-50/50 rounded-t-3xl shrink-0 gap-4">
                         <h2 class="text-xl font-black text-[#00320D]"><i class="fa-solid fa-bars-progress text-amber-500 mr-2 bg-amber-100 p-2 rounded-lg"></i> สถานะงาน (Routing)</h2>
                         <div class="flex items-center gap-3 w-full md:w-auto">
@@ -188,7 +163,7 @@
                             <button onclick="resetMainStatusForm(); openModal('mainStatusModal')" class="px-5 py-2 bg-amber-500 text-slate-900 font-bold rounded-xl text-xs shadow-md hover:bg-amber-600 transition flex items-center gap-2 whitespace-nowrap"><i class="fa-solid fa-plus"></i> เพิ่มสถานะ</button>
                         </div>
                     </div>
-                    <div class="flex-1 overflow-auto custom-scrollbar p-0">
+                    <div class="flex-1 min-h-0 overflow-auto custom-scrollbar p-0">
                         <table class="w-full text-left text-sm whitespace-nowrap">
                             <thead class="bg-white border-b-2 border-slate-200 sticky top-0 z-10 shadow-sm"><tr><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider w-24">Code</th><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider">ชื่อสถานะใบงาน</th><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider">แผนกปลายทาง</th><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider">Route URL</th><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider text-center w-32">จัดการ</th></tr></thead>
                             <tbody id="main_status_table_body" class="divide-y divide-slate-100"></tbody>
@@ -197,7 +172,7 @@
                 </div>
 
                 <!-- 🏷️ 7. สเตตัสอะไหล่ (PO Status) -->
-                <div id="status-panel" class="admin-panel h-full flex flex-col">
+                <div id="status-panel" class="admin-panel h-full min-h-0 flex flex-col">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center p-6 border-b border-slate-100 bg-slate-50/50 rounded-t-3xl shrink-0 gap-4">
                         <h2 class="text-xl font-black text-[#00320D]"><i class="fa-solid fa-tags text-purple-500 mr-2 bg-purple-100 p-2 rounded-lg"></i> สเตตัสออเดอร์อะไหล่ (PO)</h2>
                         <div class="flex items-center gap-3 w-full md:w-auto">
@@ -208,7 +183,7 @@
                             <button onclick="resetPartStatusForm(); openModal('partStatusModal')" class="px-5 py-2 bg-purple-600 text-white font-bold rounded-xl text-xs shadow-md hover:bg-purple-700 transition flex items-center gap-2 whitespace-nowrap"><i class="fa-solid fa-plus"></i> เพิ่มสถานะ PO</button>
                         </div>
                     </div>
-                    <div class="flex-1 overflow-auto custom-scrollbar p-0">
+                    <div class="flex-1 min-h-0 overflow-auto custom-scrollbar p-0">
                         <table class="w-full text-left text-sm whitespace-nowrap">
                             <thead class="bg-white border-b-2 border-slate-200 sticky top-0 z-10 shadow-sm"><tr><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider w-24 text-center">ID</th><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider">ข้อความสถานะ</th><th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider text-center w-32">ลบ</th></tr></thead>
                             <tbody id="status_table_body" class="divide-y divide-slate-100"></tbody>
@@ -217,7 +192,7 @@
                 </div>
 
                 <!-- 📈 8. โควต้าสาขาและชิ้นงาน -->
-                <div id="quota-panel" class="admin-panel h-full flex flex-col">
+                <div id="quota-panel" class="admin-panel h-full min-h-0 flex flex-col">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center p-6 border-b border-slate-100 bg-slate-50/50 rounded-t-3xl shrink-0 gap-4">
                         <h2 class="text-xl font-black text-[#00320D]"><i class="fa-solid fa-chart-pie text-[#00320D] mr-2 bg-green-200 p-2 rounded-lg"></i> ตั้งเป้าหมาย/โควต้างานซ่อม</h2>
                         <div class="flex items-center gap-3 w-full md:w-auto">
@@ -228,7 +203,7 @@
                             <button onclick="resetQuotaForm(); openModal('quotaModal')" class="px-5 py-2 bg-[#00320D] text-white font-bold rounded-xl text-xs shadow-md hover:bg-black transition flex items-center gap-2 whitespace-nowrap"><i class="fa-solid fa-plus"></i> เพิ่มโควต้า</button>
                         </div>
                     </div>
-                    <div class="flex-1 overflow-auto custom-scrollbar p-0">
+                    <div class="flex-1 min-h-0 overflow-auto custom-scrollbar p-0">
                         <table class="w-full text-left text-sm whitespace-nowrap">
                             <thead class="bg-white border-b-2 border-slate-200 sticky top-0 z-10 shadow-sm">
                                 <tr>
@@ -476,8 +451,8 @@
         </div>
     </div>
 
-    <script src="table_pagination.js?v=1.1"></script>
-    <script src="table_viewport_lock.js?v=1.0"></script>
+    <script src="table_pagination.js?v=1.2"></script>
+    <script src="table_viewport_lock.js?v=1.0&adaptive=4"></script>
     <script>
         const API_BASE_URL = window.location.origin;
 
@@ -506,7 +481,7 @@
             ensureAdminPanelLoaded('emp-panel');
         });
 
-        function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
+        function logout() { return window.rizenicLogout ? window.rizenicLogout() : (sessionStorage.clear(), window.location.href = 'index.html'); }
 
         function switchPanel(panelId) {
             document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('active'));
@@ -646,7 +621,7 @@
                         <td class="p-4 text-slate-600 font-bold">${e.branch_name||'-'}</td>
                         <td class="p-4 max-w-[250px] whitespace-normal leading-tight">${pagesHTML}</td>
                         <td class="p-4 text-center">
-                            <button onclick="editEmp('${e.employee_id}','${e.employee_code||''}','${e.employee_name}','${e.employee_role}','${e.branch_name}','${e.username}','${e.password}','${e.accessible_pages||''}')" class="bg-white border border-slate-300 shadow-sm text-blue-600 hover:bg-blue-50 hover:border-blue-300 w-8 h-8 rounded-lg transition-all"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="editEmp('${e.employee_id}','${e.employee_code||''}','${e.employee_name}','${e.employee_role}','${e.branch_name}','${e.username}','','${e.accessible_pages||''}')" class="bg-white border border-slate-300 shadow-sm text-blue-600 hover:bg-blue-50 hover:border-blue-300 w-8 h-8 rounded-lg transition-all"><i class="fa-solid fa-pen-to-square"></i></button>
                             <button onclick="deleteData('/api/employees/${e.employee_id}', loadEmp)" class="bg-white border border-slate-300 shadow-sm text-red-500 hover:bg-red-50 hover:border-red-300 w-8 h-8 rounded-lg transition-all ml-1"><i class="fa-solid fa-trash"></i></button>
                         </td>
                     </tr>`;
@@ -654,7 +629,7 @@
             } catch(e){}
         }
         function editEmp(id, code, name, role, branch, user, pass, pages) {
-            document.getElementById('edit_emp_id').value = id; document.getElementById('emp_code_input').value = code; document.getElementById('emp_name_input').value = name; document.getElementById('emp_role_input').value = role; document.getElementById('emp_branch_input').value = branch; document.getElementById('emp_user_input').value = user; document.getElementById('emp_pass_input').value = pass;
+            document.getElementById('edit_emp_id').value = id; document.getElementById('emp_code_input').value = code; document.getElementById('emp_name_input').value = name; document.getElementById('emp_role_input').value = role; document.getElementById('emp_branch_input').value = branch; document.getElementById('emp_user_input').value = user; document.getElementById('emp_pass_input').value = ''; document.getElementById('emp_pass_input').placeholder = 'เว้นว่างเพื่อใช้รหัสเดิม';
             document.querySelectorAll('.page-chk').forEach(c => c.checked = false);
             if(pages) { const pageArr = pages.split(','); document.querySelectorAll('.page-chk').forEach(c => { if(pageArr.includes(c.value)) c.checked = true; }); }
             document.getElementById('empModalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-amber-400"></i> อัปเดตพนักงาน';
@@ -693,7 +668,7 @@
             const role = document.getElementById('emp_role_input').value.trim();
             const branch = document.getElementById('emp_branch_input').value.trim();
             
-            if(!name || !user || !pass || !role || !branch) return alert('⚠️ กรุณากรอกข้อมูลสำคัญให้ครบ (*)');
+            if(!name || !user || !role || !branch || (!id && !pass)) return alert('⚠️ กรุณากรอกข้อมูลสำคัญให้ครบ (*)');
 
             // Validation ซ้ำ
             if (globalEmp.some(e => String(e.employee_id) !== String(id) && ((code && e.employee_code === code) || e.username === user))) {
@@ -1011,5 +986,6 @@
             }
         }
     </script>
+    <script src="admin_server.js?v=1.0"></script>
 </body>
 </html>

@@ -207,25 +207,8 @@ function openSAModal(saName) {
     if(document.getElementById('jobListModal')) document.getElementById('jobListModal').classList.remove('hidden');
 }
 
-function computeHighestStationIFS(j) {
-    if(!j) return "รอรับรถ";
-    if(isTrue(j.station_ready)) return "13.รอส่งมอบ";
-    if(isTrue(j.station_pak)) return "12.พักซ่อม";
-    if(isTrue(j.station_film)) return "11.ฟิล์ม";
-    if(isTrue(j.station_kraj)) return "10.กระจก";
-    if(isTrue(j.station_mag)) return "09.ซ่อมแม็ก";
-    if(isTrue(j.station_qc)) return "08.เก็บงาน";
-    if(isTrue(j.station_kat)) return "06.ขัดสี";
-    if(isTrue(j.station_prak)) return "05.ประกอบ";
-    if(isTrue(j.station_pon)) return "04.พ่นสี";
-    if(isTrue(j.station_puan)) return "03.เตรียมพื้น";
-    if(isTrue(j.station_pou)) return "02.โป๊ว";
-    if(isTrue(j.station_kho)) return "01.เคาะ";
-    return "รอรับรถ";
-}
-
 function renderStationSection() {
-    const stCounts = { "01.เคาะ":0, "02.โป๊ว":0, "03.เตรียมพื้น":0, "04.พ่นสี":0, "05.ประกอบ":0, "06.ขัดสี":0, "08.เก็บงาน":0, "09.ซ่อมแม็ก":0, "10.กระจก":0, "11.ฟิล์ม":0, "12.พักซ่อม":0, "13.รอส่งมอบ":0, "รอรับรถ":0 };
+    const stCounts = { "01.เคาะ":0, "02.โป๊ว":0, "03.เตรียมพื้น":0, "04.พ่นสี":0, "05.ประกอบ":0, "06.ขัดสี":0, "07.QC":0, "08.แม็ก":0, "09.กระจก":0, "10.ฟิล์ม":0, "11.พักซ่อม":0, "12.รอส่งมอบ":0, "ส่งจ๊อบ":0 };
     
     const safeJobs = getSafeJobsData();
     safeJobs.filter(j => !(j.job_status||'').includes('ส่งมอบแล้ว')).forEach(j => {
@@ -425,40 +408,55 @@ function renderCalendarByRange(startDate, endDate) {
 
     const safeFilteredJobs = getSafeJobsData();
     const dateIndex = buildDashboardDateIndex(safeFilteredJobs);
+    const serverCalendarRows = (typeof window !== 'undefined' && Array.isArray(window.dashboardServerAnalytics?.calendarDays))
+        ? window.dashboardServerAnalytics.calendarDays : null;
+    const serverCalendarMap = new Map((serverCalendarRows || []).map(row => [String(row.date), row]));
 
     let maxCount = 1; const daysData = [];
     let currentDay = new Date(start);
     while(currentDay <= end) {
         const dateStr = `${currentDay.getFullYear()}-${String(currentDay.getMonth()+1).padStart(2,'0')}-${String(currentDay.getDate()).padStart(2,'0')}`;
-        const arr = dateIndex.arrived.get(dateStr) || [];
-        const tar = dateIndex.target.get(dateStr) || [];
-        const del = dateIndex.delivery.get(dateStr) || [];
-        
-        maxCount = Math.max(maxCount, arr.length, tar.length, del.length);
-        daysData.push({ day: currentDay.getDate(), dateStr, arrJobs: arr, tarJobs: tar, delJobs: del });
+        const serverDay = serverCalendarMap.get(dateStr);
+        const arr = serverDay ? [] : (dateIndex.arrived.get(dateStr) || []);
+        const tar = serverDay ? [] : (dateIndex.target.get(dateStr) || []);
+        const del = serverDay ? [] : (dateIndex.delivery.get(dateStr) || []);
+        const arrCount = serverDay ? Number(serverDay.arrived || 0) : arr.length;
+        const tarCount = serverDay ? Number(serverDay.target || 0) : tar.length;
+        const delCount = serverDay ? Number(serverDay.delivery || 0) : del.length;
+        maxCount = Math.max(maxCount, arrCount, tarCount, delCount);
+        daysData.push({
+            day: currentDay.getDate(), dateStr, arrJobs: arr, tarJobs: tar, delJobs: del, arrCount, tarCount, delCount,
+            targetDone: serverDay ? Number(serverDay.targetDone || 0) : tar.filter(j => isJobDone(j.job_status)).length,
+            mainSum: serverDay ? Number(serverDay.mainSum || 0) : null, subSum: serverDay ? Number(serverDay.subSum || 0) : null,
+            hasOverdue: serverDay ? Boolean(serverDay.hasOverdue) : null
+        });
         currentDay.setDate(currentDay.getDate() + 1);
     }
 
     const branchFilterEl = document.getElementById('branchFilter');
     const branchVal = branchFilterEl ? branchFilterEl.value : 'all';
     const safeAllJobs = typeof allJobs !== 'undefined' && Array.isArray(allJobs) ? allJobs : safeFilteredJobs;
-    const branchesToCheck = branchVal === 'all' ? [...new Set(safeAllJobs.map(j => j.branch_name).filter(b => b))] : [branchVal];
-    const safeAllQuotas = typeof allQuotas !== 'undefined' && Array.isArray(allQuotas) ? allQuotas : [];
+    const serverBranches = (typeof window !== 'undefined' && Array.isArray(window.dashboardServerBranches)) ? window.dashboardServerBranches : [];
+    const branchesToCheck = branchVal === 'all'
+        ? (serverBranches.length ? serverBranches : [...new Set(safeAllJobs.map(j => j.branch_name).filter(b => b))])
+        : [branchVal];
+    const serverQuotas = (typeof window !== 'undefined' && Array.isArray(window.dashboardServerAnalytics?.quotas)) ? window.dashboardServerAnalytics.quotas : null;
+    const safeAllQuotas = serverQuotas || (typeof allQuotas !== 'undefined' && Array.isArray(allQuotas) ? allQuotas : []);
 
     daysData.forEach(d => {
         let barBlock = '';
-        if(d.arrJobs.length > 0 || d.tarJobs.length > 0 || d.delJobs.length > 0) {
+        if(d.arrCount > 0 || d.tarCount > 0 || d.delCount > 0) {
             barBlock = `<div class="flex items-end justify-center gap-1.5 w-full h-[60px] mt-auto pb-1">`;
             
-            if(d.arrJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[20px]" onclick="openJobListModalCalendar('${d.dateStr}', 'arrived')" title="รถเข้าจอด: ${d.arrJobs.length}"><span class="text-[9px] font-black text-blue-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-blue-200">${d.arrJobs.length}</span><div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-blue-700/20" style="height: ${Math.max(20, (d.arrJobs.length/maxCount)*100)}%;"></div></div>`;
+            if(d.arrCount > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[20px]" onclick="openJobListModalCalendar('${d.dateStr}', 'arrived')" title="รถเข้าจอด: ${d.arrCount}"><span class="text-[9px] font-black text-blue-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-blue-200">${d.arrCount}</span><div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-blue-700/20" style="height: ${Math.max(20, (d.arrCount/maxCount)*100)}%;"></div></div>`;
             
-            const doneQty = d.tarJobs.filter(j => isJobDone(j.job_status)).length;
-            const isAllDone = doneQty === d.tarJobs.length && d.tarJobs.length > 0;
-            const pctDone = d.tarJobs.length > 0 ? (doneQty / d.tarJobs.length) * 100 : 0;
+            const doneQty = d.targetDone;
+            const isAllDone = doneQty === d.tarCount && d.tarCount > 0;
+            const pctDone = d.tarCount > 0 ? (doneQty / d.tarCount) * 100 : 0;
 
-            if(d.tarJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[28px]" onclick="openJobListModalCalendar('${d.dateStr}', 'target')" title="เป้าซ่อมเสร็จ: ${d.tarJobs.length} (เสร็จแล้ว ${doneQty})"><span class="text-[9px] font-black ${isAllDone ? 'text-emerald-700 bg-emerald-100 border-emerald-400' : 'text-amber-700 bg-amber-100 border-amber-400'} mb-0.5 z-10 bg-white/90 rounded-sm w-full h-4 flex items-center justify-center shadow-sm border">${doneQty}/${d.tarJobs.length}</span><div class="w-full bg-slate-200 rounded-sm shadow-inner relative overflow-hidden" style="height: ${Math.max(20, (d.tarJobs.length/maxCount)*100)}%;"><div class="absolute bottom-0 left-0 w-full bg-gradient-to-t ${isAllDone ? 'from-emerald-500 to-emerald-400' : 'from-amber-500 to-amber-300'} transition-all duration-500 ease-in-out" style="height: ${pctDone}%;"></div></div></div>`;
+            if(d.tarCount > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[28px]" onclick="openJobListModalCalendar('${d.dateStr}', 'target')" title="เป้าซ่อมเสร็จ: ${d.tarCount} (เสร็จแล้ว ${doneQty})"><span class="text-[9px] font-black ${isAllDone ? 'text-emerald-700 bg-emerald-100 border-emerald-400' : 'text-amber-700 bg-amber-100 border-amber-400'} mb-0.5 z-10 bg-white/90 rounded-sm w-full h-4 flex items-center justify-center shadow-sm border">${doneQty}/${d.tarCount}</span><div class="w-full bg-slate-200 rounded-sm shadow-inner relative overflow-hidden" style="height: ${Math.max(20, (d.tarCount/maxCount)*100)}%;"><div class="absolute bottom-0 left-0 w-full bg-gradient-to-t ${isAllDone ? 'from-emerald-500 to-emerald-400' : 'from-amber-500 to-amber-300'} transition-all duration-500 ease-in-out" style="height: ${pctDone}%;"></div></div></div>`;
             
-            if(d.delJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[20px]" onclick="openJobListModalCalendar('${d.dateStr}', 'delivery')" title="นัดส่งมอบ: ${d.delJobs.length}"><span class="text-[9px] font-black text-emerald-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-emerald-200">${d.delJobs.length}</span><div class="w-full bg-gradient-to-t from-emerald-500 to-emerald-300 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-emerald-600/20" style="height: ${Math.max(20, (d.delJobs.length/maxCount)*100)}%;"></div></div>`;
+            if(d.delCount > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[20px]" onclick="openJobListModalCalendar('${d.dateStr}', 'delivery')" title="นัดส่งมอบ: ${d.delCount}"><span class="text-[9px] font-black text-emerald-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-emerald-200">${d.delCount}</span><div class="w-full bg-gradient-to-t from-emerald-500 to-emerald-300 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-emerald-600/20" style="height: ${Math.max(20, (d.delCount/maxCount)*100)}%;"></div></div>`;
             barBlock += `</div>`;
         } else {
             barBlock = `<div class="flex items-center justify-center h-[60px] w-full mt-auto"><span class="text-[10px] font-bold text-slate-300">ว่าง</span></div>`;
@@ -498,8 +496,8 @@ function renderCalendarByRange(startDate, endDate) {
         if (maxMain === 0) maxMain = 20;
         if (maxSub === 0) maxSub = 10;
 
-        const mainSum = d.tarJobs.reduce((sum, j) => sum + (parseInt(j.main_part_qty) || ((j.main_part_name && String(j.main_part_name).trim() !== '-' && String(j.main_part_name).trim() !== '') ? String(j.main_part_name).split(',').filter(Boolean).length : 0)), 0);
-        const subSum = d.tarJobs.reduce((sum, j) => sum + (parseInt(j.sub_part_qty) || ((j.sub_part_name && String(j.sub_part_name).trim() !== '-' && String(j.sub_part_name).trim() !== '') ? String(j.sub_part_name).split(',').filter(Boolean).length : 0)), 0);
+        const mainSum = d.mainSum == null ? d.tarJobs.reduce((sum, j) => sum + (parseInt(j.main_part_qty) || ((j.main_part_name && String(j.main_part_name).trim() !== '-' && String(j.main_part_name).trim() !== '') ? String(j.main_part_name).split(',').filter(Boolean).length : 0)), 0) : d.mainSum;
+        const subSum = d.subSum == null ? d.tarJobs.reduce((sum, j) => sum + (parseInt(j.sub_part_qty) || ((j.sub_part_name && String(j.sub_part_name).trim() !== '-' && String(j.sub_part_name).trim() !== '') ? String(j.sub_part_name).split(',').filter(Boolean).length : 0)), 0) : d.subSum;
 
         let pctMain = Math.min((mainSum / maxMain) * 100, 100);
         let pctSub = Math.min((subSum / maxSub) * 100, 100);
@@ -520,13 +518,13 @@ function renderCalendarByRange(startDate, endDate) {
         // 🌟 เช็กว่าเต็มโควต้าไหม 🌟
         const isFull = (mainSum >= maxMain) || (subSum >= maxSub);
         
-        const hasOverdue = d.tarJobs.some(j => {
+        const hasOverdue = d.hasOverdue == null ? d.tarJobs.some(j => {
             if (j.repair_finish_date) return false;
             const targetDate = new Date(j.target_finish_date);
             const today = new Date();
             targetDate.setHours(0,0,0,0); today.setHours(0,0,0,0);
             return targetDate < today;
-        });
+        }) : d.hasOverdue;
 
         let cellClass = "rounded-xl p-3 flex flex-col transition-all duration-300 relative min-h-[160px] cursor-pointer ";
         if (isFull) {

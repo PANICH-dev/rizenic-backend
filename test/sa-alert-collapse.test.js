@@ -23,5 +23,5 @@ test('SA Alerts expansion changes only rendering and keeps search/modal based on
 });
 
 test('parts page cache-busts the collapsed-row UI revision', () => {
-  assert.match(html, /js\/parts_ui\.js\?v=23\.5/);
+  assert.match(html, /js\/parts_ui\.js\?v=23\.6/);
 });

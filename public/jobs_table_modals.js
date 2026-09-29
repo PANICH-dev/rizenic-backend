@@ -297,12 +297,23 @@ async function saveBulkData() {
     btn.disabled = true;
     
     try {
-        const [resJobs, resQuotas] = await Promise.all([
-            fetch(`${API_BASE_URL}/api/reports`),
-            fetch(`${API_BASE_URL}/api/quotas`)
-        ]);
-        const allJobs = await resJobs.json();
-        const allQuotas = await resQuotas.json();
+        const quotaContextByBranch = new Map();
+        rows.forEach(row => {
+            const branch = row.querySelector('.bulk-input-branch_name')?.value || userBranch;
+            if (!quotaContextByBranch.has(branch)) quotaContextByBranch.set(branch, new Set());
+            ['arrived_date', 'target_finish_date', 'delivery_date'].forEach(field => {
+                const value = row.querySelector(`.bulk-input-${field}`)?.value;
+                if (value) quotaContextByBranch.get(branch).add(String(value).split('T')[0]);
+            });
+        });
+        const contextPayloads = await Promise.all([...quotaContextByBranch.entries()].map(async ([branch, dates]) => {
+            const params = new URLSearchParams({ branch, dates: [...dates].join(',') });
+            const res = await fetch(`${API_BASE_URL}/api/server/quota-context?${params.toString()}`);
+            if (!res.ok) throw new Error(await readApiErrorMessage(res, 'โหลดข้อมูลโควต้าไม่สำเร็จ'));
+            return res.json();
+        }));
+        const allJobs = contextPayloads.flatMap(data => Array.isArray(data.jobs) ? data.jobs : []);
+        const allQuotas = contextPayloads.flatMap(data => Array.isArray(data.quotas) ? data.quotas : []);
 
         let hasError = false;
 
@@ -429,19 +440,7 @@ async function _openScheduleCalendar(field, jobId) {
     if (titleEl) titleEl.innerText = titles[field] || 'ตารางโควต้า';
 
     try {
-        const b = userBranch || 'สำนักงานใหญ่';
-
-        const [resJobs, resQuotas] = await Promise.all([
-            fetch(`${API_BASE_URL}/api/reports`),
-            fetch(`${API_BASE_URL}/api/quotas`)
-        ]);
-        
-        const rawJobs = await resJobs.json();
-        allSchedJobs = Array.isArray(rawJobs) ? rawJobs.filter(j => j.branch_name === b && String(j.id) !== String(jobId)) : [];
-        
-        const rawQuotas = await resQuotas.json();
-        allSchedQuotas = Array.isArray(rawQuotas) ? rawQuotas.filter(q => q.branch_name === b) : [];
-        
+        await loadJobsTableScheduleMonth(jobId);
         renderSchedCalendar();
     } catch (e) { 
         console.error(e); 
@@ -451,11 +450,36 @@ async function _openScheduleCalendar(field, jobId) {
     }
 }
 
-function changeSchedMonth(direction) {
+async function loadJobsTableScheduleMonth(jobId = currentTargetJobId) {
+    const b = userBranch || 'สำนักงานใหญ่';
+    const params = new URLSearchParams({
+        branch: b,
+        year: String(currentSchedYear),
+        month: String(currentSchedMonth + 1)
+    });
+    if (jobId != null && String(jobId).trim() !== '') params.set('exclude_id', String(jobId));
+    const res = await fetch(`${API_BASE_URL}/api/server/calendar-capacity?${params.toString()}`);
+    if (!res.ok) throw new Error(await readApiErrorMessage(res, 'โหลดข้อมูลตารางโควต้าไม่สำเร็จ'));
+    const data = await res.json();
+    allSchedJobs = Array.isArray(data.jobs) ? data.jobs : [];
+    allSchedQuotas = Array.isArray(data.quotas) ? data.quotas : [];
+}
+
+async function changeSchedMonth(direction) {
     currentSchedMonth += direction;
     if (currentSchedMonth > 11) { currentSchedMonth = 0; currentSchedYear++; }
     if (currentSchedMonth < 0) { currentSchedMonth = 11; currentSchedYear--; }
-    renderSchedCalendar();
+    const loadingEl = document.getElementById('calendar_loading');
+    if (loadingEl) loadingEl.classList.remove('hidden');
+    try {
+        await loadJobsTableScheduleMonth(isBulkCalendarMode ? null : currentTargetJobId);
+        renderSchedCalendar();
+    } catch (e) {
+        console.error(e);
+        alert('ไม่สามารถดึงข้อมูลตารางโควต้าได้');
+    } finally {
+        if (loadingEl) loadingEl.classList.add('hidden');
+    }
 }
 
 function renderSchedCalendar() {

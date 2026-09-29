@@ -55,6 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function logout() {
+    if (window.rizenicLogout) return window.rizenicLogout();
     sessionStorage.clear();
     window.location.reload();
 }

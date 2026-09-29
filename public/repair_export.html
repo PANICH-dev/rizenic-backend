@@ -4,26 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RIZENIC ERP - รายงานข้อมูลรถซ่อม</title>
-    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="table_scroll_fix.css?v=1.6">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap">
+    <link rel="stylesheet" href="table_scroll_fix.css?v=1.6&adaptive=4">
 <style>
-        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap');
         body { font-family: 'Kanit', sans-serif; background-color: #f8fafc; display: flex; flex-direction: column; min-height: 100vh; }
         .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
-        .table-container { overflow: auto; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; height: calc(100vh - 210px); }
+        .table-container { overflow: auto; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; }
         .excel-table { width: 100%; table-layout: auto; text-align: left; border-collapse: separate; border-spacing: 0; font-size: 13px; }
         .excel-table thead th { background-color: #0f172a; color: #ffffff; font-weight: 600; padding: 12px 14px; border-right: 1px solid #334155; position: sticky; top: 0; z-index: 10; white-space: nowrap; }
         .excel-table tbody tr:hover td { background-color: #f1f5f9; }
         .excel-table tbody td { padding: 12px 14px; color: #334155; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; background-color: #fff; white-space: nowrap; }
     </style>
-    <link rel="stylesheet" href="ui_global.css?v=1.1">
+    <link rel="stylesheet" href="ui_global.css?v=1.2">
+    <link rel="stylesheet" href="/compiled/repair_export.tailwind.css?v=1.1">
+    <script src="session_guard.js?v=1.1"></script>
 </head>
 <body class="text-slate-800">
 
@@ -91,14 +88,12 @@
                     </tbody>
                 </table>
             </div>
-            <div class="bg-slate-50 border-t border-slate-200 px-4 py-3 text-sm font-bold text-slate-500 text-right">
-                จำนวนข้อมูลที่พบ <span id="table_row_count" class="text-indigo-600 text-base font-black">0</span> รายการ
-            </div>
+            <div class="hidden" aria-hidden="true"><span id="table_row_count">0</span></div>
         </div>
     </main>
 
-    <script src="table_pagination.js?v=1.1"></script>
-    <script src="table_viewport_lock.js?v=1.0"></script>
+    <script src="table_pagination.js?v=1.2"></script>
+    <script src="table_viewport_lock.js?v=1.0&adaptive=4"></script>
     <script>
         const API_BASE_URL = window.location.origin;
         let xlsxLoadPromise = null;
@@ -107,7 +102,7 @@
             if (xlsxLoadPromise) return xlsxLoadPromise;
             xlsxLoadPromise = new Promise((resolve, reject) => {
                 const script = document.createElement('script');
-                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+                script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
                 script.async = true;
                 script.onload = () => resolve(window.XLSX);
                 script.onerror = () => {
@@ -243,7 +238,8 @@
             XLSX.writeFile(wb, fileName);
         }
 
-        document.addEventListener('DOMContentLoaded', fetchJobs);
+        document.addEventListener('DOMContentLoaded', () => fetchJobs());
     </script>
+    <script src="repair_export_server.js?v=1.0"></script>
 </body>
 </html>

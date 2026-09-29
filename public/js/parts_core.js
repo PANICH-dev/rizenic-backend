@@ -95,7 +95,7 @@ function enterApp() {
     loadAllData();
 }
 
-function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
+function logout() { return window.rizenicLogout ? window.rizenicLogout() : (sessionStorage.clear(), window.location.href = 'index.html'); }
 
 function switchTab(tabId) {
     document.querySelectorAll('.parts-tab-content').forEach(el => el.classList.remove('active'));

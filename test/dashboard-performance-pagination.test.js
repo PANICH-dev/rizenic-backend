@@ -11,7 +11,7 @@ test('dashboard long operation tables use 20-row client pagination without chang
   const po = read('public/dashboard_po.js');
   const tables = read('public/dashboard_tables.js');
 
-  assert.match(html, /table_pagination\.js\?v=1\.1/);
+  assert.match(html, /table_pagination\.js\?v=1\.2/);
   assert.match(po, /RizenicPagination\.createState\(20\)/);
   assert.match(po, /RizenicPagination\.paginate\([^,]+,\s*dashboardPOPager\)/s);
   assert.match(po, /containerId:\s*['"]dashboard_po_pagination['"]/);

@@ -237,9 +237,9 @@ function renderSAAlerts() {
 
         return `
             <tr class="sa-alert-row hover:bg-amber-50/50 transition border-b border-slate-100">
-                <td class="align-top font-black text-amber-700 text-xs px-2 py-2">
-                    <span class="bg-amber-50 px-2 py-1 rounded border border-amber-200 font-mono">${plate}</span>
-                    <div class="text-[9px] text-slate-400 mt-1">ID: ${jobId}</div>
+                <td class="align-top font-black text-amber-700 text-xs px-2 py-2 text-center">
+                    <span class="inline-block bg-amber-50 px-2 py-1 rounded border border-amber-200 font-mono">${plate}</span>
+                    <div class="text-[9px] text-slate-400 mt-1 text-center">ID: ${jobId}</div>
                 </td>
                 <td class="align-top text-slate-500 font-mono font-bold text-center px-2 py-2 text-xs">${arrDate}</td>
                 <td class="align-top font-bold text-slate-600 text-xs px-2 py-2">${job.car_model || '-'}</td>

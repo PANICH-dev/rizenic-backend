@@ -1,78 +1,86 @@
+require('dotenv').config();
 const express = require('express');
-const cors = require('cors'); 
 const { Pool } = require('pg');
 const path = require('path');
+const { installApiCompression } = require('./api_compression');
+const { installProductionSafety, issueSession, clearSession, authorizeDynamicSync, validateDynamicSyncTarget } = require('./production_safety');
 const { registerApiValidation } = require('./backend_validation');
-const { buildReportsReadQuery, buildPartOrdersReadQuery, buildEmployeesReadQuery } = require('./read_queries');
+const { registerServerSideViews } = require('./server_side_views');
+const { buildReportsReadQuery, buildPagedReportsReadQuery, buildReportsCountQuery, buildFilteredReportsReadQuery, buildReportsFacetQuery, buildPartOrdersReadQuery, buildEmployeesReadQuery } = require('./read_queries');
+const { buildDynamicSyncBatches, buildDynamicSyncSql } = require('./dynamic_sync_bulk');
+const { buildPoolConfig } = require('./db_config');
 
 const app = express();
 const port = process.env.PORT || 3000; 
 
-app.use(cors()); 
-app.use(express.json({ limit: '10mb' })); 
+app.disable('x-powered-by');
+app.use(installProductionSafety);
+app.use(express.json({ limit: '10mb' }));
+app.use(installApiCompression);
+
+// Browser UI libraries are loaded from pinned external CDNs.
+// Only application-owned static files are served by Express.
 
 // ตั้งค่า Cache ตามประเภทไฟล์ static
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: function (res, filePath) {
     if (filePath.endsWith('.html')) {
-      res.set('Cache-Control', 'no-cache');
+      res.set('Cache-Control', 'no-store');
+    } else if (/\.(?:woff2?|ttf)$/i.test(filePath)) {
+      res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    } else if (/\.(?:js|css)$/i.test(filePath)) {
+      res.set('Cache-Control', 'public, max-age=0, must-revalidate');
     } else {
       res.set('Cache-Control', 'public, max-age=86400');
     }
   }
 }));
 
-const isLocalDb = /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL || '');
+const pool = new Pool(buildPoolConfig(process.env));
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: isLocalDb ? false : { rejectUnauthorized: false }
+app.get('/api/health', async (_req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.set('Cache-Control', 'no-store');
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Health check database error:', error);
+    res.status(503).json({ ok: false, error: 'database unavailable' });
+  }
 });
 
-// Shared input validation + duplicate guard (keeps existing DB/SSL config untouched)
+// Shared input validation + duplicate guard (keeps existing DB/schema untouched)
 registerApiValidation(app, pool);
+registerServerSideViews(app, pool);
 
 // ==========================================
 // 🚀 API สะพานเชื่อม Dynamic (รับได้ทุกตารางจาก Google Sheet)
 // ==========================================
+const SYNC_MAX_ROWS = Math.max(1, Math.min(Number(process.env.SYNC_MAX_ROWS || 5000), 20000));
 app.post('/api/sync-dynamic', async (req, res) => {
-    const { tableName, primaryKey, data } = req.body;
-
-    if (!tableName || !data || !Array.isArray(data) || data.length === 0) {
-        return res.status(400).json({ error: "ข้อมูล Payload ไม่ถูกต้องครับนาย" });
+    const { tableName, primaryKey, data } = req.body || {};
+    if (!authorizeDynamicSync(req)) {
+        return res.status(process.env.SYNC_API_KEY ? 401 : 503).json({ error: process.env.SYNC_API_KEY ? 'ไม่อนุญาตให้ Sync' : 'Production Dynamic Sync ต้องตั้งค่า SYNC_API_KEY' });
     }
+    if (!tableName || !Array.isArray(data) || data.length === 0 || data.length > SYNC_MAX_ROWS) {
+        return res.status(400).json({ error: `ข้อมูล Payload ไม่ถูกต้องหรือเกิน ${SYNC_MAX_ROWS} รายการ` });
+    }
+
+    const target = await validateDynamicSyncTarget(pool, tableName, primaryKey, data);
+    if (!target.ok) return res.status(400).json({ error: target.error });
 
     const client = await pool.connect();
     try {
-        await client.query('BEGIN'); 
-
-        for (const row of data) {
-            const rowKeys = Object.keys(row);
-            if (rowKeys.length === 0) continue;
-
-            const colsStr = rowKeys.join(', ');
-            const valuePlaceholders = rowKeys.map((_, idx) => `$${idx + 1}`).join(', ');
-            const values = rowKeys.map(k => row[k]);
-
-            let sql = `INSERT INTO ${tableName} (${colsStr}) VALUES (${valuePlaceholders})`;
-
-            if (primaryKey) {
-                const updateCols = rowKeys.filter(col => col !== primaryKey && col !== 'id' && col !== 'part_id');
-                if (updateCols.length > 0) {
-                    const updateStr = updateCols.map(col => `${col} = EXCLUDED.${col}`).join(', ');
-                    sql += ` ON CONFLICT (${primaryKey}) DO UPDATE SET ${updateStr}`;
-                } else {
-                    sql += ` ON CONFLICT (${primaryKey}) DO NOTHING`;
-                }
-            }
-
+        await client.query('BEGIN');
+        const batches = buildDynamicSyncBatches(data, primaryKey);
+        for (const batch of batches) {
+            const { sql, values } = buildDynamicSyncSql(tableName, primaryKey, batch);
             await client.query(sql, values);
         }
-
-        await client.query('COMMIT'); 
+        await client.query('COMMIT');
         res.json({ success: true, message: `อัปโหลดเข้าตาราง ${tableName} สำเร็จ ${data.length} รายการ!` });
     } catch (err) {
-        await client.query('ROLLBACK'); 
+        try { await client.query('ROLLBACK'); } catch (_) {}
         console.error(`Dynamic Sync Error [${tableName}]:`, err);
         res.status(500).json({ error: err.message });
     } finally {
@@ -205,10 +213,21 @@ app.delete('/api/quotas/:id', async (req, res) => {
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    const result = await pool.query('SELECT * FROM rizenicemployeemaster WHERE username = $1 AND password = $2', [username, password]);
-    if (result.rows.length > 0) res.json({ success: true, employee: result.rows[0] });
-    else res.status(401).json({ success: false, error: 'Username หรือ Password ไม่ถูกต้องครับนาย!' });
+    const result = await pool.query(
+      'SELECT employee_id, employee_code, employee_name, employee_role, branch_name, username, accessible_pages, is_active FROM rizenicemployeemaster WHERE username = $1 AND password = $2 AND COALESCE(is_active, true) = true',
+      [username, password]
+    );
+    if (result.rows.length > 0) {
+      issueSession(res, result.rows[0], req);
+      return res.json({ success: true, employee: result.rows[0] });
+    }
+    res.status(401).json({ success: false, error: 'Username หรือ Password ไม่ถูกต้องครับนาย!' });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/logout', (req, res) => {
+  clearSession(res, req);
+  res.json({ success: true });
 });
 
 // ==========================================
@@ -217,7 +236,8 @@ app.post('/api/login', async (req, res) => {
 app.get('/api/employees', async (req, res) => {
   try {
     const query = buildEmployeesReadQuery(req.query);
-    res.json((await pool.query(query.text, query.values)).rows);
+    const rows = (await pool.query(query.text, query.values)).rows.map(({ password: _password, ...employee }) => employee);
+    res.json(rows);
   }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -234,7 +254,11 @@ app.post('/api/employees', async (req, res) => {
 app.put('/api/employees/:id', async (req, res) => {
   try {
     const { employee_code, employee_name, employee_role, branch_name, username, password, accessible_pages } = req.body;
-    await pool.query('UPDATE rizenicemployeemaster SET employee_code=$1, employee_name=$2, employee_role=$3, branch_name=$4, username=$5, password=$6, accessible_pages=$7 WHERE employee_id=$8', [employee_code, employee_name, employee_role, branch_name, username, password, accessible_pages, req.params.id]); 
+    if (password) {
+      await pool.query('UPDATE rizenicemployeemaster SET employee_code=$1, employee_name=$2, employee_role=$3, branch_name=$4, username=$5, password=$6, accessible_pages=$7 WHERE employee_id=$8', [employee_code, employee_name, employee_role, branch_name, username, password, accessible_pages, req.params.id]);
+    } else {
+      await pool.query('UPDATE rizenicemployeemaster SET employee_code=$1, employee_name=$2, employee_role=$3, branch_name=$4, username=$5, accessible_pages=$6 WHERE employee_id=$7', [employee_code, employee_name, employee_role, branch_name, username, accessible_pages, req.params.id]);
+    }
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -462,8 +486,46 @@ app.delete('/api/body-parts/:id', async (req, res) => {
 
 app.get('/api/reports', async (req, res) => {
   try {
+    if (req.query.facet) {
+      const facetQuery = buildReportsFacetQuery(req.query);
+      const facetResult = await pool.query(facetQuery.text, facetQuery.values);
+      return res.json({ field: facetQuery.field, values: facetResult.rows.map(row => row.value) });
+    }
+
+    if (String(req.query.full || '') === '1') {
+      const fullQuery = buildFilteredReportsReadQuery(req.query);
+      return res.json((await pool.query(fullQuery.text, fullQuery.values)).rows);
+    }
+
+    if (String(req.query.paged || '') === '1') {
+      const pageQuery = buildPagedReportsReadQuery(req.query);
+      const rowsResult = await pool.query(pageQuery.text, pageQuery.values);
+      let total = Number(rowsResult.rows[0]?.__total_count || 0);
+
+      // An out-of-range page has no row from which to read the window count.
+      // Only in that uncommon case do the old COUNT query as a fallback.
+      if (rowsResult.rows.length === 0 && pageQuery.page > 1) {
+        const countQuery = buildReportsCountQuery(req.query);
+        const countResult = await pool.query(countQuery.text, countQuery.values);
+        total = Number(countResult.rows[0]?.total || 0);
+      }
+
+      const items = rowsResult.rows.map(row => {
+        const { __total_count, ...item } = row;
+        return item;
+      });
+      const totalPages = Math.max(1, Math.ceil(total / pageQuery.pageSize));
+      return res.json({
+        items,
+        page: pageQuery.page,
+        pageSize: pageQuery.pageSize,
+        total,
+        totalPages
+      });
+    }
+
     const query = buildReportsReadQuery(req.query);
-    res.json((await pool.query(query.text, query.values)).rows);
+    return res.json((await pool.query(query.text, query.values)).rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -802,6 +864,51 @@ app.delete('/api/part-orders/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+function buildLegacyPartsHistoryRead(table, idField, query = {}) {
+  const requestedPaging = query.page !== undefined || query.limit !== undefined || query.search !== undefined;
+  const values = [];
+  const where = [];
+  const branch = String(query.branch || '').trim();
+  const search = String(query.search || '').trim();
+  if (branch && branch.toLowerCase() !== 'all') {
+    values.push(branch);
+    where.push(`branch_name = $${values.length}`);
+  }
+  if (search) {
+    values.push(`%${search}%`);
+    const searchable = table === 'rizenic_part_inbound'
+      ? ['part_no','part_main_no','part_name','epc_no','car_model']
+      : ['part_no','part_main_no','part_name','car_plate','qt_no','so_no','car_model','job_status'];
+    const concat = searchable.map(column => `COALESCE(${column}::text,'')`).join(', ');
+    where.push(`CONCAT_WS(' ', ${concat}) ILIKE $${values.length}`);
+  }
+  const baseWhere = where.length ? ` WHERE ${where.join(' AND ')}` : '';
+  if (!requestedPaging) {
+    return { requestedPaging, text: `SELECT * FROM ${table}${baseWhere} ORDER BY ${idField} DESC`, values };
+  }
+  const page = Math.max(1, Number.parseInt(query.page, 10) || 1);
+  const pageSize = Math.max(1, Math.min(Number.parseInt(query.limit, 10) || 50, 200));
+  const offset = (page - 1) * pageSize;
+  values.push(pageSize);
+  const limitParam = `$${values.length}`;
+  values.push(offset);
+  const offsetParam = `$${values.length}`;
+  return {
+    requestedPaging,
+    text: `SELECT *, COUNT(*) OVER() AS __total_count FROM ${table}${baseWhere} ORDER BY ${idField} DESC LIMIT ${limitParam} OFFSET ${offsetParam}`,
+    values, page, pageSize
+  };
+}
+
+async function sendLegacyPartsHistory(pool, req, res, table, idField) {
+  const query = buildLegacyPartsHistoryRead(table, idField, req.query || {});
+  const result = await pool.query(query.text, query.values);
+  if (!query.requestedPaging) return res.json(result.rows);
+  const total = Number(result.rows[0]?.__total_count || 0);
+  const items = result.rows.map(({ __total_count, ...row }) => row);
+  return res.json({ items, page: query.page, pageSize: query.pageSize, total, totalPages: Math.max(1, Math.ceil(total / query.pageSize)) });
+}
+
 // 📥 การรับเข้า (Inbound)
 app.post('/api/part-inbound', async (req, res) => {
   try {
@@ -839,7 +946,7 @@ app.post('/api/part-inbound', async (req, res) => {
 });
 
 app.get('/api/part-inbound', async (req, res) => {
-  try { res.json((await pool.query('SELECT * FROM rizenic_part_inbound ORDER BY inbound_id DESC')).rows); } 
+  try { return await sendLegacyPartsHistory(pool, req, res, 'rizenic_part_inbound', 'inbound_id'); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -877,7 +984,7 @@ app.post('/api/part-outbound', async (req, res) => {
 });
 
 app.get('/api/part-outbound', async (req, res) => {
-  try { res.json((await pool.query('SELECT * FROM rizenic_part_outbound ORDER BY outbound_id DESC')).rows); } 
+  try { return await sendLegacyPartsHistory(pool, req, res, 'rizenic_part_outbound', 'outbound_id'); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -989,28 +1096,6 @@ app.post('/api/user-preferences', async (req, res) => {
   }
 });
 
-app.post('/api/user-preferences', async (req, res) => {
-  try {
-    const { emp_name, hidden_columns } = req.body;
-    const jsonCols = JSON.stringify(hidden_columns);
-
-    const queryText = `
-      INSERT INTO user_column_preferences (emp_name, hidden_columns, updated_at) 
-      VALUES ($1, $2, CURRENT_TIMESTAMP) 
-      ON CONFLICT (emp_name) 
-      DO UPDATE SET 
-        hidden_columns = EXCLUDED.hidden_columns,
-        updated_at = CURRENT_TIMESTAMP;
-    `;
-    await pool.query(queryText, [emp_name, jsonCols]);
-
-    res.json({ success: true, message: 'บันทึกการตั้งค่าคอลัมน์เรียบร้อยครับนาย!' });
-  } catch (error) {
-    console.error('Error saving user preferences:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // ==========================================
 // 📲 API ส่งข้อความเข้ากลุ่ม LINE ผ่าน Messaging API (PUSH MESSAGE)
 // ==========================================
@@ -1022,25 +1107,23 @@ app.post('/api/send-line-notify', async (req, res) => {
       return res.status(400).json({ error: "ไม่มีข้อความให้ส่ง" });
     }
 
-    // 🔑 ตัวแปรเก็บ Token และ Group ID
-    let targetToken = "";
-    let targetGroup = ""; 
-
-    // 🎯 เช็คว่าส่งมาจากสาขาไหน
-    if (branch === 'Rangsit' || branch === 'สาขารังสิต') {
-        targetToken = "uWGDH1BPHvILvBn7Hyeimv20W8ITfbUpGV2jfy1ujMUjvFxceSEtpM50S9vAcJmy05ybn6g/wHspfuTbfUuAI5UCB2RkifntfIeOT9EOo09FfQel63guAJgMs8zhAbbP0dq8fMENKirsWXoFzYMaXgdB04t89/1O/w1cDnyilFU=";
-        targetGroup = "C762221d8214dd72b5469f74879c19bec";
-    } else if (branch === 'Navamin' || branch === 'สาขานวมินทร์') {
-        targetToken = "5+CtgK2jCINRJW0Ddz/18TrLbE1hq68iVdOyZTvgwYeQWA2okMHoFfPYUK4MlKMf1Y+JqSn4Bodqk7i0DThvO+DTOmwzsyiNxwGqTctqo/QJBlbdYsb97BF981TiVnNO6ufvV6767mS0qkzJWGKgegdB04t89/1O/w1cDnyilFU=";
-        targetGroup = "C61a43306f4630b569fe423165db923f8";
-    } else {
-        // ❌ ไม่พบสาขาที่ระบุ ให้แจ้ง Error กลับทันที ไม่ส่งข้อความมั่ว
-        return res.status(400).json({ error: `ไม่พบสาขาที่ระบุ: ${branch}` });
+    // Secrets stay in deployment environment, never in source/ZIP.
+    const lineConfig = (branch === 'Rangsit' || branch === 'สาขารังสิต')
+      ? { token: process.env.LINE_RANGSIT_CHANNEL_TOKEN, group: process.env.LINE_RANGSIT_GROUP_ID }
+      : (branch === 'Navamin' || branch === 'สาขานวมินทร์')
+        ? { token: process.env.LINE_NAVAMIN_CHANNEL_TOKEN, group: process.env.LINE_NAVAMIN_GROUP_ID }
+        : null;
+    if (!lineConfig) return res.status(400).json({ error: `ไม่พบสาขาที่ระบุ: ${branch}` });
+    const targetToken = String(lineConfig.token || '').trim();
+    const targetGroup = String(lineConfig.group || '').trim();
+    if (!targetToken || !targetGroup) {
+      return res.status(503).json({ error: 'ยังไม่ได้ตั้งค่า LINE Messaging สำหรับสาขานี้บน Server' });
     }
 
     // 🚀 ยิงไปยังปลายทาง Push Message ของ LINE Messaging API
     const response = await fetch('https://api.line.me/v2/bot/message/push', {
       method: 'POST',
+      signal: AbortSignal.timeout(Math.max(3000, Number(process.env.LINE_TIMEOUT_MS || 10000))),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${targetToken}`
@@ -1129,11 +1212,28 @@ app.get('/api/inspection/:job_id', async (req, res) => {
     }
 });
 
+pool.on('error', (error) => {
+  console.error('Unexpected PostgreSQL pool error:', error);
+});
+
 /// ==========================================
 // 🚀 Start Server
 // ==========================================
 if (require.main === module) {
-    app.listen(port);
+    const server = app.listen(port, () => console.log(`Server ready on port ${port}`));
+    let shuttingDown = false;
+    const shutdown = (signal) => {
+      if (shuttingDown) return;
+      shuttingDown = true;
+      console.log(`\n${signal}: กำลังปิด Server อย่างปลอดภัย...`);
+      server.close(async () => {
+        try { await pool.end(); } catch (error) { console.error('Pool shutdown error:', error); }
+        process.exit(0);
+      });
+      setTimeout(() => process.exit(1), 10000).unref();
+    };
+    process.once('SIGTERM', () => shutdown('SIGTERM'));
+    process.once('SIGINT', () => shutdown('SIGINT'));
 }
 
 module.exports = app;
