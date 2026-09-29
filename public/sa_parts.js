@@ -21,6 +21,7 @@ async function buildPartDatalist() {
             }
 
             datalist.innerHTML = allMasterPartsCache.map(p =>
+                
                 `<option value="${p.part_no}">${p.part_name} (MAIN: ${p.part_main_no || '-'})</option>`
             ).join('');
         }
