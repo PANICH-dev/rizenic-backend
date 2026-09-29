@@ -35,15 +35,45 @@ test('normal repair page and facet use only 09-11 while calendar drilldown keeps
  for(const route of ['/api/server/repair-page','/api/server/repair-facet']) {
   const q={branch:'A',field:'job_status',includeMeta:'0',includeParts:'0'};
   const normal=(await capture(route,q))[0].sql;
-  assert.match(normal,/09\|10\|11/); assert.doesNotMatch(normal,/department_routing = 'ซ่อม'/);
+  assert.match(normal,/09\|10\|11/); assert.match(normal,/department_routing = 'ซ่อม'/);
   const calendar=(await capture(route,{...q,calendar:'1'}))[0].sql;
   assert.doesNotMatch(calendar,/NOT ILIKE|09\|10\|11/);
  }
 });
-test('repair-board endpoint excludes cancellations and completed delivery, regardless of department',async()=>{
+test('repair-board endpoint keeps legacy repair-department scope plus the new 09-11 queue rule',async()=>{
  const sql=(await capture('/api/server/repair-board',{branch:'A'}))[0].sql;
  assert.match(sql,/09\|10\|11/);assert.match(sql,/ยกเลิก/);assert.match(sql,/ส่งมอบแล้ว/);
- assert.doesNotMatch(sql,/department_routing/);
+ assert.match(sql,/department_routing = 'ซ่อม'/);
+});
+
+
+test('non-calendar repair KPI and summary paths preserve legacy eligibility instead of inheriting the 09-11 queue filter',async()=>{
+ const summarySql=(await capture('/api/server/repair-summary',{branch:'A'}))[0].sql;
+ for(const token of ['ยกเลิก','ส่งมอบแล้ว','12.ส่งมอบ']) assert.match(summarySql,new RegExp(token));
+ assert.match(summarySql,/department_routing = 'ซ่อม'/);
+ assert.doesNotMatch(summarySql,/09\|10\|11/);
+
+ const drillSql=(await capture('/api/server/repair-kpi-drilldown',{branch:'A',bucket:'arrived',page:'1',limit:'20',known_total:'0'}))[0].sql;
+ for(const token of ['ยกเลิก','ส่งมอบแล้ว','12.ส่งมอบ']) assert.match(drillSql,new RegExp(token));
+ assert.doesNotMatch(drillSql,/09\|10\|11/);
+
+ const calls=[]; const routes=new Map();
+ registerServerSideViews({get:(p,h)=>routes.set(p,h)}, {query:async(sql,values)=>{calls.push({sql,values});return {rows:[]};}});
+ const res={status(n){this.code=n;return this;},json(b){this.body=b;}};
+ await routes.get('/api/server/repair-page')({query:{branch:'A',page:'1',limit:'50',includeMeta:'1',includeParts:'0'}},res);
+ const kpiSql=calls.find(c=>/AS arrived[\s\S]*AS repairing[\s\S]*AS done[\s\S]*AS delayed/.test(c.sql))?.sql || '';
+ assert.ok(kpiSql,'missing KPI aggregate query');
+ for(const token of ['ยกเลิก','ส่งมอบแล้ว','12.ส่งมอบ']) assert.match(kpiSql,new RegExp(token));
+ assert.doesNotMatch(kpiSql,/09\|10\|11/);
+});
+
+test('client fallback queue also keeps the old repair-department scope before applying statuses 09-11',()=>{
+ const source=fs.readFileSync('public/repair.js','utf8');
+ const start=source.indexOf('function runTableFilters(');
+ const end=source.indexOf('\nfunction ',start+1);
+ const body=source.slice(start,end<0?source.length:end);
+ assert.match(body,/job\.department_routing !== 'ซ่อม'/);
+ assert.match(body,/\^\(09\|10\|11\)/);
 });
 
 test('calendar and normal repair queue normalize invisible status prefixes before numeric status matching',async()=>{

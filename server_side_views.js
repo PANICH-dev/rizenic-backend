@@ -243,13 +243,23 @@ function normalizedRepairJobStatusSql() {
   return "TRANSLATE(BTRIM(COALESCE(job_status,'')), U&'\\200B\\200C\\200D\\2060\\FEFF', '')";
 }
 
+function repairLegacyBaseConditions() {
+  // Preserve the original Repair-page eligibility everywhere outside the
+  // explicitly-special Calendar and repair-queue rules.
+  return [
+    "COALESCE(job_status,'') NOT ILIKE '%ยกเลิก%'",
+    "COALESCE(job_status,'') NOT ILIKE '%ส่งมอบแล้ว%'",
+    "COALESCE(job_status,'') <> '12.ส่งมอบ'"
+  ];
+}
+
 function repairQueueConditions(calendarMode = false) {
   if (calendarMode) return ['TRUE'];
   const statusExpr = normalizedRepairJobStatusSql();
   return [
+    "department_routing = 'ซ่อม'",
     `${statusExpr} ~ '^(09|10|11)([.[:space:]]|$)'`,
-    "COALESCE(job_status,'') NOT ILIKE '%ยกเลิก%'",
-    "COALESCE(job_status,'') NOT ILIKE '%ส่งมอบแล้ว%'",
+    ...repairLegacyBaseConditions(),
     `${statusExpr} <> '12.ส่งมอบ'`
   ];
 }
@@ -1071,7 +1081,7 @@ function registerServerSideViews(app, pool) {
       }
       const { page, pageSize, offset } = pagedRequest(req, 20, 50);
       const knownTotal = parseKnownTotal(req.query.known_total);
-      const where = ["COALESCE(job_status, '') NOT ILIKE '%ยกเลิก%'", "COALESCE(job_status, '') NOT ILIKE '%ส่งมอบแล้ว%'", "COALESCE(job_status, '') <> '12.ส่งมอบ'"];
+      const where = repairLegacyBaseConditions();
       const values = [];
       addBranch(where, values, req.query.branch);
       if (bucket === 'arrived') {
@@ -1166,7 +1176,7 @@ function registerServerSideViews(app, pool) {
 
   app.get('/api/server/repair-summary', async (req, res) => {
     try {
-      const where = ["COALESCE(job_status, '') NOT ILIKE '%ยกเลิก%'", "COALESCE(job_status, '') NOT ILIKE '%ส่งมอบแล้ว%'", "COALESCE(job_status, '') <> '12.ส่งมอบ'", "department_routing = 'ซ่อม'"];
+      const where = [...repairLegacyBaseConditions(), "department_routing = 'ซ่อม'"];
       const values = [];
       addBranch(where, values, req.query.branch);
       const fields = ['id','branch_name','car_plate','car_brand','car_model','target_finish_date','repair_finish_date','job_status','department_routing','station_kho','station_pou','station_puan','station_pon','station_prak','station_kat','station_qc','station_mag','station_kraj','station_film','station_pak','station_ready'];
@@ -1203,7 +1213,7 @@ function registerServerSideViews(app, pool) {
       const quotaWhere = [];
       const quotaValues = [];
       addBranch(quotaWhere, quotaValues, req.query.branch);
-      const summaryWhere = ["COALESCE(job_status, '') NOT ILIKE '%ยกเลิก%'", "COALESCE(job_status, '') NOT ILIKE '%ส่งมอบแล้ว%'", "COALESCE(job_status, '') <> '12.ส่งมอบ'"];
+      const summaryWhere = repairLegacyBaseConditions();
       const summaryValues = [];
       addBranch(summaryWhere, summaryValues, req.query.branch);
 

@@ -444,6 +444,7 @@ function runTableFilters(resetPage = true) {
     
     const filteredData = originalRepairJobs.filter(job => {
         if (selectedBranchFilter !== 'ALL' && job.branch_name !== selectedBranchFilter) return false;
+        if (!isCalendarFilterActive && job.department_routing !== 'ซ่อม') return false;
         if (!isCalendarFilterActive && (!/^(09|10|11)(?:[.\s]|$)/.test(String(job.job_status || '').trim()) || /ยกเลิก|ส่งมอบแล้ว/.test(job.job_status || ''))) return false;
 
         if (activeKpiFilter) {

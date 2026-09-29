@@ -46,6 +46,7 @@ test('repair page defaults to statuses 09-11 and calculated station filter is tr
   assert.equal(res.statusCode, 200);
   assert.equal(calls.length, 1);
   assert.match(calls[0].sql, /09\|10\|11/);
+  assert.match(calls[0].sql, /department_routing = 'ซ่อม'/);
   assert.match(calls[0].sql, /WHEN COALESCE\(station_kho::text,''\) IN \('true','TRUE','1'\) THEN '01\.เคาะ'/);
   assert.match(calls[0].sql, /= ANY\(\$2::text\[\]\)/);
 });
