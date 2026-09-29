@@ -9,7 +9,7 @@ let financeTotalsKey = '';
 const financeLegacyRenderTable = renderTable;
 const financeLegacyExportToExcel = exportToExcel;
 
-function buildFinanceServerParams({ paged = true, facet = '' } = {}) {
+function buildFinanceServerParams({ paged = true, facet = '', knownTotal = null } = {}) {
     const params = new URLSearchParams();
     params.set('department_routing', 'บัญชี');
     params.set('exclude_statuses', JSON.stringify(['18.ลูกค้ายกเลิก', 'ปิดงาน']));
@@ -51,6 +51,7 @@ function buildFinanceServerParams({ paged = true, facet = '' } = {}) {
         params.set('paged', '1');
         params.set('page', String(financePager.page));
         params.set('limit', String(financePager.pageSize));
+        if (knownTotal !== null && knownTotal !== undefined && knownTotal !== '' && Number.isFinite(Number(knownTotal)) && Number(knownTotal) >= 0) params.set('known_total', String(Number(knownTotal)));
     } else {
         params.set('full', '1');
     }
@@ -81,10 +82,10 @@ async function fetchFinanceTotals({ force = false } = {}) {
     if (document.getElementById('row_count')) document.getElementById('row_count').innerText = String(totals.count || 0);
 }
 
-async function fetchFinanceServerPage({ refreshTotals = true, forceTotals = false } = {}) {
+async function fetchFinanceServerPage({ refreshTotals = true, forceTotals = false, reuseTotal = false } = {}) {
     if (financeServerAbortController) financeServerAbortController.abort();
     financeServerAbortController = new AbortController();
-    const params = buildFinanceServerParams({ paged: true });
+    const params = buildFinanceServerParams({ paged: true, knownTotal: reuseTotal ? financePager.serverMeta?.total : null });
     const totalsPromise = refreshTotals ? fetchFinanceTotals({ force: forceTotals }).catch(() => {}) : Promise.resolve();
     try {
         const res = await fetch(`${API_BASE_URL}/api/reports?${params.toString()}`, { signal: financeServerAbortController.signal });
@@ -117,11 +118,14 @@ renderTable = function(data) {
 
 goFinancePage = function(page) {
     financePager.page = page;
-    fetchFinanceServerPage({ refreshTotals: false });
+    fetchFinanceServerPage({ refreshTotals: false, reuseTotal: true });
 };
 
 applyFilters = function(resetPage = true) {
-    if (resetPage) financePager.page = 1;
+    if (resetPage) {
+        financePager.page = 1;
+        financePager.serverMeta = null;
+    }
     return fetchFinanceServerPage({ refreshTotals: true, forceTotals: true });
 };
 
@@ -140,7 +144,7 @@ sortTable = function(colIndex) {
         const clickedIcon = document.querySelector(`#th_${colIndex} .sort-icon`);
         if (clickedIcon) clickedIcon.className = financeServerSortDir === 'asc' ? 'fa-solid fa-sort-up ml-1 text-amber-400 opacity-100' : 'fa-solid fa-sort-down ml-1 text-amber-400 opacity-100';
     }
-    fetchFinanceServerPage({ refreshTotals: false });
+    fetchFinanceServerPage({ refreshTotals: false, reuseTotal: true });
 };
 
 openExcelFilter = async function(e, colIndex, title) {

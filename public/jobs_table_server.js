@@ -22,12 +22,13 @@ function jobsActiveFilterPayload() {
     return payload;
 }
 
-function buildJobsServerParams(paged = true) {
+function buildJobsServerParams(paged = true, knownTotal = null) {
     const params = new URLSearchParams();
     if (paged) {
         params.set('paged', '1');
         params.set('page', String(jobsPager.page));
         params.set('limit', String(jobsPager.pageSize));
+        if (knownTotal !== null && knownTotal !== undefined && knownTotal !== '' && Number.isFinite(Number(knownTotal)) && Number(knownTotal) >= 0) params.set('known_total', String(Number(knownTotal)));
     } else {
         params.set('full', '1');
     }
@@ -59,13 +60,14 @@ function buildJobsServerParams(paged = true) {
     return params;
 }
 
-async function fetchJobsServerPage({ showLoading = true } = {}) {
+async function fetchJobsServerPage({ showLoading = true, reuseTotal = false } = {}) {
     const seq = ++jobsServerRequestSeq;
     if (jobsServerAbortController) jobsServerAbortController.abort();
     const requestController = new AbortController();
     jobsServerAbortController = requestController;
     try {
-        const params = buildJobsServerParams(true);
+        const knownTotal = reuseTotal ? jobsPager.serverMeta?.total : null;
+        const params = buildJobsServerParams(true, knownTotal);
         const res = await fetch(`${API_BASE_URL}/api/reports?${params.toString()}`, { signal: jobsServerAbortController.signal });
         if (!res.ok) throw new Error(await readApiErrorMessage(res, 'โหลดข้อมูลไม่สำเร็จ'));
         const payload = await res.json();
@@ -88,8 +90,9 @@ async function fetchJobsServerPage({ showLoading = true } = {}) {
         if (jobIds.length) poParams.set('job_ids', jobIds.join(','));
         if (plates.length) poParams.set('car_plates', plates.join(','));
         try {
-            const poRes = await fetch(`${API_BASE_URL}/api/part-orders${poParams.toString() ? `?${poParams.toString()}` : ''}`, { signal: jobsServerAbortController.signal });
-            allPartOrders = poRes.ok ? await poRes.json() : [];
+            const poRes = await fetch(`${API_BASE_URL}/api/server/sa-parts?${poParams.toString()}`, { signal: jobsServerAbortController.signal });
+            const poPayload = poRes.ok ? await poRes.json() : null;
+            allPartOrders = Array.isArray(poPayload?.partOrders) ? poPayload.partOrders : [];
         } catch (error) {
             if (error?.name === 'AbortError') return;
             allPartOrders = [];
@@ -203,14 +206,17 @@ loadJobsData = async function () {
 };
 
 applyFilters = async function (resetPage = true) {
-    if (resetPage) jobsPager.page = 1;
+    if (resetPage) {
+        jobsPager.page = 1;
+        jobsPager.serverMeta = null;
+    }
     await fetchJobsServerPage({ showLoading: true });
     refreshJobsBasicFacets();
 };
 
 goJobsPage = function (page) {
     jobsPager.page = page;
-    return fetchJobsServerPage({ showLoading: true }).catch(() => {});
+    return fetchJobsServerPage({ showLoading: true, reuseTotal: true }).catch(() => {});
 };
 
 sortTable = function (colIndex) {
@@ -223,7 +229,7 @@ sortTable = function (colIndex) {
     table.setAttribute('data-sorted-col', String(colIndex));
     table.setAttribute('data-sorted-dir', nextDir);
     jobsPager.page = 1;
-    return fetchJobsServerPage({ showLoading: true }).catch(() => {});
+    return fetchJobsServerPage({ showLoading: true, reuseTotal: true }).catch(() => {});
 };
 
 function jobsEscapeHtml(value) {
