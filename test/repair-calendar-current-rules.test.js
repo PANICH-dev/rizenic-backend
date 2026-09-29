@@ -84,3 +84,25 @@ test('calendar rendering shows 5/10 progress, correct quota warning and green de
  ctx.repairCalendarError=true;ctx.renderCalendar();
  assert.match(grid.innerHTML,/ลองใหม่/);assert.doesNotMatch(grid.innerHTML,/กำลังโหลดปฏิทิน/);
 });
+
+
+test('completed target stays orange and never reuses delivery green styling',()=>{
+ const source=fs.readFileSync('public/repair.js','utf8');
+ const grid={innerHTML:'',style:{setProperty(){}},dataset:{}},title={innerText:''};
+ const ctx=vm.createContext({
+  currentYear:2026,currentMonth:8,repairCalendarLoaded:true,selectedBranchFilter:'A',
+  allQuotas:[],
+  repairCalendarDays:new Map([['2026-09-29',{appointment:0,target:10,done:10,delivery:0,main_parts:0,sub_parts:0,overdue:0}]]),
+  getTodayString:()=> '2026-09-28',document:{getElementById:id=>id==='calendar_grid'?grid:title}
+ });
+ for (const name of ['repairQuotaForCalendarDate','renderCalendar']) {
+  const start=source.indexOf(`function ${name}(`),end=source.indexOf('\nfunction ',start+1);
+  vm.runInContext(source.slice(start,end),ctx);
+ }
+ ctx.renderCalendar();
+ assert.match(grid.innerHTML,/10\/10/);
+ assert.match(grid.innerHTML,/repair-day-bar-fill-target/);
+ assert.doesNotMatch(grid.innerHTML,/repair-day-bar-fill-target is-done/);
+ assert.doesNotMatch(grid.innerHTML,/repair-bar-count-target is-done/);
+ assert.doesNotMatch(grid.innerHTML,/repair-day-bar-line-target is-done/);
+});

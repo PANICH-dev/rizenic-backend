@@ -45,7 +45,7 @@ test('calendar controls and the full month remain inside one fixed-height calend
   const html = read('public/repair.html');
   const css = read('public/repair_calendar.css');
 
-  assert.match(html, /repair_calendar\.css\?v=22/);
+  assert.match(html, /repair_calendar\.css\?v=23/);
   assert.match(css, /#tab-calendar\s*\{[^}]*overflow:\s*hidden;/s);
   assert.match(css, /#tab-calendar\s+#repair_calendar_scroll\s*\{[^}]*overflow:\s*hidden;/s);
   assert.match(css, /\.repair-calendar-head[^}]*position:\s*relative/s);

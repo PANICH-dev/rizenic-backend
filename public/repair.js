@@ -982,11 +982,10 @@ function renderCalendar() {
             if(targetQty > 0) {
                 const widthPct = Math.max(18, Math.round((targetQty / monthMaxQty) * 100));
                 const pctDone = targetQty ? Math.min(100, Math.round((doneQty / targetQty) * 100)) : 0;
-                const isAllDone = doneQty === targetQty;
                 barBlock += `<div class="repair-day-bar repair-day-bar-target" onclick="event.stopPropagation(); filterBoardByDate('${dateStr}', 'target')" title="เป้าซ่อมเสร็จ: ${targetQty} คัน (เสร็จแล้ว ${doneQty} คัน, ${pctDone}%)">
-                    <div class="repair-day-bar-line repair-day-bar-line-target ${isAllDone ? 'is-done' : ''}">
-                        <div class="repair-day-bar-fill repair-day-bar-fill-target ${isAllDone ? 'is-done' : ''}" style="width:${widthPct}%"></div>
-                        <span class="repair-bar-count repair-bar-count-target ${isAllDone ? 'is-done' : ''}">${doneQty}/${targetQty}</span>
+                    <div class="repair-day-bar-line repair-day-bar-line-target">
+                        <div class="repair-day-bar-fill repair-day-bar-fill-target" style="width:${widthPct}%"></div>
+                        <span class="repair-bar-count repair-bar-count-target">${doneQty}/${targetQty}</span>
                     </div>
                 </div>`;
             }
