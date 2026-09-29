@@ -801,9 +801,9 @@ function renderTable(data) {
                     </div>`; break;
 
                 case 'main_part_qty': 
-                    cellData = `<div class="text-center font-black text-blue-600 text-xs">${job.main_part_qty || 0}</div>`; break;
+                    cellData = `<div class="text-center font-semibold text-blue-600 text-xs">${job.main_part_qty || 0}</div>`; break;
                 case 'sub_part_qty': 
-                    cellData = `<div class="text-center font-black text-amber-600 text-xs">${job.sub_part_qty || 0}</div>`; break;
+                    cellData = `<div class="text-center font-semibold text-amber-600 text-xs">${job.sub_part_qty || 0}</div>`; break;
 
                 case 'contact_date': case 'arrived_date': case 'target_finish_date': case 'repair_finish_date': case 'delivery_date': case 'order_part_date': case 'est_part_date': case 'part_received_all_date': case 'billing_date':
                     let colorClass = 'text-slate-700';
@@ -975,10 +975,10 @@ function addBulkRow(rowData = null) {
             tdHtml += `<td class="p-0 border-r border-slate-200"><input type="text" readonly onclick="openMultiPartsModal(null, '${c.key}', this.value, true, '${rowId}')" class="bulk-input bulk-input-${c.key} cursor-pointer bg-slate-50 text-blue-700 font-bold hover:bg-slate-100" placeholder="คลิกเพื่อเลือกชิ้นส่วน..." value="${val}"></td>`;
         }
         else if (c.key === 'main_part_qty' || c.key === 'sub_part_qty') {
-            tdHtml += `<td class="p-0 border-r border-slate-200 bg-slate-100"><input type="text" readonly class="bulk-input bulk-input-${c.key} text-center font-black text-slate-500 pointer-events-none" placeholder="0" value="${val}"></td>`;
+            tdHtml += `<td class="p-0 border-r border-slate-200 bg-slate-100"><input type="text" readonly class="bulk-input bulk-input-${c.key} text-center font-semibold text-slate-500 pointer-events-none" placeholder="0" value="${val}"></td>`;
         }
         else {
-            tdHtml += `<td class="p-0 border-r border-slate-200"><input type="text" class="bulk-input bulk-input-${c.key} ${c.key==='car_plate'?'font-black text-blue-700 uppercase bg-amber-50/30':''}" placeholder="${c.title}" value="${val}"></td>`;
+            tdHtml += `<td class="p-0 border-r border-slate-200"><input type="text" class="bulk-input bulk-input-${c.key} ${c.key==='car_plate'?'font-semibold text-blue-700 uppercase bg-amber-50/30':''}" placeholder="${c.title}" value="${val}"></td>`;
         }
     });
     tr.innerHTML = tdHtml; tbody.appendChild(tr);
@@ -1253,7 +1253,7 @@ function renderSchedCalendar() {
             let pct = maxArrived > 0 ? Math.min((arrCount / maxArrived) * 100, 100) : 0;
             let color = pct >= 100 ? 'bg-rose-500' : 'bg-emerald-500';
             quotaHTML += `
-                <div class="flex justify-between text-[10px] font-black ${pct>=100?'text-rose-600':'text-emerald-700'} mb-1">
+                <div class="rz-cal-soft-title flex justify-between text-[11px] font-semibold ${pct>=100?'text-rose-600':'text-emerald-700'} mb-1">
                     <span>รถเข้าจอด</span> <span>${arrCount}/${maxArrived > 0 ? maxArrived : '∞'} คัน</span>
                 </div>
                 ${maxArrived > 0 ? `<div class="h-1.5 bg-slate-200 rounded-full"><div class="h-full ${color} rounded-full" style="width:${pct}%"></div></div>` : ''}
@@ -1267,19 +1267,19 @@ function renderSchedCalendar() {
             
             quotaHTML += `
                 <div>
-                    <div class="flex justify-between text-[9px] font-black ${pctT>=100?'text-rose-600':'text-amber-800'} mb-0.5">
+                    <div class="flex justify-between text-[9px] font-semibold ${pctT>=100?'text-rose-600':'text-amber-800'} mb-0.5">
                         <span>เป้าเสร็จ</span> <span>${tarCount}/${maxTarget > 0 ? maxTarget : '∞'} คัน</span>
                     </div>
                     ${maxTarget > 0 ? `<div class="h-1.5 bg-slate-200 rounded-full mb-1"><div class="h-full ${pctT>=100?'bg-rose-500':'bg-amber-500'} rounded-full" style="width:${pctT}%"></div></div>` : ''}
                 </div>
                 <div>
-                    <div class="flex justify-between text-[9px] font-black ${pctM>=100?'text-rose-600':'text-blue-700'} mb-0.5">
+                    <div class="flex justify-between text-[9px] font-semibold ${pctM>=100?'text-rose-600':'text-blue-700'} mb-0.5">
                         <span>ชิ้นหลัก</span> <span>${mainPartsSum}/${maxMain > 0 ? maxMain : '∞'} ชิ้น</span>
                     </div>
                     ${maxMain > 0 ? `<div class="h-1.5 bg-slate-200 rounded-full mb-1"><div class="h-full ${pctM>=100?'bg-rose-500':'bg-blue-500'} rounded-full" style="width:${pctM}%"></div></div>` : ''}
                 </div>
                 <div>
-                    <div class="flex justify-between text-[9px] font-black ${pctS>=100?'text-rose-600':'text-amber-700'} mb-0.5">
+                    <div class="flex justify-between text-[9px] font-semibold ${pctS>=100?'text-rose-600':'text-amber-700'} mb-0.5">
                         <span>ชิ้นรอง</span> <span>${subPartsSum}/${maxSub > 0 ? maxSub : '∞'} ชิ้น</span>
                     </div>
                     ${maxSub > 0 ? `<div class="h-1.5 bg-slate-200 rounded-full"><div class="h-full ${pctS>=100?'bg-rose-500':'bg-amber-500'} rounded-full" style="width:${pctS}%"></div></div>` : ''}
@@ -1291,7 +1291,7 @@ function renderSchedCalendar() {
             let pct = maxDelivery > 0 ? Math.min((delCount / maxDelivery) * 100, 100) : 0;
             let color = pct >= 100 ? 'bg-rose-500' : 'bg-indigo-500';
             quotaHTML += `
-                <div class="flex justify-between text-[10px] font-black ${pct>=100?'text-rose-600':'text-indigo-700'} mb-1">
+                <div class="rz-cal-soft-title flex justify-between text-[11px] font-semibold ${pct>=100?'text-rose-600':'text-indigo-700'} mb-1">
                     <span>ส่งมอบรถ</span> <span>${delCount}/${maxDelivery > 0 ? maxDelivery : '∞'} คัน</span>
                 </div>
                 ${maxDelivery > 0 ? `<div class="h-1.5 bg-slate-200 rounded-full"><div class="h-full ${color} rounded-full" style="width:${pct}%"></div></div>` : ''}
@@ -1300,11 +1300,11 @@ function renderSchedCalendar() {
         else {
             isCurrentFieldFull = allFull;
             quotaHTML += `
-                <div class="text-[9px] font-bold ${isArriveFull?'text-rose-600':'text-emerald-700'} flex justify-between"><span>เข้า</span><span>${arrCount}/${maxArrived > 0 ? maxArrived : '∞'}</span></div>
-                <div class="text-[9px] font-bold ${isTargetCarFull?'text-rose-600':'text-amber-700'} flex justify-between"><span>เป้า</span><span>${tarCount}/${maxTarget > 0 ? maxTarget : '∞'}</span></div>
-                <div class="text-[9px] font-bold ${isTargetMainFull?'text-rose-600':'text-blue-700'} flex justify-between"><span>หลัก</span><span>${mainPartsSum}/${maxMain > 0 ? maxMain : '∞'}</span></div>
-                <div class="text-[9px] font-bold ${isTargetSubFull?'text-rose-600':'text-amber-700'} flex justify-between"><span>รอง</span><span>${subPartsSum}/${maxSub > 0 ? maxSub : '∞'}</span></div>
-                <div class="text-[9px] font-bold ${isDeliveryFull?'text-rose-600':'text-indigo-700'} flex justify-between"><span>ส่ง</span><span>${delCount}/${maxDelivery > 0 ? maxDelivery : '∞'}</span></div>
+                <div class="rz-cal-soft-title text-[10px] font-semibold ${isArriveFull?'text-rose-600':'text-emerald-700'} flex justify-between"><span>เข้า</span><span>${arrCount}/${maxArrived > 0 ? maxArrived : '∞'}</span></div>
+                <div class="rz-cal-soft-title text-[10px] font-semibold ${isTargetCarFull?'text-rose-600':'text-amber-700'} flex justify-between"><span>เป้า</span><span>${tarCount}/${maxTarget > 0 ? maxTarget : '∞'}</span></div>
+                <div class="rz-cal-soft-title text-[10px] font-semibold ${isTargetMainFull?'text-rose-600':'text-blue-700'} flex justify-between"><span>หลัก</span><span>${mainPartsSum}/${maxMain > 0 ? maxMain : '∞'}</span></div>
+                <div class="rz-cal-soft-title text-[10px] font-semibold ${isTargetSubFull?'text-rose-600':'text-amber-700'} flex justify-between"><span>รอง</span><span>${subPartsSum}/${maxSub > 0 ? maxSub : '∞'}</span></div>
+                <div class="rz-cal-soft-title text-[10px] font-semibold ${isDeliveryFull?'text-rose-600':'text-indigo-700'} flex justify-between"><span>ส่ง</span><span>${delCount}/${maxDelivery > 0 ? maxDelivery : '∞'}</span></div>
             `;
         }
         quotaHTML += `</div>`;
@@ -1323,7 +1323,7 @@ function renderSchedCalendar() {
         htmlBuffer += `
             <div class="${cellClass}" ${clickAction}>
                 <div class="flex justify-between items-center mb-1.5">
-                    <span class="text-xs font-black ${isCurrentFieldFull ? 'text-rose-500' : 'text-slate-400'} font-mono">${day}</span>
+                    <span class="text-xs font-semibold ${isCurrentFieldFull ? 'text-rose-500' : 'text-slate-400'} font-mono">${day}</span>
                     ${lockIcon}
                 </div>
                 ${quotaHTML}

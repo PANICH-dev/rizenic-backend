@@ -92,8 +92,8 @@
         }
         .calendar-cell {
             background-color: #ffffff;
-            min-height: 120px;
-            padding: 8px;
+            min-height: 94px;
+            padding: 6px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -123,23 +123,24 @@
             scrollbar-gutter: stable;
         }
 
-        /* Calendar: month controls, legend and weekday row stay visible; only dates scroll. */
-        .repair-calendar-card { min-height: 0; overflow: hidden; }
+        /* Calendar: one scroll surface for the whole tab. Avoid a nested scroll area under the menu bar. */
+        #tab-calendar { overflow: hidden; padding-right: 0; }
+        .repair-calendar-card { min-height: 0; overflow: hidden; flex: 1 1 auto; }
         .repair-calendar-head {
-            position: sticky;
-            top: 0;
-            z-index: 30;
+            position: relative;
+            top: auto;
+            z-index: 1;
             background: #ffffff;
             flex: 0 0 auto;
         }
         .repair-calendar-weekdays {
-            position: sticky;
-            top: 0;
-            z-index: 25;
+            position: relative;
+            top: auto;
+            z-index: 1;
             flex: 0 0 auto;
         }
-        #repair_calendar_scroll { flex: 1 1 auto; min-height: 0; padding-right: 4px; }
-        #repair_calendar_scroll .calendar-grid-container { overflow: hidden; min-height: max-content; }
+        #repair_calendar_scroll { flex: 1 1 auto; min-height: 0; overflow: hidden; padding-right: 0; }
+        #repair_calendar_scroll .calendar-grid-container { overflow: hidden; min-height: 0; height: 100%; }
 
         /* Summary/chart tab: scrolling is contained inside this tab, never on the whole page. */
         #repair_summary_scroll { height: 100%; padding-right: 4px; padding-bottom: 12px; }
@@ -175,10 +176,13 @@
     </style>
     <style id="dynamic-col-styles"></style>
     <link rel="stylesheet" href="ui_global.css?v=1.2">
+    <link rel="stylesheet" href="compact_metrics_tables.css?v=1.4">
     <link rel="stylesheet" href="/compiled/repair.tailwind.css?v=1.1">
+    <link rel="stylesheet" href="repair_calendar.css?v=22">
+    <link rel="stylesheet" href="non_dashboard_calendar.css?v=2">
     <script src="session_guard.js?v=1.2"></script>
 </head>
-<body class="text-slate-800">
+<body class="rz-compact-page text-slate-800">
 
     <!-- 🔔 Toast Notifications -->
     <div id="toastMsg" class="fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 translate-y-20 opacity-0 z-[200] flex items-center gap-2 border border-white/20">
@@ -281,8 +285,8 @@
     </div>
 
     <!-- 🌟 KPI Top Bar -->
-    <div class="bg-slate-50 border-b border-slate-200 px-4 md:px-6 py-4 shrink-0">
-        <div class="flex flex-wrap gap-4 max-w-[1600px] mx-auto">
+    <div class="repair-kpi-strip bg-slate-50 border-b border-slate-200 px-4 md:px-6 py-4 shrink-0">
+        <div class="rz-kpi-row flex flex-wrap gap-4 max-w-[1600px] mx-auto">
             <div onclick="openKpiModal('arrived')" class="kpi-card border-l-4 border-l-blue-500 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all">
                 <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-lg md:text-xl"><i class="fa-solid fa-car-side"></i></div>
                 <div><p class="text-[10px] md:text-[11px] font-bold text-slate-400 uppercase tracking-wider">รถเข้าจอด (รอซ่อม)</p><h3 class="text-2xl md:text-3xl font-black text-slate-800" id="kpi_arrived">0</h3></div>
@@ -311,23 +315,23 @@
 
             <!-- 📑 แท็บ 1: ปฏิทินปฏิบัติงาน -->
             <section id="tab-calendar" class="tab-content active">
-                <div class="repair-calendar-card bg-white border border-slate-200 rounded-xl p-4 md:p-6 shadow-sm flex-1 flex flex-col">
-                    <div class="repair-calendar-head flex flex-col gap-4 mb-4">
+                <div class="repair-calendar-card bg-white border border-slate-200 rounded-xl p-3 md:p-4 shadow-sm flex-1 flex flex-col">
+                    <div class="repair-calendar-head flex flex-col gap-2 mb-2">
                     <div class="flex justify-between items-center">
                         <button onclick="changeMonth(-1)" class="p-2 hover:bg-slate-100 rounded text-slate-500 font-bold text-sm md:text-base"><i class="fa-solid fa-chevron-left"></i> <span class="hidden sm:inline">ย้อนกลับ</span></button>
-                        <h2 id="calendar_month_title" class="text-xl md:text-3xl font-black text-[#00320D]">เดือน...</h2>
+                        <h2 id="calendar_month_title" class="text-lg md:text-2xl font-black text-[#00320D]">เดือน...</h2>
                         <button onclick="changeMonth(1)" class="p-2 hover:bg-slate-100 rounded text-slate-500 font-bold text-sm md:text-base"><span class="hidden sm:inline">ถัดไป</span> <i class="fa-solid fa-chevron-right"></i></button>
                     </div>
-                    <div class="flex flex-wrap justify-center items-center gap-4 bg-slate-50 py-3 px-4 rounded-xl border border-slate-200 shadow-inner">
+                    <div class="repair-calendar-legend flex flex-wrap justify-center items-center gap-3 bg-slate-50 py-2 px-3 rounded-lg border border-slate-200">
                         <div class="flex items-center gap-2"><div class="w-3 h-5 md:w-4 md:h-6 bg-gradient-to-t from-blue-600 to-blue-400 rounded-sm shadow-sm"></div><span class="text-xs md:text-sm font-bold text-slate-600">นัดรถเข้า (Arrived)</span></div>
                         <div class="flex items-center gap-2"><div class="w-3 h-5 md:w-4 md:h-6 bg-gradient-to-t from-amber-500 to-amber-300 rounded-sm shadow-sm"></div><span class="text-xs md:text-sm font-bold text-slate-600">เป้าซ่อมเสร็จ (Target)</span></div>
                         <div class="flex items-center gap-2"><div class="w-3 h-5 md:w-4 md:h-6 bg-gradient-to-t from-emerald-500 to-emerald-300 rounded-sm shadow-sm"></div><span class="text-xs md:text-sm font-bold text-slate-600">นัดส่งมอบ (Delivery)</span></div>
                     </div>
                     </div>
-                    <div class="repair-calendar-weekdays grid grid-cols-7 gap-px text-center text-xs md:text-base font-bold text-white uppercase tracking-widest mb-1 bg-[#00320D] py-2 md:py-3 rounded-t-xl shadow-md border-b-2 border-amber-400">
+                    <div class="repair-calendar-weekdays grid grid-cols-7 gap-px text-center text-[11px] md:text-sm font-bold text-white uppercase tracking-wider mb-1 bg-[#00320D] py-1.5 md:py-2 rounded-t-lg border-b-2 border-amber-400">
                         <div class="text-red-300">อา<span class="hidden sm:inline">ทิตย์</span></div><div>จ<span class="hidden sm:inline">ันทร์</span></div><div>อ<span class="hidden sm:inline">ังคาร</span></div><div>พ<span class="hidden sm:inline">ุธ</span></div><div>พฤ<span class="hidden sm:inline">หัสฯ</span></div><div>ศ<span class="hidden sm:inline">ุกร์</span></div><div class="text-blue-300">ส<span class="hidden sm:inline">าร์</span></div>
                     </div>
-                    <div id="repair_calendar_scroll" class="repair-tab-scroll custom-scrollbar">
+                    <div id="repair_calendar_scroll" class="repair-tab-scroll">
                         <div id="calendar_grid" class="calendar-grid-container"></div>
                     </div>
                 </div>
@@ -534,7 +538,7 @@
         <script src="floating_menu.js?v=1.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
-    <script src="repair.js?v=9"></script>
-    <script src="repair_server.js?v=1.3"></script>
+    <script src="repair.js?v=12&calendar=22"></script>
+    <script src="repair_server.js?v=1.4&calendar=19"></script>
 </body>
 </html>
