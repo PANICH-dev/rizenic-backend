@@ -75,7 +75,7 @@
         if (tbody) tbody.innerHTML = '<tr><td colspan="99" class="p-8 text-center text-slate-400 font-bold">กำลังโหลดข้อมูล...</td></tr>';
     }
 
-    async function fetchAdminPage(tbodyId, requestedPage) {
+    async function fetchAdminPage(tbodyId, requestedPage, { reuseTotal = false } = {}) {
         const state = states[tbodyId];
         if (!state) return;
         const page = Math.max(1, Number(requestedPage) || Number(state.pager.page) || 1);
@@ -89,6 +89,7 @@
 
         try {
             const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
+            if (reuseTotal && Number.isFinite(Number(state.pager.serverMeta?.total))) params.set('known_total', String(Number(state.pager.serverMeta.total)));
             const search = currentSearch(state);
             if (search) params.set('search', search);
             const response = await fetch(`${API_BASE_URL}/api/server/admin/${state.resource}?${params.toString()}`, { signal: controller.signal });
@@ -115,7 +116,7 @@
                     containerId: `${tbodyId}_pagination`,
                     pageInfo: normalized.pageInfo,
                     noun: 'รายการ',
-                    onPageChange: nextPage => fetchAdminPage(tbodyId, nextPage)
+                    onPageChange: nextPage => fetchAdminPage(tbodyId, nextPage, { reuseTotal: true })
                 });
             }
         } catch (error) {

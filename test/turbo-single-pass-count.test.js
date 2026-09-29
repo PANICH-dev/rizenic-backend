@@ -13,6 +13,6 @@ test('paged reports returns total count from same SQL scan via window count', ()
 test('reports route uses page rows total count first and count query only as empty-page fallback', () => {
   const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
   assert.match(app, /rowsResult\.rows\[0\]\?\.__total_count/);
-  assert.match(app, /if \(rowsResult\.rows\.length === 0 && pageQuery\.page > 1\)/);
+  assert.match(app, /if \(pageQuery\.knownTotal === null && rowsResult\.rows\.length === 0 && pageQuery\.page > 1\)/);
   assert.doesNotMatch(app, /Promise\.all\(\[\s*pool\.query\(pageQuery\.text, pageQuery\.values\),\s*pool\.query\(countQuery\.text, countQuery\.values\)/s);
 });

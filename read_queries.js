@@ -63,6 +63,12 @@ function safePositiveInt(value, fallback, max = Number.MAX_SAFE_INTEGER) {
   return Math.min(n, max);
 }
 
+function parseKnownTotal(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const n = Number.parseInt(value, 10);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
 function normalizeFilterDate(value) {
   const v = clean(value);
   const m = v.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
@@ -188,16 +194,19 @@ function buildPagedReportsReadQuery(query = {}) {
   const sortField = REPORT_SORT_FIELDS.has(clean(query.sort)) ? clean(query.sort) : 'id';
   const direction = clean(query.dir).toLowerCase() === 'asc' ? 'ASC' : 'DESC';
   const sortExpression = reportFieldExpression(sortField);
+  const knownTotal = parseKnownTotal(query.known_total);
+  const countProjection = knownTotal === null ? ', COUNT(*) OVER() AS __total_count' : '';
   const limitParam = `$${values.length + 1}`;
   const offsetParam = `$${values.length + 2}`;
   return {
-    text: `SELECT rizenicreport.*, COUNT(*) OVER() AS __total_count FROM rizenicreport${where.length ? ` WHERE ${where.join(' AND ')}` : ''} ORDER BY ${sortExpression} ${direction} NULLS LAST LIMIT ${limitParam} OFFSET ${offsetParam}`,
+    text: `SELECT rizenicreport.*${countProjection} FROM rizenicreport${where.length ? ` WHERE ${where.join(' AND ')}` : ''} ORDER BY ${sortExpression} ${direction} NULLS LAST LIMIT ${limitParam} OFFSET ${offsetParam}`,
     values: [...values, pageSize, offset],
     page,
     pageSize,
     offset,
     sortField,
-    direction
+    direction,
+    knownTotal
   };
 }
 
@@ -253,7 +262,7 @@ function buildPartOrdersReadQuery(query = {}) {
     values.push(jobIds);
     const plateP = `$${values.length + 1}`;
     values.push(carPlates);
-    where.push(`(job_id::text = ANY(${jobP}::text[]) OR car_plate = ANY(${plateP}::text[]))`);
+    where.push(`(job_id::text = ANY(${jobP}::text[]) OR (NULLIF(BTRIM(COALESCE(job_id::text, '')), '') IS NULL AND car_plate = ANY(${plateP}::text[])))`);
   } else if (jobIds.length) {
     const p = `$${values.length + 1}`;
     values.push(jobIds);

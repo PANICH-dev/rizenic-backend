@@ -153,7 +153,7 @@ async function fetchDashboardPageParts(reports, branch, signal) {
     }
 }
 
-async function fetchDashboardList(kind, page = 1) {
+async function fetchDashboardList(kind, page = 1, { reuseTotal = false } = {}) {
     const isStation = kind === 'station';
     if (!dashboardServerListSupported) {
         if (isStation) dashboardLegacyRenderStationTable(false);
@@ -169,6 +169,8 @@ async function fetchDashboardList(kind, page = 1) {
     params.set('kind', kind);
     params.set('page', String(Math.max(1, Number(page) || 1)));
     params.set('limit', String(DASHBOARD_SERVER_PAGE_SIZE));
+    const previousPageInfo = isStation ? dashboardStationServerPageInfo : dashboardParkedServerPageInfo;
+    if (reuseTotal && Number.isFinite(Number(previousPageInfo?.total))) params.set('known_total', String(Number(previousPageInfo.total)));
     try {
         const res = await fetch(`${API_BASE_URL}/api/server/dashboard-list?${params.toString()}`, { signal: controller.signal });
         if (res.status === 404) {
@@ -214,13 +216,13 @@ async function fetchDashboardList(kind, page = 1) {
 goDashboardStationPage = function(page) {
     stationTablePager.page = page;
     if (!dashboardServerListSupported) return dashboardLegacyGoStationPage(page);
-    fetchDashboardList('station', page);
+    fetchDashboardList('station', page, { reuseTotal: true });
 };
 
 goDashboardParkedPage = function(page) {
     parkedCarsPager.page = page;
     if (!dashboardServerListSupported) return dashboardLegacyGoParkedPage(page);
-    fetchDashboardList('parked', page);
+    fetchDashboardList('parked', page, { reuseTotal: true });
 };
 
 async function fetchDashboardServerView(branchOverride = null, page = 1) {
@@ -308,8 +310,8 @@ applyFilters = async function(includeParts = true) {
     dashboardLegacyApplyFilters(false);
     if (includeParts) renderPartsTracking(false);
     if (dashboardServerListSupported) {
-        fetchDashboardList('station', stationTablePager.page || 1);
-        fetchDashboardList('parked', parkedCarsPager.page || 1);
+        fetchDashboardList('station', stationTablePager.page || 1, { reuseTotal: true });
+        fetchDashboardList('parked', parkedCarsPager.page || 1, { reuseTotal: true });
     }
 };
 
@@ -336,7 +338,7 @@ function dashboardPOFilterParams(params) {
     if (dashboardPOSearchText) params.set('search', dashboardPOSearchText);
 }
 
-async function fetchDashboardPOPage(page = 1) {
+async function fetchDashboardPOPage(page = 1, { reuseTotal = false } = {}) {
     if (!dashboardPOServerSupported) return dashboardLegacyRenderPartsTracking(false);
     if (dashboardPOController) dashboardPOController.abort();
     const controller = new AbortController();
@@ -345,6 +347,7 @@ async function fetchDashboardPOPage(page = 1) {
     const params = dashboardBranchParams(branch);
     params.set('page', String(Math.max(1, Number(page) || 1)));
     params.set('limit', String(dashboardPOPager.pageSize || 20));
+    if (reuseTotal && Number.isFinite(Number(dashboardPOServerPageInfo?.total))) params.set('known_total', String(Number(dashboardPOServerPageInfo.total)));
     const needsFacets = dashboardPOFacetsBranch !== branch;
     params.set('includeFacets', needsFacets ? '1' : '0');
     dashboardPOFilterParams(params);
@@ -404,12 +407,12 @@ async function fetchDashboardPOPage(page = 1) {
 
 renderPartsTracking = function(resetPage = false) {
     if (resetPage) RizenicPagination.reset(dashboardPOPager);
-    return fetchDashboardPOPage(dashboardPOPager.page || 1);
+    return fetchDashboardPOPage(dashboardPOPager.page || 1, { reuseTotal: !resetPage });
 };
 
 goDashboardPOPage = function(page) {
     dashboardPOPager.page = page;
-    return fetchDashboardPOPage(page);
+    return fetchDashboardPOPage(page, { reuseTotal: true });
 };
 
 openPOExcelFilter = function(e, colKey, title) {

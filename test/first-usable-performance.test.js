@@ -185,20 +185,18 @@ test('server-side dashboard keeps PO history independent from the first report p
   assert.match(views, /\/api\/server\/dashboard-analytics/);
 });
 
-test('server-side SA and repair pages paint primary jobs before part-order secondary data', () => {
+test('server-side SA and repair pages bundle current-page parts into the primary request while the global loader blocks interaction', () => {
   const jobs = read('public/jobs_server.js');
   const repair = read('public/repair_server.js');
   const views = read('server_side_views.js');
-  assert.match(jobs, /includeParts(?:\s*:\s*|['\"],\s*)['\"]0/);
-  assert.match(jobs, /\/api\/server\/sa-parts/);
-  assert.match(jobs, /partsPromise/);
-  assert.ok(jobs.indexOf('jobsLegacyFilterDataByBranch();') < jobs.indexOf('await Promise.all([secondaryPromise, partsPromise])'));
-  assert.match(repair, /includeParts(?:\s*:\s*|['\"],\s*)['\"]0/);
-  assert.match(repair, /\/api\/server\/repair-parts/);
-  assert.match(repair, /partsPromise/);
-  assert.ok(repair.indexOf('renderRepairServerRows(originalRepairJobs);') < repair.indexOf('await partsPromise'));
-  assert.match(views, /\/api\/server\/sa-parts/);
-  assert.match(views, /\/api\/server\/repair-parts/);
+  assert.match(jobs, /includeParts(?:\s*:\s*|['"],\s*)['"]1/);
+  assert.match(jobs, /payload\.partOrders/);
+  assert.doesNotMatch(jobs, /const\s+partsPromise\s*=/);
+  assert.match(repair, /includeParts(?:\s*:\s*|['"],\s*)['"]1/);
+  assert.match(repair, /payload\.partOrders/);
+  assert.doesNotMatch(repair, /const\s+partsPromise\s*=/);
+  assert.match(views, /includeParts/);
+  assert.match(views, /buildScopedPartOrdersForReports/);
 });
 
 test('split primary/secondary page loads ignore stale aborted requests before writing state', () => {

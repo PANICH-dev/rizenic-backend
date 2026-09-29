@@ -19,7 +19,7 @@ test('server page loads rely on shared fetch loading while filter sort and pagin
   const js = read('public/jobs_table_server.js');
   assert.doesNotMatch(js, /setJobsTableLoading\s*\(/);
   assert.match(js, /applyFilters\s*=\s*async function[\s\S]*fetchJobsServerPage\(\{\s*showLoading:\s*true\s*\}\)/s);
-  assert.match(js, /sortTable\s*=\s*function[\s\S]*fetchJobsServerPage\(\{\s*showLoading:\s*true\s*\}\)/s);
+  assert.match(js, /sortTable\s*=\s*function[\s\S]*fetchJobsServerPage\(\{[\s\S]*showLoading:\s*true[\s\S]*\}\)/s);
 });
 
 test('jobs page load error is reported without leaving a second blocking layer on screen', () => {

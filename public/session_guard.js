@@ -5,7 +5,8 @@
   let pendingBlockingRequests = 0;
   let busyStartedAt = 0;
   let hideTimer = null;
-  const MIN_VISIBLE_MS = 180;
+  const MIN_VISIBLE_MS = 0;
+  const inflightGetRequests = new Map();
 
   function apiPath(input) {
     try {
@@ -21,6 +22,41 @@
     if (init?.rizenicBlocking === false) return false;
     const path = apiPath(input);
     return path.startsWith('/api/') && path !== '/api/health';
+  }
+
+  function requestMethod(input, init) {
+    if (init?.method) return String(init.method).toUpperCase();
+    if (typeof Request !== 'undefined' && input instanceof Request) return String(input.method || 'GET').toUpperCase();
+    return 'GET';
+  }
+
+  function canCoalesceApiGet(input, init) {
+    if (requestMethod(input, init) !== 'GET') return false;
+    if (init?.signal || init?.body || init?.headers) return false;
+    if (typeof Request !== 'undefined' && input instanceof Request) return false;
+    const path = apiPath(input);
+    return path.startsWith('/api/') && path !== '/api/health';
+  }
+
+  function coalesceKey(input, init) {
+    const raw = typeof input === 'string' ? input : input?.url;
+    const url = new URL(raw, window.location.href).href;
+    const credentials = init?.credentials || 'same-origin';
+    const cache = init?.cache || 'default';
+    return `${url}|credentials=${credentials}|cache=${cache}`;
+  }
+
+  function performFetch(input, init) {
+    if (!canCoalesceApiGet(input, init)) return nativeFetch(input, init);
+    const key = coalesceKey(input, init);
+    let shared = inflightGetRequests.get(key);
+    if (!shared) {
+      shared = nativeFetch(input, init).finally(() => {
+        if (inflightGetRequests.get(key) === shared) inflightGetRequests.delete(key);
+      });
+      inflightGetRequests.set(key, shared);
+    }
+    return shared.then(response => response.clone());
   }
 
   function ensureBusyStyle() {
@@ -103,6 +139,12 @@
   function endBlockingRequest() {
     pendingBlockingRequests = Math.max(0, pendingBlockingRequests - 1);
     if (pendingBlockingRequests !== 0) return;
+    if (MIN_VISIBLE_MS <= 0) {
+      clearTimeout(hideTimer);
+      hideTimer = null;
+      hideBusyLayerNow();
+      return;
+    }
     const now = performance.now ? performance.now() : Date.now();
     const remaining = Math.max(0, MIN_VISIBLE_MS - (now - busyStartedAt));
     clearTimeout(hideTimer);
@@ -137,7 +179,7 @@
     }
     if (blocking) beginBlockingRequest();
     try {
-      const response = await nativeFetch(input, fetchInit);
+      const response = await performFetch(input, fetchInit);
       const path = apiPath(input);
       if (response.status === 401 && path.startsWith('/api/') && !['/api/login', '/api/logout'].includes(path)) {
         setTimeout(expireSession, 0);

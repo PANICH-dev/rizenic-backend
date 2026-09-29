@@ -15,7 +15,7 @@ function renderMasterServerRows(items, pageInfo) {
             containerId: 'master_table_pagination',
             pageInfo,
             noun: 'รายการ',
-            onPageChange: page => fetchMasterPartsPage(page)
+            onPageChange: page => fetchMasterPartsPage(page, { reuseTotal: true })
         });
     }
     if (!items.length) {
@@ -36,7 +36,7 @@ function renderMasterServerRows(items, pageInfo) {
     `).join('');
 }
 
-async function fetchMasterPartsPage(page = 1) {
+async function fetchMasterPartsPage(page = 1, { reuseTotal = false } = {}) {
     if (partsMasterAbortController) partsMasterAbortController.abort();
     partsMasterAbortController = new AbortController();
     masterPartsPager.page = Math.max(1, Number(page) || 1);
@@ -45,6 +45,7 @@ async function fetchMasterPartsPage(page = 1) {
         page: String(masterPartsPager.page),
         limit: String(PARTS_MASTER_PAGE_SIZE)
     });
+    if (reuseTotal && Number.isFinite(Number(masterPartsPager.serverMeta?.total))) params.set('known_total', String(Number(masterPartsPager.serverMeta.total)));
     if (masterPartsSearchText) params.set('search', masterPartsSearchText);
 
     const tbody = document.getElementById('master_table_body');
@@ -68,7 +69,7 @@ async function fetchMasterPartsPage(page = 1) {
 }
 
 goMasterPartsPage = function(page) {
-    fetchMasterPartsPage(page);
+    fetchMasterPartsPage(page, { reuseTotal: true });
 };
 
 renderMasterTable = function() {
@@ -188,12 +189,13 @@ function renderPartsAlertsServerPage() {
     }
 }
 
-async function fetchPartsAlertsPage(page = 1) {
+async function fetchPartsAlertsPage(page = 1, { reuseTotal = false } = {}) {
     if (partsAlertsAbortController) partsAlertsAbortController.abort();
     partsAlertsAbortController = new AbortController();
     saAlertsPager.page = Math.max(1, Number(page) || 1);
     const isManager = ['BA','Manager','Admin','แอดมิน'].includes(userRole);
     const params = new URLSearchParams({ page: String(saAlertsPager.page), limit: String(PARTS_ALERT_PAGE_SIZE) });
+    if (reuseTotal && Number.isFinite(Number(saAlertsPager.serverMeta?.total))) params.set('known_total', String(Number(saAlertsPager.serverMeta.total)));
     if (!isManager) params.set('branch', userBranch);
     if (saAlertsSearchText) params.set('search', saAlertsSearchText);
     const tbody = document.getElementById('sa_alerts_body');
@@ -222,11 +224,14 @@ async function fetchPartsAlertsPage(page = 1) {
 searchSAAlerts = function(value) {
     saAlertsSearchText = String(value || '').trim().toLowerCase();
     clearTimeout(partsAlertsSearchTimer);
-    partsAlertsSearchTimer = setTimeout(() => fetchPartsAlertsPage(1), 250);
+    partsAlertsSearchTimer = setTimeout(() => {
+        saAlertsPager.serverMeta = null;
+        fetchPartsAlertsPage(1);
+    }, 250);
 };
 
 goSAAlertsPage = function(page) {
-    fetchPartsAlertsPage(page);
+    fetchPartsAlertsPage(page, { reuseTotal: true });
 };
 
 renderSAAlerts = function() {

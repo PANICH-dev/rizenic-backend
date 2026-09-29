@@ -80,8 +80,18 @@ function splitQueryList(raw, max = 200) {
   return [...new Set(values.map(clean).filter(Boolean))].slice(0, max);
 }
 
-function pageMeta(rows, page, pageSize) {
-  const total = Number(rows[0]?.__total_count || 0);
+function parseKnownTotal(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const n = Number.parseInt(value, 10);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+function pageCountProjection(knownTotal) {
+  return knownTotal === null ? ', COUNT(*) OVER() AS __total_count' : '';
+}
+
+function pageMeta(rows, page, pageSize, knownTotal = null) {
+  const total = knownTotal === null ? Number(rows[0]?.__total_count || 0) : knownTotal;
   return { total, totalPages: Math.max(1, Math.ceil(total / pageSize)), page, pageSize };
 }
 
@@ -211,6 +221,7 @@ function registerServerSideViews(app, pool) {
       const page = safePositiveInt(req.query.page, 1, 1000000);
       const pageSize = safePositiveInt(req.query.limit, 50, 100);
       const offset = (page - 1) * pageSize;
+      const knownTotal = parseKnownTotal(req.query.known_total);
       const branch = clean(req.query.branch) || 'สำนักงานใหญ่';
       const search = clean(req.query.search);
       const values = [branch];
@@ -223,15 +234,15 @@ function registerServerSideViews(app, pool) {
       const limitParam = `$${values.length}`;
       values.push(offset);
       const offsetParam = `$${values.length}`;
-      const sql = `SELECT m.*, l.location, l.safety_stock, COUNT(*) OVER() AS __total_count
+      const sql = `SELECT m.*, l.location, l.safety_stock${pageCountProjection(knownTotal)}
         FROM rizenicpartsmaster m
         LEFT JOIN rizenic_part_locations l ON m.part_no = l.part_no AND l.branch_name = $1
         ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
         ORDER BY m.part_name ASC
         LIMIT ${limitParam} OFFSET ${offsetParam}`;
       const result = await pool.query(sql, values);
-      let total = Number(result.rows[0]?.__total_count || 0);
-      if (!result.rows.length && page > 1) {
+      let total = knownTotal === null ? Number(result.rows[0]?.__total_count || 0) : knownTotal;
+      if (knownTotal === null && !result.rows.length && page > 1) {
         const countValues = [];
         let countWhere = '';
         if (search) {
@@ -257,6 +268,7 @@ function registerServerSideViews(app, pool) {
       const page = safePositiveInt(req.query.page, 1, 1000000);
       const pageSize = safePositiveInt(req.query.limit, 50, 100);
       const offset = (page - 1) * pageSize;
+      const knownTotal = parseKnownTotal(req.query.known_total);
       const values = [];
       const where = [];
       const search = clean(req.query.search);
@@ -269,10 +281,10 @@ function registerServerSideViews(app, pool) {
       const limitParam = `$${values.length}`;
       values.push(offset);
       const offsetParam = `$${values.length}`;
-      const sql = `SELECT ${cfg.fields}, COUNT(*) OVER() AS __total_count FROM ${cfg.table}${where.length ? ` WHERE ${where.join(' AND ')}` : ''} ORDER BY ${cfg.order} LIMIT ${limitParam} OFFSET ${offsetParam}`;
+      const sql = `SELECT ${cfg.fields}${pageCountProjection(knownTotal)} FROM ${cfg.table}${where.length ? ` WHERE ${where.join(' AND ')}` : ''} ORDER BY ${cfg.order} LIMIT ${limitParam} OFFSET ${offsetParam}`;
       const result = await pool.query(sql, values);
-      let total = Number(result.rows[0]?.__total_count || 0);
-      if (!result.rows.length && page > 1) {
+      let total = knownTotal === null ? Number(result.rows[0]?.__total_count || 0) : knownTotal;
+      if (knownTotal === null && !result.rows.length && page > 1) {
         const countValues = search ? [`%${search}%`] : [];
         const countWhere = search ? ` WHERE CONCAT_WS(' ', ${cfg.search.map(col => `COALESCE(${col}::text, '')`).join(', ')}) ILIKE $1` : '';
         const counted = await pool.query(`SELECT COUNT(*)::int AS total FROM ${cfg.table}${countWhere}`, countValues);
@@ -290,6 +302,7 @@ function registerServerSideViews(app, pool) {
   app.get('/api/server/dashboard', async (req, res) => {
     try {
       const { page, pageSize, offset } = pagedRequest(req, 20, 50);
+      const knownTotal = parseKnownTotal(req.query.known_total);
       const where = [];
       const values = [];
       addBranch(where, values, req.query.branch);
@@ -298,7 +311,7 @@ function registerServerSideViews(app, pool) {
       const limitParam = `$${values.length}`;
       values.push(offset);
       const offsetParam = `$${values.length}`;
-      const reportSql = `SELECT ${REPORT_DASHBOARD_FIELDS.join(', ')}, COUNT(*) OVER() AS __total_count
+      const reportSql = `SELECT ${REPORT_DASHBOARD_FIELDS.join(', ')}${pageCountProjection(knownTotal)}
         FROM rizenicreport${where.length ? ` WHERE ${where.join(' AND ')}` : ''}
         ORDER BY id DESC LIMIT ${limitParam} OFFSET ${offsetParam}`;
 
@@ -353,7 +366,7 @@ function registerServerSideViews(app, pool) {
           FROM rizenicreport${branchWhere.length ? ` WHERE ${branchWhere.join(' AND ')} AND` : ' WHERE'} COALESCE(job_status,'') LIKE ANY(ARRAY['01%','02%','03%','04%','05%','06%','07%','08%','09%','10%','11%','12%'])
           GROUP BY 1 ORDER BY count DESC, label`, branchValues)
       ]);
-      const meta = pageMeta(reportsResult.rows, page, pageSize);
+      const meta = pageMeta(reportsResult.rows, page, pageSize, knownTotal);
       const reports = stripWindowCount(reportsResult.rows);
       const includeParts = clean(req.query.includeParts) !== '0';
       const partOrders = includeParts
@@ -655,6 +668,7 @@ function registerServerSideViews(app, pool) {
   app.get('/api/server/dashboard-po', async (req, res) => {
     try {
       const { page, pageSize, offset } = pagedRequest(req, 20, 50);
+      const knownTotal = parseKnownTotal(req.query.known_total);
       const branch = clean(req.query.branch);
       const search = clean(req.query.search).toLowerCase();
       const selectedPlates = splitQueryList(req.query.plate, 500);
@@ -708,10 +722,10 @@ function registerServerSideViews(app, pool) {
       values.push(offset); const offsetParam = `$${values.length}`;
       const filteredWhere = filterWhere.length ? `WHERE ${filterWhere.join(' AND ')}` : '';
       const pageSql = `${baseCte}
-        SELECT plate, sa_name, is_parked, parked_label, item_count, worst_status, latest_order_id, COUNT(*) OVER() AS __total_count
+        SELECT plate, sa_name, is_parked, parked_label, item_count, worst_status, latest_order_id${pageCountProjection(knownTotal)}
         FROM enriched ${filteredWhere} ORDER BY plate ASC LIMIT ${limitParam} OFFSET ${offsetParam}`;
       const pageResult = await pool.query(pageSql, values);
-      const meta = pageMeta(pageResult.rows, page, pageSize);
+      const meta = pageMeta(pageResult.rows, page, pageSize, knownTotal);
       const groupRows = stripWindowCount(pageResult.rows);
       const plates = groupRows.map(row => row.plate).filter(Boolean);
 
@@ -776,6 +790,7 @@ function registerServerSideViews(app, pool) {
       const kind = clean(req.query.kind);
       if (!['station','parked'].includes(kind)) return res.status(400).json({ error: 'invalid dashboard list kind' });
       const { page, pageSize, offset } = pagedRequest(req, 20, 50);
+      const knownTotal = parseKnownTotal(req.query.known_total);
       const where = [];
       const values = [];
       addBranch(where, values, req.query.branch);
@@ -786,8 +801,8 @@ function registerServerSideViews(app, pool) {
       values.push(offset);
       const offsetParam = `$${values.length}`;
       const orderBy = kind === 'station' ? 'target_finish_date ASC NULLS LAST, id DESC' : 'arrived_date ASC NULLS LAST, id DESC';
-      const result = await pool.query(`SELECT ${REPORT_DASHBOARD_FIELDS.join(', ')}, COUNT(*) OVER() AS __total_count FROM rizenicreport${where.length ? ` WHERE ${where.join(' AND ')}` : ''} ORDER BY ${orderBy} LIMIT ${limitParam} OFFSET ${offsetParam}`, values);
-      const meta = pageMeta(result.rows, page, pageSize);
+      const result = await pool.query(`SELECT ${REPORT_DASHBOARD_FIELDS.join(', ')}${pageCountProjection(knownTotal)} FROM rizenicreport${where.length ? ` WHERE ${where.join(' AND ')}` : ''} ORDER BY ${orderBy} LIMIT ${limitParam} OFFSET ${offsetParam}`, values);
+      const meta = pageMeta(result.rows, page, pageSize, knownTotal);
       res.json({ reports: stripWindowCount(result.rows), ...meta });
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -806,6 +821,7 @@ function registerServerSideViews(app, pool) {
   app.get('/api/server/sa-overview', async (req, res) => {
     try {
       const { page, pageSize, offset } = pagedRequest(req, 50, 50);
+      const knownTotal = parseKnownTotal(req.query.known_total);
       const includeMeta = clean(req.query.includeMeta) !== '0';
       const where = [];
       const values = [];
@@ -817,7 +833,7 @@ function registerServerSideViews(app, pool) {
       const limitParam = `$${values.length}`;
       values.push(offset);
       const offsetParam = `$${values.length}`;
-      const reportSql = `SELECT ${REPORT_SA_FIELDS.join(', ')}, COUNT(*) OVER() AS __total_count
+      const reportSql = `SELECT ${REPORT_SA_FIELDS.join(', ')}${pageCountProjection(knownTotal)}
         FROM rizenicreport${where.length ? ` WHERE ${where.join(' AND ')}` : ''}
         ORDER BY id DESC LIMIT ${limitParam} OFFSET ${offsetParam}`;
 
@@ -848,7 +864,7 @@ function registerServerSideViews(app, pool) {
         branchesPromise,
         summaryPromise
       ]);
-      const meta = pageMeta(reportsResult.rows, page, pageSize);
+      const meta = pageMeta(reportsResult.rows, page, pageSize, knownTotal);
       const reports = stripWindowCount(reportsResult.rows);
       const includeParts = clean(req.query.includeParts) !== '0';
       const partOrders = includeParts
@@ -872,6 +888,7 @@ function registerServerSideViews(app, pool) {
   app.get('/api/server/parts-alerts', async (req, res) => {
     try {
       const { page, pageSize, offset } = pagedRequest(req, 50, 50);
+      const knownTotal = parseKnownTotal(req.query.known_total);
       const where = [];
       const values = [];
       addBranch(where, values, req.query.branch);
@@ -892,9 +909,9 @@ function registerServerSideViews(app, pool) {
       const limitParam = `$${values.length}`;
       values.push(offset);
       const offsetParam = `$${values.length}`;
-      const result = await pool.query(`SELECT ${REPORT_PARTS_FIELDS.join(', ')}, COUNT(*) OVER() AS __total_count
+      const result = await pool.query(`SELECT ${REPORT_PARTS_FIELDS.join(', ')}${pageCountProjection(knownTotal)}
         FROM rizenicreport WHERE ${where.join(' AND ')} ORDER BY id DESC LIMIT ${limitParam} OFFSET ${offsetParam}`, values);
-      const meta = pageMeta(result.rows, page, pageSize);
+      const meta = pageMeta(result.rows, page, pageSize, knownTotal);
       const reports = stripWindowCount(result.rows);
       const partOrders = await buildScopedPartOrdersForReports(pool, reports, req.query.branch, PART_ORDER_DASHBOARD_FIELDS);
       res.json({ reports, partOrders, ...meta });
@@ -985,6 +1002,7 @@ function registerServerSideViews(app, pool) {
   app.get('/api/server/repair-page', async (req, res) => {
     try {
       const { page, pageSize, offset } = pagedRequest(req, 50, 50);
+      const knownTotal = parseKnownTotal(req.query.known_total);
       const includeMeta = clean(req.query.includeMeta) !== '0';
       const reportWhere = ["COALESCE(job_status, '') NOT ILIKE '%ยกเลิก%'", "COALESCE(job_status, '') NOT ILIKE '%ส่งมอบแล้ว%'", "COALESCE(job_status, '') <> '12.ส่งมอบ'"];
       const reportValues = [];
@@ -1011,7 +1029,7 @@ function registerServerSideViews(app, pool) {
       addBranch(summaryWhere, summaryValues, req.query.branch);
 
       const [reportsResult, quotas, bodyParts, kpis] = await Promise.all([
-        pool.query(`SELECT ${REPORT_REPAIR_FIELDS.join(', ')}, COUNT(*) OVER() AS __total_count FROM rizenicreport WHERE ${reportWhere.join(' AND ')} ORDER BY ${sortField} ${sortDir} NULLS LAST LIMIT ${limitParam} OFFSET ${offsetParam}`, reportValues),
+        pool.query(`SELECT ${REPORT_REPAIR_FIELDS.join(', ')}${pageCountProjection(knownTotal)} FROM rizenicreport WHERE ${reportWhere.join(' AND ')} ORDER BY ${sortField} ${sortDir} NULLS LAST LIMIT ${limitParam} OFFSET ${offsetParam}`, reportValues),
         includeMeta ? pool.query(`SELECT * FROM rizenic_quotas${quotaWhere.length ? ` WHERE ${quotaWhere.join(' AND ')}` : ''} ORDER BY quota_type ASC, quota_date DESC`, quotaValues) : Promise.resolve({ rows: [] }),
         includeMeta ? pool.query('SELECT * FROM rizenic_body_parts ORDER BY id ASC') : Promise.resolve({ rows: [] }),
         includeMeta ? pool.query(`SELECT
@@ -1021,7 +1039,7 @@ function registerServerSideViews(app, pool) {
           COUNT(*) FILTER (WHERE department_routing = 'ซ่อม' AND target_finish_date::date < CURRENT_DATE AND NULLIF(BTRIM(COALESCE(repair_finish_date::text,'')), '') IS NULL)::int AS delayed
           FROM rizenicreport WHERE ${summaryWhere.join(' AND ')}`, summaryValues) : Promise.resolve({ rows: [] })
       ]);
-      const meta = pageMeta(reportsResult.rows, page, pageSize);
+      const meta = pageMeta(reportsResult.rows, page, pageSize, knownTotal);
       const reports = stripWindowCount(reportsResult.rows);
       const includeParts = clean(req.query.includeParts) !== '0';
       const partOrders = includeParts
@@ -1094,13 +1112,21 @@ function registerServerSideViews(app, pool) {
 
   app.get('/api/server/finance-meta', async (req, res) => {
     try {
-      const branchWhere = ["department_routing = 'บัญชี'"];
-      const branchValues = [];
-      const [branches, years] = await Promise.all([
-        pool.query(`SELECT DISTINCT branch_name FROM rizenicreport WHERE department_routing = 'บัญชี' AND NULLIF(BTRIM(COALESCE(branch_name, '')), '') IS NOT NULL ORDER BY branch_name ASC`),
-        pool.query(`SELECT DISTINCT EXTRACT(YEAR FROM billing_date::date)::int AS year FROM rizenicreport WHERE department_routing = 'บัญชี' AND billing_date IS NOT NULL ORDER BY year DESC`)
-      ]);
-      res.json({ branches: branches.rows.map(row => row.branch_name), years: years.rows.map(row => Number(row.year)).filter(Boolean) });
+      const result = await pool.query(`SELECT
+        COALESCE(
+          ARRAY_AGG(DISTINCT branch_name ORDER BY branch_name)
+            FILTER (WHERE NULLIF(BTRIM(COALESCE(branch_name, '')), '') IS NOT NULL),
+          ARRAY[]::text[]
+        ) AS branches,
+        COALESCE(
+          ARRAY_AGG(DISTINCT EXTRACT(YEAR FROM billing_date::date)::int ORDER BY EXTRACT(YEAR FROM billing_date::date)::int DESC)
+            FILTER (WHERE billing_date IS NOT NULL),
+          ARRAY[]::int[]
+        ) AS years
+        FROM rizenicreport
+        WHERE department_routing = 'บัญชี'`);
+      const row = result.rows[0] || {};
+      res.json({ branches: row.branches || [], years: (row.years || []).map(Number).filter(Boolean) });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }

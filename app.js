@@ -500,11 +500,13 @@ app.get('/api/reports', async (req, res) => {
     if (String(req.query.paged || '') === '1') {
       const pageQuery = buildPagedReportsReadQuery(req.query);
       const rowsResult = await pool.query(pageQuery.text, pageQuery.values);
-      let total = Number(rowsResult.rows[0]?.__total_count || 0);
+      let total = pageQuery.knownTotal === null
+        ? Number(rowsResult.rows[0]?.__total_count || 0)
+        : pageQuery.knownTotal;
 
       // An out-of-range page has no row from which to read the window count.
       // Only in that uncommon case do the old COUNT query as a fallback.
-      if (rowsResult.rows.length === 0 && pageQuery.page > 1) {
+      if (pageQuery.knownTotal === null && rowsResult.rows.length === 0 && pageQuery.page > 1) {
         const countQuery = buildReportsCountQuery(req.query);
         const countResult = await pool.query(countQuery.text, countQuery.values);
         total = Number(countResult.rows[0]?.total || 0);

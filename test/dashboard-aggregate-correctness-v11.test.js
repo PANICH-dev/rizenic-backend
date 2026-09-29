@@ -27,7 +27,7 @@ test('dashboard PO history has its own server-paged endpoint grouped by car inst
   const views = read('server_side_views.js');
   const block = routeBlock(views, 'dashboard-po');
   assert.match(block, /rizenic_part_orders/);
-  assert.match(block, /COUNT\(\*\) OVER\(\).*__total_count|__total_count.*COUNT\(\*\) OVER\(\)/s);
+  assert.match(block, /pageCountProjection\(knownTotal\)/, 'first load counts rows, later same-filter pages may reuse the known total');
   assert.match(block, /LIMIT/);
   assert.match(block, /OFFSET/);
   assert.match(block, /order_status.*ยกเลิก|ยกเลิก.*order_status/s);

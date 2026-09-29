@@ -78,7 +78,7 @@ async function fetchJobsServerView(branch, page = 1) {
     if (jobsServerAbortController) jobsServerAbortController.abort();
     const requestController = new AbortController();
     jobsServerAbortController = requestController;
-    const params = new URLSearchParams({ page: String(Math.max(1, Number(page) || 1)), limit: String(SA_SERVER_PAGE_SIZE), includeParts: '0' });
+    const params = new URLSearchParams({ page: String(Math.max(1, Number(page) || 1)), limit: String(SA_SERVER_PAGE_SIZE), includeParts: '1' });
     jobsCurrentBranchParam(branch, params);
 
     const secondaryPromise = fetchJobsMasterDataOnce();
@@ -91,7 +91,7 @@ async function fetchJobsServerView(branch, page = 1) {
     masterJobsData = Array.isArray(payload.reports) ? payload.reports : [];
     allJobsData = masterJobsData;
     window.jobsServerSaSummary = Array.isArray(payload.saSummary) ? payload.saSummary : [];
-    allPartOrders = [];
+    allPartOrders = Array.isArray(payload.partOrders) ? payload.partOrders : [];
     rebuildPartOrdersByPlate();
     selectedBranchFilter = branch || 'ALL';
     jobsServerLoadedBranch = selectedBranchFilter;
@@ -107,20 +107,16 @@ async function fetchJobsServerView(branch, page = 1) {
     }
 
     jobsLegacyFilterDataByBranch();
-    const partsPromise = fetchJobsPageParts(masterJobsData, branch, requestController.signal);
-    const [secondary, pageParts] = await Promise.all([secondaryPromise, partsPromise]);
+    const secondary = await secondaryPromise;
     if (jobsServerAbortController !== requestController || requestController.signal.aborted) return;
-    allPartOrders = pageParts;
-    rebuildPartOrdersByPlate();
     if (secondary[0].status === 'fulfilled') {
         const statuses = secondary[0].value || [];
         globalStatusOptionsHtml = statuses.length ? statuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('') : `<option value="09.จอดรอเข้าซ่อม">09.จอดรอเข้าซ่อม</option>`;
     }
     if (secondary[1].status === 'fulfilled') allStatuses = secondary[1].value || [];
-    jobsLegacyFilterDataByBranch();
 }
 
-async function fetchSADetailPage(saName, page = 1) {
+async function fetchSADetailPage(saName, page = 1, { reuseTotal = false } = {}) {
     if (jobsServerDetailController) jobsServerDetailController.abort();
     const requestController = new AbortController();
     jobsServerDetailController = requestController;
@@ -128,10 +124,11 @@ async function fetchSADetailPage(saName, page = 1) {
         sa_owner: saName,
         page: String(Math.max(1, Number(page) || 1)),
         limit: String(SA_SERVER_PAGE_SIZE),
-        includeParts: '0',
+        includeParts: '1',
         includeMeta: '0'
     });
     jobsCurrentBranchParam(selectedBranchFilter, params);
+    if (reuseTotal && Number.isFinite(Number(jobsServerDetailPageInfo?.total))) params.set('known_total', String(Number(jobsServerDetailPageInfo.total)));
     const res = await fetch(`${API_BASE_URL}/api/server/sa-overview?${params.toString()}`, { signal: requestController.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const payload = await res.json();
@@ -144,8 +141,7 @@ async function fetchSADetailPage(saName, page = 1) {
     poPager.page = normalized.pageInfo.page;
     allJobsData = normalized.items;
     masterJobsData = normalized.items;
-    allPartOrders = await fetchJobsPageParts(normalized.items, selectedBranchFilter, requestController.signal);
-    if (jobsServerDetailController !== requestController || requestController.signal.aborted) return;
+    allPartOrders = Array.isArray(payload.partOrders) ? payload.partOrders : [];
     rebuildPartOrdersByPlate();
     currentViewSA = saName;
 
@@ -169,11 +165,11 @@ openSADetail = function(saName) {
 };
 
 goParkedPage = function(page) {
-    fetchSADetailPage(currentViewSA, page).catch(() => {});
+    fetchSADetailPage(currentViewSA, page, { reuseTotal: true }).catch(() => {});
 };
 
 goPOPage = function(page) {
-    fetchSADetailPage(currentViewSA, page).catch(() => {});
+    fetchSADetailPage(currentViewSA, page, { reuseTotal: true }).catch(() => {});
 };
 
 globalSearchCar = async function() {

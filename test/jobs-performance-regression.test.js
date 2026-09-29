@@ -37,5 +37,5 @@ test('jobs server mode starts the server-side initial loader after suppressing l
 
 test('jobs page cache-busts the fixed server bootstrap so browsers cannot keep the stuck loader', () => {
   const html = fs.readFileSync(path.join(pub, 'jobs.html'), 'utf8');
-  assert.match(html, /jobs_server\.js\?v=1\.3/);
+  assert.match(html, /jobs_server\.js\?v=1\.4/);
 });

@@ -79,7 +79,7 @@ async function fetchRepairPageParts(items, branch, requestController) {
     }
 }
 
-async function fetchRepairServerView(branch = selectedBranchFilter, page = repairPager.page || 1) {
+async function fetchRepairServerView(branch = selectedBranchFilter, page = repairPager.page || 1, { reuseTotal = false } = {}) {
     if (repairServerAbortController) repairServerAbortController.abort();
     const requestController = new AbortController();
     repairServerAbortController = requestController;
@@ -90,7 +90,7 @@ async function fetchRepairServerView(branch = selectedBranchFilter, page = repai
     const params = new URLSearchParams({
         page: String(repairPager.page),
         limit: String(REPAIR_SERVER_PAGE_SIZE),
-        includeParts: '0',
+        includeParts: '1',
         includeMeta: includeMeta ? '1' : '0'
     });
     if (branch && String(branch).toUpperCase() !== 'ALL') params.set('branch', branch);
@@ -102,6 +102,7 @@ async function fetchRepairServerView(branch = selectedBranchFilter, page = repai
     const sort = repairServerSortField();
     if (sort) params.set('sort', sort);
     if (savedSortDir) params.set('dir', savedSortDir);
+    if (reuseTotal && Number.isFinite(Number(repairServerPageInfo?.total))) params.set('known_total', String(Number(repairServerPageInfo.total)));
 
     const tbody = document.getElementById('repair_list_body');
     if (tbody) tbody.innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-12 text-slate-400 font-mono text-sm"><i class="fa-solid fa-circle-notch fa-spin text-[#00320D] text-lg mr-2"></i> กำลังโหลดข้อมูล...</td></tr>`;
@@ -124,17 +125,11 @@ async function fetchRepairServerView(branch = selectedBranchFilter, page = repai
             repairServerMetaBranch = branchKey;
         }
         originalRepairJobs = normalized.items.map(job => ({ ...job, calculated_station: computeHighestStationIFS(job) }));
-        allPartOrders = [];
+        allPartOrders = Array.isArray(payload.partOrders) ? payload.partOrders : [];
 
-        const partsPromise = fetchRepairPageParts(originalRepairJobs, branch, requestController);
         updateKPIs();
         renderRepairServerRows(originalRepairJobs);
         renderCalendar();
-        if (document.getElementById('tab-summary')?.classList.contains('active')) renderPieChartAndList();
-
-        allPartOrders = await partsPromise;
-        if (repairServerAbortController !== requestController || requestController.signal.aborted) return null;
-        renderRepairServerRows(originalRepairJobs);
         if (document.getElementById('tab-summary')?.classList.contains('active')) renderPieChartAndList();
         return payload;
     } catch (error) {
@@ -157,7 +152,7 @@ runTableFilters = function(resetPage = true) {
 
 goRepairPage = function(page) {
     repairPager.page = page;
-    fetchRepairServerView(selectedBranchFilter, page);
+    fetchRepairServerView(selectedBranchFilter, page, { reuseTotal: true });
 };
 
 sortTableDirectly = function(colIndex, dir) {
@@ -165,7 +160,7 @@ sortTableDirectly = function(colIndex, dir) {
     savedSortDir = dir;
     repairPager.page = 1;
     updateRepairSortIndicator(colIndex, dir);
-    fetchRepairServerView(selectedBranchFilter, 1);
+    fetchRepairServerView(selectedBranchFilter, 1, { reuseTotal: true });
 };
 
 onBranchChange = async function(newBranchVal) {
