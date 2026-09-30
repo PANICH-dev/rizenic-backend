@@ -1,4 +1,28 @@
-Chart.register(ChartDataLabels);
+let repairChartLibrariesPromise = null;
+function ensureRepairChartLibraries() {
+    if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
+        try { Chart.register(ChartDataLabels); } catch (_) {}
+        return Promise.resolve(true);
+    }
+    if (repairChartLibrariesPromise) return repairChartLibrariesPromise;
+    const perf = window.RizenicUIPerformance;
+    if (!perf || typeof perf.loadScript !== 'function') return Promise.resolve(false);
+    repairChartLibrariesPromise = perf.loadScript('https://cdn.jsdelivr.net/npm/chart.js', 'Chart')
+        .then(() => perf.loadScript('https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0', 'ChartDataLabels'))
+        .then(() => {
+            if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
+                try { Chart.register(ChartDataLabels); } catch (_) {}
+                return true;
+            }
+            return false;
+        })
+        .catch((error) => {
+            console.warn('โหลดกราฟสถานีช่างเบื้องหลังไม่สำเร็จ:', error);
+            return false;
+        });
+    return repairChartLibrariesPromise;
+}
+
 
 const API_BASE_URL = window.location.origin;
 let originalRepairJobs = []; 
@@ -91,12 +115,40 @@ function getTodayString() {
     return `${yyyy}-${mm}-${dd}`;
 }
 
-async function safeFetch(url) {
+async function safeFetch(url, init) {
     try {
-        const res = await fetch(url);
+        const res = await fetch(url, init);
         if (res.ok) return await res.json();
         return [];
     } catch (e) { return []; }
+}
+
+function isRepairPrivilegedUser() {
+    const role = sessionStorage.getItem('emp_role') || '';
+    return ['BA', 'Manager', 'Admin', 'แอดมิน'].includes(role);
+}
+
+function getRepairScopeQuery() {
+    return (!isRepairPrivilegedUser() && currentBranch)
+        ? `?branch=${encodeURIComponent(currentBranch)}`
+        : '';
+}
+
+function withRepairCacheBust(scopeQuery) {
+    const stamp = `_t=${new Date().getTime()}`;
+    return scopeQuery ? `${scopeQuery}&${stamp}` : `?${stamp}`;
+}
+
+function loadRepairDatasets() {
+    const scopeQuery = getRepairScopeQuery();
+    const scopedNoCache = withRepairCacheBust(scopeQuery);
+    const noCache = `?_t=${new Date().getTime()}`;
+    return Promise.all([
+        safeFetch(`${API_BASE_URL}/api/reports${scopedNoCache}`),
+        safeFetch(`${API_BASE_URL}/api/quotas${noCache}`),
+        safeFetch(`${API_BASE_URL}/api/part-orders${scopedNoCache}`),
+        safeFetch(`${API_BASE_URL}/api/body-parts${noCache}`)
+    ]);
 }
 
 async function loadUserColumnPreferences() {
@@ -180,6 +232,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     installRepairEnterSearch();
+    ensureRepairChartLibraries();
 
     document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name') || 'ช่างซ่อม';
     
@@ -190,13 +243,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     const isManager = ['BA', 'Manager', 'Admin', 'แอดมิน'].includes(userRole);
     const branchSelectEl = document.getElementById('branchSelect');
 
-    if (branchSelectEl) {
+    // Start the heavy datasets immediately. Branch options and saved column
+    // preferences are independent, so all startup reads can overlap safely.
+    const repairDatasetsPromise = loadRepairDatasets();
+    const preferencesPromise = loadUserColumnPreferences();
+    const branchOptionsPromise = (async () => {
+        if (!branchSelectEl) return;
         try {
             const empRes = await fetch(`${API_BASE_URL}/api/employees`);
             if (empRes.ok) {
                 const employees = await empRes.json();
                 const masterBranches = [...new Set(employees.map(e => e.branch_name).filter(Boolean))].sort();
-                
                 let optionsHtml = isManager ? `<option value="ALL">🏢 รวมทุกสาขา (ภาพรวม)</option>` : '';
                 masterBranches.forEach(b => {
                     optionsHtml += `<option value="${b}">${b}</option>`;
@@ -206,7 +263,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (e) {
             console.error('โหลดข้อมูลสาขาไม่สำเร็จ', e);
         }
+    })();
 
+    await Promise.all([preferencesPromise, branchOptionsPromise]);
+
+    if (branchSelectEl) {
         if (isManager) {
             selectedBranchFilter = 'ALL';
             branchSelectEl.value = 'ALL';
@@ -217,14 +278,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 branchSelectEl.add(new Option(currentBranch, currentBranch));
             }
             branchSelectEl.value = currentBranch;
-            branchSelectEl.disabled = true; 
+            branchSelectEl.disabled = true;
         }
     }
-    
+
     document.getElementById('m_repair_date').setAttribute('min', getTodayString());
 
-    await loadUserColumnPreferences(); 
-    buildTableHeaders(); renderHideColumnMenu(); fetchJobList();
+    buildTableHeaders();
+    renderHideColumnMenu();
+    await fetchJobList(repairDatasetsPromise);
     renderTimelineModal();
 });
 
@@ -512,22 +574,15 @@ function openDayListForTarget(dateStr) {
     document.getElementById('dayListModal').classList.remove('hidden');
 }
 
-async function fetchJobList() {
+async function fetchJobList(prefetchedDatasets) {
     try {
         document.getElementById('repair_list_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-12 text-slate-400 font-mono text-sm"><i class="fa-solid fa-circle-notch fa-spin text-[#00320D] text-lg mr-2"></i> กำลังโหลดข้อมูล...</td></tr>`;
-        const nocache = `?_t=${new Date().getTime()}`;
-        
-        // 🌟 แก้ไข: ลบ API ตัว part-statuses ออกให้ตรงจำนวนที่ destructure เพื่อกันบั๊กโหลดค้าง 🌟
-        const [resReports, resQuotas, resParts, resBodyParts] = await Promise.all([
-            safeFetch(`${API_BASE_URL}/api/reports${nocache}`), 
-            safeFetch(`${API_BASE_URL}/api/quotas${nocache}`), 
-            safeFetch(`${API_BASE_URL}/api/part-orders${nocache}`),
-            safeFetch(`${API_BASE_URL}/api/body-parts${nocache}`)
-        ]);
-        
-        allQuotas = Array.isArray(resQuotas) ? resQuotas : (resQuotas.data || []); 
-        allPartOrders = Array.isArray(resParts) ? resParts : (resParts.data || []); 
-        allBodyPartsMaster = Array.isArray(resBodyParts) ? resBodyParts : (resBodyParts.data || []); 
+
+        const [resReports, resQuotas, resParts, resBodyParts] = await (prefetchedDatasets || loadRepairDatasets());
+
+        allQuotas = Array.isArray(resQuotas) ? resQuotas : (resQuotas.data || []);
+        allPartOrders = Array.isArray(resParts) ? resParts : (resParts.data || []);
+        allBodyPartsMaster = Array.isArray(resBodyParts) ? resBodyParts : (resBodyParts.data || []);
 
         const rawReports = Array.isArray(resReports) ? resReports : (resReports.data || []);
 
@@ -539,7 +594,7 @@ async function fetchJobList() {
         }).map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
 
         updateKPIs();
-        renderCalendar(); 
+        renderCalendar();
         runTableFilters();
     } catch (err) { console.error("โหลดข้อมูลพัง:", err); }
 }
@@ -1013,6 +1068,10 @@ function generateMiniCardHTML(j, type) {
 function closeDayListModal() { document.getElementById('dayListModal').classList.add('hidden'); }
 
 function renderPieChartAndList() {
+    if (typeof Chart === 'undefined' || typeof ChartDataLabels === 'undefined') {
+        ensureRepairChartLibraries().then((ready) => { if (ready) renderPieChartAndList(); });
+        return;
+    }
     const counters = { "เคาะ":0, "โป๊ว":0, "เตรียมพื้น":0, "พ่นสี":0, "ประกอบ":0, "ขัดสี":0, "QC":0, "แม็ก":0, "กระจก":0, "ฟิล์ม":0, "พักซ่อม":0, "รอส่งมอบ":0 };
     const stationJobs = {}; 
     Object.keys(counters).forEach(k => stationJobs[k] = []); 

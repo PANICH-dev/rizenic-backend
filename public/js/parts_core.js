@@ -76,6 +76,16 @@ function enterApp() {
 
 function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
 
+function isPartsPrivilegedUser() {
+    return ['BA','Manager','Admin','แอดมิน'].includes(userRole);
+}
+
+function getPartsScopeQuery() {
+    return (!isPartsPrivilegedUser() && userBranch)
+        ? `?branch=${encodeURIComponent(userBranch)}`
+        : '';
+}
+
 function switchTab(tabId) {
     document.querySelectorAll('.parts-tab-content').forEach(el => el.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
@@ -99,44 +109,37 @@ function switchTab(tabId) {
 
 // 🌟 โหลดเฉพาะ Reports, POs และ Master
 async function loadAllData() {
-    const nocache = `?_t=${new Date().getTime()}`;
-    const isManager = ['BA','Manager','Admin','แอดมิน'].includes(userRole);
+    const scopeBase = getPartsScopeQuery();
+    const cacheKey = `_t=${new Date().getTime()}`;
+    const scopeQuery = scopeBase ? `${scopeBase}&${cacheKey}` : `?${cacheKey}`;
 
     try {
-        // 1. ดึงข้อมูลใบงานหลัก (Reports)
-        try {
-            const resRep = await fetch(`${API_BASE_URL}/api/reports${nocache}`);
-            if(resRep.ok) {
-                const dataRep = await resRep.json();
-                allReports = Array.isArray(dataRep) ? dataRep : [];
-                if (!isManager) allReports = allReports.filter(d => d.branch_name === userBranch);
-            }
-        } catch(e) {}
+        // Reports, POs and master parts are independent reads. Start them together
+        // so page startup time is the slowest request, not the sum of three waits.
+        const results = await Promise.allSettled([
+            fetch(`${API_BASE_URL}/api/reports${scopeQuery}`).then(async res => res.ok ? res.json() : []),
+            fetch(`${API_BASE_URL}/api/part-orders${scopeQuery}`).then(async res => res.ok ? res.json() : []),
+            fetch(`${API_BASE_URL}/api/parts?branch=${encodeURIComponent(userBranch)}&${cacheKey}`).then(async res => res.ok ? res.json() : [])
+        ]);
 
-        // 2. ดึงรายการสั่งซื้ออะไหล่ (Part Orders)
-        try {
-            const resPO = await fetch(`${API_BASE_URL}/api/part-orders${nocache}`);
-            if(resPO.ok) {
-                const dataPO = await resPO.json();
-                allPartOrders = Array.isArray(dataPO) ? dataPO : [];
-                if (!isManager) allPartOrders = allPartOrders.filter(d => d.branch_name === userBranch);
-            }
-        } catch(e) {}
+        if (results[0].status === 'fulfilled') {
+            allReports = Array.isArray(results[0].value) ? results[0].value : [];
+            if (!isPartsPrivilegedUser()) allReports = allReports.filter(d => d.branch_name === userBranch);
+        }
+        if (results[1].status === 'fulfilled') {
+            allPartOrders = Array.isArray(results[1].value) ? results[1].value : [];
+            if (!isPartsPrivilegedUser()) allPartOrders = allPartOrders.filter(d => d.branch_name === userBranch);
+        }
+        if (results[2].status === 'fulfilled') {
+            allMasterPartsCache = Array.isArray(results[2].value) ? results[2].value : [];
+        }
 
-        // 3. ดึงมาสเตอร์อะไหล่ (Master Parts)
-        try {
-            const resMaster = await fetch(`${API_BASE_URL}/api/parts?branch=${encodeURIComponent(userBranch)}&_t=${new Date().getTime()}`);
-            if(resMaster.ok) {
-                const dataMaster = await resMaster.json();
-                allMasterPartsCache = Array.isArray(dataMaster) ? dataMaster : [];
-            }
-        } catch(e) {}
-
-        // เรนเดอร์เฉพาะ 2 ส่วนหลัก
+        // Render exactly the same two primary surfaces after their startup data resolves.
         if (typeof renderSAAlerts === "function") renderSAAlerts();
         if (typeof renderMasterTable === "function") renderMasterTable();
-
-    } catch (e) { console.error("Data load error:", e); }
+    } catch (e) {
+        console.error("Data load error:", e);
+    }
 }
 
 function filterTableByText(tbodyId, txt) {

@@ -57,6 +57,11 @@ function showToast(msg, type='success') {
 function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
 function goToEditJob(jobId) { sessionStorage.setItem('edit_job_id', jobId); window.location.href = 'index.html'; }
 
+function getJobsScopeQuery() {
+    const privileged = ['BA','Manager','Admin','แอดมิน'].includes(userRole);
+    return (!privileged && userBranch) ? `?branch=${encodeURIComponent(userBranch)}` : '';
+}
+
 // =====================================
 // INIT
 // =====================================
@@ -75,10 +80,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadJobsData() {
     try {
+        const scopeQuery = getJobsScopeQuery();
         const results = await Promise.allSettled([
             fetch(`${API_BASE_URL}/api/statuses`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/api/part-orders`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/api/reports`).then(res => res.json()),
+            fetch(`${API_BASE_URL}/api/part-orders${scopeQuery}`).then(res => res.json()),
+            fetch(`${API_BASE_URL}/api/reports${scopeQuery}`).then(res => res.json()),
             fetch(`${API_BASE_URL}/api/employees`).then(res => res.json()),
             fetch(`${API_BASE_URL}/api/part-statuses`).then(res => res.json()),
             fetch(`${API_BASE_URL}/api/parts?branch=${encodeURIComponent(userBranch)}`).then(res => res.json())

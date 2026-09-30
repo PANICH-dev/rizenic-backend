@@ -21,7 +21,7 @@ test('repair board uses a normal inner native scroller like finance', () => {
 });
 
 test('repair page cache-busts the finance-table and exact-station patch', () => {
-  assert.match(repair, /ui_performance\.css\?v=20260930-7-repair-gap-utility-bound/);
-  assert.match(repair, /ui_performance\.js\?v=20260930-7-repair-gap-utility-bound/);
-  assert.match(repair, /repair\.js\?v=20260930-station-scope-fix/);
+  assert.match(repair, /ui_performance\.css\?v=20260930-7-fast-startup-scope/);
+  assert.match(repair, /ui_performance\.js\?v=20260930-7-fast-startup-scope/);
+  assert.match(repair, /repair\.js\?v=20260930-repair-lazy-cache-fix/);
 });

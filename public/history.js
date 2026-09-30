@@ -11,6 +11,13 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
+
+function getHistoryScopeQuery() {
+    const role = sessionStorage.getItem('emp_role') || '';
+    const branch = sessionStorage.getItem('emp_branch') || '';
+    const privileged = ['BA','Manager','Admin','แอดมิน'].includes(role);
+    return (!privileged && branch) ? `?branch=${encodeURIComponent(branch)}` : '';
+}
 function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
 function getValidDateStr(val) {
     if (!val || String(val).trim() === '' || String(val) === 'null' || String(val) === 'undefined') return '-';
@@ -27,9 +34,10 @@ async function loadData() {
         btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังเตรียมข้อมูล...`;
         btn.disabled = true;
 
+        const scopeQuery = getHistoryScopeQuery();
         const results = await Promise.allSettled([
-            fetch(`${API_BASE_URL}/api/reports`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/api/part-orders`).then(res => res.json())
+            fetch(`${API_BASE_URL}/api/reports${scopeQuery}`).then(res => res.json()),
+            fetch(`${API_BASE_URL}/api/part-orders${scopeQuery}`).then(res => res.json())
         ]);
 
         if (results[0].status === 'fulfilled') allJobsData = results[0].value;

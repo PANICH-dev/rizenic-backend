@@ -4,6 +4,16 @@
 
 const API_BASE_URL = window.location.origin;
 
+let jobsXlsxPromise = null;
+function ensureJobsXlsxLibrary() {
+    if (typeof XLSX !== 'undefined') return Promise.resolve(XLSX);
+    if (jobsXlsxPromise) return jobsXlsxPromise;
+    const perf = window.RizenicUIPerformance;
+    if (!perf || typeof perf.loadScript !== 'function') return Promise.reject(new Error('ไม่มีตัวโหลด XLSX'));
+    jobsXlsxPromise = perf.loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js', 'XLSX');
+    return jobsXlsxPromise;
+}
+
 // 🌟 Global Variables 🌟
 let allJobsData = [];
 let currentFilteredData = [];

@@ -11,7 +11,7 @@ const repair = read('public/repair.html');
 const finance = read('public/finance.html');
 const repairDate = read('public/repair_date_update.html');
 
-const REV = '20260930-7-repair-gap-utility-bound';
+const REV = '20260930-7-fast-startup-scope';
 
 test('dock-gated repair and finance reserve their final docked height inside the same containing block', () => {
   assert.match(js, /const viewportTop = state\.dockGated\s*\?\s*stickyTop\s*:\s*top;/);

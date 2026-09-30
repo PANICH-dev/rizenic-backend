@@ -119,11 +119,33 @@
     // Request URL, method, result and business flow remain untouched.
     // ------------------------------------------------------------
     const nativeFetch = typeof win.fetch === 'function' ? win.fetch.bind(win) : null;
+    const lazyScriptLoads = new Map();
+
+    function loadScriptOnce(src, globalName) {
+      if (!src) return Promise.reject(new Error('script src is required'));
+      if (globalName && win[globalName]) return Promise.resolve(win[globalName]);
+      if (lazyScriptLoads.has(src)) return lazyScriptLoads.get(src);
+
+      const promise = new Promise(function (resolve, reject) {
+        const script = doc.createElement('script');
+        script.src = src;
+        script.async = true;
+        script.onload = function () { resolve(globalName ? win[globalName] : true); };
+        script.onerror = function () {
+          lazyScriptLoads.delete(src);
+          reject(new Error('โหลด script ไม่สำเร็จ: ' + src));
+        };
+        (doc.head || doc.documentElement).appendChild(script);
+      });
+      lazyScriptLoads.set(src, promise);
+      return promise;
+    }
+
     let pendingReads = 0;
     const pendingTasks = new Set();
     let nextTaskId = 1;
     let initialPhase = true;
-    let windowLoaded = doc.readyState === 'complete';
+    let domReady = doc.readyState !== 'loading';
 
     function setInteractionBlocked(blocked) {
       if (!doc.body) return;
@@ -174,7 +196,7 @@
     }
 
     function finishInitialIfReady() {
-      if (!initialPhase || !windowLoaded || activePendingCount() !== 0) return;
+      if (!initialPhase || !domReady || activePendingCount() !== 0) return;
       initialPhase = false;
       doc.documentElement.classList.remove('ui-initial-loading');
       hideLoader();
@@ -211,23 +233,24 @@
       settlePendingIfReady();
     }
 
-    if (doc.readyState === 'loading') {
-      doc.addEventListener('DOMContentLoaded', function () {
-        if (initialPhase) setInteractionBlocked(true);
-        ensureLoader();
-      }, { once: true });
-    } else {
-      setInteractionBlocked(true);
-      ensureLoader();
+    function scheduleInitialReadyCheck() {
+      // Run after every DOMContentLoaded listener had a chance to start its
+      // critical API reads. Slow images/fonts/scripts must not keep the UI inert.
+      win.setTimeout(finishInitialIfReady, 0);
     }
 
-    if (!windowLoaded) {
-      win.addEventListener('load', function () {
-        windowLoaded = true;
-        finishInitialIfReady();
+    if (doc.readyState === 'loading') {
+      doc.addEventListener('DOMContentLoaded', function () {
+        domReady = true;
+        if (initialPhase) setInteractionBlocked(true);
+        ensureLoader();
+        scheduleInitialReadyCheck();
       }, { once: true });
     } else {
-      finishInitialIfReady();
+      domReady = true;
+      setInteractionBlocked(true);
+      ensureLoader();
+      scheduleInitialReadyCheck();
     }
 
     function finishReadAfterPaint() {
@@ -658,7 +681,8 @@
       refresh: function () { queueRefresh(true); },
       pendingReads: function () { return pendingReads; },
       beginTask: beginTask,
-      endTask: endTask
+      endTask: endTask,
+      loadScript: loadScriptOnce
     };
   }
 

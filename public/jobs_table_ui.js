@@ -580,7 +580,13 @@ function renderTable(data, rowOffset = 0) {
 // ------------------------------------------
 // 📥 4. ส่งออก Excel (Export)
 // ------------------------------------------
-function exportToExcel() {
+async function exportToExcel() {
+    try {
+        await ensureJobsXlsxLibrary();
+    } catch (error) {
+        showToast('โหลดเครื่องมือ Excel ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง', 'error');
+        return;
+    }
     if (!currentFilteredData || currentFilteredData.length === 0) {
         showToast('ไม่มีข้อมูลในตารางให้โหลดครับ!', 'error');
         return;

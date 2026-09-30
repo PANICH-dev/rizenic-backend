@@ -49,7 +49,7 @@ test('pagination reserves vertical and horizontal room so controls do not overla
 test('table pages cache-bust the repaired shared layer', () => {
   for (const file of tablePages) {
     const html = fs.readFileSync(path.join(pub, file), 'utf8');
-    assert.match(html, /ui_performance\.css\?v=20260930-7-repair-gap-utility-bound/);
-    assert.match(html, /ui_performance\.js\?v=20260930-7-repair-gap-utility-bound/);
+    assert.match(html, /ui_performance\.css\?v=20260930-7-fast-startup-scope/);
+    assert.match(html, /ui_performance\.js\?v=20260930-7-fast-startup-scope/);
   }
 });
