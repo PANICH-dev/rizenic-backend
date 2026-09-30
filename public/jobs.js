@@ -182,10 +182,40 @@ function globalSearchCar() {
     }
 }
 
+function searchSAByNameFromSAView() {
+    const input = document.getElementById('sa_search_plate_input');
+    const query = (input?.value || '').trim().toLowerCase();
+
+    if (!query) {
+        renderSAList();
+        return;
+    }
+
+    const saNames = [...new Set(
+        allJobsData
+            .map(job => (job.sa_owner || '').trim())
+            .filter(Boolean)
+    )];
+    const matches = saNames.filter(sa => sa.toLowerCase().includes(query));
+
+    if (matches.length === 0) {
+        renderSAList(query);
+        showToast(`ไม่พบ Service Advisor: ${input.value.trim()}`, 'error');
+        return;
+    }
+
+    if (matches.length === 1) {
+        openSADetail(matches[0]);
+        return;
+    }
+
+    renderSAList(query);
+}
+
 // =====================================
 // View 1: SA Cards List
 // =====================================
-function renderSAList() {
+function renderSAList(searchQuery = '') {
     const container = document.getElementById('sa_cards_container');
     const saStats = {}; 
     const fMonth = document.getElementById('sa_cal_month')?.value || String(new Date().getMonth() + 1).padStart(2, '0');
@@ -260,7 +290,10 @@ function renderSAList() {
         }
     });
 
-    const sortedSAs = Object.keys(saStats).sort((a, b) => saStats[b].pending - saStats[a].pending);
+    const normalizedSearch = String(searchQuery || '').trim().toLowerCase();
+    const sortedSAs = Object.keys(saStats)
+        .filter(sa => !normalizedSearch || sa.toLowerCase().includes(normalizedSearch))
+        .sort((a, b) => saStats[b].pending - saStats[a].pending);
     const formatMoney = (val) => Number(val).toLocaleString('th-TH', {minimumFractionDigits: 0, maximumFractionDigits: 2});
 
     // Banner สรุปยอดรวม
@@ -313,7 +346,10 @@ function renderSAList() {
     `;
 
     if(sortedSAs.length === 0) { 
-        container.innerHTML = html + `<div class="col-span-full text-center py-10 text-slate-400 font-bold bg-white rounded-xl border border-slate-200">ยังไม่มีงานค้างเลย 🎉</div>`; 
+        const emptyMessage = normalizedSearch
+            ? `ไม่พบ Service Advisor: ${searchQuery}`
+            : 'ยังไม่มีงานค้างเลย 🎉';
+        container.innerHTML = html + `<div class="col-span-full text-center py-10 text-slate-400 font-bold bg-white rounded-xl border border-slate-200">${emptyMessage}</div>`;
         return; 
     }
 
