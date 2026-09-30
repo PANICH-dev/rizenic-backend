@@ -2,6 +2,96 @@
 // 🎨 RIZENIC - Jobs Table UI (Table & Filters)
 // ==========================================
 
+
+// ------------------------------------------
+// ⚡ Jobs virtual pagination: render only the rows currently visible.
+// This keeps the full filtered dataset in memory for search/export, but avoids
+// constructing hundreds of editable DOM rows before the page becomes usable.
+// ------------------------------------------
+let jobsCurrentPage = 1;
+let jobsPageSize = 30;
+const jobsPageSizeOptions = Array.from({ length: 15 }, (_, i) => (i + 1) * 10);
+
+function getJobsPageBounds(totalRows) {
+    const total = Math.max(0, Number(totalRows) || 0);
+    const totalPages = Math.max(1, Math.ceil(total / jobsPageSize));
+    jobsCurrentPage = Math.min(totalPages, Math.max(1, jobsCurrentPage));
+    const start = total === 0 ? 0 : (jobsCurrentPage - 1) * jobsPageSize;
+    const end = Math.min(total, start + jobsPageSize);
+    return { total, totalPages, start, end };
+}
+
+function getJobsPageTokens(totalPages) {
+    const total = Math.max(1, Number(totalPages) || 1);
+    const page = Math.min(total, Math.max(1, jobsCurrentPage));
+    if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1);
+    if (page <= 4) return [1, 2, 3, 4, 5, 6, '…', total];
+    if (page >= total - 3) return [1, '…', total - 5, total - 4, total - 3, total - 2, total - 1, total];
+    return [1, '…', page - 2, page - 1, page, page + 1, page + 2, '…', total];
+}
+
+function ensureJobsPagination() {
+    let controls = document.getElementById('jobs_table_pagination');
+    if (controls) return controls;
+    const tableContainer = document.getElementById('tableContainer');
+    if (!tableContainer) return null;
+    controls = document.createElement('div');
+    controls.id = 'jobs_table_pagination';
+    controls.className = 'ui-pagination ui-jobs-pagination';
+    const options = jobsPageSizeOptions.map(size => `<option value="${size}" ${size === jobsPageSize ? 'selected' : ''}>${size}</option>`).join('');
+    controls.innerHTML = `
+        <div class="ui-pagination__meta">
+            <span data-ui-range>0–0</span><span class="ui-pagination__sep">/</span><span data-ui-total>0 รายการ</span>
+            <label class="ui-pagination__size">แสดง <select data-ui-page-size aria-label="จำนวนแถวต่อหน้า">${options}</select> แถว</label>
+        </div>
+        <div class="ui-pagination__actions">
+            <button type="button" class="ui-page-btn" data-ui-prev aria-label="หน้าก่อนหน้า">‹</button>
+            <span class="ui-pagination__numbers" data-ui-pages aria-label="เลขหน้า"></span>
+            <button type="button" class="ui-page-btn" data-ui-next aria-label="หน้าถัดไป">›</button>
+        </div>`;
+    tableContainer.insertAdjacentElement('afterend', controls);
+    controls.querySelector('[data-ui-prev]').addEventListener('click', () => {
+        jobsCurrentPage = Math.max(1, jobsCurrentPage - 1);
+        renderJobsPage();
+    });
+    controls.querySelector('[data-ui-next]').addEventListener('click', () => {
+        jobsCurrentPage += 1;
+        renderJobsPage();
+    });
+    controls.querySelector('[data-ui-pages]').addEventListener('click', (event) => {
+        const button = event.target.closest('[data-ui-page-number]');
+        if (!button) return;
+        jobsCurrentPage = Number(button.dataset.uiPageNumber) || 1;
+        renderJobsPage();
+    });
+    controls.querySelector('[data-ui-page-size]').addEventListener('change', (event) => {
+        jobsPageSize = Math.max(1, Number(event.target.value) || 30);
+        jobsCurrentPage = 1;
+        renderJobsPage();
+    });
+    return controls;
+}
+
+function updateJobsPagination(bounds) {
+    const controls = ensureJobsPagination();
+    if (!controls) return;
+    controls.querySelector('[data-ui-range]').textContent = bounds.total ? `${bounds.start + 1}–${bounds.end}` : '0–0';
+    controls.querySelector('[data-ui-total]').textContent = `${bounds.total} รายการ`;
+    controls.querySelector('[data-ui-prev]').disabled = jobsCurrentPage <= 1;
+    controls.querySelector('[data-ui-next]').disabled = jobsCurrentPage >= bounds.totalPages;
+    const holder = controls.querySelector('[data-ui-pages]');
+    holder.innerHTML = getJobsPageTokens(bounds.totalPages).map(token => {
+        if (token === '…') return '<span class="ui-page-ellipsis">…</span>';
+        return `<button type="button" class="ui-page-number${Number(token) === jobsCurrentPage ? ' is-active' : ''}" data-ui-page-number="${token}" ${Number(token) === jobsCurrentPage ? 'aria-current="page"' : ''}>${token}</button>`;
+    }).join('');
+}
+
+function renderJobsPage() {
+    const bounds = getJobsPageBounds(currentFilteredData.length);
+    renderTable(currentFilteredData.slice(bounds.start, bounds.end), bounds.start);
+    updateJobsPagination(bounds);
+}
+
 // ------------------------------------------
 // 🛠️ 1. จัดการคอลัมน์ (ยืด-หด, ซ่อน-แสดง, ลากสลับ)
 // ------------------------------------------
@@ -245,40 +335,48 @@ function applyFilters() {
     });
 
     currentFilteredData = filteredData;
-    renderTable(filteredData); 
+    jobsCurrentPage = 1;
+    renderJobsPage();
     document.getElementById('row_count').innerText = filteredData.length;
 }
 
 function sortTable(colIndex) {
-    const table = document.getElementById('jobsTable'); 
-    const tbody = table.querySelector('tbody'); 
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-    
-    if (rows.length <= 1) return;
-    
-    table.querySelectorAll('.fa-sort, .fa-sort-up, .fa-sort-down').forEach(icon => { icon.className = "fa-solid fa-sort sort-icon"; });
-    
-    let dir = table.getAttribute(`data-dir-${colIndex}`) || 'asc'; 
-    table.setAttribute(`data-dir-${colIndex}`, dir === 'asc' ? 'desc' : 'asc');
-    
-    const clickedTh = Array.from(table.querySelectorAll('th')).find(th => th.id === `th_${colIndex}`);
-    if (clickedTh) { 
-        const clickedIcon = clickedTh.querySelector('.sort-icon'); 
-        if (clickedIcon) clickedIcon.className = dir === 'asc' ? "fa-solid fa-sort-down ml-1 text-amber-400 opacity-100" : "fa-solid fa-sort-up ml-1 text-amber-400 opacity-100"; 
-    }
-    
-    const thIndex = Array.from(table.querySelectorAll('th')).findIndex(th => th.id === `th_${colIndex}`);
+    const table = document.getElementById('jobsTable');
+    if (!table || currentFilteredData.length <= 1) return;
 
-    rows.sort((a, b) => {
-        let valA = getCellValue(a.cells[thIndex]); let valB = getCellValue(b.cells[thIndex]);
-        let isDateA = valA.match(/^\d{4}-\d{2}-\d{2}$/); let isDateB = valB.match(/^\d{4}-\d{2}-\d{2}$/);
-        if (isDateA && isDateB) { let dateA = new Date(valA); let dateB = new Date(valB); if (!isNaN(dateA) && !isNaN(dateB)) return dir === 'asc' ? dateA - dateB : dateB - dateA; }
-        let numA = parseFloat(valA.replace(/,/g, '')); let numB = parseFloat(valB.replace(/,/g, ''));
-        if (!isNaN(numA) && !isNaN(numB)) return dir === 'asc' ? numA - numB : numB - numA;
-        return dir === 'asc' ? valA.localeCompare(valB, 'th') : valB.localeCompare(valA, 'th');
+    table.querySelectorAll('.fa-sort, .fa-sort-up, .fa-sort-down').forEach(icon => { icon.className = "fa-solid fa-sort sort-icon"; });
+    const dir = table.getAttribute(`data-dir-${colIndex}`) || 'asc';
+    table.setAttribute(`data-dir-${colIndex}`, dir === 'asc' ? 'desc' : 'asc');
+
+    const clickedTh = Array.from(table.querySelectorAll('th')).find(th => th.id === `th_${colIndex}`);
+    if (clickedTh) {
+        const clickedIcon = clickedTh.querySelector('.sort-icon');
+        if (clickedIcon) clickedIcon.className = dir === 'asc' ? "fa-solid fa-sort-down ml-1 text-amber-400 opacity-100" : "fa-solid fa-sort-up ml-1 text-amber-400 opacity-100";
+    }
+
+    const colDef = columnsDef.find(col => col.idx === Number(colIndex));
+    if (!colDef) return;
+    const normalize = (job) => {
+        let value = job[colDef.key];
+        if (value === null || value === undefined) return '';
+        if (colDef.key.includes('date') && value) {
+            const timestamp = Date.parse(String(value).split('T')[0]);
+            if (!Number.isNaN(timestamp)) return timestamp;
+        }
+        const numeric = Number(String(value).replace(/,/g, ''));
+        if (String(value).trim() !== '' && Number.isFinite(numeric)) return numeric;
+        return String(value).trim().toLowerCase();
+    };
+    currentFilteredData.sort((a, b) => {
+        const aValue = normalize(a);
+        const bValue = normalize(b);
+        let result = 0;
+        if (typeof aValue === 'number' && typeof bValue === 'number') result = aValue - bValue;
+        else result = String(aValue).localeCompare(String(bValue), 'th');
+        return dir === 'asc' ? result : -result;
     });
-    
-    rows.forEach(row => tbody.appendChild(row));
+    jobsCurrentPage = 1;
+    renderJobsPage();
 }
 
 // ------------------------------------------
@@ -291,7 +389,7 @@ function formatPartsText(partStr, type) {
     </div>`;
 }
 
-function renderTable(data) {
+function renderTable(data, rowOffset = 0) {
     const tbody = document.getElementById('jobs_table_body'); 
     if (!data || data.length === 0) { 
         tbody.innerHTML = `<tr><td colspan="40" class="text-center py-16 text-slate-400 font-bold bg-white">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td></tr>`; 
@@ -338,7 +436,7 @@ function renderTable(data) {
         
         // 🌟 1. กำหนดสีพื้นหลัง: ถ้ามีไฮไลท์ให้ใช้สีไฮไลท์ ถ้าไม่มีให้ใช้เทาสลับขาว
         const highlight = (typeof userRowHighlights !== 'undefined') ? userRowHighlights[job.id] : null;
-        const isEvenRow = data.indexOf(job) % 2 !== 0; 
+        const isEvenRow = (rowOffset + data.indexOf(job)) % 2 !== 0; 
         
         let rowBgStyle = '';
         if (highlight && highlight.color) {
@@ -482,7 +580,13 @@ function renderTable(data) {
 // ------------------------------------------
 // 📥 4. ส่งออก Excel (Export)
 // ------------------------------------------
-function exportToExcel() {
+async function exportToExcel() {
+    try {
+        await ensureJobsXlsxLibrary();
+    } catch (error) {
+        showToast('โหลดเครื่องมือ Excel ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง', 'error');
+        return;
+    }
     if (!currentFilteredData || currentFilteredData.length === 0) {
         showToast('ไม่มีข้อมูลในตารางให้โหลดครับ!', 'error');
         return;

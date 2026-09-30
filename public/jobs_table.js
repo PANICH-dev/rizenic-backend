@@ -191,25 +191,31 @@ async function saveUserPreferences() {
 
 document.addEventListener('DOMContentLoaded', async () => {
     if(sessionStorage.getItem('isLoggedIn') !== 'true') { window.location.href = 'index.html'; return; }
-    userRole = sessionStorage.getItem('emp_role'); userBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
-    
-    document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name');
-    document.getElementById('display_branch').innerText = userBranch;
+    const uiBootstrapToken = window.RizenicUIPerformance?.beginTask?.('jobs-table-bootstrap');
+    try {
+        userRole = sessionStorage.getItem('emp_role'); userBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+        
+        document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name');
+        document.getElementById('display_branch').innerText = userBranch;
 
-    await loadUserColumnPreferences();
-    initColumns();
-    loadJobsData();
+        await loadUserColumnPreferences();
+        initColumns();
 
-    const searchPlate = sessionStorage.getItem('search_plate');
-    if(searchPlate) {
-        document.getElementById('search_input').value = searchPlate;
-        sessionStorage.removeItem('search_plate');
+        const searchPlate = sessionStorage.getItem('search_plate');
+        if(searchPlate) {
+            document.getElementById('search_input').value = searchPlate;
+            sessionStorage.removeItem('search_plate');
+        }
+
+        document.addEventListener('click', (e) => {
+            const modal = document.getElementById('excelFilterModal');
+            if (!modal.contains(e.target) && !e.target.closest('.filter-icon') && !modal.classList.contains('hidden')) closeExcelFilter();
+        });
+
+        await loadJobsData();
+    } finally {
+        window.RizenicUIPerformance?.endTask?.(uiBootstrapToken);
     }
-
-    document.addEventListener('click', (e) => {
-        const modal = document.getElementById('excelFilterModal');
-        if (!modal.contains(e.target) && !e.target.closest('.filter-icon') && !modal.classList.contains('hidden')) closeExcelFilter();
-    });
 });
 
 function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
@@ -323,6 +329,7 @@ function getActiveJobsData() {
 }
 
 async function loadJobsData() {
+    const uiBusyToken = window.RizenicUIPerformance?.beginTask?.('jobs-table-load');
     document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="40" class="text-center py-20 text-slate-400 font-bold bg-white"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 text-green-800"></i><br>กำลังโหลดข้อมูล...</td></tr>`;
     try {
         const results = await Promise.allSettled([
@@ -369,6 +376,8 @@ async function loadJobsData() {
         applyFilters(); 
     } catch (error) {
         document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="40" class="text-center py-20 text-red-600 font-bold bg-white"><i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i><br>เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>`;
+    } finally {
+        window.RizenicUIPerformance?.endTask?.(uiBusyToken);
     }
 }
 

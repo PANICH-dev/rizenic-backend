@@ -22,6 +22,31 @@ let mechanicChartInstance = null;
 let userRole = '';
 let userBranch = '';
 
+let dashboardChartLibrariesPromise = null;
+function ensureDashboardChartLibraries() {
+    if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
+        try { Chart.register(ChartDataLabels); } catch (_) {}
+        return Promise.resolve(true);
+    }
+    if (dashboardChartLibrariesPromise) return dashboardChartLibrariesPromise;
+    const perf = window.RizenicUIPerformance;
+    if (!perf || typeof perf.loadScript !== 'function') return Promise.resolve(false);
+    dashboardChartLibrariesPromise = perf.loadScript('https://cdn.jsdelivr.net/npm/chart.js', 'Chart')
+        .then(() => perf.loadScript('https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0', 'ChartDataLabels'))
+        .then(() => {
+            if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
+                try { Chart.register(ChartDataLabels); } catch (_) {}
+                return true;
+            }
+            return false;
+        })
+        .catch((error) => {
+            console.warn('โหลดกราฟเบื้องหลังไม่สำเร็จ:', error);
+            return false;
+        });
+    return dashboardChartLibrariesPromise;
+}
+
 const activeProcessStatuses = [
     '01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ', 
     '04.รอลูกค้าอนุมัติ', '05.อนุมัติแล้ว', '06.สั่งอะไหล่', 
@@ -49,6 +74,17 @@ function isSameBranch(jobBranch, selectedBranch) {
     if ((sb.includes('navamin') || sb.includes('นวมินทร์')) && (jb.includes('navamin') || jb.includes('นวมินทร์'))) return true;
     if ((sb.includes('rangsit') || sb.includes('รังสิต')) && (jb.includes('rangsit') || jb.includes('รังสิต'))) return true;
     return false;
+}
+
+function isDashboardPrivilegedUser() {
+    const role = String(userRole || '').toLowerCase();
+    return role.includes('admin') || role.includes('แอดมิน') || role.includes('manager') || role.includes('ba');
+}
+
+function getDashboardScopeQuery() {
+    return (!isDashboardPrivilegedUser() && userBranch)
+        ? `?branch=${encodeURIComponent(userBranch)}`
+        : '';
 }
 
 function getFirstDayOfMonth() {
@@ -132,6 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if(document.getElementById('report_end_date')) document.getElementById('report_end_date').value = getLastDayOfMonth();
 
     setupBranchDropdown();
+    ensureDashboardChartLibraries().then((ready) => { if (ready) applyFilters(); });
     fetchDashboardData();
 });
 
@@ -150,29 +187,25 @@ function setupBranchDropdown() {
 }
 
 async function fetchDashboardData() {
+    const scopeQuery = getDashboardScopeQuery();
+    const background = { uiBackground: true };
+
+    // Start secondary reads immediately, but only reports are required for the
+    // first useful dashboard paint. They continue in parallel without holding
+    // the global interaction blocker.
+    const reportsPromise = fetch(`${API_BASE_URL}/api/reports${scopeQuery}`);
+    const partsPromise = fetch(`${API_BASE_URL}/api/part-orders${scopeQuery}`, background).catch(() => null);
+    const statusPromise = fetch(`${API_BASE_URL}/api/statuses`, background).catch(() => null);
+
     try {
-        const resJobs = await fetch(`${API_BASE_URL}/api/reports`);
+        const resJobs = await reportsPromise;
         if (resJobs.ok) {
             const rawJobs = await resJobs.json();
             const jobsArray = Array.isArray(rawJobs) ? rawJobs : (rawJobs.data || []);
             allJobs = jobsArray.map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
         }
 
-        const resParts = await fetch(`${API_BASE_URL}/api/part-orders`).catch(() => null);
-        if (resParts && resParts.ok) { 
-            const rawParts = await resParts.json(); 
-            allPartOrders = Array.isArray(rawParts) ? rawParts : (rawParts.data || []);
-        }
-
-        const statRes = await fetch(`${API_BASE_URL}/api/statuses`).catch(() => null);
-        if (statRes && statRes.ok) { 
-            const rawStat = await statRes.json();
-            allStatuses = Array.isArray(rawStat) ? rawStat : (rawStat.data || []);
-            globalStatusOptionsHtml = allStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
-        }
-
-        const rStr = String(userRole).toLowerCase();
-        if (rStr.includes('admin') || rStr.includes('แอดมิน') || rStr.includes('manager') || rStr.includes('ba')) {
+        if (isDashboardPrivilegedUser()) {
             const uniqueBranches = [...new Set(allJobs.map(j => j.branch_name).filter(b => b))];
             const filterSelect = document.getElementById('branchFilter');
             if (filterSelect) {
@@ -182,11 +215,34 @@ async function fetchDashboardData() {
                 if(savedVal && (savedVal === 'all' || uniqueBranches.includes(savedVal))) filterSelect.value = savedVal;
             }
         }
-    } catch (err) { 
-        console.error("โหลดข้อมูลแดชบอร์ดพัง:", err); 
-    } finally {
-        applyFilters(); 
+
+        // First useful paint: reports are enough for KPI/jobs/station views.
+        applyFilters();
+    } catch (err) {
+        console.error("โหลดข้อมูลใบงานแดชบอร์ดพัง:", err);
     }
+
+    const [partsResult, statusResult] = await Promise.allSettled([partsPromise, statusPromise]);
+
+    if (partsResult.status === 'fulfilled') {
+        const resParts = partsResult.value;
+        if (resParts && resParts.ok) {
+            const rawParts = await resParts.json();
+            allPartOrders = Array.isArray(rawParts) ? rawParts : (rawParts.data || []);
+        }
+    }
+
+    if (statusResult.status === 'fulfilled') {
+        const statRes = statusResult.value;
+        if (statRes && statRes.ok) {
+            const rawStat = await statRes.json();
+            allStatuses = Array.isArray(rawStat) ? rawStat : (rawStat.data || []);
+            globalStatusOptionsHtml = allStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
+        }
+    }
+
+    // Refresh once when background data is ready; business data/filters remain unchanged.
+    applyFilters();
 }
 
 function applyFilters() {
@@ -214,15 +270,17 @@ function applyFilters() {
     if(typeof renderPartsTracking === 'function') renderPartsTracking(filteredPartOrders);
 
     if(typeof renderKPIs === 'function') renderKPIs(startDate, endDate);
-    if(typeof renderDailyReport === 'function') renderDailyReport(); 
-    if(typeof renderDailyLineChart === 'function') renderDailyLineChart(startDate, endDate); 
-    if(typeof renderStatusChart === 'function') renderStatusChart();
-    if(typeof renderInsuranceChart === 'function') renderInsuranceChart();
-    if(typeof renderDamageChart === 'function') renderDamageChart(startDate, endDate);   
-    if(typeof renderPaymentChart === 'function') renderPaymentChart(startDate, endDate);   
-    if(typeof renderPartsStatusChart === 'function') renderPartsStatusChart();                 
-    if(typeof renderMechanicChart === 'function') renderMechanicChart();                    
-    if(typeof renderFinanceChart === 'function') renderFinanceChart(startDate, endDate);
+    if(typeof renderDailyReport === 'function') renderDailyReport();
+    if (typeof Chart !== 'undefined') {
+        if(typeof renderDailyLineChart === 'function') renderDailyLineChart(startDate, endDate);
+        if(typeof renderStatusChart === 'function') renderStatusChart();
+        if(typeof renderInsuranceChart === 'function') renderInsuranceChart();
+        if(typeof renderDamageChart === 'function') renderDamageChart(startDate, endDate);
+        if(typeof renderPaymentChart === 'function') renderPaymentChart(startDate, endDate);
+        if(typeof renderPartsStatusChart === 'function') renderPartsStatusChart();
+        if(typeof renderMechanicChart === 'function') renderMechanicChart();
+        if(typeof renderFinanceChart === 'function') renderFinanceChart(startDate, endDate);
+    }
     
     if(typeof renderSASection === 'function') renderSASection();
     if(typeof renderStationTable === 'function') renderStationTable(); 

@@ -1,0 +1,806 @@
+/* RIZENIC shared UI performance / layout layer.
+   No API, SQL, schema or business-data rules are changed here. */
+
+.ui-data-table tbody tr[hidden] {
+  display: none !important;
+}
+
+/* ---------- Blocking initial/data loading ---------- */
+html.ui-initial-loading body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 99998;
+  background: rgba(15, 23, 42, .42);
+  backdrop-filter: blur(1px);
+  pointer-events: auto;
+}
+
+html.ui-initial-loading body::after {
+  content: '';
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  margin-left: -22px;
+  margin-top: -22px;
+  z-index: 99999;
+  border: 4px solid rgba(209, 250, 229, .96);
+  border-top-color: #047857;
+  border-right-color: #10b981;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 0 0 8px rgba(255, 255, 255, .92), 0 18px 48px rgba(15, 23, 42, .24);
+  animation: ui-spin .65s linear infinite;
+  pointer-events: auto;
+}
+
+html.ui-initial-loading .ui-global-loader {
+  display: none;
+}
+
+.ui-global-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, .38);
+  backdrop-filter: blur(1px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity .12s ease, visibility .12s ease;
+}
+
+.ui-global-loader.is-visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.ui-global-loader__card {
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .96);
+  border: 1px solid #dbe5df;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, .22);
+}
+
+.ui-global-loader__spinner {
+  width: 34px;
+  height: 34px;
+  border: 4px solid #d1fae5;
+  border-top-color: #047857;
+  border-right-color: #10b981;
+  border-radius: 999px;
+  animation: ui-spin .65s linear infinite;
+}
+
+@keyframes ui-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---------- Numbered pagination ---------- */
+.ui-pagination {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+  position: relative;
+  z-index: 2;
+  box-sizing: border-box;
+  flex-wrap: nowrap;
+}
+
+.ui-pagination.is-hidden {
+  display: none;
+}
+
+.ui-pagination__meta,
+.ui-pagination__actions,
+.ui-pagination__numbers {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.ui-pagination__meta {
+  flex: 0 0 auto;
+  min-height: 36px;
+}
+
+.ui-pagination__actions {
+  min-width: 0;
+  min-height: 36px;
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
+.ui-pagination__numbers {
+  padding: 2px 0;
+  gap: 8px;
+}
+
+.ui-pagination__sep {
+  color: #cbd5e1;
+}
+
+.ui-pagination__size {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.ui-pagination__size select {
+  min-width: 70px;
+  height: 32px;
+  padding: 0 30px 0 10px !important;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background-color: #fff;
+  background-position: right 9px center;
+  color: #00320d;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.ui-page-btn,
+.ui-page-number {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background: #fff;
+  color: #00320d;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .05);
+}
+
+.ui-page-btn {
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.ui-page-btn:hover:not(:disabled),
+.ui-page-number:hover:not(.is-active) {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.ui-page-number.is-active {
+  background: #00320d;
+  border-color: #00320d;
+  color: #fff;
+  cursor: default;
+  box-shadow: 0 3px 8px rgba(0, 50, 13, .18);
+}
+
+.ui-page-btn:disabled {
+  opacity: .35;
+  cursor: default;
+  box-shadow: none;
+}
+
+.ui-page-ellipsis {
+  min-width: 18px;
+  text-align: center;
+  color: #94a3b8;
+  font-weight: 900;
+}
+
+/* ---------- Shared dropdown spacing ---------- */
+select:not([multiple]) {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 2.5rem !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%2364748b' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px 8px;
+}
+
+/* ---------- Dashboard edge breathing room ---------- */
+.ui-dashboard-page [id^="content_"] > .overflow-x-auto {
+  box-sizing: border-box;
+  padding-inline: 12px !important;
+  padding-bottom: 12px !important;
+}
+
+.ui-dashboard-page .ui-data-table th:first-child,
+.ui-dashboard-page .ui-data-table td:first-child {
+  padding-left: 12px !important;
+}
+
+.ui-dashboard-page .ui-data-table th:last-child,
+.ui-dashboard-page .ui-data-table td:last-child {
+  padding-right: 12px !important;
+}
+
+/* Keep horizontal scrolling inside the data region and prevent layout jumps. */
+.ui-data-table {
+  width: 100%;
+  font-size: 12px !important;
+  line-height: 1.35;
+}
+
+.ui-data-table th,
+.ui-data-table td {
+  padding: 8px 10px !important;
+}
+
+.ui-data-table thead th {
+  line-height: 1.25;
+}
+
+/* Every shared data table keeps its header pinned at the top of its own
+   vertical scroll surface while the rows continue scrolling underneath. */
+.ui-data-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.ui-data-table tbody {
+  contain: style;
+}
+
+@media (max-width: 760px) {
+  .ui-pagination {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 8px 10px;
+  }
+
+  .ui-pagination__actions {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .ui-pagination__meta {
+    gap: 5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-global-loader,
+  .ui-global-loader__spinner {
+    transition: none;
+    animation-duration: 1.2s;
+  }
+}
+
+/* ---------- V7: native table viewport ---------- */
+.ui-table-scroll-host {
+  height: var(--ui-table-viewport-height, calc(100vh - 170px)) !important;
+  min-height: var(--ui-table-viewport-height, calc(100vh - 170px)) !important;
+  max-height: var(--ui-table-viewport-height, calc(100vh - 170px)) !important;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
+  scrollbar-gutter: stable;
+  scroll-behavior: auto;
+  min-height: 0;
+  position: relative;
+  box-sizing: border-box;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.ui-table-adaptive-host {
+  position: sticky !important;
+  top: var(--ui-table-sticky-top, 0px);
+  align-self: stretch;
+  width: 100%;
+  min-width: 0;
+}
+
+.ui-table-scroll-host .ui-data-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 35;
+}
+
+.ui-table-scroll-host .ui-data-table thead th {
+  background-clip: padding-box;
+}
+
+/* Keep legacy JS counters writable, but remove duplicated visible count badges.
+   Pagination is the single visible source of row totals. */
+.ui-legacy-count-hidden {
+  display: none !important;
+}
+
+/* ---------- V6: stable hover / scroll menus ---------- */
+.ui-stable-hover-menu {
+  overscroll-behavior: contain;
+}
+
+.ui-stable-hover-menu::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -12px;
+  height: 14px;
+  background: transparent;
+}
+
+.ui-stable-menu-group.ui-menu-open > .ui-stable-hover-menu {
+  display: block !important;
+}
+
+/* Avoid a one-frame login flash when navigating to a page in an already
+   authenticated browser tab. Page scripts still enforce auth normally. */
+html.ui-authenticated-session #login-screen {
+  display: none !important;
+}
+
+/* ---------- V6: dashboard layout-only polish ---------- */
+.ui-dashboard-page body {
+  background: #f4f7f5 !important;
+}
+
+.ui-dashboard-page main {
+  padding: 24px 28px 36px !important;
+  max-width: 1640px !important;
+}
+
+.ui-dashboard-page main > .grid {
+  gap: 18px !important;
+}
+
+.ui-dashboard-page .card-box {
+  border-radius: 18px !important;
+  border-color: #dbe4df !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .055) !important;
+}
+
+.ui-dashboard-page .stat-card {
+  min-height: 126px;
+  border-radius: 18px !important;
+  border-color: #dbe4df !important;
+  box-shadow: 0 7px 20px rgba(15, 23, 42, .05) !important;
+}
+
+.ui-dashboard-page main > [class*="border-l-4"] {
+  margin-top: 26px !important;
+  margin-bottom: 14px !important;
+  padding-left: 14px !important;
+}
+
+.ui-dashboard-page [id^="content_"] {
+  background: #f8faf9;
+}
+
+@media (max-width: 760px) {
+  .ui-dashboard-page main {
+    padding: 16px 12px 28px !important;
+  }
+}
+
+/* Dashboard table cards: give the data region a visible inner frame and keep
+   pager alignment consistent with the card instead of touching the edges. */
+.ui-dashboard-page [id^="content_"] > .overflow-x-auto {
+  margin: 14px 14px 0 !important;
+  padding: 0 !important;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .8);
+}
+
+.ui-dashboard-page [id^="content_"] > .ui-pagination {
+  margin: 0 14px 14px;
+  border-top: 1px solid #e2e8f0;
+  border-radius: 0 0 12px 12px;
+}
+
+.ui-dashboard-page main > .card-box {
+  margin-bottom: 22px !important;
+}
+
+.ui-dashboard-page main > .grid .card-box,
+.ui-dashboard-page main > .grid .stat-card {
+  height: 100%;
+}
+
+
+/* ---------- V7: denser application layouts ---------- */
+.ui-dashboard-page main {
+  width: 100%;
+  max-width: 1480px !important;
+  margin-inline: auto !important;
+  padding: 18px 22px 28px !important;
+}
+
+.ui-dashboard-page main > .grid {
+  gap: 14px !important;
+}
+
+.ui-dashboard-page .stat-card {
+  min-height: 96px;
+  padding: 14px 16px !important;
+  border-radius: 14px !important;
+}
+
+.ui-dashboard-page .stat-card h3 {
+  font-size: 28px !important;
+  line-height: 1 !important;
+}
+
+.ui-dashboard-page .card-box:not([class*="!p-0"]) {
+  padding: 16px !important;
+}
+
+.ui-dashboard-page .card-box {
+  border-radius: 14px !important;
+}
+
+.ui-dashboard-page div:has(> #dailyLineChart) {
+  height: 240px !important;
+}
+
+.ui-dashboard-page div:has(> #statusChart) {
+  height: 540px !important;
+}
+
+.ui-dashboard-page #statusChart {
+  max-height: 560px !important;
+}
+
+.ui-dashboard-page div:has(> #insuranceChart) {
+  height: 300px !important;
+}
+
+.ui-dashboard-page .grid.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-4 {
+  gap: 14px !important;
+}
+
+.ui-dashboard-page main > [class*="border-l-4"] {
+  margin-top: 20px !important;
+  margin-bottom: 10px !important;
+}
+
+.ui-repair-page .kpi-card {
+  padding: 10px 12px !important;
+  gap: 10px !important;
+  min-width: 180px !important;
+  min-height: 72px;
+}
+
+.ui-repair-page .kpi-card > :first-child {
+  width: 38px !important;
+  height: 38px !important;
+  font-size: 15px !important;
+}
+
+.ui-repair-page .kpi-card h3 {
+  font-size: 24px !important;
+  line-height: 1 !important;
+}
+
+.ui-repair-page .excel-table {
+  font-size: 12px !important;
+}
+
+.ui-repair-page .excel-table thead th {
+  padding: 9px 10px !important;
+  font-size: 12px !important;
+}
+
+.ui-repair-page .excel-table tbody td {
+  font-size: 12px !important;
+}
+
+.ui-repair-page .inline-edit-input {
+  padding: 7px 8px !important;
+  font-size: 12px !important;
+}
+
+.ui-repair-page .inline-edit-select {
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+  font-size: 12px !important;
+}
+
+.ui-repair-page .action-btn {
+  width: 32px !important;
+  height: 32px !important;
+  font-size: 13px !important;
+}
+
+.ui-repair-page main {
+  padding: 12px 16px 16px !important;
+}
+
+@media (max-width: 760px) {
+  .ui-dashboard-page main {
+    padding: 12px 10px 22px !important;
+  }
+}
+
+
+
+/* ---------- V7.1: page-specific table layout corrections ---------- */
+/* Jobs Table is already a fixed-height application shell. Do not add a
+   viewport sticky offset above its table; let its own scroll surface fill
+   the space directly below the toolbar. */
+.ui-jobs-table-page main {
+  padding: 0 !important;
+  min-width: 0;
+  min-height: 0;
+}
+
+.ui-jobs-table-page #tableContainer {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+}
+
+.ui-jobs-table-page #jobsTable {
+  width: max-content !important;
+  min-width: 100% !important;
+  max-width: none !important;
+  table-layout: fixed !important;
+}
+
+/* Reserve a small real scroll-space after the final Parts row. This keeps
+   the horizontal scrollbar/last row visually separate from the pager. */
+.ui-parts-page .ui-table-scroll-host {
+  padding-bottom: 10px !important;
+}
+
+.ui-parts-page .ui-pagination {
+  margin-top: 4px !important;
+  flex-shrink: 0 !important;
+}
+
+/* Export/date pages are ordinary card scrollers, not viewport-sticky cards.
+   Stretch the scroller to the card width and let wide columns overflow
+   horizontally instead of shrinking the whole table into the left side. */
+.ui-repair-export-page .table-container,
+.ui-repair-date-page .table-container {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: calc(100vh - 220px) !important;
+  flex: 0 1 auto !important;
+  align-self: stretch !important;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+}
+
+.ui-repair-export-page .excel-table,
+.ui-repair-date-page .excel-table {
+  width: max-content !important;
+  min-width: 100% !important;
+  max-width: none !important;
+}
+
+/* Keep their pager directly attached to the card without an artificial
+   extra floor. */
+.ui-repair-export-page .ui-pagination,
+.ui-repair-date-page .ui-pagination {
+  margin-top: 0 !important;
+  flex-shrink: 0 !important;
+}
+
+/* ---------- V7.2: dock-gated Repair/Finance + Parts footer lane ---------- */
+/* Repair/Finance must let the outer page move first. Only after the table
+   reaches its sticky top do rows take over native vertical scrolling. */
+.ui-table-dock-gated:not(.ui-table-docked) {
+  overflow-y: hidden !important;
+}
+
+.ui-table-dock-gated.ui-table-docked {
+  overflow-y: auto !important;
+}
+
+/* Parts is a flex card. The table owns the flexible middle lane and the
+   pager owns its own fixed footer lane, so neither the last row nor the
+   horizontal scrollbar can sit underneath pagination. */
+.ui-parts-page .card-container {
+  min-height: 0 !important;
+}
+
+.ui-parts-page .ui-table-scroll-host {
+  flex: 1 1 auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding-bottom: 0 !important;
+}
+
+.ui-parts-page .ui-pagination {
+  position: relative !important;
+  z-index: 5 !important;
+  flex: 0 0 auto !important;
+  margin-top: 0 !important;
+  border-top: 1px solid #e2e8f0 !important;
+  background: #fff !important;
+}
+
+
+/* ---------- V7.4: contained dock viewport + compact Repair Date ---------- */
+/* Repair/Finance reserve their final docked table height inside the same
+   containing block. The extra real height below the initial table position
+   gives <main> native scroll distance without a synthetic spacer. */
+/* Keep the dock-gated host geometry constant while only its vertical
+   overflow changes. That avoids layout jumps during dock/undock. */
+.ui-table-dock-gated {
+  position: sticky !important;
+  top: var(--ui-table-sticky-top, 0px) !important;
+}
+
+/* Repair date update is an editing utility, so keep fields dense enough to
+   show more cars without making date inputs hard to click. */
+.ui-repair-date-page main {
+  padding: 12px !important;
+}
+
+.ui-repair-date-page .excel-table {
+  font-size: 12px !important;
+}
+
+.ui-repair-date-page .excel-table thead th {
+  padding: 8px 10px !important;
+  font-size: 12px !important;
+}
+
+.ui-repair-date-page .excel-table tbody td > div {
+  padding: 5px 8px !important;
+}
+
+.ui-repair-date-page .inline-edit-input {
+  padding: 6px 8px !important;
+  font-size: 12px !important;
+  line-height: 1.25 !important;
+  min-height: 32px !important;
+}
+
+.ui-repair-date-page .table-container {
+  max-height: calc(100vh - 190px) !important;
+}
+
+
+/* ---------- V7.5: virtual Jobs + bounded utility tables ---------- */
+/* The Repair board should start directly below its KPI band. Keep side/bottom
+   breathing room but remove the artificial top gutter. */
+.ui-repair-page main {
+  padding-top: 0 !important;
+}
+
+/* Jobs owns its own lightweight paginator so only the current page exists in
+   the DOM. Keep it in the fixed footer lane below the native table scroller. */
+.ui-jobs-table-page .ui-jobs-pagination {
+  flex: 0 0 auto !important;
+  margin: 0 !important;
+  border-top: 1px solid #e2e8f0 !important;
+  background: #fff !important;
+}
+
+/* Utility pages must never make the whole document wider than the viewport.
+   Wide columns scroll only inside their table card. */
+.ui-repair-export-page body,
+.ui-repair-date-page body {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+}
+
+.ui-repair-export-page main,
+.ui-repair-date-page main {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+.ui-repair-export-page main > div,
+.ui-repair-date-page main > div {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.ui-repair-export-page .table-container,
+.ui-repair-date-page .table-container {
+  overflow-x: auto !important;
+  overscroll-behavior-x: contain;
+}
+
+
+/* ---------- V7.6: repair gap + bounded utility overflow ---------- */
+/* Repair/Finance scroll inside their own <main> scroller. A viewport header
+   offset here would be counted twice and creates an empty band above the table. */
+.ui-repair-page #tab-board {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
+.ui-repair-page #tab-board > div {
+  margin-top: 0 !important;
+}
+
+html.ui-repair-export-page,
+html.ui-repair-date-page {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+.ui-repair-export-page body,
+.ui-repair-date-page body {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+.ui-repair-export-page main,
+.ui-repair-date-page main,
+.ui-repair-export-page main > div,
+.ui-repair-date-page main > div {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.ui-repair-export-page main > div,
+.ui-repair-date-page main > div {
+  overflow: hidden !important;
+}
+
+.ui-repair-export-page .table-container,
+.ui-repair-date-page .table-container {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  overscroll-behavior-x: contain;
+}
+
+.ui-repair-export-page .excel-table,
+.ui-repair-date-page .excel-table {
+  width: max-content !important;
+  min-width: 100% !important;
+  max-width: none !important;
+}

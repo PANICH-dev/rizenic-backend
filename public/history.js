@@ -11,6 +11,13 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
+
+function getHistoryScopeQuery() {
+    const role = sessionStorage.getItem('emp_role') || '';
+    const branch = sessionStorage.getItem('emp_branch') || '';
+    const privileged = ['BA','Manager','Admin','แอดมิน'].includes(role);
+    return (!privileged && branch) ? `?branch=${encodeURIComponent(branch)}` : '';
+}
 function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
 function getValidDateStr(val) {
     if (!val || String(val).trim() === '' || String(val) === 'null' || String(val) === 'undefined') return '-';
@@ -27,9 +34,10 @@ async function loadData() {
         btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังเตรียมข้อมูล...`;
         btn.disabled = true;
 
+        const scopeQuery = getHistoryScopeQuery();
         const results = await Promise.allSettled([
-            fetch(`${API_BASE_URL}/api/reports`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/api/part-orders`).then(res => res.json())
+            fetch(`${API_BASE_URL}/api/reports${scopeQuery}`).then(res => res.json()),
+            fetch(`${API_BASE_URL}/api/part-orders${scopeQuery}`).then(res => res.json())
         ]);
 
         if (results[0].status === 'fulfilled') allJobsData = results[0].value;
@@ -59,16 +67,15 @@ function clearSearch() {
 
 function searchHistory() {
     const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
-    if (!keyword) { alert("กรุณาพิมพ์คำค้นหาก่อนครับ"); return; }
 
-    const results = allJobsData.filter(j => {
+    const results = keyword ? allJobsData.filter(j => {
         const plate = (j.car_plate || '').toLowerCase();
         const name = (j.customer_name || '').toLowerCase();
         const tel = (j.customer_phone || '').toLowerCase();
         const vin = (j.vin_no || '').toLowerCase();
         
         return plate.includes(keyword) || name.includes(keyword) || tel.includes(keyword) || vin.includes(keyword);
-    });
+    }) : [...allJobsData];
 
     results.sort((a, b) => new Date(b.arrived_date || b.contact_date || 0) - new Date(a.arrived_date || a.contact_date || 0));
 
