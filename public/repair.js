@@ -14,6 +14,7 @@ let selectedBranchFilter = 'ALL';
 
 let activeFilters = {}; 
 let activeKpiFilter = null; 
+let activeStationFilter = null;
 let draggedColIdx = null; 
 
 let savedSortCol = null;
@@ -157,6 +158,18 @@ async function saveUserPreferences() {
     } catch (err) {}
 }
 
+function installRepairEnterSearch() {
+    const input = document.getElementById('global_search_input');
+    if (!input || input.dataset.enterSearchInstalled === '1') return;
+    input.dataset.enterSearchInstalled = '1';
+    input.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        activeStationFilter = null;
+        runTableFilters();
+    });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     if(sessionStorage.getItem('isLoggedIn') !== 'true') { window.location.href = 'index.html'; return; }
     
@@ -165,6 +178,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         alert('⛔ คุณไม่มีสิทธิ์เข้าถึงหน้าสถานีช่างครับ!');
         window.location.href = allowedPages.length > 0 ? allowedPages[0] + '.html' : 'index.html'; return; 
     }
+
+    installRepairEnterSearch();
 
     document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name') || 'ช่างซ่อม';
     
@@ -390,6 +405,7 @@ function runTableFilters() {
     const filteredData = originalRepairJobs.filter(job => {
         if (selectedBranchFilter !== 'ALL' && job.branch_name !== selectedBranchFilter) return false;
         if (!isCalendarFilterActive && job.department_routing !== 'ซ่อม') return false;
+        if (activeStationFilter && job.calculated_station !== activeStationFilter) return false;
 
         if (activeKpiFilter) {
             if (activeKpiFilter === 'repairing') {
@@ -426,6 +442,7 @@ function filterBoardByKpi(type) {
     switchTab('tab-board');
     activeFilters = {}; 
     activeKpiFilter = type; 
+    activeStationFilter = null;
     isCalendarFilterActive = false; 
     document.getElementById('global_search_input').value = '';
     document.querySelectorAll('.filter-icon').forEach(icon => icon.classList.remove('active'));
@@ -435,6 +452,7 @@ function filterBoardByKpi(type) {
 function clearAllFilters() {
     activeFilters = {}; 
     activeKpiFilter = null; 
+    activeStationFilter = null;
     isCalendarFilterActive = false; 
     document.getElementById('global_search_input').value = '';
     document.querySelectorAll('.filter-icon').forEach(icon => { icon.classList.remove('active'); });
@@ -909,6 +927,7 @@ function filterBoardByDate(dateStr, type) {
     switchTab('tab-board');
     activeFilters = {}; 
     activeKpiFilter = null;
+    activeStationFilter = null;
     isCalendarFilterActive = true; 
     
     let colIdx;
@@ -929,6 +948,7 @@ function clickCalendarDate(dateString) {
     switchTab('tab-board');
     activeFilters = {}; 
     activeKpiFilter = null;
+    activeStationFilter = null;
     isCalendarFilterActive = true; 
     document.getElementById('global_search_input').value = formatThaiDate(dateString);
     runTableFilters();
@@ -1065,7 +1085,12 @@ function renderPieChartAndList() {
                     else if(labelName === 'โป๊ว') filterVal = '02.โป๊ว';
                     else if(labelName === 'เคาะ') filterVal = '01.เคาะ';
 
-                    document.getElementById('global_search_input').value = filterVal;
+                    activeFilters = {};
+                    activeKpiFilter = null;
+                    isCalendarFilterActive = false;
+                    activeStationFilter = filterVal;
+                    document.querySelectorAll('.filter-icon').forEach(icon => icon.classList.remove('active'));
+                    document.getElementById('global_search_input').value = '';
                     runTableFilters();
                 }
             }

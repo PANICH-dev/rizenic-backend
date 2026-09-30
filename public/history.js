@@ -59,16 +59,15 @@ function clearSearch() {
 
 function searchHistory() {
     const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
-    if (!keyword) { alert("กรุณาพิมพ์คำค้นหาก่อนครับ"); return; }
 
-    const results = allJobsData.filter(j => {
+    const results = keyword ? allJobsData.filter(j => {
         const plate = (j.car_plate || '').toLowerCase();
         const name = (j.customer_name || '').toLowerCase();
         const tel = (j.customer_phone || '').toLowerCase();
         const vin = (j.vin_no || '').toLowerCase();
         
         return plate.includes(keyword) || name.includes(keyword) || tel.includes(keyword) || vin.includes(keyword);
-    });
+    }) : [...allJobsData];
 
     results.sort((a, b) => new Date(b.arrived_date || b.contact_date || 0) - new Date(a.arrived_date || a.contact_date || 0));
 

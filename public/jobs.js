@@ -951,6 +951,7 @@ window.filterPOTable = function(keyword) {
             }
         }
     });
+    window.dispatchEvent(new Event('ui:refresh-pagination'));
 };
 
 // =====================================

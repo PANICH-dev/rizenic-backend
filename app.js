@@ -21,9 +21,12 @@ app.use(express.static(path.join(__dirname, 'public'), {
   }
 }));
 
+const pgSslMode = String(process.env.PG_SSL_MODE || '').trim().toLowerCase();
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  // Local PostgreSQL does not support SSL. Keep the previous remote default
+  // unless PG_SSL_MODE=disable is explicitly set in the environment.
+  ssl: pgSslMode === 'disable' ? false : { rejectUnauthorized: false }
 });
 
 // ==========================================
@@ -721,8 +724,13 @@ app.delete('/api/part-statuses/:id', async (req, res) => {
 });
 
 app.get('/api/part-orders', async (req, res) => {
-  try { res.json((await pool.query('SELECT * FROM rizenic_part_orders ORDER BY order_id DESC')).rows); } 
-  catch (e) { res.status(500).json({ error: e.message }); }
+  try {
+    const { branch } = req.query;
+    if (branch && branch !== 'all') {
+      return res.json((await pool.query('SELECT * FROM rizenic_part_orders WHERE branch_name = $1 ORDER BY order_id DESC', [branch])).rows);
+    }
+    res.json((await pool.query('SELECT * FROM rizenic_part_orders ORDER BY order_id DESC')).rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/part-orders', async (req, res) => {

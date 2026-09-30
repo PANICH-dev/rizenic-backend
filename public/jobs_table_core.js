@@ -154,18 +154,37 @@ function getCellValue(cell) {
 document.addEventListener('DOMContentLoaded', async () => {
     if(sessionStorage.getItem('isLoggedIn') !== 'true') { window.location.href = 'index.html'; return; }
     userRole = sessionStorage.getItem('emp_role'); userBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
-    
+
     document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name');
     document.getElementById('display_branch').innerText = userBranch;
 
-    await loadUserColumnPreferences();
-    if(typeof initColumns === 'function') initColumns(); // จาก jobs_table_ui.js
-    loadJobsData();
+    // Preferences are lightweight and background-only. Give the reports query
+    // exclusive priority for the first paint, then start reference/master reads.
+    const preferencesPromise = loadUserColumnPreferences();
+    await loadJobsPrimaryData();
+
+    if(typeof initColumns === 'function') initColumns();
+    if(typeof buildBranchDropdown === 'function') buildBranchDropdown();
+    if(typeof buildSADropdown === 'function') buildSADropdown();
+    if(typeof applyFilters === 'function') applyFilters();
+
+    const startBackgroundHydration = () => {
+        const backgroundDataPromise = Promise.allSettled([loadJobsReferenceData(), loadJobsSecondaryData()]);
+        Promise.allSettled([preferencesPromise, backgroundDataPromise]).then(() => {
+            if(typeof initColumns === 'function') initColumns();
+            if(typeof buildBranchDropdown === 'function') buildBranchDropdown();
+            if(typeof buildSADropdown === 'function') buildSADropdown();
+            if(typeof renderJobsPage === 'function') renderJobsPage();
+        });
+    };
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(startBackgroundHydration);
+    else setTimeout(startBackgroundHydration, 0);
 
     const searchPlate = sessionStorage.getItem('search_plate');
     if(searchPlate) {
         document.getElementById('search_input').value = searchPlate;
         sessionStorage.removeItem('search_plate');
+        if(typeof applyFilters === 'function') applyFilters();
     }
 
     document.addEventListener('click', (e) => {
@@ -181,7 +200,7 @@ function logout() { sessionStorage.clear(); window.location.href = 'index.html';
 async function loadUserColumnPreferences() {
     const empName = sessionStorage.getItem('emp_name'); if (!empName) return;
     try {
-        const res = await fetch(`${API_BASE_URL}/api/user-preferences/${encodeURIComponent(empName)}`);
+        const res = await fetch(`${API_BASE_URL}/api/user-preferences/${encodeURIComponent(empName)}`, { uiBackground: true });
         if (res.ok) {
             const data = await res.json();
             // 🌟 ดึงข้อมูลไฮไลท์ส่วนตัวมาใช้งาน
@@ -232,55 +251,87 @@ function getActiveJobsData() {
     });
 }
 
-async function loadJobsData() {
-    document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="40" class="text-center py-20 text-slate-400 font-bold bg-white"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 text-green-800"></i><br>กำลังโหลดข้อมูล...</td></tr>`;
+function getJobsScopeQuery() {
+    const privileged = ['BA','Manager','Admin','แอดมิน'].includes(userRole);
+    return (!privileged && userBranch) ? `?branch=${encodeURIComponent(userBranch)}` : '';
+}
+
+async function loadJobsPrimaryData() {
+    const tbody = document.getElementById('jobs_table_body');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="40" class="text-center py-20 text-slate-400 font-bold bg-white"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 text-green-800"></i><br>กำลังโหลดข้อมูล...</td></tr>`;
+    const scopeQuery = getJobsScopeQuery();
     try {
-        const results = await Promise.allSettled([
-            fetch(`${API_BASE_URL}/api/statuses`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/api/part-orders`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/api/body-parts`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/api/reports`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/api/customer-types`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/api/insurances`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/api/employees`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/api/car-models`).then(res => res.json())
-        ]);
-
-        if (results[0].status === 'fulfilled') {
-            globalStatuses = results[0].value;
-            globalStatusOptionsHtml = globalStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
-        }
-        if (results[1].status === 'fulfilled') allPartOrders = results[1].value;
-        if (results[2].status === 'fulfilled') allMasterParts = results[2].value;
-        if (results[4].status === 'fulfilled') allCustomerTypes = results[4].value;
-        if (results[5].status === 'fulfilled') allInsurances = results[5].value;
-        if (results[6].status === 'fulfilled') allEmployees = results[6].value;
-        if (results[7].status === 'fulfilled') allCarModels = results[7].value;
-
-        if (results[3].status === 'fulfilled') {
-            const data = results[3].value;
-            let tempJobs = (['BA','Manager','Admin','แอดมิน'].includes(userRole)) ? data : data.filter(d => d.branch_name === userBranch);
-            allJobsData = tempJobs.map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
-        }
-        
-        const dlBrands = document.getElementById('dl_car_brands');
-        if(dlBrands) {
-            const uniqueBrands = [...new Set(allCarModels.map(c => c.car_brand).filter(Boolean))].sort();
-            dlBrands.innerHTML = uniqueBrands.map(b => `<option value="${b}">`).join('');
-        }
-
-        const dlModels = document.getElementById('dl_car_models');
-        if(dlModels) {
-            const uniqueModels = [...new Set(allCarModels.map(c => c.car_model).filter(Boolean))].sort();
-            dlModels.innerHTML = uniqueModels.map(m => `<option value="${m}">`).join('');
-        }
-
-        if(typeof initColumns === 'function') initColumns(); 
-        if(typeof buildBranchDropdown === 'function') buildBranchDropdown(); 
-        if(typeof buildSADropdown === 'function') buildSADropdown(); 
-        if(typeof applyFilters === 'function') applyFilters(); 
+        // Reports are the only dataset required to paint the first visible rows.
+        // Do not make status/employee/master requests delay first paint.
+        const res = await fetch(`${API_BASE_URL}/api/reports${scopeQuery}`);
+        const data = await res.json();
+        if (!res.ok || !Array.isArray(data)) throw new Error('reports load failed');
+        const tempJobs = (['BA','Manager','Admin','แอดมิน'].includes(userRole)) ? data : data.filter(d => d.branch_name === userBranch);
+        allJobsData = tempJobs.map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
+        return true;
     } catch (error) {
-        document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="40" class="text-center py-20 text-red-600 font-bold bg-white"><i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i><br>เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>`;
+        allJobsData = [];
+        return false;
+    }
+}
+
+async function loadJobsReferenceData() {
+    const background = { uiBackground: true };
+    const results = await Promise.allSettled([
+        fetch(`${API_BASE_URL}/api/statuses`, background).then(res => res.json()),
+        fetch(`${API_BASE_URL}/api/employees`, background).then(res => res.json())
+    ]);
+    if (results[0].status === 'fulfilled') {
+        globalStatuses = Array.isArray(results[0].value) ? results[0].value : [];
+        globalStatusOptionsHtml = globalStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
+    }
+    if (results[1].status === 'fulfilled') allEmployees = Array.isArray(results[1].value) ? results[1].value : [];
+}
+
+async function loadJobsSecondaryData() {
+    const scopeQuery = getJobsScopeQuery();
+    const background = { uiBackground: true };
+    const results = await Promise.allSettled([
+        fetch(`${API_BASE_URL}/api/part-orders${scopeQuery}`, background).then(res => res.json()),
+        fetch(`${API_BASE_URL}/api/body-parts`, background).then(res => res.json()),
+        fetch(`${API_BASE_URL}/api/customer-types`, background).then(res => res.json()),
+        fetch(`${API_BASE_URL}/api/insurances`, background).then(res => res.json()),
+        fetch(`${API_BASE_URL}/api/car-models`, background).then(res => res.json())
+    ]);
+    if (results[0].status === 'fulfilled') allPartOrders = Array.isArray(results[0].value) ? results[0].value : [];
+    if (results[1].status === 'fulfilled') allMasterParts = Array.isArray(results[1].value) ? results[1].value : [];
+    if (results[2].status === 'fulfilled') allCustomerTypes = Array.isArray(results[2].value) ? results[2].value : [];
+    if (results[3].status === 'fulfilled') allInsurances = Array.isArray(results[3].value) ? results[3].value : [];
+    if (results[4].status === 'fulfilled') allCarModels = Array.isArray(results[4].value) ? results[4].value : [];
+
+    const dlBrands = document.getElementById('dl_car_brands');
+    if(dlBrands) {
+        const uniqueBrands = [...new Set(allCarModels.map(c => c.car_brand).filter(Boolean))].sort();
+        dlBrands.innerHTML = uniqueBrands.map(b => `<option value="${b}">`).join('');
+    }
+    const dlModels = document.getElementById('dl_car_models');
+    if(dlModels) {
+        const uniqueModels = [...new Set(allCarModels.map(c => c.car_model).filter(Boolean))].sort();
+        dlModels.innerHTML = uniqueModels.map(m => `<option value="${m}">`).join('');
+    }
+}
+
+async function loadJobsData() {
+    try {
+        await loadJobsPrimaryData();
+        if(typeof initColumns === 'function') initColumns();
+        if(typeof buildBranchDropdown === 'function') buildBranchDropdown();
+        if(typeof buildSADropdown === 'function') buildSADropdown();
+        if(typeof applyFilters === 'function') applyFilters();
+        const startBackgroundHydration = () => Promise.allSettled([loadJobsReferenceData(), loadJobsSecondaryData()]).then(() => {
+            if(typeof buildSADropdown === 'function') buildSADropdown();
+            if(typeof renderJobsPage === 'function') renderJobsPage();
+        });
+        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(startBackgroundHydration);
+        else setTimeout(startBackgroundHydration, 0);
+    } catch (error) {
+        const tbody = document.getElementById('jobs_table_body');
+        if (tbody) tbody.innerHTML = `<tr><td colspan="40" class="text-center py-20 text-red-600 font-bold bg-white"><i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i><br>เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>`;
     }
 }
 

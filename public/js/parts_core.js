@@ -140,11 +140,18 @@ async function loadAllData() {
 }
 
 function filterTableByText(tbodyId, txt) {
-    const text = txt.toLowerCase();
-    const rows = document.getElementById(tbodyId).querySelectorAll('tr');
+    const text = String(txt || '').trim().toLowerCase();
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+    const rows = tbody.querySelectorAll('tr');
     rows.forEach(tr => {
         if(tr.cells.length <= 1) return;
+        if (!text) {
+            tr.style.display = '';
+            return;
+        }
         const rowText = tr.innerText.toLowerCase();
         tr.style.display = rowText.includes(text) ? '' : 'none';
     });
+    window.dispatchEvent(new Event('ui:refresh-pagination'));
 }
