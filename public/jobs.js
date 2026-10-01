@@ -85,11 +85,14 @@ async function loadJobsData() {
         ]);
 
         if (results[0].status === 'fulfilled') {
-            globalStatusOptionsHtml = results[0].value.length > 0 ? results[0].value.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('') : `<option value="09.จอดรอเข้าซ่อม">09.จอดรอเข้าซ่อม</option>`;
+            const statData = Array.isArray(results[0].value) ? results[0].value : (results[0].value.data || []);
+            globalStatusOptionsHtml = statData.length > 0 ? statData.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('') : `<option value="09.จอดรอเข้าซ่อม">09.จอดรอเข้าซ่อม</option>`;
         }
-        if (results[1].status === 'fulfilled') allPartOrders = results[1].value;
+        if (results[1].status === 'fulfilled') {
+            allPartOrders = Array.isArray(results[1].value) ? results[1].value : (results[1].value.data || []);
+        }
         if (results[3].status === 'fulfilled') {
-            const employees = results[3].value;
+            const employees = Array.isArray(results[3].value) ? results[3].value : (results[3].value.data || []);
             let masterBranches = [...new Set(employees.map(e => e.branch_name).filter(Boolean))].sort();
             const branchSelect = document.getElementById('branch_filter');
             const isManager = ['BA','Manager','Admin','แอดมิน'].includes(userRole);
@@ -103,14 +106,21 @@ async function loadJobsData() {
                 else { selectedBranchFilter = userBranch; branchSelect.value = userBranch; branchSelect.disabled = true; }
             }
         }
-        if (results[4].status === 'fulfilled') allStatuses = results[4].value || [];
-        if (results[5].status === 'fulfilled') allMasterPartsCache = results[5].value || [];
+        if (results[4].status === 'fulfilled') {
+            allStatuses = Array.isArray(results[4].value) ? results[4].value : (results[4].value.data || []);
+        }
+        if (results[5].status === 'fulfilled') {
+            allMasterPartsCache = Array.isArray(results[5].value) ? results[5].value : (results[5].value.data || []);
+        }
 
         if (results[2].status === 'fulfilled') {
-            masterJobsData = results[2].value;
+            masterJobsData = Array.isArray(results[2].value) ? results[2].value : (results[2].value.data || []);
             filterDataByBranch();
         }
-    } catch (error) { showToast('มีปัญหาในการโหลดข้อมูล', 'error'); }
+    } catch (error) { 
+        console.error("Load Data Error:", error); // ช่วยให้เห็นข้อผิดพลาดใน Console ถ้ามีปัญหาอื่น
+        showToast('มีปัญหาในการโหลดข้อมูล', 'error'); 
+    }
 }
 
 function onBranchChange() {
