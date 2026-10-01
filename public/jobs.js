@@ -13,6 +13,10 @@ let selectedBranchFilter = 'ALL';
 let currentKeyDeskJobId = null;
 let keyDeskRows = [];
 
+// 🌟 ตัวแปรสำหรับเก็บสถานะตัวกรองรายชื่อ SA บนหน้าบอร์ด
+let globalActiveSAFilters = new Set();
+let isSAFilterUserModified = false;
+
 const activeProcessStatuses = [
     '01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ', 
     '04.รอลูกค้าอนุมัติ', '05.อนุมัติแล้ว', '06.สั่งอะไหล่', 
@@ -118,7 +122,7 @@ async function loadJobsData() {
             filterDataByBranch();
         }
     } catch (error) { 
-        console.error("Load Data Error:", error); // ช่วยให้เห็นข้อผิดพลาดใน Console ถ้ามีปัญหาอื่น
+        console.error("Load Data Error:", error); 
         showToast('มีปัญหาในการโหลดข้อมูล', 'error'); 
     }
 }
@@ -153,7 +157,6 @@ function updateHeaderSummaryBadges(jobs) {
 
     jobs.forEach(job => {
         const st = job.job_status || "";
-        // 🌟 ปลดกรองเดือนสำหรับรอออกบิล (Header Badge)
         if (st.includes('รอออกบิล')) waitBillCount++;
         
         const isBilledStatus = st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิล');
@@ -187,9 +190,125 @@ function globalSearchCar() {
 }
 
 // =====================================
+// 🌟 โค้ดเพิ่มฟังก์ชันกรอง SA Dropdown
+// =====================================
+function injectSAFilterUI() {
+    if (document.getElementById('saFilterModal')) return; 
+    
+    const searchInput = document.getElementById('sa_search_plate_input');
+    if (searchInput && !document.getElementById('btn_sa_filter')) {
+        const btnHtml = `
+            <button id="btn_sa_filter" onclick="openSAFilterModal(event)" class="px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-700 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-400 transition shadow-sm flex items-center gap-1.5 whitespace-nowrap">
+                <i class="fa-solid fa-users text-amber-500"></i> กรอง SA
+            </button>
+        `;
+        // สร้างปุ่มกรองไว้ข้างๆ ช่องค้นหา
+        searchInput.parentElement.insertAdjacentHTML('beforebegin', btnHtml);
+    }
+
+    const modalHtml = `
+    <div id="saFilterModal" class="hidden fixed bg-white border border-slate-300 shadow-2xl rounded-xl w-60 z-[9999] flex-col overflow-hidden text-xs">
+        <div class="bg-[#00320D] text-white border-b border-green-800 px-3 py-2.5 flex justify-between items-center">
+            <span class="font-bold flex items-center gap-1.5"><i class="fa-solid fa-filter text-amber-400"></i> แสดงรายชื่อ SA</span>
+            <button onclick="closeSAFilterModal()" class="text-slate-300 hover:text-red-400 transition"><i class="fa-solid fa-xmark text-base"></i></button>
+        </div>
+        <div class="p-2.5 pb-1">
+            <label class="flex items-center gap-2 px-1.5 py-1 border-b border-slate-100 mb-1 cursor-pointer hover:bg-slate-50 rounded transition">
+                <input type="checkbox" id="sa_ef_select_all" onchange="toggleAllSAFilters(this.checked)" class="w-3.5 h-3.5 accent-[#00320D] cursor-pointer rounded">
+                <span class="font-bold text-slate-700 select-none">เลือกทั้งหมด</span>
+            </label>
+            <div id="sa_ef_checkbox_list" class="max-h-60 overflow-y-auto space-y-0.5 custom-scrollbar pr-1"></div>
+        </div>
+        <div class="bg-slate-50 border-t border-slate-200 p-2 flex gap-2">
+            <button onclick="applySAFilter()" class="flex-1 bg-[#00320D] text-white font-bold py-1.5 rounded-lg hover:bg-black transition shadow-sm flex justify-center items-center gap-1"><i class="fa-solid fa-check"></i> ตกลง</button>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    document.addEventListener('click', (e) => {
+        const modal = document.getElementById('saFilterModal');
+        if (modal && !modal.contains(e.target) && !e.target.closest('#btn_sa_filter') && !modal.classList.contains('hidden')) {
+            closeSAFilterModal();
+        }
+    });
+}
+
+function updateSAFilterModalList(saStats) {
+    const listDiv = document.getElementById('sa_ef_checkbox_list');
+    if (!listDiv) return;
+    
+    let html = '';
+    const allSAs = Object.keys(saStats).sort();
+    
+    allSAs.forEach(sa => {
+        const isChecked = globalActiveSAFilters.has(sa);
+        const pendingCount = saStats[sa].pending;
+        const waitBillCount = saStats[sa].waitBill;
+        
+        const info = `(ค้าง ${pendingCount}, รอออกบิล ${waitBillCount})`;
+        const activeClass = (pendingCount > 0 || waitBillCount > 0) ? 'text-amber-600 font-bold' : 'text-slate-400 font-normal';
+
+        html += `
+            <label class="flex items-start gap-2 hover:bg-slate-100 p-1.5 rounded cursor-pointer sa-ef-item transition">
+                <input type="checkbox" value="${sa}" ${isChecked ? 'checked' : ''} class="sa-ef-check accent-[#00320D] mt-0.5 cursor-pointer w-4 h-4">
+                <span class="text-slate-700 font-medium truncate w-full text-sm" title="${sa}">
+                    ${sa} <span class="text-[10px] ${activeClass}">${info}</span>
+                </span>
+            </label>
+        `;
+    });
+    
+    listDiv.innerHTML = html;
+    
+    const checks = document.querySelectorAll('.sa-ef-check');
+    const selAll = document.getElementById('sa_ef_select_all');
+    if(selAll && checks.length > 0) {
+        selAll.checked = Array.from(checks).every(cb => cb.checked);
+    }
+}
+
+function openSAFilterModal(e) {
+    if(e) e.stopPropagation();
+    const modal = document.getElementById('saFilterModal');
+    const btn = document.getElementById('btn_sa_filter');
+    if(btn && modal) {
+        const rect = btn.getBoundingClientRect();
+        modal.style.top = (rect.bottom + window.scrollY + 8) + 'px';
+        let leftPos = rect.left + window.scrollX;
+        if (leftPos + 240 > window.innerWidth) leftPos = window.innerWidth - 250;
+        modal.style.left = leftPos + 'px';
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+}
+
+function closeSAFilterModal() {
+    const modal = document.getElementById('saFilterModal');
+    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); modal.style.transform = 'none'; }
+}
+
+function toggleAllSAFilters(checked) {
+    document.querySelectorAll('.sa-ef-check').forEach(cb => cb.checked = checked);
+}
+
+function applySAFilter() {
+    const checks = document.querySelectorAll('.sa-ef-check');
+    globalActiveSAFilters.clear();
+    checks.forEach(cb => {
+        if (cb.checked) globalActiveSAFilters.add(cb.value);
+    });
+    isSAFilterUserModified = true; // ล็อคไว้ไม่ให้ระบบเซ็ตทับใหม่เมื่อ Refresh
+    closeSAFilterModal();
+    renderSAList(); 
+}
+
+// =====================================
 // View 1: SA Cards List
 // =====================================
 function renderSAList() {
+    // โหลดปุ่มกรองเข้าระบบ
+    injectSAFilterUI();
+
     const container = document.getElementById('sa_cards_container');
     const saStats = {}; 
     const fMonth = document.getElementById('sa_cal_month')?.value || String(new Date().getMonth() + 1).padStart(2, '0');
@@ -198,13 +317,7 @@ function renderSAList() {
     const arrivedPrefixes = ['09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21'];
     const pendingStatuses = ['01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ', '04.รอลูกค้าอนุมัติ', '05.อนุมัติแล้ว', '06.สั่งอะไหล่', '07.รอนัดหมายเข้าซ่อม', '08.นัดหมายแล้วรอเข้าซ่อม', '09.จอดรอเข้าซ่อม', '10.กำลังซ่อม', '11.รถซ่อมเสร็จรอส่งมอบ', '12.ส่งมอบ','21.พักซ่อม'];
 
-    let totalWaitBill = 0;
-    let totalBilled = 0;
-    let totalMain = 0;
-    let totalSub = 0;
-    let totalLabor = 0;
-    let totalParts = 0;
-    let totalOutsource = 0;
+    let totalWaitBill = 0, totalBilled = 0, totalMain = 0, totalSub = 0, totalLabor = 0, totalParts = 0, totalOutsource = 0;
 
     allJobsData.forEach(job => { 
         const sa = job.sa_owner || "ไม่ระบุ SA"; 
@@ -212,16 +325,13 @@ function renderSAList() {
         
         if (!saStats[sa]) saStats[sa] = { pending: 0, waitBill: 0, billed: 0, ovApp: 0, ovTgt: 0, ovDel: 0, totalOverdue: 0, sumLabor: 0, sumParts: 0, sumOutsource: 0, mainParts: 0, subParts: 0 };
         
-        // นับงานค้าง
         if (pendingStatuses.some(s => st.includes(s))) saStats[sa].pending++; 
 
-        // 🌟 ปลดกรองเดือนสำหรับรถรอออกบิล
         if (st.includes('รอออกบิล')) {
             saStats[sa].waitBill++;
             totalWaitBill++;
         }
 
-        // คำนวณรถปิดบิลแล้ว (ยังต้องกรองตามเดือนเพื่อดูยอดเงิน)
         const isBilled = st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิล');
         if (isBilled && getValidDateStr(job.billing_date)) {
             const d = new Date(job.billing_date);
@@ -241,15 +351,10 @@ function renderSAList() {
                 saStats[sa].sumParts += partsCost;
                 saStats[sa].sumOutsource += outsource;
 
-                totalMain += mQty;
-                totalSub += sQty;
-                totalLabor += labor;
-                totalParts += partsCost;
-                totalOutsource += outsource;
+                totalMain += mQty; totalSub += sQty; totalLabor += labor; totalParts += partsCost; totalOutsource += outsource;
             }
         }
 
-        // นับ Overdue
         const isProcess = activeProcessStatuses.some(s => st.includes(s) || st.startsWith(s.substring(0, 2)));
         if (isProcess) {
             const appVal = getValidDateStr(job.arrived_date);
@@ -264,13 +369,27 @@ function renderSAList() {
         }
     });
 
-    c// กรองซ่อน SA ที่ยอดใช้งาน (pending, waitBill, billed) เป็น 0 ล้วน ออกจากหน้าจอ
+    // 🎯 ถ้า User ยังไม่ได้กดปรับการเลือกเอง ระบบจะตั้งค่าเริ่มต้นให้
+    // (เลือกเฉพาะคนที่มีงานค้าง หรือรถรอออกบิล หรือปิดบิลในเดือนนั้น คนไหน 0 ล้วน จะถูกติ๊กออก ไม่เลือกถูก)
+    if (!isSAFilterUserModified) {
+        globalActiveSAFilters.clear();
+        Object.keys(saStats).forEach(sa => {
+            if (saStats[sa].pending > 0 || saStats[sa].waitBill > 0 || saStats[sa].billed > 0) {
+                globalActiveSAFilters.add(sa);
+            }
+        });
+    }
+
+    // วาดรายการ Checkbox ใน Modal
+    updateSAFilterModalList(saStats);
+
+    // กรองการ์ด SA บนหน้าจอตามรายชื่อที่ถูกเลือก (Check)
     const sortedSAs = Object.keys(saStats)
-        .filter(sa => saStats[sa].pending > 0 || saStats[sa].waitBill > 0 || saStats[sa].billed > 0)
+        .filter(sa => globalActiveSAFilters.has(sa))
         .sort((a, b) => saStats[b].pending - saStats[a].pending);
+        
     const formatMoney = (val) => Number(val).toLocaleString('th-TH', {minimumFractionDigits: 0, maximumFractionDigits: 2});
 
-    // Banner สรุปยอดรวม
     let html = `
     <div class="col-span-full bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-2 flex flex-col md:flex-row gap-6">
         <div class="flex-1 flex flex-col justify-center bg-amber-50 border border-amber-200 rounded-xl p-4">
@@ -507,8 +626,6 @@ function updateBilledCount(jobs) {
     
     jobs.forEach(job => {
         const st = job.job_status || "";
-        
-        // 🌟 ปลดกรองเดือนสำหรับรถรอออกบิล
         if (st.includes('รอออกบิล')) waitBillCount++;
         
         const isBilled = st.includes('ชำระเงินสด') || st.includes('ออกบิลแล้ว') || st.includes('วางบิล');
@@ -528,7 +645,6 @@ function updateBilledCount(jobs) {
     document.getElementById('sa_waitbill_count').innerText = waitBillCount;
     document.getElementById('sa_billed_count').innerText = billedCount;
     
-    // เอา label (เดือน...) ออกจากหน้าจอสำหรับกล่องรอปิดบิล
     document.getElementById('waitbill_month_label').innerText = `(ยอดสะสมรวมทั้งหมด)`;
     document.getElementById('billed_month_label').innerText = `(เดือน ${fMonth}/${fYear})`;
 
@@ -573,7 +689,6 @@ function openSAFilteredModal(statusType) {
         });
         document.getElementById('modal_status_name').innerText = `งานปิดบิลแล้ว`; vType = 'finance';
     } else if (statusType === 'WaitBill') {
-        // 🌟 ปลดกรองเดือนสำหรับก้อน "รอออกบิล" ในหน้า Modal
         jobsToShow = saJobs.filter(job => (job.job_status || "").includes('รอออกบิล'));
         document.getElementById('modal_status_name').innerText = `งานรอปิดบิล (ยอดสะสมทั้งหมด)`; vType = 'finance';
     } else { 
@@ -608,7 +723,6 @@ function renderSAParkedCars(jobs) {
         </tr>
     `).join('');
 }
-
 
 // ========================================================
 // 📦 ฟังก์ชันแสดงผลตาราง PO Tracking สำหรับ SA + ระบบกรอง Excel
@@ -690,7 +804,6 @@ function renderSAPOTracking(saJobs) {
 
     if (!tbody) return;
 
-    // 🎯 ดึงเฉพาะ SA ปัจจุบันที่คลิกเข้ามา และมีสถานะ ERP เป็น "06.สั่งอะไหล่" เท่านั้น
     const relevantJobs = saJobs.filter(job => {
         return (job.job_status || '').includes('06.สั่งอะไหล่');
     });
@@ -829,66 +942,67 @@ window.togglePartAccordion = function(id) {
 
 function openPOExcelFilter(e, colKey, title) {
     e.stopPropagation();
-    currentPOFilterKey = colKey;
-    document.getElementById('po_ef_col_name').innerText = title;
-    document.getElementById('po_ef_search').value = '';
-
-    const uniqueValues = new Set();
-    const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
     
-    // 🎯 ดึงเฉพาะ SA คนปัจจุบัน และสถานะ 06.สั่งอะไหล่
-    const relevantJobs = saJobs.filter(job => (job.job_status || '').includes('06.สั่งอะไหล่'));
+    setTimeout(() => {
+        currentPOFilterKey = colKey;
+        document.getElementById('po_ef_col_name').innerText = title;
+        document.getElementById('po_ef_search').value = '';
 
-    relevantJobs.forEach(job => {
-        const jobPOs = allPartOrders.filter(po => po.car_plate === job.car_plate && po.order_status !== 'ยกเลิก');
-        let worstStatus = 'มีของ/ครบ';
-        const statuses = jobPOs.map(i => i.order_status || '');
-        if (jobPOs.length === 0) worstStatus = 'รอสั่งซื้อ';
-        else if (statuses.includes('รอสั่งซื้อ')) worstStatus = 'รอสั่งซื้อ';
-        else if (statuses.includes('ติด Back Order')) worstStatus = 'ติด Back Order';
-        else if (statuses.includes('รออะไหล่')) worstStatus = 'รออะไหล่';
-        else if (statuses.includes('รออัปเดต')) worstStatus = 'รออัปเดต';
-        else if (statuses.some(s => !s.includes('ครบ') && !s.includes('มีของ'))) worstStatus = statuses.find(s => !s.includes('ครบ') && !s.includes('มีของ')) || 'รออะไหล่';
+        const uniqueValues = new Set();
+        const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
+        const relevantJobs = saJobs.filter(job => (job.job_status || '').includes('06.สั่งอะไหล่'));
 
-        const plate = job.car_plate || '-';
-        const parkedStatus = job.is_parked === 'จอดซ่อม' ? 'จอดซ่อม' : 'ไม่จอดซ่อม';
+        relevantJobs.forEach(job => {
+            const jobPOs = allPartOrders.filter(po => po.car_plate === job.car_plate && po.order_status !== 'ยกเลิก');
+            let worstStatus = 'มีของ/ครบ';
+            const statuses = jobPOs.map(i => i.order_status || '');
+            if (jobPOs.length === 0) worstStatus = 'รอสั่งซื้อ';
+            else if (statuses.includes('รอสั่งซื้อ')) worstStatus = 'รอสั่งซื้อ';
+            else if (statuses.includes('ติด Back Order')) worstStatus = 'ติด Back Order';
+            else if (statuses.includes('รออะไหล่')) worstStatus = 'รออะไหล่';
+            else if (statuses.includes('รออัปเดต')) worstStatus = 'รออัปเดต';
+            else if (statuses.some(s => !s.includes('ครบ') && !s.includes('มีของ'))) worstStatus = statuses.find(s => !s.includes('ครบ') && !s.includes('มีของ')) || 'รออะไหล่';
 
-        if (colKey === 'plate') uniqueValues.add(plate);
-        else if (colKey === 'parked') uniqueValues.add(parkedStatus);
-        else if (colKey === 'status') uniqueValues.add(worstStatus);
-    });
+            const plate = job.car_plate || '-';
+            const parkedStatus = job.is_parked === 'จอดซ่อม' ? 'จอดซ่อม' : 'ไม่จอดซ่อม';
 
-    const listDiv = document.getElementById('po_ef_checkbox_list');
-    listDiv.innerHTML = '';
-    
-    [...uniqueValues].sort().forEach(val => {
-        const isChecked = activePOFilters[colKey] ? activePOFilters[colKey].has(val) : true;
-        listDiv.innerHTML += `
-            <label class="flex items-start gap-2 hover:bg-slate-100 p-1.5 rounded cursor-pointer po-ef-item transition">
-                <input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''} class="po-ef-check accent-[#00320D] mt-0.5 cursor-pointer w-4 h-4">
-                <span class="text-slate-700 font-medium truncate w-full text-sm" title="${val}">${val}</span>
-            </label>
-        `;
-    });
-    
-    const selAll = document.getElementById('po_ef_select_all');
-    if(selAll) selAll.checked = Array.from(document.querySelectorAll('.po-ef-check')).every(cb => cb.checked);
-    
-    const modal = document.getElementById('poExcelFilterModal');
-    const th = e.target.closest('th');
-    if(th) {
-        const rect = th.getBoundingClientRect();
-        modal.style.top = (rect.bottom + window.scrollY + 8) + 'px';
-        let leftPos = rect.left + window.scrollX;
-        if (leftPos + 260 > window.innerWidth) leftPos = window.innerWidth - 270;
-        modal.style.left = leftPos + 'px';
-    } else {
-        modal.style.top = '50%';
-        modal.style.left = '50%';
-        modal.style.transform = 'translate(-50%, -50%)';
-    }
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+            if (colKey === 'plate') uniqueValues.add(plate);
+            else if (colKey === 'parked') uniqueValues.add(parkedStatus);
+            else if (colKey === 'status') uniqueValues.add(worstStatus);
+        });
+
+        const listDiv = document.getElementById('po_ef_checkbox_list');
+        listDiv.innerHTML = '';
+        
+        [...uniqueValues].sort().forEach(val => {
+            const isChecked = activePOFilters[colKey] ? activePOFilters[colKey].has(val) : true;
+            listDiv.innerHTML += `
+                <label class="flex items-start gap-2 hover:bg-slate-100 p-1.5 rounded cursor-pointer po-ef-item transition">
+                    <input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''} class="po-ef-check accent-[#00320D] mt-0.5 cursor-pointer w-4 h-4">
+                    <span class="text-slate-700 font-medium truncate w-full text-sm" title="${val}">${val}</span>
+                </label>
+            `;
+        });
+        
+        const selAll = document.getElementById('po_ef_select_all');
+        if(selAll) selAll.checked = Array.from(document.querySelectorAll('.po-ef-check')).every(cb => cb.checked);
+        
+        const modal = document.getElementById('poExcelFilterModal');
+        const th = e.target.closest('th');
+        if(th) {
+            const rect = th.getBoundingClientRect();
+            modal.style.top = (rect.bottom + window.scrollY + 8) + 'px';
+            let leftPos = rect.left + window.scrollX;
+            if (leftPos + 260 > window.innerWidth) leftPos = window.innerWidth - 270;
+            modal.style.left = leftPos + 'px';
+        } else {
+            modal.style.top = '50%';
+            modal.style.left = '50%';
+            modal.style.transform = 'translate(-50%, -50%)';
+        }
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }, 0);
 }
 
 function closePOExcelFilter() {
@@ -940,30 +1054,32 @@ window.filterPOTable = function(keyword) {
     const lowerKeyword = keyword.toLowerCase().trim();
     const mainRows = Array.from(tbody.querySelectorAll('tr[onclick^="togglePartAccordion"]'));
     
-    mainRows.forEach(row => {
-        const nextRow = row.nextElementSibling;
-        let isMatch = false;
+    setTimeout(() => {
+        mainRows.forEach(row => {
+            const nextRow = row.nextElementSibling;
+            let isMatch = false;
 
-        if (lowerKeyword === '') isMatch = true;
-        else {
-            const mainText = row.innerText.toLowerCase();
-            if (mainText.includes(lowerKeyword)) isMatch = true;
-            else if (nextRow && nextRow.id.startsWith('part_group_')) {
-                const subText = nextRow.innerText.toLowerCase();
-                if (subText.includes(lowerKeyword)) isMatch = true;
+            if (lowerKeyword === '') isMatch = true;
+            else {
+                const mainText = row.innerText.toLowerCase();
+                if (mainText.includes(lowerKeyword)) isMatch = true;
+                else if (nextRow && nextRow.id.startsWith('part_group_')) {
+                    const subText = nextRow.innerText.toLowerCase();
+                    if (subText.includes(lowerKeyword)) isMatch = true;
+                }
             }
-        }
 
-        if (isMatch) row.style.display = '';
-        else {
-            row.style.display = 'none';
-            if (nextRow && nextRow.id.startsWith('part_group_')) {
-                nextRow.classList.add('hidden');
-                const icon = row.querySelector('.fa-chevron-right');
-                if(icon) icon.classList.remove('rotate-90');
+            if (isMatch) row.style.display = '';
+            else {
+                row.style.display = 'none';
+                if (nextRow && nextRow.id.startsWith('part_group_')) {
+                    nextRow.classList.add('hidden');
+                    const icon = row.querySelector('.fa-chevron-right');
+                    if(icon) icon.classList.remove('rotate-90');
+                }
             }
-        }
-    });
+        });
+    }, 0);
 };
 
 // =====================================
