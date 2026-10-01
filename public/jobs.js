@@ -254,9 +254,10 @@ function renderSAList() {
         }
     });
 
+    c// กรองซ่อน SA ที่ยอดใช้งาน (pending, waitBill, billed) เป็น 0 ล้วน ออกจากหน้าจอ
     const sortedSAs = Object.keys(saStats)
-    .filter(sa => saStats[sa].pending > 0) // ซ่อน SA ที่งานค้าง (pending) เป็น 0
-    .sort((a, b) => saStats[b].pending - saStats[a].pending);
+        .filter(sa => saStats[sa].pending > 0 || saStats[sa].waitBill > 0 || saStats[sa].billed > 0)
+        .sort((a, b) => saStats[b].pending - saStats[a].pending);
     const formatMoney = (val) => Number(val).toLocaleString('th-TH', {minimumFractionDigits: 0, maximumFractionDigits: 2});
 
     // Banner สรุปยอดรวม
