@@ -254,7 +254,9 @@ function renderSAList() {
         }
     });
 
-    const sortedSAs = Object.keys(saStats).sort((a, b) => saStats[b].pending - saStats[a].pending);
+    const sortedSAs = Object.keys(saStats)
+    .filter(sa => saStats[sa].pending > 0) // ซ่อน SA ที่งานค้าง (pending) เป็น 0
+    .sort((a, b) => saStats[b].pending - saStats[a].pending);
     const formatMoney = (val) => Number(val).toLocaleString('th-TH', {minimumFractionDigits: 0, maximumFractionDigits: 2});
 
     // Banner สรุปยอดรวม
