@@ -182,40 +182,33 @@ function globalSearchCar() {
     }
 }
 
-function searchSAByNameFromSAView() {
+function searchCarByPlateFromSAView() {
     const input = document.getElementById('sa_search_plate_input');
-    const query = (input?.value || '').trim().toLowerCase();
+    const plate = String(input?.value || '').trim().toLowerCase();
+    if (!plate) return;
 
-    if (!query) {
-        renderSAList();
+    const matchedJobs = allJobsData.filter(j => j.car_plate && String(j.car_plate).toLowerCase().includes(plate));
+    if (matchedJobs.length === 0) {
+        showToast('ไม่พบรถทะเบียนในมุมมองนี้: ' + plate, 'error');
         return;
     }
 
-    const saNames = [...new Set(
-        allJobsData
-            .map(job => (job.sa_owner || '').trim())
-            .filter(Boolean)
-    )];
-    const matches = saNames.filter(sa => sa.toLowerCase().includes(query));
-
-    if (matches.length === 0) {
-        renderSAList(query);
-        showToast(`ไม่พบ Service Advisor: ${input.value.trim()}`, 'error');
+    const owners = [...new Set(matchedJobs.map(j => j.sa_owner || 'ไม่ระบุ SA'))];
+    if (owners.length === 1) {
+        openSADetail(owners[0]);
+        showToast('พบทเบียน ' + plate + ' ที่ ' + owners[0], 'success');
         return;
     }
 
-    if (matches.length === 1) {
-        openSADetail(matches[0]);
-        return;
-    }
-
-    renderSAList(query);
+    document.getElementById('modal_status_name').innerText = `ค้นหาทะเบียน: ${plate}`;
+    renderJobTableInModal(matchedJobs, 'general');
+    document.getElementById('jobListModal').classList.remove('hidden');
 }
 
 // =====================================
 // View 1: SA Cards List
 // =====================================
-function renderSAList(searchQuery = '') {
+function renderSAList() {
     const container = document.getElementById('sa_cards_container');
     const saStats = {}; 
     const fMonth = document.getElementById('sa_cal_month')?.value || String(new Date().getMonth() + 1).padStart(2, '0');
@@ -290,10 +283,7 @@ function renderSAList(searchQuery = '') {
         }
     });
 
-    const normalizedSearch = String(searchQuery || '').trim().toLowerCase();
-    const sortedSAs = Object.keys(saStats)
-        .filter(sa => !normalizedSearch || sa.toLowerCase().includes(normalizedSearch))
-        .sort((a, b) => saStats[b].pending - saStats[a].pending);
+    const sortedSAs = Object.keys(saStats).sort((a, b) => saStats[b].pending - saStats[a].pending);
     const formatMoney = (val) => Number(val).toLocaleString('th-TH', {minimumFractionDigits: 0, maximumFractionDigits: 2});
 
     // Banner สรุปยอดรวม
@@ -346,10 +336,7 @@ function renderSAList(searchQuery = '') {
     `;
 
     if(sortedSAs.length === 0) { 
-        const emptyMessage = normalizedSearch
-            ? `ไม่พบ Service Advisor: ${searchQuery}`
-            : 'ยังไม่มีงานค้างเลย 🎉';
-        container.innerHTML = html + `<div class="col-span-full text-center py-10 text-slate-400 font-bold bg-white rounded-xl border border-slate-200">${emptyMessage}</div>`;
+        container.innerHTML = html + `<div class="col-span-full text-center py-10 text-slate-400 font-bold bg-white rounded-xl border border-slate-200">ยังไม่มีงานค้างเลย 🎉</div>`;
         return; 
     }
 
@@ -1129,11 +1116,90 @@ async function saveSAKeyDesk() {
     }
 }
 
-// ---- Modal general tables ----
+// ---- Modal general tables (jobs.html only) ----
+let modalJobState = { jobs: [], viewType: 'general', page: 1, pageSize: 10 };
+
+function getModalPaginationState(totalItems, requestedPage, requestedPageSize) {
+    const safeTotal = Math.max(0, Number(totalItems) || 0);
+    const allowedSizes = [10, 20, 30, 50];
+    const pageSize = allowedSizes.includes(Number(requestedPageSize)) ? Number(requestedPageSize) : 10;
+    const totalPages = Math.max(1, Math.ceil(safeTotal / pageSize));
+    const page = Math.min(totalPages, Math.max(1, Number(requestedPage) || 1));
+    const startIndex = safeTotal === 0 ? 0 : (page - 1) * pageSize;
+    const endIndex = Math.min(safeTotal, startIndex + pageSize);
+    return { totalItems: safeTotal, page, pageSize, totalPages, startIndex, endIndex, rangeStart: safeTotal === 0 ? 0 : startIndex + 1, rangeEnd: endIndex };
+}
+
+function getModalPageTokens(totalPages, currentPage) {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    const tokens = [1];
+    const start = Math.max(2, currentPage - 2);
+    const end = Math.min(totalPages - 1, currentPage + 2);
+    if (start > 2) tokens.push('…');
+    for (let page = start; page <= end; page++) tokens.push(page);
+    if (end < totalPages - 1) tokens.push('…');
+    tokens.push(totalPages);
+    return tokens;
+}
+
+function renderModalJobPagination(paging) {
+    const rangeEl = document.getElementById('modal_job_range');
+    const totalEl = document.getElementById('modal_job_total');
+    const sizeEl = document.getElementById('modal_job_page_size');
+    const pager = document.getElementById('modal_job_pagination');
+    if (rangeEl) rangeEl.textContent = `${paging.rangeStart}-${paging.rangeEnd}`;
+    if (totalEl) totalEl.textContent = String(paging.totalItems);
+    if (sizeEl) sizeEl.value = String(paging.pageSize);
+    if (!pager) return;
+    const tokens = getModalPageTokens(paging.totalPages, paging.page);
+    const tokenHtml = tokens.map(token => {
+        if (token === '…') return `<span class="job-modal-page-ellipsis">…</span>`;
+        const active = Number(token) === paging.page ? ' is-active' : '';
+        return `<button type="button" class="job-modal-page-btn${active}" onclick="goToModalJobPage(${token})">${token}</button>`;
+    }).join('');
+    pager.innerHTML = `<button type="button" class="job-modal-page-btn" onclick="goToModalJobPage(${paging.page - 1})" ${paging.page <= 1 ? 'disabled' : ''} aria-label="หน้าก่อนหน้า"><i class="fa-solid fa-chevron-left"></i></button>${tokenHtml}<button type="button" class="job-modal-page-btn" onclick="goToModalJobPage(${paging.page + 1})" ${paging.page >= paging.totalPages ? 'disabled' : ''} aria-label="หน้าถัดไป"><i class="fa-solid fa-chevron-right"></i></button>`;
+}
+
+function scrollModalJobListToTop() {
+    const scroller = document.getElementById('jobListModalScroll');
+    if (scroller) scroller.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function goToModalJobPage(page) {
+    modalJobState.page = Number(page) || 1;
+    renderModalJobPage();
+    scrollModalJobListToTop();
+}
+
+function changeModalJobPageSize(value) {
+    const requested = Number(value);
+    modalJobState.pageSize = [10, 20, 30, 50].includes(requested) ? requested : 10;
+    modalJobState.page = 1;
+    renderModalJobPage();
+    scrollModalJobListToTop();
+}
+
 function renderJobTableInModal(jobs, viewType = 'general') {
+    modalJobState.jobs = Array.isArray(jobs) ? jobs : [];
+    modalJobState.viewType = viewType;
+    modalJobState.page = 1;
+    renderModalJobPage();
+}
+
+function renderModalJobPage() {
+    const jobs = modalJobState.jobs;
+    const viewType = modalJobState.viewType;
     const thead = document.querySelector('#jobListModal thead tr');
     const tbody = document.getElementById('modal_job_table');
-    if (jobs.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-500 font-bold">ไม่มีข้อมูล</td></tr>`; return; }
+    const paging = getModalPaginationState(jobs.length, modalJobState.page, modalJobState.pageSize);
+    modalJobState.page = paging.page;
+    modalJobState.pageSize = paging.pageSize;
+    const pageJobs = jobs.slice(paging.startIndex, paging.endIndex);
+    renderModalJobPagination(paging);
+    if (jobs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-16 text-slate-400 font-bold bg-white"><div class="text-3xl mb-3 text-slate-300"><i class="fa-solid fa-magnifying-glass"></i></div>ไม่มีข้อมูลที่จะแสดง</td></tr>`;
+        return;
+    }
 
     if (viewType === 'finance') {
         thead.innerHTML = `<th class="px-4 py-2 font-bold text-left">ทะเบียนรถ</th><th class="px-4 py-2 font-bold text-left">ลูกค้า / ยี่ห้อรถ</th><th class="px-4 py-2 font-bold text-center">จำนวนชิ้น(หลัก/รอง)</th><th class="px-4 py-2 font-bold text-right">ค่าแรง</th><th class="px-4 py-2 font-bold text-right">ค่าอะไหล่</th><th class="px-4 py-2 font-bold text-right">งานนอก</th><th class="px-4 py-2 font-bold text-center">จัดการ</th>`;
@@ -1145,7 +1211,7 @@ function renderJobTableInModal(jobs, viewType = 'general') {
 
     let safeOptsGlobal = globalStatusOptionsHtml;
     
-    tbody.innerHTML = jobs.map(j => {
+    tbody.innerHTML = pageJobs.map(j => {
         const formatMoney = (val) => Number(val || 0).toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
         const mainQty = Number(j.main_part_qty) || (j.main_part_name ? j.main_part_name.split(',').filter(Boolean).length : 0);
         const subQty = Number(j.sub_part_qty) || (j.sub_part_name ? j.sub_part_name.split(',').filter(Boolean).length : 0);

@@ -41,6 +41,27 @@ body { font-family: 'Kanit', sans-serif; background-color: #f4f6f9; overflow: hi
         .simple-table { @apply w-full text-left border-collapse whitespace-nowrap text-xs bg-white; }
         .simple-table thead th { @apply px-4 py-2 bg-slate-100 border-b border-slate-200 font-bold sticky top-0 z-10 shadow-sm; }
         .simple-table tbody td { @apply px-4 py-3 border-b border-slate-100 text-slate-700 align-middle; }
+        /* jobs.html only: polished searchable job result modal */
+        #jobListModal .job-modal-shell { width: min(1180px, calc(100vw - 32px)); height: min(88vh, 860px); max-height: calc(100vh - 32px); background: #f8fafc; border: 1px solid rgba(0,50,13,.22); border-radius: 22px; box-shadow: 0 28px 80px rgba(15,23,42,.34); overflow: hidden; }
+        #jobListModal .job-modal-header { background: linear-gradient(135deg, #00320D 0%, #064e1e 100%); border-bottom: 3px solid #f59e0b; }
+        #jobListModal .job-modal-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; background: #ffffff; }
+        #jobListModal .job-modal-table { width: 100%; min-width: 900px; border-collapse: separate; border-spacing: 0; table-layout: auto; }
+        #jobListModal .job-modal-table thead th { position: sticky; top: 0; z-index: 25; background: #0b3f1b !important; color: #fff !important; padding: 11px 14px; border-bottom: 1px solid #1f5c32; box-shadow: 0 1px 0 rgba(255,255,255,.08), 0 3px 8px rgba(15,23,42,.12); white-space: nowrap; }
+        #jobListModal .job-modal-table tbody td { padding: 11px 14px; border-bottom: 1px solid #e8edf2; vertical-align: middle; }
+        #jobListModal .job-modal-table tbody tr:nth-child(even) td { background: #f8fafc; }
+        #jobListModal .job-modal-table tbody tr:hover td { background: #ecfdf3; }
+        #jobListModal .job-modal-table select { min-height: 34px; border-radius: 9px; border-color: #cbd5e1; background-color: #fff; padding-left: 10px; padding-right: 34px; }
+        #jobListModal .job-modal-footer { min-height: 62px; background: #fff; border-top: 1px solid #e2e8f0; box-shadow: 0 -8px 22px rgba(15,23,42,.04); }
+        #jobListModal .job-modal-page-btn { min-width: 34px; height: 34px; border: 1px solid #dbe3ea; background: #fff; color: #475569; border-radius: 9px; font-size: 12px; font-weight: 800; transition: .15s ease; }
+        #jobListModal .job-modal-page-btn:hover:not(:disabled) { border-color: #f59e0b; color: #92400e; background: #fffbeb; }
+        #jobListModal .job-modal-page-btn.is-active { border-color: #00320D; color: #fff; background: #00320D; box-shadow: 0 4px 12px rgba(0,50,13,.18); }
+        #jobListModal .job-modal-page-btn:disabled { opacity: .38; cursor: not-allowed; }
+        #jobListModal .job-modal-page-ellipsis { min-width: 24px; text-align: center; color: #94a3b8; font-weight: 900; }
+        @media (max-width: 768px) {
+            #jobListModal { padding: 8px !important; }
+            #jobListModal .job-modal-shell { width: calc(100vw - 16px); height: calc(100vh - 16px); max-height: none; border-radius: 16px; }
+            #jobListModal .job-modal-footer { align-items: flex-start; flex-direction: column; gap: 10px; }
+        }
         .modal-fade { animation: fadeInScale 0.2s ease-out forwards; }
         @keyframes fadeInScale { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
     </style>
@@ -112,7 +133,7 @@ body { font-family: 'Kanit', sans-serif; background-color: #f4f6f9; overflow: hi
                 <div class="flex items-center gap-2 w-full sm:w-auto">
                     <div class="relative flex-1 sm:w-64">
                         <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                        <input type="text" id="sa_search_plate_input" onkeydown="if(event.key==='Enter') searchSAByNameFromSAView()" class="w-full pl-8 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:border-amber-500 shadow-sm" placeholder="ค้นหา รายชื่อ Service Advisor (SA)">
+                        <input type="text" id="sa_search_plate_input" onkeydown="if(event.key==='Enter'){event.preventDefault();searchCarByPlateFromSAView();}" class="w-full pl-8 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:border-amber-500 shadow-sm" placeholder="ค้นหาทะเบียนในหน้านี้...">
                     </div>
                     <button onclick="loadJobsData()" class="px-4 py-2 bg-white text-slate-700 font-bold border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 transition text-xs flex items-center gap-1.5"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
                 </div>
@@ -269,24 +290,45 @@ body { font-family: 'Kanit', sans-serif; background-color: #f4f6f9; overflow: hi
         </div>
     </main>
 
-    <!-- Modal: ตารางรวมแบบเก่า -->
+    <!-- Modal: ผลการค้นหา/รายการงาน เฉพาะ jobs.html -->
     <div id="jobListModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center hidden p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden modal-fade border border-[#00320D] flex flex-col max-h-[90vh]">
-            <div class="bg-[#00320D] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md z-20 relative border-b-4 border-amber-500">
-                <h2 class="font-bold text-lg flex items-center gap-3">
-                    <button onclick="closeModal('jobListModal')" class="bg-white/10 hover:bg-white/20 px-4 py-1.5 rounded-lg text-sm font-bold transition flex items-center gap-2 shadow-sm border border-white/10"><i class="fa-solid fa-arrow-left"></i> กลับ</button>
-                    <div class="w-px h-6 bg-white/20 mx-1"></div>
-                    <span id="modal_status_name" class="text-amber-400 font-black tracking-wide"></span>
-                </h2>
-                <button onclick="closeModal('jobListModal')" class="hover:text-red-400 bg-white/5 hover:bg-red-500/20 w-8 h-8 rounded-full flex items-center justify-center transition-colors text-lg"><i class="fa-solid fa-xmark"></i></button>
+        <div class="job-modal-shell modal-fade flex flex-col">
+            <div class="job-modal-header px-5 py-4 flex justify-between items-center text-white shrink-0 z-20 relative">
+                <div class="flex items-center gap-3 min-w-0">
+                    <button onclick="closeModal('jobListModal')" class="bg-white/10 hover:bg-white/20 px-3.5 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 border border-white/10 shrink-0"><i class="fa-solid fa-arrow-left"></i> กลับ</button>
+                    <div class="w-px h-8 bg-white/20"></div>
+                    <div class="min-w-0">
+                        <div class="text-[10px] uppercase tracking-[0.18em] text-emerald-200 font-bold mb-0.5">Job Search Results</div>
+                        <h2 id="modal_status_name" class="text-amber-300 font-black tracking-wide text-lg truncate"></h2>
+                    </div>
+                </div>
+                <button onclick="closeModal('jobListModal')" class="hover:text-red-300 bg-white/10 hover:bg-red-500/20 w-9 h-9 rounded-full flex items-center justify-center transition-colors text-lg shrink-0" aria-label="ปิด"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div class="flex-1 overflow-auto custom-scrollbar p-0 bg-slate-50 relative">
-                <table class="simple-table border-none">
-                    <thead class="bg-[#00320D] text-white uppercase sticky top-0 shadow-sm text-[11px]">
-                        <tr></tr>
-                    </thead>
+
+            <div id="jobListModalScroll" class="job-modal-scroll custom-scrollbar relative">
+                <table class="job-modal-table simple-table border-none">
+                    <thead class="text-white text-[11px]"><tr></tr></thead>
                     <tbody id="modal_job_table" class="bg-white text-[11px]"></tbody>
                 </table>
+            </div>
+
+            <div id="jobListModalFooter" class="job-modal-footer px-5 py-3 flex items-center justify-between gap-4 shrink-0">
+                <div class="flex items-center gap-2 text-xs font-bold text-slate-500 whitespace-nowrap">
+                    <span class="inline-flex w-8 h-8 items-center justify-center rounded-lg bg-emerald-50 text-[#00320D]"><i class="fa-solid fa-list"></i></span>
+                    <span><span id="modal_job_range" class="text-slate-800">0-0</span> / <span id="modal_job_total" class="text-slate-800">0</span> รายการ</span>
+                </div>
+                <div class="flex items-center justify-end gap-3 flex-wrap">
+                    <label class="flex items-center gap-2 text-xs font-bold text-slate-500">แสดง
+                        <select id="modal_job_page_size" onchange="changeModalJobPageSize(this.value)" class="border border-slate-300 rounded-lg bg-white px-2 py-1.5 text-xs font-black text-[#00320D] outline-none focus:border-amber-500">
+                            <option value="10">10</option>
+                            <option value="20">20</option>
+                            <option value="30">30</option>
+                            <option value="50">50</option>
+                        </select>
+                        แถว
+                    </label>
+                    <div id="modal_job_pagination" class="flex items-center gap-1"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -329,6 +371,6 @@ body { font-family: 'Kanit', sans-serif; background-color: #f4f6f9; overflow: hi
     </div>
 
     <datalist id="master_parts_datalist"></datalist>
-<script src="jobs.js?v=20260930-sa-name-v10"></script>
+<script src="jobs.js?v=20261002-modal-page-v12"></script>
 </body>
 </html>
