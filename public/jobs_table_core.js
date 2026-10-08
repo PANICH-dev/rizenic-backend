@@ -201,20 +201,6 @@ async function loadUserColumnPreferences() {
     } catch (err) {}
 }
 
-async function saveUserPreferences() {
-    const empName = sessionStorage.getItem('emp_name'); if (!empName) return;
-    try {
-        await fetch(`${API_BASE_URL}/api/user-preferences`, { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({ 
-                emp_name: empName, 
-                hidden_columns: { hidden: Array.from(hiddenCols), order: columnsDef.map(c => c.key) },
-                row_highlights: userRowHighlights // 🌟 ส่งข้อมูลไฮไลท์ไปเซฟด้วย
-            }) 
-        });
-    } catch (err) {}
-}
 
 async function saveUserPreferences() {
     const empName = sessionStorage.getItem('emp_name'); if (!empName) return;
