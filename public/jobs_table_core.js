@@ -203,10 +203,21 @@ async function loadUserColumnPreferences() {
 
 
 async function saveUserPreferences() {
-    const empName = sessionStorage.getItem('emp_name'); if (!empName) return;
+    const empName = sessionStorage.getItem('emp_name'); 
+    if (!empName) return;
     try {
-        await fetch(`${API_BASE_URL}/api/user-preferences`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emp_name: empName, hidden_columns: { hidden: Array.from(hiddenCols), order: columnsDef.map(c => c.key) } }) });
-    } catch (err) {}
+        await fetch(`${API_BASE_URL}/api/user-preferences`, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ 
+                emp_name: empName, 
+                hidden_columns: { hidden: Array.from(hiddenCols), order: columnsDef.map(c => c.key) },
+                row_highlights: userRowHighlights // 🌟 ส่งข้อมูลไฮไลท์สีไปบันทึกด้วย
+            }) 
+        });
+    } catch (err) {
+        console.error('Save preferences error:', err);
+    }
 }
 
 function getActiveJobsData() {
@@ -232,19 +243,32 @@ async function loadJobsData() {
             fetch(`${API_BASE_URL}/api/car-models`).then(res => res.json())
         ]);
 
+        // 🌟 เพิ่มการกรอง Array.isArray ป้องกันระบบค้าง
         if (results[0].status === 'fulfilled') {
-            globalStatuses = results[0].value;
+            globalStatuses = Array.isArray(results[0].value) ? results[0].value : (results[0].value.data || []);
             globalStatusOptionsHtml = globalStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
         }
-        if (results[1].status === 'fulfilled') allPartOrders = results[1].value;
-        if (results[2].status === 'fulfilled') allMasterParts = results[2].value;
-        if (results[4].status === 'fulfilled') allCustomerTypes = results[4].value;
-        if (results[5].status === 'fulfilled') allInsurances = results[5].value;
-        if (results[6].status === 'fulfilled') allEmployees = results[6].value;
-        if (results[7].status === 'fulfilled') allCarModels = results[7].value;
+        if (results[1].status === 'fulfilled') {
+            allPartOrders = Array.isArray(results[1].value) ? results[1].value : (results[1].value.data || []);
+        }
+        if (results[2].status === 'fulfilled') {
+            allMasterParts = Array.isArray(results[2].value) ? results[2].value : (results[2].value.data || []);
+        }
+        if (results[4].status === 'fulfilled') {
+            allCustomerTypes = Array.isArray(results[4].value) ? results[4].value : (results[4].value.data || []);
+        }
+        if (results[5].status === 'fulfilled') {
+            allInsurances = Array.isArray(results[5].value) ? results[5].value : (results[5].value.data || []);
+        }
+        if (results[6].status === 'fulfilled') {
+            allEmployees = Array.isArray(results[6].value) ? results[6].value : (results[6].value.data || []);
+        }
+        if (results[7].status === 'fulfilled') {
+            allCarModels = Array.isArray(results[7].value) ? results[7].value : (results[7].value.data || []);
+        }
 
         if (results[3].status === 'fulfilled') {
-            const data = results[3].value;
+            const data = Array.isArray(results[3].value) ? results[3].value : (results[3].value.data || []);
             let tempJobs = (['BA','Manager','Admin','แอดมิน'].includes(userRole)) ? data : data.filter(d => d.branch_name === userBranch);
             allJobsData = tempJobs.map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
         }
@@ -266,6 +290,7 @@ async function loadJobsData() {
         if(typeof buildSADropdown === 'function') buildSADropdown(); 
         if(typeof applyFilters === 'function') applyFilters(); 
     } catch (error) {
+        console.error("Load Data Error:", error);
         document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="40" class="text-center py-20 text-red-600 font-bold bg-white"><i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i><br>เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>`;
     }
 }
