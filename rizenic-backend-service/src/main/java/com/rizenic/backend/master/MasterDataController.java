@@ -24,6 +24,11 @@ public class MasterDataController {
     return service.carModels();
   }
 
+  @GetMapping("/eclaim/vehicle-refs")
+  public List<EclaimVehicleRef> eclaimVehicleRefs(@RequestParam(required = false) String brand) {
+    return service.eclaimVehicleRefs(brand);
+  }
+
   @GetMapping("/customer-types")
   public List<Simple> customerTypes() {
     return service.customerTypes();

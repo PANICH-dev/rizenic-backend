@@ -107,6 +107,13 @@ def fill_draft(driver, json_file, output_directory, delay=0.2, insurer_override=
         data = data['payload']
     if urlsplit(driver.current_url).path.lower() != '/eclaim/frmkeyin_inoutcar.aspx':
         raise AssertionError('Refusing to fill a page other than the vehicle intake form')
+    # The page may raise its vehicle-selection validation alert asynchronously.
+    try:
+        alert = driver.switch_to.alert
+        logger.console(f'Dismissed E-Claim alert before fill: {alert.text}')
+        alert.accept()
+    except Exception:
+        pass
     source = Path(__file__).with_name('eclaim_no_save.js').read_text()
     driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {'source': source})
     driver.execute_script(source)
@@ -123,6 +130,178 @@ def fill_draft(driver, json_file, output_directory, delay=0.2, insurer_override=
       }));
     """)
     (Path(output_directory) / 'eclaim-controls.json').write_text(json.dumps(controls, ensure_ascii=False, indent=2))
+    special = driver.execute_script("""
+      return Array.from(document.querySelectorAll('*')).filter(e => {
+        const t=(e.innerText||'').trim();
+        return t==='เลือกรุ่นรถ' || t==='รูปชุดรถ' || /เลือกรุ่นรถ|รูปชุดรถ/.test(t);
+      }).slice(0,30).map(e=>({tag:e.tagName.toLowerCase(),id:e.id,class:e.className,text:(e.innerText||'').trim(),html:e.outerHTML.slice(0,2000)}));
+    """)
+    (Path(output_directory) / 'eclaim-special.json').write_text(json.dumps(special, ensure_ascii=False, indent=2))
+    # Inspect the legacy vehicle selector without committing any form data.
+    selector = driver.find_elements(By.ID, 'divSelvech')
+    if selector:
+        base_handle = driver.current_window_handle
+        handles_before = set(driver.window_handles)
+        selector[0].click()
+        time.sleep(0.5)
+        try:
+            WebDriverWait(driver, 5).until(lambda d: len(set(d.window_handles) - handles_before) > 0)
+            new_handles = list(set(driver.window_handles) - handles_before)
+            if new_handles:
+                driver.switch_to.window(new_handles[-1])
+        except Exception:
+            pass
+        selector_controls = driver.execute_script("""
+          return Array.from(document.querySelectorAll('input,select,button,a,div')).filter(e => {
+            const id=(e.id||'').toLowerCase(), t=(e.innerText||'').trim();
+            return id.includes('frame_select') || id.includes('vech') || /รถในระบบ|รถอื่นๆ|ยี่ห้อ|รุ่น|ปี|ค้นหา|ยืนยัน/.test(t);
+          }).slice(0,200).map(e=>({tag:e.tagName.toLowerCase(),id:e.id,name:e.name||'',type:e.type||'',value:e.value||'',text:(e.innerText||'').trim().slice(0,300),html:e.outerHTML.slice(0,1200)}));
+        """)
+        (Path(output_directory) / 'vehicle-selector-controls.json').write_text(json.dumps(selector_controls, ensure_ascii=False, indent=2))
+        frames = driver.find_elements(By.ID, 'frame1')
+        if frames:
+            driver.switch_to.frame(frames[0])
+            frame_controls = driver.execute_script("""
+              return Array.from(document.querySelectorAll('input,select,button,a,div,table')).map(e=>({tag:e.tagName.toLowerCase(),id:e.id,name:e.name||'',type:e.type||'',value:e.value||'',text:(e.innerText||'').trim().slice(0,300),html:e.outerHTML.slice(0,1500)}));
+            """)
+            (Path(output_directory) / 'vehicle-selector-frame.json').write_text(json.dumps(frame_controls, ensure_ascii=False, indent=2))
+            other = driver.find_elements(By.ID, 'radHavePart_2')
+            if other:
+                other[0].click()
+                time.sleep(0.5)
+                wanted_brand = str(get_value(data, 'vehicle.brand') or '').strip()
+                eclaim_refs = get_value(data, 'vehicle.eclaim_refs') or {}
+                wanted_type_code = str(eclaim_refs.get('type_code') or 'E').strip()
+                wanted_brand_code = str(eclaim_refs.get('brand_code') or '').strip()
+                wanted_model_code = str(eclaim_refs.get('model_code') or '').strip()
+                wanted_engine_size = str(eclaim_refs.get('engine_size') if eclaim_refs.get('engine_size') is not None else get_value(data, 'vehicle.engine_size') or '0').strip()
+                type_select = driver.find_elements(By.ID, 'drpCVechTypeUnlisted')
+                if type_select:
+                    old_type = type_select[0]
+                    Select(old_type).select_by_value(wanted_type_code)
+                    try:
+                        WebDriverWait(driver, 10).until(EC.staleness_of(old_type))
+                    except Exception:
+                        time.sleep(1)
+                    driver.switch_to.default_content()
+                    WebDriverWait(driver, 10).until(EC.frame_to_be_available_and_switch_to_it((By.ID, 'frame1')))
+                    brand_select = driver.find_elements(By.ID, 'drpCmfgUnlisted')
+                    brand_matches = [o for o in Select(brand_select[0]).options if (wanted_brand_code and o.get_attribute('value') == wanted_brand_code) or o.text.strip().casefold() == wanted_brand.casefold()] if brand_select else []
+                    if not brand_matches:
+                        report['skipped'].append({'field': 'vehicle_selector', 'source': 'vehicle.type/brand/model/year/trim', 'reason': f'No exact E-Claim selector option for brand: {wanted_brand}'})
+                    else:
+                        selection_ready = False
+                        brand_control = brand_select[0]
+                        Select(brand_control).select_by_value(brand_matches[0].get_attribute('value'))
+                        try:
+                            WebDriverWait(driver, 10).until(EC.staleness_of(brand_control))
+                        except Exception:
+                            time.sleep(0.8)
+                        driver.switch_to.default_content()
+                        WebDriverWait(driver, 10).until(EC.frame_to_be_available_and_switch_to_it((By.ID, 'frame1')))
+                        model_controls = driver.find_elements(By.ID, 'drpCModelUnlisted')
+                        model_wanted = str(get_value(data, 'vehicle.model') or '').strip()
+                        if model_controls:
+                            (Path(output_directory) / 'eclaim-model-options.json').write_text(json.dumps([{'text': o.text, 'value': o.get_attribute('value')} for o in Select(model_controls[0]).options], ensure_ascii=False, indent=2))
+                        model_matches = [o for o in Select(model_controls[0]).options if (wanted_model_code and o.get_attribute('value') == wanted_model_code) or o.text.strip().casefold() == model_wanted.casefold()] if model_controls else []
+                        if not model_matches and model_controls:
+                            year_wanted = str(get_value(data, 'vehicle.year') or '').strip()
+                            model_matches = [o for o in Select(model_controls[0]).options
+                                             if model_wanted.casefold() in o.text.casefold()
+                                             and (not year_wanted or year_wanted in o.text)]
+                        if model_matches:
+                            selection_ready = True
+                            model_control = model_controls[0]
+                            Select(model_control).select_by_value(model_matches[0].get_attribute('value'))
+                            try:
+                                WebDriverWait(driver, 10).until(EC.staleness_of(model_control))
+                            except Exception:
+                                time.sleep(0.8)
+                            driver.switch_to.default_content()
+                            WebDriverWait(driver, 10).until(EC.frame_to_be_available_and_switch_to_it((By.ID, 'frame1')))
+                        else:
+                            report['skipped'].append({'field': 'drpCModelUnlisted', 'source': 'vehicle.model', 'reason': f'No exact E-Claim model option: {model_wanted}'})
+                        engine_controls = driver.find_elements(By.ID, 'drpEngsizeUnlisted')
+                        if engine_controls:
+                            engine_matches = [o for o in Select(engine_controls[0]).options if o.get_attribute('value') == wanted_engine_size or o.text.strip() == wanted_engine_size]
+                            if engine_matches:
+                                Select(engine_controls[0]).select_by_value(engine_matches[0].get_attribute('value'))
+                        confirm = driver.find_elements(By.XPATH, "//*[self::input or self::button][@value='ยืนยันการเลือก' or normalize-space(.)='ยืนยันการเลือก']")
+                        if confirm and selection_ready:
+                            confirm[0].click()
+                            time.sleep(1)
+                        driver.switch_to.default_content()
+                else:
+                    # VIN lookup mode: choose make, enter chassis/model, then search.
+                    vin_catalog = driver.find_elements(By.ID, 'drpCMFG2')
+                    if vin_catalog:
+                        wanted_brand = str(get_value(data, 'vehicle.brand') or '').strip()
+                        brand_matches = [o for o in Select(vin_catalog[0]).options if o.text.strip().casefold() == wanted_brand.casefold()]
+                        if brand_matches:
+                            Select(vin_catalog[0]).select_by_value(brand_matches[0].get_attribute('value'))
+                        chassis = driver.find_elements(By.ID, 'txtChassiNo')
+                        model = driver.find_elements(By.ID, 'txtModel')
+                        if chassis:
+                            chassis[0].clear(); chassis[0].send_keys(str(get_value(data, 'vehicle.vin') or ''))
+                        if model:
+                            model[0].clear(); model[0].send_keys(str(get_value(data, 'vehicle.model') or ''))
+                        search = driver.find_elements(By.ID, 'cmdCheckPic')
+                        if search:
+                            search[0].click()
+                            time.sleep(1)
+                        vin_result = driver.execute_script("return Array.from(document.querySelectorAll('input,select,button,a,div,table')).map(e=>({tag:e.tagName.toLowerCase(),id:e.id,type:e.type||'',value:e.value||'',text:(e.innerText||'').trim().slice(0,250),html:e.outerHTML.slice(0,1200)}));")
+                        (Path(output_directory) / 'vehicle-vin-search.json').write_text(json.dumps(vin_result, ensure_ascii=False, indent=2))
+                    # System catalogue mode: choose type, make, model, year and trim
+                    # in order; each control performs an ASP.NET postback.
+                    elif driver.find_elements(By.ID, 'drpCVechType'):
+                        def selector_postback(field_id, wanted, source_path):
+                            controls = driver.find_elements(By.ID, field_id)
+                            if not controls:
+                                report['skipped'].append({'field': field_id, 'source': source_path, 'reason': 'Selector control is not present'})
+                                return False
+                            control = controls[0]
+                            matches = [o for o in Select(control).options if o.get_attribute('value') == str(wanted) or o.text.strip() == str(wanted)]
+                            if len(matches) != 1:
+                                report['skipped'].append({'field': field_id, 'source': source_path, 'reason': f'No exact selector option: {wanted}'})
+                                return False
+                            Select(control).select_by_value(matches[0].get_attribute('value'))
+                            try:
+                                WebDriverWait(driver, 12).until(EC.staleness_of(control))
+                            except Exception:
+                                time.sleep(0.8)
+                            driver.switch_to.default_content()
+                            WebDriverWait(driver, 12).until(EC.frame_to_be_available_and_switch_to_it((By.ID, 'frame1')))
+                            return True
+
+                        selector_postback('drpCVechType', 'E', 'vehicle.type (รถเก๋งยุโรป)')
+                        selector_postback('drpCmfg', wanted_brand, 'vehicle.brand')
+                        selector_postback('drpCModel', get_value(data, 'vehicle.model'), 'vehicle.model')
+                        selector_postback('drpDstYear', get_value(data, 'vehicle.year'), 'vehicle.year')
+                        trim = get_value(data, 'vehicle.trim')
+                        trim_controls = driver.find_elements(By.ID, 'drpCTrimLevel')
+                        if trim_controls:
+                            trim_matches = [o for o in Select(trim_controls[0]).options if o.text.strip() == str(trim) or o.get_attribute('value') == str(trim)]
+                            if len(trim_matches) == 1:
+                                Select(trim_controls[0]).select_by_value(trim_matches[0].get_attribute('value'))
+                        confirm = driver.find_elements(By.XPATH, "//*[self::input or self::button][@value='ยืนยันการเลือก' or normalize-space(.)='ยืนยันการเลือก']")
+                        if confirm:
+                            confirm[0].click()
+                            time.sleep(1)
+                        driver.switch_to.default_content()
+                        for field_id, path in [('txtCType','vehicle.type'),('txtCMFG','vehicle.brand'),('txtCModel','vehicle.model'),('txtDSTYear','vehicle.year'),('txtCVechTyp','vehicle.trim')]:
+                            target = str(get_value(data, path) or '').strip()
+                            current = driver.find_elements(By.ID, field_id)
+                            if current and target and current[0].get_attribute('value').strip() == target:
+                                record(field_id, target, path)
+                manual_controls = driver.execute_script("""
+                  return Array.from(document.querySelectorAll('input,select,button,a,div,table')).map(e=>({tag:e.tagName.toLowerCase(),id:e.id,name:e.name||'',type:e.type||'',value:e.value||'',text:(e.innerText||'').trim().slice(0,300),html:e.outerHTML.slice(0,1500)}));
+                """)
+                (Path(output_directory) / 'vehicle-selector-manual.json').write_text(json.dumps(manual_controls, ensure_ascii=False, indent=2))
+            driver.switch_to.default_content()
+        driver.execute_script("var e=document.getElementById('frame_select'); if(e) e.style.display='none';")
+        if driver.current_window_handle != base_handle and base_handle in driver.window_handles:
+            driver.close()
+            driver.switch_to.window(base_handle)
 
     def skip(field, source_path, reason):
         report['skipped'].append({'field': field, 'source': source_path, 'reason': reason})
@@ -142,6 +321,29 @@ def fill_draft(driver, json_file, output_directory, delay=0.2, insurer_override=
             skip(field, source_path, 'Field is not present in this E-Claim page version')
             return
         if not e.is_displayed() or not e.is_enabled() or e.get_attribute('readonly'):
+            if field == 'wuCalendarContact_txtCalendar' and e.is_displayed() and e.get_attribute('readonly'):
+                # The legacy calendar widget intentionally exposes a readonly input.
+                # Set the visible value without enabling ordinary free-text writes.
+                value = str(value).strip()
+                try:
+                    from datetime import datetime
+                    parsed = datetime.strptime(value, '%Y-%m-%d')
+                    value = parsed.strftime('%d/%m/') + str(parsed.year + 543)
+                except ValueError:
+                    pass
+                maximum = int(e.get_attribute('maxlength') or -1)
+                if maximum >= 0 and len(value) > maximum:
+                    skip(field, source_path, 'Value exceeds field length; not truncated')
+                    return
+                driver.execute_script("""
+                    const el = arguments[0], value = arguments[1];
+                    el.value = value;
+                    el.dispatchEvent(new Event('input', {bubbles:true}));
+                    el.dispatchEvent(new Event('change', {bubbles:true}));
+                """, e, value)
+                assert e.get_attribute('value') == value, f'Value mismatch: {field}'
+                record(field, value, source_path)
+                return
             skip(field, source_path, 'Field is unavailable/read-only for this intake status')
             return
         value = str(value).strip()

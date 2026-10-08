@@ -1,6 +1,10 @@
 # Rizenic ERP — ER Diagram และ Data Dictionary
 
-เอกสารนี้อธิบายทุกตารางใน schema `rizenic_new` หลัง migration V001–V018 โดยระบุ field, PostgreSQL type, key และหน้าที่ของข้อมูล
+เอกสารนี้อธิบายทุกตารางใน schema `rizenic_new` หลัง migration ถึง V021 โดยระบุ field, PostgreSQL type, key และหน้าที่ของข้อมูล
+
+**สถานะเอกสาร:** อัปเดตให้ตรงกับฐานข้อมูล snapshot `rizenic_db` ที่ export เมื่อ `2026-10-08` UTC (`rizenic_new` 57 ตาราง + 3 views และ `rizenic_old` 18 ตาราง) โดยไฟล์ที่ใช้สร้างฐานข้อมูลอยู่ที่ [`../dev-db-export/`](../dev-db-export/)
+
+เอกสารนี้เป็น ER/Data Dictionary ของ schema ใหม่ซึ่งเป็น schema ที่ application ใช้งานจริง ส่วนตาราง legacy ใน `rizenic_old` ถูกเก็บไว้ใน export เพื่อการตรวจสอบย้อนหลังและ migration; รายชื่อและโครงสร้างที่ deploy จริงให้ยึด `rizenic_db_ddl.sql` เป็นหลัก
 
 ## สัญลักษณ์
 
@@ -1402,6 +1406,8 @@ erDiagram
 ## หมายเหตุด้านความถูกต้อง
 
 - คอลัมน์ที่เพิ่มภายหลัง V001 ได้แก่ `car_models.brand_id`, `parts.compatible_with_all_models`, `insurers.comment` และ `insurer_aliases.comment` รวมไว้ใน dictionary นี้แล้ว
+- E-Claim vehicle mapping จาก V019 อยู่ใน `eclaim_vehicle_refs`; ข้อมูล Tesla ที่ใช้จริงต้องอ่านจากตารางนี้ผ่าน API ไม่ hardcode ใน frontend หรือ Robot
+- E-Claim insurer mapping จาก V020–V021 อยู่ใน `eclaim_insurer_refs` และ `insurer_aliases`; `INS-01` เป็นรหัสภายในของบริษัท canonical เดียวกัน และ external code ที่ใช้งานคือ `2418` (รองรับ alias `15` ตามข้อมูล E-Claim)
 - Composite foreign key แสดงไว้ที่ field ต้นทางทุกคอลัมน์เพื่อให้ตรวจสอบ branch isolation ได้ง่าย
 - `repair_jobs.job_number` ใช้เก็บค่า `LEGACY-<id>` สำหรับ compatibility; foreign key ภายในยังใช้ `repair_jobs.id`
 - ทะเบียนปัจจุบันอยู่ใน `vehicles`; ประวัติการเปลี่ยนทะเบียนอยู่ใน `vehicle_registration_history` และมี unique current row ต่อรถ

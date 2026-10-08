@@ -8,6 +8,7 @@ from robot.api import logger
 from robot.libraries.BuiltIn import BuiltIn
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchWindowException, StaleElementReferenceException
 
 
@@ -79,11 +80,67 @@ class EClaimMonitor:
         # Preserve the current session query byte-for-byte; do not hardcode an old login URL.
         target = current._replace(path='/eclaim/frmKeyIn_InOutCar.aspx', fragment='').geturl()
         driver.get(target)
+        # The legacy page can raise a harmless validation alert when the
+        # session has no vehicle selection yet. Dismiss it before inspection.
+        try:
+            alert = WebDriverWait(driver, 2).until(EC.alert_is_present())
+            if 'เลือกรุ่นรถ' in (alert.text or ''):
+                alert.accept()
+        except Exception:
+            pass
         WebDriverWait(driver, 30).until(
             lambda d: urlsplit(d.current_url).path.lower() == '/eclaim/frmkeyin_inoutcar.aspx'
             and d.find_element(By.ID, 'ddlInsurer').is_displayed()
             and d.find_element(By.ID, 'txtCarRegNo').is_displayed())
         logger.console('Verified vehicle intake form: frmKeyIn_InOutCar.aspx')
+        # Validation alert may be raised asynchronously after the form renders.
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline:
+            try:
+                alert = driver.switch_to.alert
+                if 'เลือกรุ่นรถ' in (alert.text or ''):
+                    alert.accept()
+                    logger.console('Dismissed asynchronous vehicle-selection alert')
+                    break
+            except Exception:
+                pass
+            time.sleep(0.2)
+
+    def dismiss_vehicle_alert(self):
+        driver = BuiltIn().get_library_instance('SeleniumLibrary').driver
+        dismissed = False
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            try:
+                alert = driver.switch_to.alert
+                text = alert.text or ''
+                alert.accept()
+                logger.console(f'Dismissed E-Claim vehicle alert: {text}')
+                dismissed = True
+            except Exception:
+                time.sleep(0.2)
+        return dismissed
+
+    def wait_intake_ready(self, timeout_seconds=30):
+        driver = BuiltIn().get_library_instance('SeleniumLibrary').driver
+        deadline = time.monotonic() + float(timeout_seconds)
+        while time.monotonic() < deadline:
+            try:
+                alert = driver.switch_to.alert
+                logger.console(f'Dismissed E-Claim vehicle alert: {alert.text}')
+                alert.accept()
+                continue
+            except Exception:
+                pass
+            try:
+                insurer = driver.find_element(By.ID, 'ddlInsurer')
+                plate = driver.find_element(By.ID, 'txtCarRegNo')
+                if insurer.is_displayed() and plate.is_displayed():
+                    return True
+            except Exception:
+                pass
+            time.sleep(0.25)
+        raise AssertionError('E-Claim intake form did not become ready')
 
     def dismiss_optional_eclaim_notices(self, timeout_seconds=30):
         library = BuiltIn().get_library_instance('SeleniumLibrary')

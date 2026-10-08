@@ -35,6 +35,7 @@ Login Fill And Submit Repair Job
     Fill Appointment Dates
     Fill Workflow
     Fill Legacy Intake Details
+    Fill Delivery Details
     Fill E Claim Details
     Fill Estimate Items
     Set Selenium Speed    0 seconds
@@ -122,7 +123,7 @@ Fill E Claim Details
     Fill Text    xpath://label[normalize-space(text())="ขนาดเครื่องยนต์ (CC)"]/input    0
     Fill Text    xpath://label[normalize-space(text())="คันที่เกิดอุบัติเหตุ"]/input    1
     Select From List By Value    xpath://label[normalize-space(text())="ประเภทรถ"]/select    O
-    Select From List By Value    xpath://label[normalize-space(text())="สภาพรถ"]/select    0
+    Select From List By Value    xpath://section[contains(@class,'eclaim-card')]//label[normalize-space(text())="สภาพรถ"]/select    0
     Select From List By Value    xpath://label[normalize-space(text())="รถประกัน/คู่กรณี"]/select    own
 
 Fill Legacy Intake Details
@@ -145,6 +146,25 @@ Fill Legacy Intake Details
     Fill Text    xpath://label[normalize-space(text())="ประมาณค่าแรง"]/input    2500
     Select From List By Label    xpath://label[normalize-space(text())="ประเภทงานซ่อม"]/select    Q1
     Select From List By Label    xpath://label[normalize-space(text())="มีรายการอะไหล่"]/select    มี
+
+Fill Delivery Details
+    ${today}=    Get Current Date    result_format=%Y-%m-%d
+    ${delivery}=    Add Time To Date    ${today}    6 days    result_format=%Y-%m-%d
+    Set Date Field    xpath://label[normalize-space(text())="วันที่ลูกค้ามารับรถ"]/input    ${delivery}
+    Fill Text    xpath://label[normalize-space(text())="ชื่อผู้มารับรถ"]/input    ลูกค้าทดสอบ Robot Framework
+    Fill Text    xpath://label[normalize-space(text())="เลขบัตรประชาชนผู้มารับรถ"]/input    0000000000000
+    Fill Text    xpath://section[contains(@class,'delivery-card')]//label[normalize-space(text())="เบอร์โทรศัพท์"]/input    021234567
+    Fill Text    xpath://section[contains(@class,'delivery-card')]//label[normalize-space(text())="เบอร์มือถือ"]/input    0810000000
+    Fill Text    xpath://label[normalize-space(text())="หมายเลข กม."]/input    25000
+    Fill Text    xpath://label[normalize-space(text())="เบอร์สำหรับส่ง SMS"]/input    0810000000
+    Fill Text    xpath://label[normalize-space(text())="เกี่ยวข้องกับผู้เอาประกัน"]/input    ผู้เอาประกัน
+    Fill Text    xpath://label[normalize-space(text())="ชื่อเจ้าหน้าที่ส่งมอบรถ"]/input    ริณภัทร ฐินปุตโต
+    Select From List By Value    xpath://section[contains(@class,'delivery-card')]//label[normalize-space(text())="ผลการซ่อมรถ"]/select    0
+    Select From List By Label    xpath://section[contains(@class,'delivery-card')]//label[normalize-space(text())="สภาพรถ"]/select    เรียบร้อย
+    Execute Javascript    const s=document.querySelector('section.delivery-card select'); const set=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set; set.call(s,'0'); s.dispatchEvent(new Event('input',{bubbles:true})); s.dispatchEvent(new Event('change',{bubbles:true}));
+    Select From List By Value    xpath://section[contains(@class,'delivery-card')]//label[normalize-space(text())="อุปกรณ์/ทรัพย์สิน"]/select    0
+    Fill Text    xpath://section[contains(@class,'delivery-card')]//label[normalize-space(text())="รายละเอียดผลการซ่อม"]/textarea    ซ่อมเรียบร้อย ข้อมูลตัวอย่างสำหรับ Robot Framework
+    Fill Text    xpath://section[contains(@class,'delivery-card')]//label[normalize-space(text())="รายละเอียดอุปกรณ์/ทรัพย์สิน"]/textarea    อุปกรณ์และทรัพย์สินภายในรถครบถ้วน ข้อมูลทดสอบ
 
 Fill Estimate Items
     Click Button    xpath://button[contains(.,'เพิ่มรายการ (Manual)')]

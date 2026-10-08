@@ -19,8 +19,43 @@ public class MasterDataService {
     public MasterDataService(JobStatusRepository statuses, DepartmentRepository departments, CarBrandRepository brands, CarModelRepository models, CustomerTypeRepository types, InsurerRepository insurers, BodyPartRepository parts, EmployeeRepository employees, UserAccountRepository accounts, BranchRepository branches, JdbcClient jdbc) { this.statuses=statuses; this.departments=departments; this.brands=brands; this.models=models; this.types=types; this.insurers=insurers; this.parts=parts; this.employees=employees; this.accounts=accounts; this.branches=branches; this.jdbc=jdbc; }
     @Transactional(readOnly=true) public List<Status> statuses() { var deps=departments.findAll().stream().collect(Collectors.toMap(x->x.id,x->x.name)); return statuses.findByActiveTrueOrderBySortOrderAscCodeAsc().stream().map(s -> new Status(s.code,s.name,deps.get(s.departmentId),s.legacyRoutePage)).toList(); }
     @Transactional(readOnly=true) public List<BrandModel> carModels() { Map<Long,CarBrandEntity> b=brands.findAll().stream().collect(Collectors.toMap(x->x.id,Function.identity())); return models.findByActiveTrueOrderByBrandIdAscModelNameAsc().stream().map(m->{var x=b.get(m.brandId); return new BrandModel(m.id,x==null?null:x.code,x==null?null:x.name,m.modelName,x==null?null:x.name,m.modelName);}).toList(); }
+    @Transactional(readOnly=true) public List<EclaimVehicleRef> eclaimVehicleRefs(String brand) {
+        var sql = """
+            SELECT ev.id, ev.eclaim_type_code, ev.eclaim_brand_code, ev.eclaim_model_code,
+                   ev.eclaim_year, ev.eclaim_trim_code, ev.eclaim_engine_size,
+                   ev.eclaim_project_ref, ev.eclaim_model_name,
+                   coalesce(cb.name, CASE WHEN ev.eclaim_brand_code = 'ETESLA' THEN 'TESLA' END) AS brand_name
+            FROM rizenic_new.eclaim_vehicle_refs ev
+            LEFT JOIN rizenic_new.car_models cm ON cm.id = ev.car_model_id
+            LEFT JOIN rizenic_new.car_brands cb ON cb.id = cm.brand_id
+            WHERE ev.is_active = true
+            ORDER BY ev.eclaim_brand_code, ev.eclaim_model_code, ev.eclaim_year NULLS LAST
+            """;
+        var query = jdbc.sql(sql);
+        if (brand != null && !brand.isBlank()) {
+            query = jdbc.sql(sql.replace("WHERE ev.is_active = true", "WHERE ev.is_active = true AND (lower(ev.eclaim_brand_code) = lower(:brand) OR lower(coalesce(cb.name, '')) = lower(:brand))")).param("brand", brand.trim());
+        }
+        return query.query((row,n) -> new EclaimVehicleRef(row.getLong("id"), row.getString("eclaim_type_code"), row.getString("eclaim_brand_code"), row.getString("eclaim_model_code"), row.getString("eclaim_year"), row.getString("eclaim_trim_code"), row.getString("eclaim_engine_size"), row.getString("eclaim_project_ref"), row.getString("eclaim_model_name"), row.getString("brand_name"))).list();
+    }
     @Transactional(readOnly=true) public List<Simple> customerTypes() { return types.findByActiveTrueOrderByNameAsc().stream().map(x->new Simple(x.id,x.code,x.name,x.code,x.name,x.id)).toList(); }
-    @Transactional(readOnly=true) public List<Insurer> insurers() { return insurers.findByActiveTrueOrderByCodeAsc().stream().map(x->new Insurer(x.id,x.code,x.name,x.insuranceType)).toList(); }
+    @Transactional(readOnly=true) public List<Insurer> insurers() {
+        return jdbc.sql("""
+            SELECT i.id, i.code, i.name, i.insurance_type,
+                   COALESCE(
+                     (SELECT er.external_code FROM rizenic_new.eclaim_insurer_refs er
+                      WHERE er.insurer_id = i.id AND er.is_active = true
+                      ORDER BY CASE WHEN er.external_code = '2418' THEN 0 ELSE 1 END, er.id LIMIT 1),
+                     (SELECT er.external_code FROM rizenic_new.insurer_aliases ia
+                      JOIN rizenic_new.eclaim_insurer_refs er ON er.insurer_id = ia.insurer_id
+                      WHERE er.is_active = true
+                        AND (ia.source_code = i.code OR ia.source_name = lower(trim(i.name)))
+                      ORDER BY CASE WHEN er.external_code = '2418' THEN 0 ELSE 1 END, er.id LIMIT 1)
+                   ) AS eclaim_code
+            FROM rizenic_new.insurers i
+            WHERE i.is_active = true
+            ORDER BY i.code
+            """).query((row,n) -> new Insurer(row.getLong("id"), row.getString("code"), row.getString("name"), row.getString("insurance_type"), row.getString("eclaim_code"))).list();
+    }
     @Transactional(readOnly=true) public List<BodyPart> bodyParts() { return parts.findByActiveTrueOrderByCategoryAscNameAsc().stream().map(x->new BodyPart(x.id,x.name,legacyCategory(x.category),x.name,x.category)).toList(); }
     @Transactional(readOnly=true) public List<Employee> employees() { return jdbc.sql("""
             SELECT e.id,e.employee_code,e.display_name,e.phone,e.home_branch_id,b.name branch_name,
@@ -42,7 +77,7 @@ public class MasterDataService {
     @Transactional public void deleteCarModel(Long id) { models.findById(id).ifPresent(x->{x.active=false; models.save(x);}); }
     @Transactional public Simple saveCustomerType(SimpleRequest r) { var code=r.resolvedCode(); var name=r.resolvedName(); if(code==null||name==null) throw new IllegalArgumentException("type_code and type_name are required"); var x=types.findByCode(code).orElseGet(CustomerTypeEntity::new); x.code=code.trim(); x.name=name.trim(); x.active=true; types.save(x); return new Simple(x.id,x.code,x.name,x.code,x.name,x.id); }
     @Transactional public void deleteCustomerType(Long id) { types.findById(id).ifPresent(x->{x.active=false;types.save(x);}); }
-    @Transactional public Insurer saveInsurer(InsurerRequest r) { var x=insurers.findByCode(r.code()).orElseGet(InsurerEntity::new); x.code=r.code().trim(); x.name=r.name().trim(); x.insuranceType=r.insuranceType(); x.active=true; insurers.save(x); return new Insurer(x.id,x.code,x.name,x.insuranceType); }
+    @Transactional public Insurer saveInsurer(InsurerRequest r) { var x=insurers.findByCode(r.code()).orElseGet(InsurerEntity::new); x.code=r.code().trim(); x.name=r.name().trim(); x.insuranceType=r.insuranceType(); x.active=true; insurers.save(x); return new Insurer(x.id,x.code,x.name,x.insuranceType,null); }
     @Transactional public void deleteInsurer(Long id) { insurers.findById(id).ifPresent(x->{x.active=false;insurers.save(x);}); }
     @Transactional public void deleteInsurerByCode(String code) { insurers.findByCode(code).ifPresent(x->{x.active=false;insurers.save(x);}); }
     @Transactional public BodyPart saveBodyPart(Long id, BodyPartRequest r) { var name=r.resolvedName(); if(name==null||r.category()==null) throw new IllegalArgumentException("part_name and category are required"); var x=id==null?new BodyPartEntity():parts.findById(id).orElseThrow(); x.name=name.trim(); x.category=canonicalCategory(r.category()); x.active=true; parts.save(x); return new BodyPart(x.id,x.name,legacyCategory(x.category),x.name,x.category); }

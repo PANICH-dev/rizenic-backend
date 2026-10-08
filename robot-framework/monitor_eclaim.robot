@@ -29,8 +29,8 @@ Monitor JSON And Login To E Claim
     Click Button    id:imbLogin
     Wait Until Keyword Succeeds    30 seconds    1 second    Login Page Should Be Left    ${login_url}
     Open Vehicle Intake Page
-    Wait Until Element Is Visible    id:ddlInsurer
-    Wait Until Element Is Visible    id:txtCarRegNo
+    Dismiss Vehicle Alert
+    Wait Intake Ready    30
     Fill Intake Draft From Json    ${json_file}    ${OUTPUT DIR}    0.2    ${ECLAIM_INSURER_ID}
     Capture Page Screenshot    eclaim-after-login.png
     Log    Filled available JSON values. Browser left open with Save disabled. No save attempted.    console=${TRUE}
