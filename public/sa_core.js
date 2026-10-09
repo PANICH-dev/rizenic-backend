@@ -326,8 +326,8 @@ window.addPipelineRow = function(claim = '', qt = '', so = '', bl = '') {
 
             <div class="flex-1 bg-white p-4 rounded-xl border-2 border-indigo-200 shadow-sm relative z-0 flex flex-col items-center text-center group hover:border-indigo-400 transition-colors">
                 <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-black mb-3 border-2 border-indigo-300 group-hover:scale-110 transition-transform">1</div>
-                <label class="label-text text-indigo-800 text-[10px]">เลขที่ เคลม/รับแจ้ง <span class="text-red-500">*</span></label>
-                <input type="text" class="pipe-claim w-full mt-1 text-center font-mono font-black text-indigo-700 border-b-2 border-indigo-200 focus:border-indigo-500 outline-none bg-transparent py-1 uppercase" placeholder="ระบุเลขที่..." value="${claim}" required>
+                <label class="label-text text-indigo-800 text-[10px]">เลขที่ เคลม/รับแจ้ง</label>
+                <input type="text" class="pipe-claim w-full mt-1 text-center font-mono font-black text-indigo-700 border-b-2 border-indigo-200 focus:border-indigo-500 outline-none bg-transparent py-1 uppercase" placeholder="ระบุเลขที่..." value="${claim}">
             </div>
 
             <i class="fa-solid fa-chevron-right text-slate-300 md:self-center hidden md:block text-xl"></i>
@@ -628,9 +628,6 @@ async function submitSaForm(event) {
         if (!el || !el.value.trim()) missingFields.push(field.name);
     });
 
-    if (claimArr.length === 0 || !claimArr[0]) {
-        missingFields.push('เลขที่ เคลม/รับแจ้ง (อย่างน้อย 1 รายการ)');
-    }
 
     if (missingFields.length > 0) { 
         alert(`⚠️ กรุณากรอกข้อมูลบังคับให้ครบถ้วนก่อนบันทึกครับ:\n\n- ` + missingFields.join('\n- ')); 
