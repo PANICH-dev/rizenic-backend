@@ -141,14 +141,11 @@ router.post('/report/:id/eclaim-items', async (req, res) => {
   const client = await pool.connect();
   try {
     const report_id = req.params.id;
-    const { items } = req.body; // รับ Array ของรายการย่อย
+    const { items } = req.body;
 
-    await client.query('BEGIN'); // เริ่ม Transaction
-
-    // ลบรายการเดิมทั้งหมดของ report_id นี้ทิ้งก่อน เพื่อป้องกันข้อมูลซ้ำเวลาอัปเดต
+    await client.query('BEGIN');
     await client.query('DELETE FROM rizenic_eclaim_items WHERE report_id = $1', [report_id]);
 
-    // Insert รายการชุดใหม่เข้าไป
     if (items && Array.isArray(items) && items.length > 0) {
       const insertQuery = `
         INSERT INTO rizenic_eclaim_items (
@@ -161,7 +158,7 @@ router.post('/report/:id/eclaim-items', async (req, res) => {
       for (const item of items) {
         await client.query(insertQuery, [
           report_id,
-          item.item_type || 'P', // 'L'=ค่าแรง, 'P'=อะไหล่
+          item.item_type || 'P',
           item.part_no || null,
           item.item_name_th || 'ไม่ระบุชื่อ',
           parseInt(item.qty) || 1,
@@ -178,82 +175,232 @@ router.post('/report/:id/eclaim-items', async (req, res) => {
       }
     }
 
-    await client.query('COMMIT'); // ยืนยันการบันทึก
+    await client.query('COMMIT');
     res.json({ success: true, message: 'บันทึกรายการ Line Items สำเร็จ' });
   } catch (e) {
-    await client.query('ROLLBACK'); // ถอยกลับหากมี Error
+    await client.query('ROLLBACK');
     res.status(500).json({ error: e.message });
   } finally {
     client.release();
   }
 });
 
-// 📄 API บันทึกข้อมูล E-Claim (รายละเอียดรถและประกัน)
+// ==========================================
+// 📥 API Export ไฟล์ XML รูปแบบ EMCS (E-Claim)
+// ==========================================
+router.get('/report/:id/export-xml', async (req, res) => {
+  try {
+    const report_id = req.params.id;
+
+    const reportRes = await pool.query('SELECT * FROM rizenicreport WHERE id = $1', [report_id]);
+    const eclaimRes = await pool.query('SELECT * FROM rizenic_eclaim_details WHERE report_id = $1', [report_id]);
+    const itemsRes = await pool.query('SELECT * FROM rizenic_eclaim_items WHERE report_id = $1 ORDER BY item_type ASC, item_id ASC', [report_id]);
+
+    if (reportRes.rows.length === 0) return res.status(404).json({ error: 'ไม่พบข้อมูลใบงานนี้' });
+
+    const report = reportRes.rows[0];
+    const eclaim = eclaimRes.rows.length > 0 ? eclaimRes.rows[0] : {};
+    const items = itemsRes.rows;
+
+    const escapeXML = (str) => {
+      if (!str) return '';
+      return String(str).replace(/[<>&'"]/g, (c) => {
+        switch (c) { case '<': return '&lt;'; case '>': return '&gt;'; case '&': return '&amp;'; case '\'': return '&apos;'; case '"': return '&quot;'; default: return c; }
+      });
+    };
+
+    let estimateDays = 0;
+    if (report.arrived_date && report.target_finish_date) {
+      const start = new Date(report.arrived_date);
+      const end = new Date(report.target_finish_date);
+      estimateDays = Math.max(0, Math.floor((end - start) / (1000 * 60 * 60 * 24)));
+    }
+
+    const labors = items.filter(item => item.item_type === 'L');
+    const parts = items.filter(item => item.item_type === 'P');
+
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<TXN_CLAIM>\n`;
+    
+    xml += `  <c_car_regno>${escapeXML(report.car_plate)}</c_car_regno>\n`;
+    xml += `  <car_provincename>${escapeXML(eclaim.car_province)}</car_provincename>\n`;
+    xml += `  <ctype_code>${escapeXML(eclaim.car_type)}</ctype_code>\n`;
+    xml += `  <chassino>${escapeXML(report.vin_no)}</chassino>\n`;
+    xml += `  <c_engineno>${escapeXML(eclaim.engine_no)}</c_engineno>\n`;
+    xml += `  <cmfg>${escapeXML(report.car_brand)}</cmfg>\n`;
+    xml += `  <cmodel>${escapeXML(report.car_model)}</cmodel>\n`;
+    xml += `  <ctrimlevel>${escapeXML(eclaim.trim_level)}</ctrimlevel>\n`;
+    xml += `  <c_dstyear>${escapeXML(eclaim.model_year)}</c_dstyear>\n`;
+    xml += `  <carcolor>${escapeXML(eclaim.car_color)}</carcolor>\n`;
+    xml += `  <cpt_id>${escapeXML(eclaim.paint_type_id)}</cpt_id>\n`;
+    xml += `  <car_km>${escapeXML(eclaim.car_km)}</car_km>\n`;
+    xml += `  <c_engsize>${escapeXML(eclaim.engine_cc)}</c_engsize>\n`;
+    xml += `  <car_desc_id>${escapeXML(eclaim.car_condition_id)}</car_desc_id>\n`;
+    xml += `  <cariden>${escapeXML(eclaim.car_iden)}</cariden>\n`;
+    xml += `  <caridenno>${escapeXML(eclaim.car_iden_no)}</caridenno>\n`;
+    
+    xml += `  <rep_bring_name>${escapeXML(eclaim.bring_name || report.customer_name)}</rep_bring_name>\n`;
+    xml += `  <rep_get_name>${escapeXML(eclaim.get_car_name || report.sa_owner)}</rep_get_name>\n`;
+    xml += `  <jobno>${escapeXML(report.id)}</jobno>\n`;
+    xml += `  <rep_estimate_days>${estimateDays}</rep_estimate_days>\n`;
+    xml += `  <rep_estimate_date>${escapeXML(report.target_finish_date ? String(report.target_finish_date).split('T')[0] : '')}</rep_estimate_date>\n`;
+
+    xml += `  <acc_policy_no>${escapeXML(eclaim.policy_no)}</acc_policy_no>\n`;
+    xml += `  <acc_policy_type_id>${escapeXML(eclaim.policy_type_id)}</acc_policy_type_id>\n`;
+    xml += `  <acc_insuree_name>${escapeXML(eclaim.insuree_name)}</acc_insuree_name>\n`;
+    xml += `  <ref_claim_no>${escapeXML(eclaim.claim_no)}</ref_claim_no>\n`;
+    xml += `  <acc_claimref_no>${escapeXML(eclaim.claim_ref_no)}</acc_claimref_no>\n`;
+    
+    if (labors.length > 0) {
+      xml += `  <LABOR_ITEMS>\n`;
+      labors.forEach(l => {
+        xml += `    <ITEM>\n`;
+        xml += `      <t_gendesc>${escapeXML(l.item_name_th)}</t_gendesc>\n`;
+        xml += `      <rep_level>${escapeXML(l.damage_level)}</rep_level>\n`;
+        xml += `      <rep_price>${escapeXML(l.total_after_discount)}</rep_price>\n`;
+        xml += `    </ITEM>\n`;
+      });
+      xml += `  </LABOR_ITEMS>\n`;
+    }
+
+    if (parts.length > 0) {
+      xml += `  <PART_ITEMS>\n`;
+      parts.forEach(p => {
+        xml += `    <ITEM>\n`;
+        xml += `      <cmfgpartno>${escapeXML(p.part_no)}</cmfgpartno>\n`;
+        xml += `      <t_partdesc>${escapeXML(p.item_name_th)}</t_partdesc>\n`;
+        xml += `      <fprice>${escapeXML(p.unit_price)}</fprice>\n`;
+        xml += `      <partnumber>${escapeXML(p.qty)}</partnumber>\n`;
+        xml += `      <rep_edit_price>${escapeXML(p.total_after_discount)}</rep_edit_price>\n`;
+        xml += `    </ITEM>\n`;
+      });
+      xml += `  </PART_ITEMS>\n`;
+    }
+
+    xml += `</TXN_CLAIM>`;
+
+    res.set('Content-Type', 'application/xml');
+    res.attachment(`EMCS_Claim_Job_${report_id}.xml`);
+    res.send(xml);
+
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// ==========================================
+// 📄 API ดึงข้อมูลรายละเอียดรถและประกัน E-Claim (GET)
+// ==========================================
+router.get('/report/:id/eclaim-details', async (req, res) => {
+  try {
+    const report_id = req.params.id;
+    const result = await pool.query('SELECT * FROM rizenic_eclaim_details WHERE report_id = $1', [report_id]);
+    if (result.rows.length > 0) {
+      res.json({ success: true, data: result.rows[0] });
+    } else {
+      res.json({ success: true, data: null });
+    }
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ==========================================
+// 📄 API บันทึกข้อมูล E-Claim Details (POST - ครบ 32 คอลัมน์)
+// ==========================================
 router.post('/report/:id/eclaim-details', async (req, res) => {
   try {
     const report_id = parseInt(req.params.id, 10);
     const d = req.body;
 
-    // ฟังก์ชันแปลงค่าเป็น Integer หรือ Null หากเป็นข้อความว่าง
     const safeInt = (val) => {
       if (val === null || val === undefined || val === '') return null;
       const parsed = parseInt(val, 10);
       return isNaN(parsed) ? null : parsed;
     };
 
-    // ฟังก์ชันแปลงค่าเป็น Numeric
     const safeNum = (val) => {
       if (val === null || val === undefined || val === '') return 0;
       const parsed = parseFloat(val);
       return isNaN(parsed) ? 0 : parsed;
     };
 
-    const car_province = d.eclaim_province || null;
-    const car_type = d.eclaim_car_type || null;
-    const model_year = d.eclaim_year || null;
-    const trim_level = d.eclaim_trim || null;
-    const engine_no = d.eclaim_engine_no || null;
-    const car_color = d.eclaim_car_color || null;
-    const paint_type_id = safeInt(d.eclaim_paint_type);
-    const car_km = safeInt(d.eclaim_mileage);
-    const engine_cc = safeInt(d.eclaim_cc);
-    const car_condition_id = safeInt(d.eclaim_condition);
-    const car_iden = d.eclaim_party || null;
-    const car_iden_no = d.eclaim_accident_no ? String(d.eclaim_accident_no) : '1';
-    const policy_no = d.eclaim_policy_no || null;
-    const policy_type_id = safeInt(d.eclaim_policy_type);
-    const deductible = safeNum(d.eclaim_deductible);
+    const safeDate = (val) => {
+      if (!val || typeof val !== 'string' || val.trim() === '') return null;
+      return val.trim();
+    };
 
-    // 1. เช็กว่ามีใบงานนี้ในตาราง rizenic_eclaim_details หรือยัง
+    const p = {
+      car_province: d.eclaim_province || null,
+      car_type: d.eclaim_car_type || null,
+      model_year: d.eclaim_year || null,
+      trim_level: d.eclaim_trim || null,
+      engine_no: d.eclaim_engine_no || null,
+      car_color: d.eclaim_car_color || null,
+      paint_type_id: safeInt(d.eclaim_paint_type),
+      car_km: safeInt(d.eclaim_mileage),
+      engine_cc: safeInt(d.eclaim_cc),
+      car_condition_id: safeInt(d.eclaim_condition),
+      car_iden: d.eclaim_party || null,
+      car_iden_no: d.eclaim_accident_no ? String(d.eclaim_accident_no) : '1',
+      deduction_src: d.eclaim_deduction_src || null,
+      deduction_amount: safeNum(d.eclaim_deduction_amount),
+      deductible: safeNum(d.eclaim_deductible),
+      policy_no: d.eclaim_policy_no || null,
+      policy_type_id: safeInt(d.eclaim_policy_type),
+      insuree_name: d.eclaim_insuree_name || null,
+      claim_no: d.eclaim_claim_no || null,
+      insured_value: safeNum(d.eclaim_insured_value),
+      claim_ref_no: d.eclaim_claim_ref_no || null,
+      claim_notify_date: safeDate(d.eclaim_notify_date),
+      accident_occ_date: safeDate(d.eclaim_accident_date),
+      driver_name: d.eclaim_driver_name || null,
+      driver_idcard: d.eclaim_driver_idcard || null,
+      driver_license_no: d.eclaim_driver_license || null,
+      driver_phone: d.eclaim_driver_phone || null,
+      bring_date: safeDate(d.eclaim_bring_date),
+      bring_name: d.eclaim_bring_name || null,
+      bring_phone: d.eclaim_bring_phone || null,
+      get_car_name: d.eclaim_get_car_name || null,
+      get_car_phone: d.eclaim_get_car_phone || null
+    };
+
     const existing = await pool.query('SELECT report_id FROM rizenic_eclaim_details WHERE report_id = $1', [report_id]);
 
     if (existing.rows.length > 0) {
-      // 2. ถ้ามีแล้ว ให้สั่ง UPDATE
       const updateQuery = `
         UPDATE rizenic_eclaim_details SET
-          car_province = $1, car_type = $2, model_year = $3, trim_level = $4,
-          engine_no = $5, car_color = $6, paint_type_id = $7, car_km = $8,
-          engine_cc = $9, car_condition_id = $10, car_iden = $11, car_iden_no = $12,
-          policy_no = $13, policy_type_id = $14, deductible = $15
-        WHERE report_id = $16
+          car_province = $1, car_type = $2, model_year = $3, trim_level = $4, engine_no = $5,
+          car_color = $6, paint_type_id = $7, car_km = $8, engine_cc = $9, car_condition_id = $10,
+          car_iden = $11, car_iden_no = $12, deduction_src = $13, deduction_amount = $14, deductible = $15,
+          policy_no = $16, policy_type_id = $17, insuree_name = $18, claim_no = $19, insured_value = $20,
+          claim_ref_no = $21, claim_notify_date = $22, accident_occ_date = $23, driver_name = $24,
+          driver_idcard = $25, driver_license_no = $26, driver_phone = $27, bring_date = $28,
+          bring_name = $29, bring_phone = $30, get_car_name = $31, get_car_phone = $32, updated_at = CURRENT_TIMESTAMP
+        WHERE report_id = $33
       `;
       await pool.query(updateQuery, [
-        car_province, car_type, model_year, trim_level,
-        engine_no, car_color, paint_type_id, car_km,
-        engine_cc, car_condition_id, car_iden, car_iden_no,
-        policy_no, policy_type_id, deductible, report_id
+        p.car_province, p.car_type, p.model_year, p.trim_level, p.engine_no,
+        p.car_color, p.paint_type_id, p.car_km, p.engine_cc, p.car_condition_id,
+        p.car_iden, p.car_iden_no, p.deduction_src, p.deduction_amount, p.deductible,
+        p.policy_no, p.policy_type_id, p.insuree_name, p.claim_no, p.insured_value,
+        p.claim_ref_no, p.claim_notify_date, p.accident_occ_date, p.driver_name,
+        p.driver_idcard, p.driver_license_no, p.driver_phone, p.bring_date,
+        p.bring_name, p.bring_phone, p.get_car_name, p.get_car_phone, report_id
       ]);
     } else {
-      // 3. ถ้ายังไม่มี ให้สั่ง INSERT
       const insertQuery = `
         INSERT INTO rizenic_eclaim_details (
           report_id, car_province, car_type, model_year, trim_level, engine_no, car_color, paint_type_id,
-          car_km, engine_cc, car_condition_id, car_iden, car_iden_no, policy_no, policy_type_id, deductible
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+          car_km, engine_cc, car_condition_id, car_iden, car_iden_no, deduction_src, deduction_amount,
+          deductible, policy_no, policy_type_id, insuree_name, claim_no, insured_value, claim_ref_no,
+          claim_notify_date, accident_occ_date, driver_name, driver_idcard, driver_license_no, driver_phone,
+          bring_date, bring_name, bring_phone, get_car_name, get_car_phone
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)
       `;
       await pool.query(insertQuery, [
-        report_id, car_province, car_type, model_year, trim_level, engine_no, car_color, paint_type_id,
-        car_km, engine_cc, car_condition_id, car_iden, car_iden_no, policy_no, policy_type_id, deductible
+        report_id, p.car_province, p.car_type, p.model_year, p.trim_level, p.engine_no, p.car_color, p.paint_type_id,
+        p.car_km, p.engine_cc, p.car_condition_id, p.car_iden, p.car_iden_no, p.deduction_src, p.deduction_amount,
+        p.deductible, p.policy_no, p.policy_type_id, p.insuree_name, p.claim_no, p.insured_value, p.claim_ref_no,
+        p.claim_notify_date, p.accident_occ_date, p.driver_name, p.driver_idcard, p.driver_license_no, p.driver_phone,
+        p.bring_date, p.bring_name, p.bring_phone, p.get_car_name, p.get_car_phone
       ]);
     }
 
