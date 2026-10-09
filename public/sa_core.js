@@ -730,8 +730,37 @@ async function submitSaForm(event) {
         const resJson = await response.json();
         const savedJobId = editId || resJson?.insertedId || resJson?.id || null;
 
-        // 🌟 บันทึกรายการย่อย (E-Claim Line Items) 🌟
+        // 🌟 1. บันทึกข้อมูล E-Claim Details (ข้อมูลรายละเอียดรถและประกัน) 🌟
         if (savedJobId) {
+            const eclaimDetails = {
+                eclaim_province: document.getElementById('eclaim_province')?.value || '',
+                eclaim_car_type: document.getElementById('eclaim_car_type')?.value || '',
+                eclaim_year: document.getElementById('eclaim_year')?.value || '',
+                eclaim_trim: document.getElementById('eclaim_trim')?.value || '',
+                eclaim_engine_no: document.getElementById('eclaim_engine_no')?.value || '',
+                eclaim_car_color: document.getElementById('eclaim_car_color')?.value || '',
+                eclaim_paint_type: document.getElementById('eclaim_paint_type')?.value || '',
+                eclaim_mileage: document.getElementById('eclaim_mileage')?.value || '',
+                eclaim_cc: document.getElementById('eclaim_cc')?.value || '',
+                eclaim_condition: document.getElementById('eclaim_condition')?.value || '',
+                eclaim_party: document.getElementById('eclaim_party')?.value || '',
+                eclaim_accident_no: document.getElementById('eclaim_accident_no')?.value || '1',
+                eclaim_policy_no: document.getElementById('eclaim_policy_no')?.value || '',
+                eclaim_policy_type: document.getElementById('eclaim_policy_type')?.value || '',
+                eclaim_deductible: document.getElementById('eclaim_deductible')?.value || 0
+            };
+
+            try {
+                await fetch(`${API_BASE_URL}/api/report/${savedJobId}/eclaim-details`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(eclaimDetails)
+                });
+            } catch (err) {
+                console.error("Save Eclaim Details Error:", err);
+            }
+
+            // 🌟 2. บันทึกรายการย่อย (E-Claim Line Items - จากตาราง Express) 🌟
             await saveEclaimItems(savedJobId);
         }
 

@@ -298,4 +298,39 @@ router.get('/report/:id/export-xml', async (req, res) => {
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
+// ==========================================
+// 📄 API บันทึกข้อมูล E-Claim (รายละเอียดรถและประกัน)
+// ==========================================
+router.post('/report/:id/eclaim-details', async (req, res) => {
+  try {
+    const report_id = req.params.id;
+    const d = req.body;
+
+    const queryText = `
+      INSERT INTO rizenic_eclaim_details (
+        report_id, car_province, car_type, model_year, trim_level, engine_no, car_color, paint_type_id,
+        car_km, engine_cc, car_condition_id, car_iden, car_iden_no, policy_no, policy_type_id, deductible
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      ON CONFLICT (report_id) DO UPDATE SET
+        car_province=EXCLUDED.car_province, car_type=EXCLUDED.car_type, model_year=EXCLUDED.model_year,
+        trim_level=EXCLUDED.trim_level, engine_no=EXCLUDED.engine_no, car_color=EXCLUDED.car_color,
+        paint_type_id=EXCLUDED.paint_type_id, car_km=EXCLUDED.car_km, engine_cc=EXCLUDED.engine_cc,
+        car_condition_id=EXCLUDED.car_condition_id, car_iden=EXCLUDED.car_iden, car_iden_no=EXCLUDED.car_iden_no,
+        policy_no=EXCLUDED.policy_no, policy_type_id=EXCLUDED.policy_type_id, deductible=EXCLUDED.deductible;
+    `;
+
+    const values = [
+      report_id, d.eclaim_province || null, d.eclaim_car_type || null, d.eclaim_year || null,
+      d.eclaim_trim || null, d.eclaim_engine_no || null, d.eclaim_car_color || null, d.eclaim_paint_type || null,
+      d.eclaim_mileage || null, d.eclaim_cc || null, d.eclaim_condition || null, d.eclaim_party || null,
+      d.eclaim_accident_no || 1, d.eclaim_policy_no || null, d.eclaim_policy_type || null, d.eclaim_deductible || 0
+    ];
+
+    await pool.query(queryText, values);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
