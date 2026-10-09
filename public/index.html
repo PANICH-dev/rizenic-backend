@@ -94,7 +94,6 @@
             <h1 class="text-2xl font-black tracking-widest text-slate-800 mb-1">RIZENIC <span class="text-green-600">ERP</span></h1>
             <h2 class="text-slate-500 mb-8 font-bold text-xs tracking-wide uppercase">Workspace Login</h2>
             
-            <!-- 🌟 เปลี่ยนชื่อฟังก์ชันเป็น handlePartnerLogin เพื่อแก้ปัญหา sa_core.js เขียนทับ -->
             <form onsubmit="handlePartnerLogin(event)" class="space-y-5">
                 <div class="text-left"><label class="label-text">Username</label><input type="text" id="login_user" required class="minimal-input" placeholder="Enter your ID"></div>
                 <div class="text-left mb-6"><label class="label-text">Password</label><input type="password" id="login_pass" required class="minimal-input font-mono" placeholder="••••••••"></div>
@@ -159,8 +158,8 @@
                         </div>
                     </div>
                     
-                       <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        <!-- 🌟 ย้าย ทะเบียนรถ มาไว้ช่องแรกสุด 🌟 -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <!-- 🌟 ทะเบียนรถ ช่องแรกสุด 🌟 -->
                         <div>
                             <label class="label-text">ทะเบียนรถ <span class="text-red-500">*</span></label>
                             <input type="text" id="car_plate" oninput="loadPartsTrackingTable(this.value.trim())" onchange="checkCarHistory(this.value.trim())" class="minimal-input uppercase text-lg text-center tracking-widest font-black text-green-800 bg-green-50 border-green-200 focus:border-green-500 focus:ring-green-500/20" placeholder="กข 1234" required>
@@ -202,6 +201,7 @@
                             <input type="text" id="vin_no" class="minimal-input font-mono uppercase text-xs" required placeholder="กรอก VIN...">
                         </div>
                     </div>
+                </div>
 
                 <!-- 📄 บล็อก 2: เอกสารอ้างอิงและ Workflow -->
                 <div class="card-container border-l-4 border-l-blue-600 bg-gradient-to-r from-blue-50/50 to-white">
@@ -411,7 +411,13 @@
                     </div>
                 </div>
 
-                <!-- 9.1 ข้อมูลรถยนต์ -->
+                <!-- 📑 บล็อก 9: ข้อมูล E-Claim & รายการ Express -->
+                <div class="card-container border-l-4 border-l-purple-600 bg-purple-50/30">
+                    <div class="section-header !bg-purple-900 !border-purple-800">
+                        <h3 class="section-title"><i class="fa-solid fa-file-export section-icon !text-purple-300"></i> 9. ส่วนต่อขยาย: ข้อมูล E-Claim & รายการจากบัญชี (Express)</h3>
+                    </div>
+                    
+                    <!-- 9.1 ข้อมูลรถยนต์ -->
                     <h4 class="text-sm font-bold text-purple-800 mb-4 border-b border-purple-200 pb-2"><i class="fa-solid fa-car-side"></i> 9.1 ข้อมูลรายละเอียดรถยนต์ (EMCS)</h4>
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
                         <div>
@@ -590,41 +596,47 @@
                         </div>
                     </div>
 
-                    <!-- รายการ Express -->
-<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 border-b border-purple-200 pb-2 gap-3">
-    <h4 class="text-sm font-bold text-purple-800"><i class="fa-solid fa-list-check"></i> ตารางรายการประเมินราคา (จาก Express / ใบเสนอราคา)</h4>
-    
-    <!-- 🌟 กลุ่มปุ่มจัดการ E-Claim 🌟 -->
-    <div class="flex gap-2 w-full sm:w-auto">
-        <button type="button" onclick="pullPartsToEclaim()" class="px-4 py-2 bg-amber-500 text-amber-900 text-xs font-bold rounded-xl shadow-sm hover:bg-amber-600 hover:text-white transition w-full sm:w-auto">
-            <i class="fa-solid fa-rotate-right mr-1"></i> ดึงรายการอะไหล่
-        </button>
-        <button type="button" onclick="exportEMCSXml()" class="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl shadow-sm hover:bg-indigo-700 transition w-full sm:w-auto">
-            <i class="fa-solid fa-file-export mr-1"></i> ดาวน์โหลด XML
-        </button>
-        <button type="button" onclick="addEclaimItemRow()" class="px-4 py-2 bg-purple-100 text-purple-700 text-xs font-bold rounded-xl shadow-sm border border-purple-300 hover:bg-purple-600 hover:text-white transition w-full sm:w-auto">
-            <i class="fa-solid fa-plus"></i> เพิ่มรายการ
-        </button>
-    </div>
-</div>
-  
-                    
+                    <!-- 9.3 รายการ Express / E-Claim Table -->
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 border-b border-purple-200 pb-2 gap-3">
+                        <h4 class="text-sm font-bold text-purple-800"><i class="fa-solid fa-list-check"></i> 9.3 ตารางรายการประเมินราคา (จาก Express / ใบเสนอราคา)</h4>
+                        
+                        <!-- ปุ่มจัดการ E-Claim -->
+                        <div class="flex gap-2 w-full sm:w-auto">
+                            <button type="button" onclick="pullPartsToEclaim()" class="px-4 py-2 bg-amber-500 text-amber-900 text-xs font-bold rounded-xl shadow-sm hover:bg-amber-600 hover:text-white transition w-full sm:w-auto">
+                                <i class="fa-solid fa-rotate-right mr-1"></i> ดึงรายการอะไหล่
+                            </button>
+                            <button type="button" onclick="exportEMCSXml()" class="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl shadow-sm hover:bg-indigo-700 transition w-full sm:w-auto">
+                                <i class="fa-solid fa-file-export mr-1"></i> ดาวน์โหลด XML
+                            </button>
+                            <button type="button" onclick="addEclaimItemRow()" class="px-4 py-2 bg-purple-100 text-purple-700 text-xs font-bold rounded-xl shadow-sm border border-purple-300 hover:bg-purple-600 hover:text-white transition w-full sm:w-auto">
+                                <i class="fa-solid fa-plus"></i> เพิ่มรายการ
+                            </button>
                         </div>
-                    <div class="overflow-x-auto border border-purple-200 rounded-xl shadow-sm">
-                        <table class="modern-table w-full">
-                            <thead class="!bg-purple-100 !text-purple-900 border-b border-purple-300">
+                    </div>
+
+                    <div class="overflow-x-auto border border-purple-200 rounded-xl shadow-sm custom-scrollbar bg-white">
+                        <table class="modern-table w-full text-xs">
+                            <thead class="!bg-purple-900 !text-white border-b border-purple-800">
                                 <tr>
-                                    <th class="w-32">ประเภท (Type)</th>
-                                    <th class="w-40">รหัสอ้างอิง (Part No.)</th>
-                                    <th>รายการ / ชื่ออะไหล่ (Thai)</th>
-                                    <th class="w-24 text-center">จำนวน</th>
-                                    <th class="w-32 text-right">ราคาต่อหน่วย</th>
-                                    <th class="w-32 text-right">รวมลดแล้ว</th>
-                                    <th class="w-16 text-center">ลบ</th>
+                                    <th class="w-28 py-3 px-2 text-center">ประเภท (Type)</th>
+                                    <th class="w-36 py-3 px-2">รหัสอ้างอิง (Part/Labor No.)</th>
+                                    <th class="min-w-[180px] py-3 px-2">รายการ / ชื่อชิ้นงาน (Thai)</th>
+                                    <th class="w-32 py-3 px-2">ระดับเสียหาย / ผู้จัด</th>
+                                    <th class="w-20 py-3 px-2 text-center">จำนวน</th>
+                                    <th class="w-28 py-3 px-2 text-right">ราคาเดิม/ชิ้น</th>
+                                    <th class="w-24 py-3 px-2 text-right">ส่วนลด (%)</th>
+                                    <th class="w-32 py-3 px-2 text-right">ราคาเสนอ (ก่อน VAT)</th>
+                                    <th class="w-24 py-3 px-2 text-center">คืนซาก</th>
+                                    <th class="min-w-[160px] py-3 px-2">ความคิดเห็นจากศูนย์</th>
+                                    <th class="w-12 py-3 px-2 text-center">ลบ</th>
                                 </tr>
                             </thead>
-                            <tbody id="eclaim_items_body" class="bg-white">
-                                <tr id="eclaim_empty_row"><td colspan="7" class="text-center py-10 text-purple-400 text-xs font-bold bg-purple-50/20">ยังไม่มีรายการ (กดปุ่ม "นำเข้าไฟล์บัญชี" จากด้านบนเพื่อดึงข้อมูลอัตโนมัติ)</td></tr>
+                            <tbody id="eclaim_items_body" class="bg-white divide-y divide-purple-100">
+                                <tr id="eclaim_empty_row">
+                                    <td colspan="11" class="text-center py-10 text-purple-400 text-xs font-bold bg-purple-50/20">
+                                        ยังไม่มีรายการ (กดปุ่ม "นำเข้าไฟล์บัญชี", "🔄 ดึงรายการอะไหล่" หรือ "+ เพิ่มรายการ" เพื่อเริ่มเพิ่มข้อมูล)
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>

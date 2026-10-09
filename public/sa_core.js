@@ -863,100 +863,122 @@ function addEclaimItemRow(item = null) {
     if (emptyRow) emptyRow.style.display = 'none';
 
     const tr = document.createElement('tr');
-    tr.className = 'eclaim-item-row hover:bg-purple-50/50 transition';
+    tr.className = 'eclaim-item-row hover:bg-purple-50/50 transition border-b border-purple-100';
     
-    // โหลดค่าเดิมมาแสดง (ถ้ามี) หรือตั้งค่าเริ่มต้น
     const iType = item ? item.item_type : 'P';
     const iPartNo = item ? (item.part_no || '') : '';
     const iName = item ? (item.item_name_th || '') : '';
     const iQty = item ? (item.qty || 1) : 1;
     const iPrice = item ? (item.unit_price || 0) : 0;
+    const iDiscount = item ? (item.discount_amount || 0) : 0;
     const iTotal = item ? (item.total_after_discount || 0) : 0;
+    const iDamage = item ? (item.damage_level || 'เบา') : 'เบา';
+    const iShip = item ? (item.part_ship || 'garage') : 'garage';
+    const iScrap = item ? (item.scrap_return || '0') : '0';
+    const iComment = item ? (item.comment || '') : '';
 
     tr.innerHTML = `
-        <td class="px-2 py-2">
-            <select class="minimal-input !py-1 item-type border-purple-200">
+        <td class="px-2 py-2 text-center">
+            <select class="minimal-input !py-1 text-xs item-type border-purple-200 font-bold" onchange="toggleEclaimRowType(this)">
                 <option value="P" ${iType === 'P' ? 'selected' : ''}>อะไหล่ (P)</option>
                 <option value="L" ${iType === 'L' ? 'selected' : ''}>ค่าแรง (L)</option>
             </select>
         </td>
         <td class="px-2 py-2">
-            <!-- 🌟 ใส่ list="master_parts_datalist" และ onchange="autoFillEclaimPart(this)" -->
-            <input type="text" list="master_parts_datalist" class="minimal-input !py-1 item-partno border-purple-200 font-mono uppercase" 
+            <input type="text" list="master_parts_datalist" class="minimal-input !py-1 text-xs item-partno border-purple-200 font-mono uppercase" 
                    value="${iPartNo}" placeholder="รหัสอ้างอิง..." onchange="autoFillEclaimPart(this)">
         </td>
         <td class="px-2 py-2">
-            <input type="text" class="minimal-input !py-1 item-name border-purple-200" value="${iName}" placeholder="ชื่อรายการ..." required>
+            <input type="text" class="minimal-input !py-1 text-xs item-name border-purple-200 font-bold" value="${iName}" placeholder="ชื่อรายการ..." required>
         </td>
         <td class="px-2 py-2">
-            <input type="number" class="minimal-input !py-1 text-center item-qty border-purple-200" value="${iQty}" min="1" onkeyup="calcEclaimRow(this)" onchange="calcEclaimRow(this)">
+            <select class="minimal-input !py-1 text-xs item-damage-ship border-purple-200">
+                <option value="เบา" ${iDamage === 'เบา' ? 'selected' : ''} class="opt-labor">ซ่อมเบา</option>
+                <option value="กลาง" ${iDamage === 'กลาง' ? 'selected' : ''} class="opt-labor">ซ่อมกลาง</option>
+                <option value="หนัก" ${iDamage === 'หนัก' ? 'selected' : ''} class="opt-labor">ซ่อมหนัก</option>
+                <option value="เปลี่ยน" ${iDamage === 'เปลี่ยน' ? 'selected' : ''} class="opt-labor">เปลี่ยน</option>
+                <option value="garage" ${iShip === 'garage' ? 'selected' : ''} class="opt-part">ศูนย์จัด</option>
+                <option value="ins" ${iShip === 'ins' ? 'selected' : ''} class="opt-part">ประกันจัด</option>
+            </select>
         </td>
         <td class="px-2 py-2">
-            <input type="number" class="minimal-input !py-1 text-right item-price border-purple-200" value="${iPrice}" min="0" onkeyup="calcEclaimRow(this)" onchange="calcEclaimRow(this)">
+            <input type="number" class="minimal-input !py-1 text-center text-xs item-qty border-purple-200 font-mono" value="${iQty}" min="1" onkeyup="calcEclaimRow(this)" onchange="calcEclaimRow(this)">
         </td>
         <td class="px-2 py-2">
-            <input type="number" class="minimal-input !py-1 text-right item-total bg-slate-100 border-purple-200" value="${iTotal}" readonly>
+            <input type="number" step="0.01" class="minimal-input !py-1 text-right text-xs item-price border-purple-200 font-mono" value="${iPrice}" min="0" placeholder="0.00" onkeyup="calcEclaimRow(this)" onchange="calcEclaimRow(this)">
+        </td>
+        <td class="px-2 py-2">
+            <input type="number" step="0.01" class="minimal-input !py-1 text-right text-xs item-discount border-purple-200 font-mono" value="${iDiscount}" min="0" placeholder="0%" onkeyup="calcEclaimRow(this)" onchange="calcEclaimRow(this)">
+        </td>
+        <td class="px-2 py-2">
+            <input type="number" step="0.01" class="minimal-input !py-1 text-right text-xs item-total bg-purple-50 font-bold text-purple-900 border-purple-300 font-mono" value="${iTotal}" readonly placeholder="0.00">
         </td>
         <td class="px-2 py-2 text-center">
-            <button type="button" onclick="this.closest('tr').remove(); checkEmptyEclaimTable();" class="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded transition shadow-sm"><i class="fa-solid fa-trash"></i></button>
+            <select class="minimal-input !py-1 text-xs item-scrap border-purple-200 text-center">
+                <option value="0" ${iScrap === '0' || iScrap === 0 ? 'selected' : ''}>ไม่คืน</option>
+                <option value="1" ${iScrap === '1' || iScrap === 1 ? 'selected' : ''}>คืนซาก</option>
+            </select>
+        </td>
+        <td class="px-2 py-2">
+            <input type="text" class="minimal-input !py-1 text-xs item-comment border-purple-200" value="${iComment}" placeholder="ความเห็นจากศูนย์...">
+        </td>
+        <td class="px-2 py-2 text-center">
+            <button type="button" onclick="this.closest('tr').remove(); checkEmptyEclaimTable();" class="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition shadow-sm" title="ลบรายการ"><i class="fa-solid fa-trash"></i></button>
         </td>
     `;
     tbody.appendChild(tr);
+    toggleEclaimRowType(tr.querySelector('.item-type'));
+    if (iPrice > 0 || iDiscount > 0) calcEclaimRow(tr.querySelector('.item-price'));
 }
 
-// 🌟 1.1 ฟังก์ชันดึงข้อมูลอะไหล่อัตโนมัติ (Datalist Auto-fill)
-function autoFillEclaimPart(inputEl) {
-    const pNo = inputEl.value.trim().toUpperCase();
-    if (!pNo) return;
+// 2. ฟังก์ชันสลับเมนูย่อยตามประเภท (L หรือ P)
+function toggleEclaimRowType(selectEl) {
+    const tr = selectEl.closest('tr');
+    const type = selectEl.value;
+    const optLabors = tr.querySelectorAll('.opt-labor');
+    const optParts = tr.querySelectorAll('.opt-part');
+    const scrapSelect = tr.querySelector('.item-scrap');
+    const damShipSelect = tr.querySelector('.item-damage-ship');
 
-    const tr = inputEl.closest('tr');
-    
-    // ตั้งค่าประเภทเป็น P (อะไหล่) ให้อัตโนมัติ
-    tr.querySelector('.item-type').value = 'P';
-
-    // ค้นหาชื่อชิ้นส่วนและราคา จากมาสเตอร์อะไหล่
-    if (typeof window.allMasterPartsCache !== 'undefined') {
-        const matched = window.allMasterPartsCache.find(x => x.part_no && x.part_no.toUpperCase() === pNo);
-        if (matched) {
-            const nameInp = tr.querySelector('.item-name');
-            const priceInp = tr.querySelector('.item-price');
-            
-            if (nameInp && !nameInp.value) nameInp.value = matched.part_name || '';
-            if (priceInp && parseFloat(priceInp.value) === 0) {
-                priceInp.value = parseFloat(matched.unit_price || 0).toFixed(2);
-                calcEclaimRow(priceInp); // คำนวณราคาทันที
-            }
+    if (type === 'L') {
+        optLabors.forEach(el => el.style.display = '');
+        optParts.forEach(el => el.style.display = 'none');
+        if (scrapSelect) { scrapSelect.disabled = true; scrapSelect.value = '0'; }
+        if (damShipSelect && ['garage', 'ins'].includes(damShipSelect.value)) {
+            damShipSelect.value = 'เบา';
         }
-    }
-
-    // 🌟 ดึงจำนวนสั่งซื้อ (Qty Ordered) จากรายการ PO Tracking ของรถคันนี้ (ถ้ามี)
-    if (typeof window.allPartOrders !== 'undefined') {
-        const currentCarPlate = document.getElementById('car_plate')?.value?.trim().toUpperCase();
-        if (currentCarPlate) {
-            const poMatch = window.allPartOrders.find(po => po.part_no && po.part_no.toUpperCase() === pNo && po.car_plate?.trim().toUpperCase() === currentCarPlate && po.order_status !== 'ยกเลิก');
-            if (poMatch) {
-                const qtyInp = tr.querySelector('.item-qty');
-                if (qtyInp) {
-                    qtyInp.value = parseInt(poMatch.qty_ordered) || 1;
-                    calcEclaimRow(qtyInp); // คำนวณราคาทันที
-                    
-                    // แจ้งเตือน SA เบาๆ ว่าดึงข้อมูลมาแล้ว
-                    if (typeof showToast === 'function') showToast(`ดึงจำนวนสั่งซื้ออะไหล่จากรายการ PO (${poMatch.qty_ordered} ชิ้น)`);
-                }
-            }
+    } else {
+        optLabors.forEach(el => el.style.display = 'none');
+        optParts.forEach(el => el.style.display = '');
+        if (scrapSelect) { scrapSelect.disabled = false; }
+        if (damShipSelect && ['เบา', 'กลาง', 'หนัก', 'เปลี่ยน'].includes(damShipSelect.value)) {
+            damShipSelect.value = 'garage';
         }
     }
 }
 
-// 2. ฟังก์ชันคำนวณราคารวม (จำนวน x ราคา)
+// 3. ฟังก์ชันคำนวณราคารวม (จำนวน x ราคาเดิม หักด้วยส่วนลด)
 function calcEclaimRow(input) {
     const tr = input.closest('tr');
     const qty = parseFloat(tr.querySelector('.item-qty').value) || 0;
     const price = parseFloat(tr.querySelector('.item-price').value) || 0;
-    tr.querySelector('.item-total').value = (qty * price).toFixed(2);
+    const discount = parseFloat(tr.querySelector('.item-discount').value) || 0;
+    
+    let subtotal = qty * price;
+    let finalTotal = subtotal;
+
+    if (discount > 0) {
+        if (discount <= 100) {
+            finalTotal = subtotal * (1 - (discount / 100));
+        } else {
+            finalTotal = Math.max(0, subtotal - discount);
+        }
+    }
+    
+    tr.querySelector('.item-total').value = finalTotal.toFixed(2);
 }
 
-// 3. เช็กซ่อน/แสดง แถว "ยังไม่มีรายการ"
+// 4. เช็กซ่อน/แสดง แถว "ยังไม่มีรายการ"
 function checkEmptyEclaimTable() {
     const tbody = document.getElementById('eclaim_items_body');
     const rows = tbody.querySelectorAll('.eclaim-item-row');
@@ -966,22 +988,34 @@ function checkEmptyEclaimTable() {
     }
 }
 
-// 4. ฟังก์ชันกวาดข้อมูลในตารางส่งไปบันทึก (POST)
+// 5. ฟังก์ชันกวาดข้อมูลในตารางส่งไปบันทึก (POST)
 async function saveEclaimItems(reportId) {
     const rows = document.querySelectorAll('.eclaim-item-row');
     const items = [];
 
     rows.forEach(tr => {
-        const name = tr.querySelector('.item-name').value.trim();
+        const name = tr.querySelector('.item-name')?.value?.trim();
         if (name) {
+            const type = tr.querySelector('.item-type')?.value || 'P';
+            const damShip = tr.querySelector('.item-damage-ship')?.value || '';
+            const qty = parseFloat(tr.querySelector('.item-qty')?.value) || 1;
+            const unitPrice = parseFloat(tr.querySelector('.item-price')?.value) || 0;
+            const discount = parseFloat(tr.querySelector('.item-discount')?.value) || 0;
+            const total = parseFloat(tr.querySelector('.item-total')?.value) || 0;
+
             items.push({
-                item_type: tr.querySelector('.item-type').value,
-                part_no: tr.querySelector('.item-partno').value.trim(),
+                item_type: type,
+                part_no: tr.querySelector('.item-partno')?.value?.trim() || '',
                 item_name_th: name,
-                qty: parseFloat(tr.querySelector('.item-qty').value) || 0,
-                unit_price: parseFloat(tr.querySelector('.item-price').value) || 0,
-                total_before_discount: parseFloat(tr.querySelector('.item-total').value) || 0,
-                total_after_discount: parseFloat(tr.querySelector('.item-total').value) || 0
+                qty: qty,
+                unit_price: unitPrice,
+                discount_amount: discount,
+                total_before_discount: qty * unitPrice,
+                total_after_discount: total,
+                damage_level: type === 'L' ? damShip : 'เบา',
+                part_ship: type === 'P' ? damShip : 'garage',
+                scrap_return: tr.querySelector('.item-scrap')?.value || '0',
+                comment: tr.querySelector('.item-comment')?.value?.trim() || ''
             });
         }
     });
@@ -997,16 +1031,16 @@ async function saveEclaimItems(reportId) {
     }
 }
 
-// 5. ฟังก์ชันดึงข้อมูลมาแสดงตอนเปิดบิลเก่ามาแก้ไข (GET)
+// 6. ฟังก์ชันดึงข้อมูลมาแสดงตอนเปิดบิลเก่ามาแก้ไข (GET)
 async function loadEclaimItems(reportId) {
     try {
         const res = await fetch(`${API_BASE_URL}/api/report/${reportId}/eclaim-items`);
         const data = await res.json();
         
-        document.querySelectorAll('.eclaim-item-row').forEach(row => row.remove()); // เคลียร์ของเก่าออกก่อน
+        document.querySelectorAll('.eclaim-item-row').forEach(row => row.remove());
         
-        if (data.success && data.data.length > 0) {
-            data.data.forEach(item => addEclaimItemRow(item)); // เอาข้อมูลที่โหลดมาวาดใส่ตาราง
+        if (data.success && data.data && data.data.length > 0) {
+            data.data.forEach(item => addEclaimItemRow(item));
         } else {
             checkEmptyEclaimTable();
         }
