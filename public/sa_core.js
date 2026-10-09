@@ -856,7 +856,6 @@ function autoMapRouting() {
 // 🛒 ระบบจัดการตารางรายการย่อย E-Claim (Line Items)
 // =========================================================
 
-// 1. ฟังก์ชันเพิ่มบรรทัดใหม่ในตาราง (ปุ่ม + เพิ่มรายการ)
 function addEclaimItemRow(item = null) {
     const tbody = document.getElementById('eclaim_items_body');
     const emptyRow = document.getElementById('eclaim_empty_row');
@@ -878,42 +877,46 @@ function addEclaimItemRow(item = null) {
 
     tr.innerHTML = `
         <td class="px-2 py-2 text-center">
-            <select class="minimal-input !py-1 text-xs item-type border-purple-200 font-bold" onchange="toggleEclaimRowType(this)">
+            <select class="minimal-input !px-2 !py-1 text-xs item-type border-purple-200 font-bold" onchange="toggleEclaimRowType(this)">
                 <option value="P" ${iType === 'P' ? 'selected' : ''}>อะไหล่ (P)</option>
                 <option value="L" ${iType === 'L' ? 'selected' : ''}>ค่าแรง (L)</option>
             </select>
         </td>
         <td class="px-2 py-2">
-            <input type="text" list="master_parts_datalist" class="minimal-input !py-1 text-xs item-partno border-purple-200 font-mono uppercase min-w-[120px]" 
-                   value="${iPartNo}" placeholder="รหัสอ้างอิง..." onchange="autoFillEclaimPart(this)">
+            <input type="text" list="master_parts_datalist" class="minimal-input !px-2 !py-1 text-xs item-partno border-purple-200 font-mono uppercase" 
+                   value="${iPartNo}" placeholder="รหัส..." onchange="autoFillEclaimPart(this)">
         </td>
         <td class="px-2 py-2">
-            <input type="text" class="minimal-input !py-1 text-xs item-name border-purple-200 font-bold min-w-[180px]" value="${iName}" placeholder="ชื่อรายการ..." required>
+            <input type="text" class="minimal-input !px-2 !py-1 text-xs item-name border-purple-200 font-bold" value="${iName}" placeholder="ชื่อรายการ..." required>
         </td>
-        <td class="px-2 py-2">
-            <select class="minimal-input !py-1 text-xs item-damage-ship border-purple-200 min-w-[110px]">
-                <option value="เบา" ${iDamage === 'เบา' ? 'selected' : ''} class="opt-labor">ซ่อมเบา</option>
-                <option value="กลาง" ${iDamage === 'กลาง' ? 'selected' : ''} class="opt-labor">ซ่อมกลาง</option>
-                <option value="หนัก" ${iDamage === 'หนัก' ? 'selected' : ''} class="opt-labor">ซ่อมหนัก</option>
-                <option value="เปลี่ยน" ${iDamage === 'เปลี่ยน' ? 'selected' : ''} class="opt-labor">เปลี่ยน</option>
-                <option value="garage" ${iShip === 'garage' ? 'selected' : ''} class="opt-part">ศูนย์จัด</option>
-                <option value="ins" ${iShip === 'ins' ? 'selected' : ''} class="opt-part">ประกันจัด</option>
+        <td class="px-2 py-2 text-center">
+            <select class="minimal-input !px-2 !py-1 text-xs item-damage border-purple-200 text-center">
+                <option value="เบา" ${iDamage === 'เบา' ? 'selected' : ''}>ซ่อมเบา</option>
+                <option value="กลาง" ${iDamage === 'กลาง' ? 'selected' : ''}>ซ่อมกลาง</option>
+                <option value="หนัก" ${iDamage === 'หนัก' ? 'selected' : ''}>ซ่อมหนัก</option>
+                <option value="เปลี่ยน" ${iDamage === 'เปลี่ยน' ? 'selected' : ''}>เปลี่ยน</option>
+            </select>
+        </td>
+        <td class="px-2 py-2 text-center">
+            <select class="minimal-input !px-2 !py-1 text-xs item-ship border-purple-200 text-center">
+                <option value="garage" ${iShip === 'garage' ? 'selected' : ''}>ศูนย์จัด</option>
+                <option value="ins" ${iShip === 'ins' ? 'selected' : ''}>ประกันจัด</option>
             </select>
         </td>
         <td class="px-2 py-2">
-            <input type="number" class="minimal-input !py-1 text-center text-xs item-qty border-purple-200 font-mono w-16" value="${iQty}" min="1" onkeyup="calcEclaimRow(this)" onchange="calcEclaimRow(this)">
+            <input type="number" class="minimal-input !px-1.5 !py-1 text-center text-xs item-qty border-purple-200 font-mono" value="${iQty}" min="1" onkeyup="calcEclaimRow(this)" onchange="calcEclaimRow(this)">
         </td>
         <td class="px-2 py-2">
-            <input type="number" step="0.01" class="minimal-input !py-1 text-right text-xs item-price border-purple-200 font-mono min-w-[100px]" value="${iPrice}" min="0" placeholder="0.00" onkeyup="calcEclaimRow(this)" onchange="calcEclaimRow(this)">
+            <input type="number" step="0.01" class="minimal-input !px-2 !py-1 text-right text-xs item-price border-purple-200 font-mono" value="${iPrice}" min="0" placeholder="0.00" onkeyup="calcEclaimRow(this)" onchange="calcEclaimRow(this)">
         </td>
         <td class="px-2 py-2">
-            <input type="number" step="0.01" class="minimal-input !py-1 text-right text-xs item-discount border-purple-200 font-mono w-20" value="${iDiscount}" min="0" placeholder="0%" onkeyup="calcEclaimRow(this)" onchange="calcEclaimRow(this)">
+            <input type="number" step="0.01" class="minimal-input !px-1.5 !py-1 text-right text-xs item-discount border-purple-200 font-mono" value="${iDiscount}" min="0" placeholder="0%" onkeyup="calcEclaimRow(this)" onchange="calcEclaimRow(this)">
         </td>
         <td class="px-2 py-2">
-            <input type="number" step="0.01" class="minimal-input !py-1 text-right text-xs item-total bg-purple-50 font-bold text-purple-900 border-purple-300 font-mono min-w-[110px]" value="${iTotal}" readonly placeholder="0.00">
+            <input type="number" step="0.01" class="minimal-input !px-2 !py-1 text-right text-xs item-total bg-purple-50 font-bold text-purple-900 border-purple-300 font-mono" value="${iTotal}" readonly placeholder="0.00">
         </td>
         <td class="px-2 py-2 text-center">
-            <select class="minimal-input !py-1 text-xs item-scrap border-purple-200 text-center w-20">
+            <select class="minimal-input !px-1 !py-1 text-xs item-scrap border-purple-200 text-center">
                 <option value="0" ${iScrap === '0' || iScrap === 0 ? 'selected' : ''}>ไม่คืน</option>
                 <option value="1" ${iScrap === '1' || iScrap === 1 ? 'selected' : ''}>คืนซาก</option>
             </select>
@@ -927,33 +930,34 @@ function addEclaimItemRow(item = null) {
     if (iPrice > 0 || iDiscount > 0) calcEclaimRow(tr.querySelector('.item-price'));
 }
 
-// 2. สลับตัวเลือกระหว่าง L (ระดับเสียหาย) กับ P (ผู้จัดอะไหล่)
+// สลับเปิด-ปิดช่องเลือกระหว่าง L และ P
 function toggleEclaimRowType(selectEl) {
     const tr = selectEl.closest('tr');
     const type = selectEl.value;
-    const optLabors = tr.querySelectorAll('.opt-labor');
-    const optParts = tr.querySelectorAll('.opt-part');
+    const damageSelect = tr.querySelector('.item-damage');
+    const shipSelect = tr.querySelector('.item-ship');
     const scrapSelect = tr.querySelector('.item-scrap');
-    const damShipSelect = tr.querySelector('.item-damage-ship');
 
     if (type === 'L') {
-        optLabors.forEach(el => el.style.display = '');
-        optParts.forEach(el => el.style.display = 'none');
-        if (scrapSelect) { scrapSelect.disabled = true; scrapSelect.value = '0'; }
-        if (damShipSelect && ['garage', 'ins'].includes(damShipSelect.value)) {
-            damShipSelect.value = 'เบา';
-        }
+        damageSelect.disabled = false;
+        damageSelect.classList.remove('bg-slate-100', 'text-slate-400');
+        
+        shipSelect.disabled = true;
+        shipSelect.classList.add('bg-slate-100', 'text-slate-400');
+        
+        scrapSelect.disabled = true;
+        scrapSelect.value = '0';
     } else {
-        optLabors.forEach(el => el.style.display = 'none');
-        optParts.forEach(el => el.style.display = '');
-        if (scrapSelect) { scrapSelect.disabled = false; }
-        if (damShipSelect && ['เบา', 'กลาง', 'หนัก', 'เปลี่ยน'].includes(damShipSelect.value)) {
-            damShipSelect.value = 'garage';
-        }
+        damageSelect.disabled = true;
+        damageSelect.classList.add('bg-slate-100', 'text-slate-400');
+        
+        shipSelect.disabled = false;
+        shipSelect.classList.remove('bg-slate-100', 'text-slate-400');
+        
+        scrapSelect.disabled = false;
     }
 }
 
-// 3. ฟังก์ชันคำนวณราคารวม (จำนวน x ราคาเดิม หักด้วยส่วนลด)
 function calcEclaimRow(input) {
     const tr = input.closest('tr');
     const qty = parseFloat(tr.querySelector('.item-qty').value) || 0;
@@ -974,7 +978,6 @@ function calcEclaimRow(input) {
     tr.querySelector('.item-total').value = finalTotal.toFixed(2);
 }
 
-// 4. เช็กซ่อน/แสดง แถว "ยังไม่มีรายการ"
 function checkEmptyEclaimTable() {
     const tbody = document.getElementById('eclaim_items_body');
     const rows = tbody.querySelectorAll('.eclaim-item-row');
@@ -984,7 +987,6 @@ function checkEmptyEclaimTable() {
     }
 }
 
-// 5. บันทึกข้อมูลเข้าตาราง (นำความคิดเห็นเพิ่มเติมจาก Textarea ด้านล่างไปแนบ)
 async function saveEclaimItems(reportId) {
     const rows = document.querySelectorAll('.eclaim-item-row');
     const globalComment = document.getElementById('eclaim_center_comment')?.value?.trim() || '';
@@ -994,7 +996,8 @@ async function saveEclaimItems(reportId) {
         const name = tr.querySelector('.item-name')?.value?.trim();
         if (name) {
             const type = tr.querySelector('.item-type')?.value || 'P';
-            const damShip = tr.querySelector('.item-damage-ship')?.value || '';
+            const damage = tr.querySelector('.item-damage')?.value || 'เบา';
+            const ship = tr.querySelector('.item-ship')?.value || 'garage';
             const qty = parseFloat(tr.querySelector('.item-qty')?.value) || 1;
             const unitPrice = parseFloat(tr.querySelector('.item-price')?.value) || 0;
             const discount = parseFloat(tr.querySelector('.item-discount')?.value) || 0;
@@ -1009,8 +1012,8 @@ async function saveEclaimItems(reportId) {
                 discount_amount: discount,
                 total_before_discount: qty * unitPrice,
                 total_after_discount: total,
-                damage_level: type === 'L' ? damShip : 'เบา',
-                part_ship: type === 'P' ? damShip : 'garage',
+                damage_level: type === 'L' ? damage : 'เบา',
+                part_ship: type === 'P' ? ship : 'garage',
                 scrap_return: tr.querySelector('.item-scrap')?.value || '0',
                 comment: globalComment
             });
@@ -1028,7 +1031,6 @@ async function saveEclaimItems(reportId) {
     }
 }
 
-// 6. ดึงข้อมูลแสดงผลเมื่อเปิดบิลเก่า
 async function loadEclaimItems(reportId) {
     try {
         const res = await fetch(`${API_BASE_URL}/api/report/${reportId}/eclaim-items`);
@@ -1039,7 +1041,6 @@ async function loadEclaimItems(reportId) {
         if (data.success && data.data && data.data.length > 0) {
             data.data.forEach(item => addEclaimItemRow(item));
             
-            // ดึงหมายเหตุจากศูนย์มาแสดงในช่อง Textarea
             const firstComment = data.data.find(x => x.comment && x.comment.trim() !== '');
             const commentInput = document.getElementById('eclaim_center_comment');
             if (commentInput) {
@@ -1053,17 +1054,6 @@ async function loadEclaimItems(reportId) {
     } catch (err) {
         console.error('Load Eclaim Items Error:', err);
     }
-}
-
-function exportEMCSXml() {
-  const reportId = document.getElementById('sa_report_id')?.value;
-  
-  if (!reportId) {
-    alert('กรุณาบันทึกข้อมูลใบงานเข้าสู่ระบบก่อนทำการ Export ไฟล์ XML ครับ!');
-    return;
-  }
-  
-  window.open(`${API_BASE_URL}/api/report/${reportId}/export-xml`, '_blank');
 }
 
 // =========================================================
