@@ -194,15 +194,49 @@ app.delete('/api/quotas/:id', async (req, res) => {
 });
 
 // ==========================================
-// 🔒 API ล็อกอิน
+// 🔒 API ล็อกอิน (Dual-Source: พนักงาน + พาสเนอร์)
 // ==========================================
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    const result = await pool.query('SELECT * FROM rizenicemployeemaster WHERE username = $1 AND password = $2', [username, password]);
-    if (result.rows.length > 0) res.json({ success: true, employee: result.rows[0] });
-    else res.status(401).json({ success: false, error: 'Username หรือ Password ไม่ถูกต้องครับนาย!' });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+    
+    // 1. ค้นหาในตารางพนักงานก่อน
+    const empResult = await pool.query(
+      'SELECT * FROM rizenicemployeemaster WHERE username = $1 AND password = $2', 
+      [username, password]
+    );
+
+    if (empResult.rows.length > 0) {
+      return res.json({ 
+        success: true, 
+        user_type: 'employee', 
+        employee: empResult.rows[0] 
+      });
+    }
+
+    // 2. ถ้าไม่เจอพนักงาน ให้ค้นหาต่อในตารางพาสเนอร์ (rizenic_partners)
+    const partnerResult = await pool.query(
+      'SELECT * FROM rizenic_partners WHERE username = $1 AND password = $2', 
+      [username, password]
+    );
+
+    if (partnerResult.rows.length > 0) {
+      return res.json({ 
+        success: true, 
+        user_type: 'partner', 
+        partner: partnerResult.rows[0] 
+      });
+    }
+
+    // 3. ไม่พบข้อมูลในทั้งสองตาราง
+    res.status(401).json({ 
+      success: false, 
+      error: 'Username หรือ Password ไม่ถูกต้องครับนาย!' 
+    });
+
+  } catch (e) { 
+    res.status(500).json({ error: e.message }); 
+  }
 });
 
 // ==========================================

@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIZENIC ERP - Partner Tracking Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style type="text/tailwindcss">
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap');
+        body { font-family: 'Kanit', sans-serif; background-color: #f8fafc; }
+        .bg-rizenic-green { background-color: #00320D; }
+        .text-rizenic-green { color: #00320D; }
+        
+        .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+        
+        .partner-table { @apply w-full text-left border-collapse whitespace-nowrap text-sm bg-white; }
+        .partner-table th { @apply px-4 py-3 bg-[#00320D] text-white font-bold text-xs uppercase tracking-wider sticky top-0 z-10 border-b border-green-900; }
+        .partner-table td { @apply px-4 py-3.5 border-b border-slate-100 text-slate-700 font-medium align-middle; }
+        .partner-table tr:hover td { @apply bg-emerald-50/50 transition-colors; }
+
+        .tab-btn { @apply px-6 py-3 font-black text-sm transition-all border-b-2 border-transparent text-slate-400 hover:text-slate-700 flex items-center gap-2 cursor-pointer; }
+        .tab-btn.active { @apply border-[#00320D] text-[#00320D] bg-white shadow-sm rounded-t-xl; }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col selection:bg-[#00320D] selection:text-white">
+
+    <!-- 🌟 Header Nav Bar -->
+    <header class="bg-[#00320D] text-white shadow-md z-50 shrink-0 border-b-4 border-emerald-500">
+        <div class="max-w-[1500px] mx-auto px-6 py-3.5 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center border border-emerald-400/30 text-emerald-400 text-lg shadow-inner">
+                    <i class="fa-solid fa-handshake"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-black tracking-wider text-white">RIZENIC <span class="text-emerald-400">PARTNER PORTAL</span></h1>
+                    <p class="text-[10px] text-emerald-200 font-bold">ระบบติดตามสถานะรถสำหรับพาสเนอร์</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <div class="text-right border-r border-green-800 pr-4">
+                    <p class="text-xs font-black text-white flex items-center justify-end gap-1.5">
+                        <i class="fa-solid fa-building-user text-emerald-400"></i> <span id="display_partner_name">Partner Name</span>
+                    </p>
+                    <p class="text-[10px] text-emerald-300 font-bold">
+                        สิทธิ์กรองข้อมูล: <span id="display_filter_badge" class="bg-emerald-800/80 px-2 py-0.5 rounded text-white font-mono">ทั้งหมด</span>
+                    </p>
+                </div>
+                <button onclick="logout()" class="px-3.5 py-2 text-red-300 hover:text-white hover:bg-red-500/20 rounded-xl transition text-xs font-bold border border-white/10 flex items-center gap-1.5">
+                    <i class="fa-solid fa-power-off"></i> ออกจากระบบ
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 🌟 Main Workspace -->
+    <main class="flex-1 max-w-[1500px] w-full mx-auto p-4 md:p-6 flex flex-col gap-5">
+        
+        <!-- Summary Dashboard Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center">
+                <div>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wide">รถที่อยู่ระหว่างซ่อม (In Process)</p>
+                    <h3 class="text-3xl font-black text-blue-600 mt-1" id="stat_in_progress">0 <span class="text-xs font-bold text-slate-400">คัน</span></h3>
+                </div>
+                <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl font-black shadow-inner">
+                    <i class="fa-solid fa-car-side"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center">
+                <div>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wide">รถซ่อมเสร็จ / ปิดงานแล้ว</p>
+                    <h3 class="text-3xl font-black text-emerald-600 mt-1" id="stat_completed">0 <span class="text-xs font-bold text-slate-400">คัน</span></h3>
+                </div>
+                <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl font-black shadow-inner">
+                    <i class="fa-solid fa-[#00320D] fa-circle-check"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center">
+                <div>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wide">จำนวนรถทั้งหมดในระบบ</p>
+                    <h3 class="text-3xl font-black text-slate-800 mt-1" id="stat_total">0 <span class="text-xs font-bold text-slate-400">คัน</span></h3>
+                </div>
+                <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-600 flex items-center justify-center text-xl font-black shadow-inner">
+                    <i class="fa-solid fa-[#00320D] fa-list-check"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🌟 Tab Control & Search Bar -->
+        <div class="bg-slate-200/60 p-1.5 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div class="flex gap-1">
+                <button onclick="switchTab('progress')" id="tab_btn_progress" class="tab-btn active">
+                    <i class="fa-solid fa-spinner text-blue-500 animate-spin-slow"></i> 1. รถกำลังดำเนินการ (<span id="tab_cnt_progress">0</span>)
+                </button>
+                <button onclick="switchTab('closed')" id="tab_btn_closed" class="tab-btn">
+                    <i class="fa-solid fa-box-archive text-emerald-600"></i> 2. ประวัติปิดงานแล้ว (<span id="tab_cnt_closed">0</span>)
+                </button>
+            </div>
+
+            <!-- Toolbar Filters -->
+            <div class="flex items-center gap-2 px-2 w-full sm:w-auto">
+                <div class="relative flex-1 sm:w-64">
+                    <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" id="partner_search" onkeyup="filterPartnerTable()" class="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold outline-none focus:border-emerald-500 shadow-sm" placeholder="ค้นหาทะเบียน, ชื่อลูกค้า, รุ่นรถ...">
+                </div>
+                <button onclick="loadPartnerJobsData()" class="px-3 py-2 bg-[#00320D] text-white font-bold rounded-xl text-xs hover:bg-black transition shadow-md shrink-0 flex items-center gap-1.5">
+                    <i class="fa-solid fa-rotate-right"></i> รีเฟรช
+                </button>
+            </div>
+        </div>
+
+        <!-- 🌟 PAGE 1: ตารางรถกำลังดำเนินการ (In Process) -->
+        <div id="page_progress" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex-1 flex flex-col">
+            <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                <h3 class="font-black text-slate-800 text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-car text-blue-500"></i> รายการรถที่อยู่ระหว่างการซ่อมแซมและดำเนินการ
+                </h3>
+            </div>
+            
+            <div class="flex-1 overflow-auto custom-scrollbar">
+                <table class="partner-table" id="table_progress">
+                    <thead>
+                        <tr>
+                            <th class="w-28 text-center">ทะเบียนรถ</th>
+                            <th class="w-40">ยี่ห้อ / รุ่นรถ</th>
+                            <th class="w-44">ชื่อลูกค้า</th>
+                            <th class="w-32 text-center">วันที่เข้าจอดอู่</th>
+                            <th class="w-40">ความคืบหน้าสถานีช่าง</th>
+                            <th class="w-32 text-center">เป้าซ่อมเสร็จ</th>
+                            <th class="w-32 text-center">กำหนดส่งมอบ</th>
+                            <th class="w-40">สถานะหลัก (ERP)</th>
+                            <th class="w-20 text-center">รายละเอียด</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody_progress">
+                        <tr><td colspan="9" class="text-center py-16 text-slate-400 font-bold bg-white"><i class="fa-solid fa-spinner fa-spin text-2xl text-[#00320D] mb-2"></i><br>กำลังโหลดข้อมูล...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 🌟 PAGE 2: ตารางประวัติปิดงานแล้ว (Closed Jobs - แยกรายเดือน) -->
+        <div id="page_closed" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex-1 flex flex-col">
+            <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <h3 class="font-black text-slate-800 text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-circle-check text-emerald-600"></i> ประวัติงานซ่อมที่ปิดงาน / ส่งมอบแล้ว
+                </h3>
+                
+                <!-- ตัวเลือกแยกดูรายเดือน -->
+                <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-300 shadow-sm">
+                    <label class="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">
+                        <i class="fa-solid fa-calendar-days text-emerald-600"></i> เลือกเดือนที่ปิดงาน:
+                    </label>
+                    <select id="month_filter_select" onchange="renderClosedJobsByMonth()" class="text-xs font-black text-[#00320D] bg-transparent outline-none cursor-pointer">
+                        <option value="ALL">-- แสดงประวัติทั้งหมด --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-auto custom-scrollbar">
+                <table class="partner-table" id="table_closed">
+                    <thead>
+                        <tr>
+                            <th class="w-28 text-center">ทะเบียนรถ</th>
+                            <th class="w-40">ยี่ห้อ / รุ่นรถ</th>
+                            <th class="w-44">ชื่อลูกค้า</th>
+                            <th class="w-32 text-center">วันที่เข้าจอดอู่</th>
+                            <th class="w-32 text-center">วันที่เสร็จจริง</th>
+                            <th class="w-32 text-center">วันที่ส่งมอบ / ออกบิล</th>
+                            <th class="w-36 text-center">เลขที่เอกสาร (QT/SO)</th>
+                            <th class="w-36">สถานะสุดท้าย</th>
+                            <th class="w-20 text-center">รายละเอียด</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody_closed">
+                        <tr><td colspan="9" class="text-center py-16 text-slate-400 font-bold bg-white">ไม่มีข้อมูลงานปิดบิล</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 🌟 Modal: ดูรายละเอียดรถแบบอ่านอย่างเดียว (View Details Modal) -->
+    <div id="jobDetailModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="bg-[#00320D] px-6 py-4 flex justify-between items-center text-white shrink-0">
+                <h3 class="font-bold text-base flex items-center gap-2">
+                    <i class="fa-solid fa-car text-amber-400"></i> รายละเอียดใบงาน: <span id="md_car_plate" class="text-amber-400 font-mono font-black"></span>
+                </h3>
+                <button onclick="closeModal('jobDetailModal')" class="text-slate-300 hover:text-white transition text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto custom-scrollbar bg-slate-50 space-y-4 text-xs font-bold">
+                <div class="grid grid-cols-2 gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <div><span class="text-slate-400 block text-[10px]">ยี่ห้อ/รุ่นรถ:</span> <span id="md_car_model" class="text-slate-800 text-sm font-black"></span></div>
+                    <div><span class="text-slate-400 block text-[10px]">ชื่อลูกค้า:</span> <span id="md_customer_name" class="text-slate-800 text-sm"></span></div>
+                    <div><span class="text-slate-400 block text-[10px]">หมายเลข VIN:</span> <span id="md_vin" class="font-mono text-slate-700"></span></div>
+                    <div><span class="text-slate-400 block text-[10px]">ประเภทลูกค้า:</span> <span id="md_customer_type" class="text-emerald-700 font-black"></span></div>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+                    <p class="text-blue-800 font-black border-b border-slate-100 pb-1"><i class="fa-solid fa-layer-group text-blue-500"></i> ชิ้นส่วนทำสี (หลัก):</p>
+                    <p id="md_main_parts" class="text-slate-700 font-medium whitespace-normal leading-relaxed"></p>
+                    <p class="text-amber-800 font-black border-b border-slate-100 pb-1 pt-2"><i class="fa-solid fa-puzzle-piece text-amber-500"></i> ชิ้นส่วนทำสี (รอง):</p>
+                    <p id="md_sub_parts" class="text-slate-700 font-medium whitespace-normal leading-relaxed"></p>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-center">
+                    <div class="bg-blue-50 p-2 rounded-xl"><span class="text-[10px] text-blue-600 block">วันเข้าจอด</span><span id="md_arr_date" class="font-mono text-blue-900 font-black"></span></div>
+                    <div class="bg-amber-50 p-2 rounded-xl"><span class="text-[10px] text-amber-600 block">เป้าซ่อมเสร็จ</span><span id="md_tgt_date" class="font-mono text-amber-900 font-black"></span></div>
+                    <div class="bg-emerald-50 p-2 rounded-xl"><span class="text-[10px] text-emerald-600 block">วันส่งมอบ</span><span id="md_del_date" class="font-mono text-emerald-900 font-black"></span></div>
+                </div>
+
+                <div class="bg-slate-100 p-3 rounded-xl border border-slate-200">
+                    <span class="text-slate-400 block text-[10px]">หมายเหตุ:</span>
+                    <p id="md_notes" class="text-slate-700 font-medium text-xs mt-1">-</p>
+                </div>
+            </div>
+            
+            <div class="bg-white px-6 py-3 border-t border-slate-200 text-right">
+                <button onclick="closeModal('jobDetailModal')" class="px-5 py-2 bg-slate-200 text-slate-700 font-bold rounded-xl text-xs hover:bg-slate-300 transition">ปิดหน้าต่าง</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🌟 JavaScript Control Engine -->
+    <script>
+        const API_BASE_URL = window.location.origin;
+        
+        let allPartnerJobs = [];
+        let inProgressJobs = [];
+        let closedJobs = [];
+        let activeTab = 'progress';
+
+        // คำนวณสถานีช่างจาก Checkbox
+        function isTrue(val) { return val === 'TRUE' || val === '1' || val === true || val === 1; }
+        function computeStation(j) {
+            if(isTrue(j.station_ready)) return "12.รอส่งมอบ"; if(isTrue(j.station_pak)) return "11.พักซ่อม"; if(isTrue(j.station_film)) return "10.ฟิล์ม";
+            if(isTrue(j.station_kraj)) return "09.กระจก"; if(isTrue(j.station_mag)) return "08.ซ่อมแม็ก"; if(isTrue(j.station_qc)) return "07.QC";
+            if(isTrue(j.station_kat)) return "06.ขัดสี"; if(isTrue(j.station_prak)) return "05.ประกอบ"; if(isTrue(j.station_pon)) return "04.พ่นสี";
+            if(isTrue(j.station_puan)) return "03.เตรียมพื้น"; if(isTrue(j.station_pou)) return "02.โป๊ว"; if(isTrue(j.station_kho)) return "01.เคาะ";
+            return "กำลังเตรียมงาน";
+        }
+
+        function formatThaiDate(isoStr) {
+            if (!isoStr) return '-';
+            const parts = String(isoStr).split('T')[0].split('-');
+            if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            return isoStr;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Guard Check
+            if (sessionStorage.getItem('isLoggedIn') !== 'true') {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const pName = sessionStorage.getItem('emp_name') || 'Partner';
+            const pFilter = sessionStorage.getItem('customer_type_filter') || '';
+
+            document.getElementById('display_partner_name').innerText = pName;
+            document.getElementById('display_filter_badge').innerText = pFilter || 'แสดงทั้งหมด';
+
+            loadPartnerJobsData();
+        });
+
+        function logout() {
+            sessionStorage.clear();
+            window.location.href = 'index.html';
+        }
+
+        function switchTab(tabName) {
+            activeTab = tabName;
+            document.getElementById('tab_btn_progress').classList.toggle('active', tabName === 'progress');
+            document.getElementById('tab_btn_closed').classList.toggle('active', tabName === 'closed');
+            
+            document.getElementById('page_progress').classList.toggle('hidden', tabName !== 'progress');
+            document.getElementById('page_closed').classList.toggle('hidden', tabName !== 'closed');
+        }
+
+        function openModal(id) { document.getElementById(id).classList.replace('hidden', 'flex'); }
+        function closeModal(id) { document.getElementById(id).classList.replace('flex', 'hidden'); }
+
+        // ================= 1. โหลดข้อมูลงานทั้งหมด =================
+        async function loadPartnerJobsData() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/reports`);
+                const data = await res.json();
+                
+                const cFilter = sessionStorage.getItem('customer_type_filter') || '';
+                
+                // 🎯 ลอจิกจำกัดสิทธิ์ข้อมูล (Data Scoping): ถ้ามีการระบุ customer_type_filter ให้ดึงเฉพาะรถของเจ้านั้น
+                if (cFilter && cFilter.trim() !== '') {
+                    allPartnerJobs = data.filter(j => (j.customer_type || '').trim() === cFilter.trim());
+                } else {
+                    allPartnerJobs = data;
+                }
+
+                // สรุปยอด KPI
+                document.getElementById('stat_total').innerText = allPartnerJobs.length;
+
+                // 🎯 แยกกลุ่มงาน:
+                // 1. กลุ่มปิดงาน/ส่งมอบแล้ว/ยกเลิก/ออกบิลแล้ว
+                const closedStatusList = ['12.ส่งมอบ', '12.ส่งมอบแล้ว', '18.ลูกค้ายกเลิก', '19.ออกบิลแล้ว', '22.ปิดงาน'];
+                
+                closedJobs = allPartnerJobs.filter(j => {
+                    const st = j.job_status || '';
+                    return closedStatusList.some(s => st.includes(s)) || j.billing_date;
+                });
+
+                // 2. กลุ่มกำลังดำเนินการ
+                inProgressJobs = allPartnerJobs.filter(j => !closedJobs.includes(j));
+
+                document.getElementById('stat_in_progress').innerText = inProgressJobs.length;
+                document.getElementById('stat_completed').innerText = closedJobs.length;
+                document.getElementById('tab_cnt_progress').innerText = inProgressJobs.length;
+                document.getElementById('tab_cnt_closed').innerText = closedJobs.length;
+
+                renderProgressTable(inProgressJobs);
+                setupClosedJobsMonthFilter();
+            } catch(e) {
+                console.error("Error loading partner jobs:", e);
+            }
+        }
+
+        // ================= 2. วาดตารางรถกำลังดำเนินการ (In Process) =================
+        function renderProgressTable(jobs) {
+            const tbody = document.getElementById('tbody_progress');
+            if (jobs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-16 text-slate-400 font-bold bg-white">ไม่มีรายการรถกำลังดำเนินการในขณะนี้</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = jobs.map(j => `
+                <tr>
+                    <td class="text-center font-black text-blue-700"><span class="bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg shadow-inner">${j.car_plate || '-'}</span></td>
+                    <td class="font-bold text-slate-800 text-xs">${j.car_brand || ''} ${j.car_model || ''}</td>
+                    <td class="font-bold text-slate-700 text-xs truncate max-w-[150px]" title="${j.customer_name}">${j.customer_name || '-'}</td>
+                    <td class="text-center font-mono font-bold text-slate-600 text-xs">${formatThaiDate(j.arrived_date)}</td>
+                    <td class="font-black text-amber-600 text-xs bg-amber-50/50 px-2 rounded"><i class="fa-solid fa-wrench mr-1"></i> ${computeStation(j)}</td>
+                    <td class="text-center font-mono font-bold text-amber-700 text-xs">${formatThaiDate(j.target_finish_date)}</td>
+                    <td class="text-center font-mono font-bold text-emerald-700 text-xs">${formatThaiDate(j.delivery_date)}</td>
+                    <td><span class="bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm">${j.job_status || '-'}</span></td>
+                    <td class="text-center">
+                        <button onclick="viewJobDetail('${j.id}')" class="bg-[#00320D] text-white px-3 py-1 rounded-lg text-xs font-bold hover:bg-black transition shadow-sm">
+                            <i class="fa-solid fa-eye"></i> ดู
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // ================= 3. วาดตารางประวัติปิดงาน (Closed Jobs + แยกรายเดือน) =================
+        function setupClosedJobsMonthFilter() {
+            const select = document.getElementById('month_filter_select');
+            const monthsSet = new Set();
+
+            closedJobs.forEach(j => {
+                const dateStr = j.billing_date || j.delivery_date || j.repair_finish_date;
+                if (dateStr) {
+                    const ym = dateStr.split('T')[0].substring(0, 7); // Format: YYYY-MM
+                    monthsSet.add(ym);
+                }
+            });
+
+            const sortedMonths = Array.from(monthsSet).sort().reverse();
+            
+            let options = `<option value="ALL">-- แสดงประวัติทั้งหมด --</option>`;
+            sortedMonths.forEach(ym => {
+                const [y, m] = ym.split('-');
+                const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+                const label = `${monthNames[parseInt(m)-1]} ${parseInt(y) + 543}`;
+                options += `<option value="${ym}">${label}</option>`;
+            });
+
+            select.innerHTML = options;
+            renderClosedJobsByMonth();
+        }
+
+        function renderClosedJobsByMonth() {
+            const selectedYM = document.getElementById('month_filter_select').value;
+            let filtered = closedJobs;
+
+            if (selectedYM !== 'ALL') {
+                filtered = closedJobs.filter(j => {
+                    const dateStr = j.billing_date || j.delivery_date || j.repair_finish_date;
+                    return dateStr && dateStr.startsWith(selectedYM);
+                });
+            }
+
+            const tbody = document.getElementById('tbody_closed');
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-16 text-slate-400 font-bold bg-white">ไม่มีประวัติปิดงานในเดือนที่เลือก</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(j => `
+                <tr>
+                    <td class="text-center font-black text-emerald-800"><span class="bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg shadow-inner">${j.car_plate || '-'}</span></td>
+                    <td class="font-bold text-slate-800 text-xs">${j.car_brand || ''} ${j.car_model || ''}</td>
+                    <td class="font-bold text-slate-700 text-xs truncate max-w-[150px]" title="${j.customer_name}">${j.customer_name || '-'}</td>
+                    <td class="text-center font-mono font-bold text-slate-600 text-xs">${formatThaiDate(j.arrived_date)}</td>
+                    <td class="text-center font-mono font-bold text-slate-600 text-xs">${formatThaiDate(j.repair_finish_date)}</td>
+                    <td class="text-center font-mono font-bold text-emerald-700 text-xs">${formatThaiDate(j.billing_date || j.delivery_date)}</td>
+                    <td class="text-center font-mono text-xs font-bold text-slate-500">${j.qt_no || j.so_no || '-'}</td>
+                    <td><span class="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm"><i class="fa-solid fa-check mr-1"></i> ${j.job_status || 'ปิดงานแล้ว'}</span></td>
+                    <td class="text-center">
+                        <button onclick="viewJobDetail('${j.id}')" class="bg-[#00320D] text-white px-3 py-1 rounded-lg text-xs font-bold hover:bg-black transition shadow-sm">
+                            <i class="fa-solid fa-eye"></i> ดู
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // ================= 4. ค้นหาด่วนในตาราง =================
+        function filterPartnerTable() {
+            const txt = document.getElementById('partner_search').value.toLowerCase();
+            const activeTableId = activeTab === 'progress' ? 'tbody_progress' : 'tbody_closed';
+            const rows = document.getElementById(activeTableId).getElementsByTagName('tr');
+
+            for (let r of rows) {
+                const rowTxt = r.textContent.toLowerCase();
+                r.style.display = rowTxt.includes(txt) ? '' : 'none';
+            }
+        }
+
+        // ================= 5. ป๊อปอัปดูรายละเอียดใบงาน =================
+        function viewJobDetail(id) {
+            const job = allPartnerJobs.find(j => String(j.id) === String(id));
+            if (!job) return;
+
+            document.getElementById('md_car_plate').innerText = job.car_plate || '-';
+            document.getElementById('md_car_model').innerText = `${job.car_brand || ''} ${job.car_model || ''}`;
+            document.getElementById('md_customer_name').innerText = job.customer_name || '-';
+            document.getElementById('md_vin').innerText = job.vin_no || '-';
+            document.getElementById('md_customer_type').innerText = job.customer_type || '-';
+            
+            document.getElementById('md_main_parts').innerText = job.main_part_name || '-';
+            document.getElementById('md_sub_parts').innerText = job.sub_part_name || '-';
+
+            document.getElementById('md_arr_date').innerText = formatThaiDate(job.arrived_date);
+            document.getElementById('md_tgt_date').innerText = formatThaiDate(job.target_finish_date);
+            document.getElementById('md_del_date').innerText = formatThaiDate(job.delivery_date);
+            
+            document.getElementById('md_notes').innerText = job.notes || '-';
+
+            openModal('jobDetailModal');
+        }
+    </script>
+</body>
+</html>
