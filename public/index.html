@@ -104,6 +104,10 @@
                         <a href="parts.html" class="px-4 py-2 rounded-lg text-green-200 hover:bg-white/10 font-bold transition-all text-xs">แผนกอะไหล่</a>
                         <a href="finance.html" class="px-4 py-2 rounded-lg text-emerald-300 hover:bg-white/10 font-bold transition-all text-xs"><i class="fa-solid fa-file-invoice-dollar mr-1"></i> บัญชี</a>
                         <a href="admin.html" id="nav_admin" class="px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-[#00320D] font-black hover:from-amber-400 hover:to-amber-500 transition-all text-xs shadow-md hidden border border-amber-400"><i class="fa-solid fa-gear mr-1"></i> แอดมิน</a>
+                        
+                        <!-- 🌟 1. เพิ่มเมนู แอดมินพาสเนอร์ -->
+                        <a href="admin_partner.html" id="nav_admin_partner" class="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-black hover:from-emerald-400 hover:to-emerald-500 transition-all text-xs shadow-md hidden border border-emerald-400"><i class="fa-solid fa-handshake mr-1"></i> แอดมินพาสเนอร์</a>
+                        
                         <button onclick="logout()" class="px-3 py-2 text-red-300 hover:text-red-100 transition-all text-xs bg-white/5 hover:bg-red-700/50 rounded-lg ml-2 border border-white/10"><i class="fa-solid fa-power-off"></i></button>
                     </div>
                 </nav>
@@ -292,7 +296,7 @@
                         <h3 class="section-title"><i class="fa-solid fa-eye section-icon"></i> 6. ความคืบหน้าจากสถานีช่าง</h3>
                     </div>
                     <div class="flex flex-wrap gap-2" id="station_badges_container">
-                        <span id="badge_st_kho" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">01. เคาะ</span>
+                        <span id="badge_st_kho" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">01. เเคาะ</span>
                         <span id="badge_st_pou" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">02. โป๊ว</span>
                         <span id="badge_st_puan" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">03. เตรียมพื้น</span>
                         <span id="badge_st_pon" class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-400 border border-slate-200 shadow-sm transition-all">04. พ่นสี</span>
@@ -491,13 +495,11 @@
     <div id="scheduleCalendarModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[120] flex items-center justify-center hidden p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden modal-fade border-t-4 border-blue-600 flex flex-col max-h-[90vh]">
             <div class="bg-[#00320D] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md z-10 relative">
-                <!-- 🌟 เพิ่ม ID 'modal_dynamic_title' ป้องกัน JavaScript Crash 🌟 -->
                 <h2 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-calendar-days text-blue-400"></i> <span id="modal_dynamic_title">ตารางตรวจสอบโควต้า</span></h2>
                 <button type="button" onclick="closeModal('scheduleCalendarModal')" class="hover:text-red-400 transition text-2xl"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
             <div class="flex-1 overflow-auto custom-scrollbar p-6 bg-slate-50 relative">
-                <!-- 🌟 Loading State -->
                 <div id="calendar_loading" class="absolute inset-0 bg-white/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center hidden">
                     <i class="fa-solid fa-spinner fa-spin text-4xl text-[#00320D] mb-3"></i>
                     <p class="font-bold text-slate-600">กำลังประมวลผลข้อมูลโควต้า...</p>
@@ -575,7 +577,94 @@
         </div>
     </div>
 
-<!-- 🌟 โหลดสคริปต์แยกไฟล์ที่ถูกต้อง -->
+    <!-- 🌟 2. ลอจิกตรวจสอบการล็อกอิน & Redirect พาสเนอร์ -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
+            const isPartner = sessionStorage.getItem('is_partner') === 'true' || sessionStorage.getItem('emp_role') === 'Partner';
+
+            // 🎯 ถ้าล็อกอินอยู่แล้ว และเป็น "พาสเนอร์" -> ดีดไปที่ไฟล์ตารางงานพาสเนอร์ (partner_jobs.html) ทันที
+            if (isLoggedIn && isPartner) {
+                window.location.href = 'partner_jobs.html';
+                return;
+            }
+
+            // 🎯 ถ้าล็อกอินเป็นพนักงานปกติ -> เปิดใช้งานหน้าเปิดบิลปกติ
+            if (isLoggedIn) {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('main-app').classList.remove('hidden');
+
+                const allowedPages = (sessionStorage.getItem('accessible_pages') || '').split(',');
+                if (allowedPages.includes('admin')) {
+                    document.getElementById('nav_admin')?.classList.remove('hidden');
+                    document.getElementById('nav_admin_partner')?.classList.remove('hidden');
+                }
+            }
+        });
+
+        // 🎯 ลอจิกการเข้าสู่ระบบ (Dual-Source Login: Employee + Partner)
+        async function handleLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('login_user').value.trim();
+            const password = document.getElementById('login_pass').value.trim();
+
+            try {
+                const res = await fetch(`${window.location.origin}/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    // 🟢 กรณีเข้าสู่ระบบสำเร็จในฐานะ "พาสเนอร์"
+                    if (data.user_type === 'partner' || data.partner) {
+                        const p = data.partner;
+                        sessionStorage.setItem('isLoggedIn', 'true');
+                        sessionStorage.setItem('is_partner', 'true');
+                        sessionStorage.setItem('emp_name', p.partner_name);
+                        sessionStorage.setItem('emp_role', 'Partner');
+                        sessionStorage.setItem('customer_type_filter', p.customer_type_filter || '');
+
+                        alert(`👋 ยินดีต้อนรับพาสเนอร์: ${p.partner_name}`);
+                        window.location.href = 'partner_jobs.html'; // ดีดไปหน้าตารางงานพาสเนอร์ทันที
+                        return;
+                    }
+
+                    // 🟢 กรณีเข้าสู่ระบบสำเร็จในฐานะ "พนักงานปกติ"
+                    if (data.employee) {
+                        const e = data.employee;
+                        sessionStorage.setItem('isLoggedIn', 'true');
+                        sessionStorage.setItem('is_partner', 'false');
+                        sessionStorage.setItem('emp_name', e.employee_name);
+                        sessionStorage.setItem('emp_role', e.employee_role);
+                        sessionStorage.setItem('emp_branch', e.branch_name || 'สำนักงานใหญ่');
+                        sessionStorage.setItem('accessible_pages', e.accessible_pages || '');
+
+                        if (e.employee_role === 'Partner') {
+                            window.location.href = 'partner_jobs.html';
+                            return;
+                        }
+
+                        document.getElementById('login-screen').classList.add('hidden');
+                        document.getElementById('main-app').classList.remove('hidden');
+
+                        if ((e.accessible_pages || '').split(',').includes('admin')) {
+                            document.getElementById('nav_admin')?.classList.remove('hidden');
+                            document.getElementById('nav_admin_partner')?.classList.remove('hidden');
+                        }
+                    }
+                } else {
+                    alert('❌ ' + (data.error || 'Username หรือ Password ไม่ถูกต้อง'));
+                }
+            } catch (err) {
+                alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+            }
+        }
+    </script>
+
+    <!-- 🌟 โหลดสคริปต์แยกไฟล์เดิม -->
     <script src="sa_core.js?v=19.0"></script>
     <script src="sa_parts.js?v=19.0"></script>
     <script src="sa_calendar.js?v=19.0"></script>
