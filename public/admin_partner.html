@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIZENIC ERP - Partner Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style type="text/tailwindcss">
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Kanit', sans-serif; background-color: #f4f6f9; }
+        .bg-rizenic-green { background-color: #00320D; }
+        .text-rizenic-green { color: #00320D; }
+        .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+        
+        .minimal-input { @apply w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none text-sm font-bold text-[#00320D] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 shadow-sm transition-all; }
+        .minimal-input:disabled { @apply bg-slate-100 text-slate-500 cursor-not-allowed; }
+
+        .label-text { @apply flex items-center gap-1 text-[12px] font-bold text-slate-500 mb-1.5 tracking-wide uppercase; }
+        .nav-btn { @apply w-full text-left px-4 py-3 rounded-xl font-bold text-sm text-slate-400 hover:bg-[#004a1f] hover:text-white transition-all mb-1.5 flex items-center gap-3; }
+        .nav-btn.active { @apply bg-[#004a1f] text-white shadow-inner; }
+
+        .modal-fade { animation: fadeInScale 0.2s ease-out forwards; }
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.95) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+    </style>
+</head>
+<body class="text-slate-800 flex h-screen overflow-hidden selection:bg-[#00320D] selection:text-white">
+
+    <!-- 🌟 Sidebar -->
+    <aside class="w-64 bg-[#00320D] text-white flex flex-col h-full shrink-0 shadow-2xl z-20">
+        <div class="p-6 border-b border-green-800 mb-4 text-center">
+            <div class="w-16 h-16 mx-auto bg-white rounded-2xl flex items-center justify-center mb-3 shadow-lg">
+                <i class="fa-solid fa-handshake text-3xl text-emerald-600"></i>
+            </div>
+            <h1 class="text-xl font-black tracking-wider text-white">PARTNER <span class="text-emerald-400">PANEL</span></h1>
+            <p class="text-[10px] text-emerald-200 mt-1 uppercase tracking-widest font-bold">Management Center</p>
+        </div>
+        <div class="px-3 flex-1 overflow-y-auto custom-scrollbar space-y-1">
+            <button class="nav-btn active text-emerald-300"><i class="fa-solid fa-users-gear w-5 text-center"></i> จัดการบัญชีพาสเนอร์</button>
+        </div>
+        <div class="p-5 border-t border-green-800 space-y-2 bg-[#002209]">
+            <a href="admin.html" class="w-full block text-center py-2.5 bg-slate-200 text-[#00320D] font-black text-sm rounded-xl hover:bg-white transition shadow-md"><i class="fa-solid fa-arrow-left mr-1"></i> กลับหน้า Admin หลัก</a>
+            <button onclick="logout()" class="w-full text-center py-2.5 text-red-300 font-bold text-xs hover:text-white hover:bg-red-500/20 rounded-xl transition"><i class="fa-solid fa-power-off mr-1"></i> ออกจากระบบ</button>
+        </div>
+    </aside>
+
+    <!-- 🌟 Main Content -->
+    <main class="flex-1 overflow-hidden flex flex-col bg-slate-100 relative">
+        <div class="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8">
+            <div class="max-w-[1200px] mx-auto bg-white rounded-3xl shadow-sm border border-slate-200 min-h-[85vh] flex flex-col">
+                
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center p-6 border-b border-slate-100 bg-slate-50/50 rounded-t-3xl shrink-0 gap-4">
+                    <h2 class="text-xl font-black text-[#00320D]"><i class="fa-solid fa-handshake text-emerald-500 mr-2 bg-emerald-100 p-2 rounded-lg"></i> ฐานข้อมูลบัญชีพาสเนอร์ (ลูกค้าองค์กร)</h2>
+                    <div class="flex items-center gap-3 w-full md:w-auto">
+                        <div class="relative flex-1 md:w-64">
+                            <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                            <input type="text" onkeyup="filterTableDebounced('partner_search_input', 'partner_table_body')" id="partner_search_input" class="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-500 shadow-sm transition" placeholder="ค้นหาพาสเนอร์...">
+                        </div>
+                        <button onclick="resetPartnerForm(); openModal('partnerModal')" class="px-5 py-2 bg-emerald-600 text-white font-bold rounded-xl text-xs shadow-md hover:bg-emerald-700 transition flex items-center gap-2 whitespace-nowrap"><i class="fa-solid fa-plus"></i> สร้างบัญชีพาสเนอร์</button>
+                    </div>
+                </div>
+
+                <div class="flex-1 overflow-auto custom-scrollbar p-0">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-white border-b-2 border-slate-200 sticky top-0 z-10 shadow-sm">
+                            <tr>
+                                <th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider">Username</th>
+                                <th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider">ชื่อพาสเนอร์ / องค์กร</th>
+                                <th class="p-4 font-black text-emerald-700 uppercase text-[11px] tracking-wider"><i class="fa-solid fa-filter"></i> ผูกสิทธิ์ดูข้อมูล (ประเภทลูกค้า)</th>
+                                <th class="p-4 font-black text-slate-600 uppercase text-[11px] tracking-wider text-center w-32">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="partner_table_body" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- 🌟 Modal: สร้าง/แก้ไขพาสเนอร์ -->
+    <div id="partnerModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden modal-fade flex flex-col">
+            <div class="bg-emerald-600 px-6 py-4 flex justify-between items-center text-white shrink-0">
+                <h3 class="font-bold text-lg flex items-center gap-2" id="partnerModalTitle"><i class="fa-solid fa-handshake text-emerald-200"></i> สร้างบัญชีพาสเนอร์</h3>
+                <button onclick="closeModal('partnerModal')" class="hover:text-emerald-200 transition text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-6 bg-slate-50 grid grid-cols-1 md:grid-cols-2 gap-5">
+                <input type="hidden" id="edit_partner_id">
+                
+                <div class="md:col-span-2">
+                    <label class="label-text">ชื่อพาสเนอร์ / ชื่อบริษัท *</label>
+                    <input type="text" id="partner_name_input" class="minimal-input" placeholder="เช่น ทีมงาน EV ME">
+                </div>
+
+                <div>
+                    <label class="label-text">Username (สำหรับล็อกอิน) *</label>
+                    <input type="text" id="partner_user_input" class="minimal-input font-mono" placeholder="เช่น evme_admin">
+                </div>
+                <div>
+                    <label class="label-text">Password (สำหรับล็อกอิน) *</label>
+                    <input type="password" id="partner_pass_input" class="minimal-input font-mono" placeholder="********">
+                </div>
+                
+                <div class="md:col-span-2 bg-emerald-50 border border-emerald-200 p-4 rounded-xl mt-2">
+                    <label class="label-text text-emerald-800 border-b border-emerald-200 pb-2 mb-3"><i class="fa-solid fa-filter"></i> ตั้งค่าการกรองข้อมูล (Data Scoping)</label>
+                    <p class="text-xs text-slate-500 mb-2">เลือกประเภทลูกค้าที่ต้องการให้พาสเนอร์เจ้านี้มองเห็นข้อมูล (ดึงข้อมูลอัตโนมัติจากตั้งค่าประเภทลูกค้า)</p>
+                    <select id="partner_ctype_filter_input" class="minimal-input font-bold cursor-pointer text-emerald-700 bg-white shadow-sm border-emerald-300 focus:ring-emerald-500">
+                        <option value="">-- ไม่จำกัด (เห็นทั้งหมด) --</option>
+                    </select>
+                </div>
+
+                <div class="md:col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t border-slate-200">
+                    <button onclick="closeModal('partnerModal')" class="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl text-sm font-bold shadow-sm hover:bg-slate-100 transition">ยกเลิก</button>
+                    <button onclick="savePartner()" id="btn_save_partner" class="px-8 py-2.5 bg-emerald-600 text-white font-bold rounded-xl text-sm shadow-md hover:bg-emerald-700 transition flex items-center gap-2"><i class="fa-solid fa-save"></i> บันทึกข้อมูล</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🌟 Scripts -->
+    <script>
+        const API_BASE_URL = window.location.origin;
+        let globalPartners = [];
+        let globalCtype = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check Session (ใช้เงื่อนไขแอดมินเดิม)
+            if(sessionStorage.getItem('isLoggedIn') !== 'true') { 
+                alert('กรุณาเข้าสู่ระบบ!'); window.location.href = 'index.html'; return; 
+            }
+            const allowedPages = (sessionStorage.getItem('accessible_pages') || '').split(',');
+            if (!allowedPages.includes('admin')) { 
+                alert('⛔ คุณไม่มีสิทธิ์เข้าถึงหน้า Admin!');
+                window.location.href = allowedPages.length > 0 ? allowedPages[0] + '.html' : 'index.html';
+                return;
+            }
+
+            loadAllData();
+        });
+
+        function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
+        function openModal(id) { document.getElementById(id).classList.replace('hidden', 'flex'); }
+        function closeModal(id) { document.getElementById(id).classList.replace('flex', 'hidden'); }
+
+        let searchTimers = {};
+        function filterTableDebounced(inputId, tbodyId) {
+            clearTimeout(searchTimers[inputId]);
+            searchTimers[inputId] = setTimeout(() => {
+                const txt = document.getElementById(inputId).value.toLowerCase();
+                const rows = document.getElementById(tbodyId).getElementsByTagName('tr');
+                for (let r of rows) {
+                    const rowText = r.textContent.toLowerCase();
+                    r.style.display = rowText.includes(txt) ? '' : 'none';
+                }
+            }, 150);
+        }
+
+        async function loadAllData() { 
+            await loadCtype(); // โหลดประเภทลูกค้าก่อนเพื่อเตรียมทำ Dropdown
+            await loadPartners(); 
+        }
+
+        // ================= โหลดข้อมูลประเภทลูกค้า (สำหรับ Dropdown) =================
+        async function loadCtype() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/customer-types`); 
+                globalCtype = await res.json();
+            } catch(e) { console.error('Failed to load customer types'); }
+        }
+
+        function populatePartnerCtypeDropdown() {
+            const select = document.getElementById('partner_ctype_filter_input');
+            let options = `<option value="">-- ไม่จำกัด (เห็นทั้งหมด) --</option>`;
+            globalCtype.forEach(c => {
+                options += `<option value="${c.type_name}">${c.type_name}</option>`;
+            });
+            select.innerHTML = options;
+        }
+
+        // ================= จัดการพาสเนอร์ =================
+        async function loadPartners() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/partners`);
+                globalPartners = await res.json();
+                
+                document.getElementById('partner_table_body').innerHTML = globalPartners.map(p => `
+                <tr class="hover:bg-emerald-50/30 transition-colors">
+                    <td class="p-4 font-mono font-bold text-slate-500">${p.username}</td>
+                    <td class="p-4 font-black text-[#00320D]">${p.partner_name}</td>
+                    <td class="p-4">
+                        <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-md text-[11px] font-bold border border-emerald-200 shadow-sm">
+                            ${p.customer_type_filter || 'ไม่จำกัด'}
+                        </span>
+                    </td>
+                    <td class="p-4 text-center">
+                        <button onclick="editPartner('${p.partner_id}','${p.partner_name}','${p.username}','${p.password}','${p.customer_type_filter || ''}')" class="bg-white border border-slate-300 shadow-sm text-blue-600 hover:bg-blue-50 w-8 h-8 rounded-lg transition-all"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="deletePartner('${p.partner_id}')" class="bg-white border border-slate-300 shadow-sm text-red-500 hover:bg-red-50 w-8 h-8 rounded-lg transition-all ml-1"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>`).join('');
+            } catch(e) {}
+        }
+
+        function editPartner(id, name, user, pass, cTypeFilter) {
+            populatePartnerCtypeDropdown();
+            document.getElementById('edit_partner_id').value = id;
+            document.getElementById('partner_name_input').value = name;
+            document.getElementById('partner_user_input').value = user;
+            document.getElementById('partner_pass_input').value = pass;
+            document.getElementById('partner_ctype_filter_input').value = cTypeFilter;
+            
+            document.getElementById('partnerModalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-amber-400"></i> แก้ไขข้อมูลพาสเนอร์';
+            openModal('partnerModal');
+        }
+
+        function resetPartnerForm() {
+            populatePartnerCtypeDropdown();
+            document.getElementById('edit_partner_id').value = '';
+            document.getElementById('partner_name_input').value = '';
+            document.getElementById('partner_user_input').value = '';
+            document.getElementById('partner_pass_input').value = '';
+            document.getElementById('partner_ctype_filter_input').value = '';
+            
+            document.getElementById('partnerModalTitle').innerHTML = '<i class="fa-solid fa-handshake text-emerald-200"></i> สร้างบัญชีพาสเนอร์';
+        }
+
+        async function savePartner() {
+            const id = document.getElementById('edit_partner_id').value;
+            const name = document.getElementById('partner_name_input').value.trim();
+            const user = document.getElementById('partner_user_input').value.trim();
+            const pass = document.getElementById('partner_pass_input').value.trim();
+            const cType = document.getElementById('partner_ctype_filter_input').value;
+
+            if(!name || !user || !pass) return alert('⚠️ กรุณากรอกข้อมูลสำคัญให้ครบ (*)');
+
+            if (globalPartners.some(p => String(p.partner_id) !== String(id) && p.username === user)) {
+                return alert('❌ Username นี้มีผู้ใช้งานในระบบแล้ว!');
+            }
+
+            const payload = { 
+                partner_name: name, 
+                username: user, 
+                password: pass, 
+                customer_type_filter: cType 
+            };
+            
+            try { 
+                await fetch(`${API_BASE_URL}${id ? '/api/partners/'+id : '/api/partners'}`, { 
+                    method: id ? 'PUT' : 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify(payload) 
+                }); 
+                resetPartnerForm(); 
+                loadPartners(); 
+                closeModal('partnerModal');
+            } catch(e) { alert('❌ เซฟข้อมูลไม่ได้'); }
+        }
+
+        async function deletePartner(id) {
+            if(confirm('🚨 ยืนยันการลบบัญชีพาสเนอร์นี้ทิ้งถาวร?')) { 
+                try {
+                    await fetch(`${API_BASE_URL}/api/partners/${id}`, {method: 'DELETE'}); 
+                    loadPartners(); 
+                } catch(e) { alert('❌ เกิดข้อผิดพลาดในการลบข้อมูล'); }
+            } 
+        }
+    </script>
+</body>
+</html>

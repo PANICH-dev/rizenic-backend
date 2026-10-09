@@ -235,6 +235,47 @@ app.delete('/api/employees/:id', async (req, res) => {
 });
 
 // ==========================================
+// 🤝 API จัดการบัญชีพาสเนอร์ (rizenic_partners)
+// ==========================================
+app.get('/api/partners', async (req, res) => {
+  try { res.json((await pool.query('SELECT * FROM rizenic_partners ORDER BY partner_id DESC')).rows); } 
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/partners', async (req, res) => {
+  try {
+    const { partner_name, username, password, customer_type_filter } = req.body;
+    const checkDup = await pool.query('SELECT username FROM rizenic_partners WHERE username = $1', [username]);
+    if (checkDup.rows.length > 0) return res.status(400).json({ error: 'Username นี้ถูกใช้งานแล้วครับนาย!' });
+    
+    // สุ่มรหัสพาสเนอร์
+    const partner_code = 'PTN-' + Math.floor(Math.random() * 10000);
+    
+    await pool.query(
+      'INSERT INTO rizenic_partners (partner_code, partner_name, username, password, customer_type_filter) VALUES ($1, $2, $3, $4, $5)', 
+      [partner_code, partner_name, username, password, customer_type_filter || null]
+    ); 
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/partners/:id', async (req, res) => {
+  try {
+    const { partner_name, username, password, customer_type_filter } = req.body;
+    await pool.query(
+      'UPDATE rizenic_partners SET partner_name=$1, username=$2, password=$3, customer_type_filter=$4 WHERE partner_id=$5', 
+      [partner_name, username, password, customer_type_filter || null, req.params.id]
+    ); 
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/partners/:id', async (req, res) => {
+  try { await pool.query('DELETE FROM rizenic_partners WHERE partner_id = $1', [req.params.id]); res.json({ success: true }); } 
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==========================================
 // 🚗 API Car Models - CRUD
 // ==========================================
 app.get('/api/car-models', async (req, res) => {
