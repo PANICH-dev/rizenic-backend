@@ -119,4 +119,183 @@ router.get('/inspection/:job_id', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
+// ==========================================
+// 📄 API จัดการรายการย่อย (Line Items) สำหรับ E-Claim
+// ==========================================
+
+// 1. ดึงข้อมูลรายการย่อย (GET)
+router.get('/report/:id/eclaim-items', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM rizenic_eclaim_items WHERE report_id = $1 ORDER BY item_type ASC, item_id ASC', 
+      [req.params.id]
+    );
+    res.json({ success: true, data: result.rows });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 2. บันทึกข้อมูลรายการย่อย (POST) - ลบของเดิมแล้ว Insert ใหม่
+router.post('/report/:id/eclaim-items', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const report_id = req.params.id;
+    const { items } = req.body; // รับ Array ของรายการย่อย
+
+    await client.query('BEGIN'); // เริ่ม Transaction
+
+    // ลบรายการเดิมทั้งหมดของ report_id นี้ทิ้งก่อน เพื่อป้องกันข้อมูลซ้ำเวลาอัปเดต
+    await client.query('DELETE FROM rizenic_eclaim_items WHERE report_id = $1', [report_id]);
+
+    // Insert รายการชุดใหม่เข้าไป
+    if (items && Array.isArray(items) && items.length > 0) {
+      const insertQuery = `
+        INSERT INTO rizenic_eclaim_items (
+          report_id, item_type, part_no, item_name_th, qty, unit_price,
+          total_before_discount, discount_amount, total_after_discount,
+          damage_level, part_ship, scrap_return, status, comment
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      `;
+      
+      for (const item of items) {
+        await client.query(insertQuery, [
+          report_id,
+          item.item_type || 'P', // 'L'=ค่าแรง, 'P'=อะไหล่
+          item.part_no || null,
+          item.item_name_th || 'ไม่ระบุชื่อ',
+          parseInt(item.qty) || 1,
+          parseFloat(item.unit_price) || 0.00,
+          parseFloat(item.total_before_discount) || 0.00,
+          parseFloat(item.discount_amount) || 0.00,
+          parseFloat(item.total_after_discount) || 0.00,
+          item.damage_level || 'เบา',
+          item.part_ship || 'garage',
+          item.scrap_return || '0',
+          item.status || 'pending',
+          item.comment || null
+        ]);
+      }
+    }
+
+    await client.query('COMMIT'); // ยืนยันการบันทึก
+    res.json({ success: true, message: 'บันทึกรายการ Line Items สำเร็จ' });
+  } catch (e) {
+    await client.query('ROLLBACK'); // ถอยกลับหากมี Error
+    res.status(500).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ==========================================
+// 📥 API Export ไฟล์ XML รูปแบบ EMCS (E-Claim)
+// ==========================================
+router.get('/report/:id/export-xml', async (req, res) => {
+  try {
+    const report_id = req.params.id;
+
+    // 1. ดึงข้อมูลจาก 3 ตารางหลักมารวมกัน
+    const reportRes = await pool.query('SELECT * FROM rizenicreport WHERE id = $1', [report_id]);
+    const eclaimRes = await pool.query('SELECT * FROM rizenic_eclaim_details WHERE report_id = $1', [report_id]);
+    const itemsRes = await pool.query('SELECT * FROM rizenic_eclaim_items WHERE report_id = $1 ORDER BY item_type ASC, item_id ASC', [report_id]);
+
+    if (reportRes.rows.length === 0) return res.status(404).json({ error: 'ไม่พบข้อมูลใบงานนี้' });
+
+    const report = reportRes.rows[0];
+    const eclaim = eclaimRes.rows.length > 0 ? eclaimRes.rows[0] : {};
+    const items = itemsRes.rows;
+
+    // 2. ฟังก์ชันช่วยเคลียร์อักขระพิเศษกัน XML พัง
+    const escapeXML = (str) => {
+      if (!str) return '';
+      return String(str).replace(/[<>&'"]/g, (c) => {
+        switch (c) { case '<': return '&lt;'; case '>': return '&gt;'; case '&': return '&amp;'; case '\'': return '&apos;'; case '"': return '&quot;'; default: return c; }
+      });
+    };
+
+    // 3. คำนวณวันที่คาดว่าจะเสร็จ (rep_estimate_days)
+    let estimateDays = 0;
+    if (report.arrived_date && report.target_finish_date) {
+      const start = new Date(report.arrived_date);
+      const end = new Date(report.target_finish_date);
+      estimateDays = Math.max(0, Math.floor((end - start) / (1000 * 60 * 60 * 24)));
+    }
+
+    const labors = items.filter(item => item.item_type === 'L');
+    const parts = items.filter(item => item.item_type === 'P');
+
+    // 4. ประกอบร่าง XML ตาม Format ของ EMCS
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<TXN_CLAIM>\n`;
+    
+    // -- ข้อมูลทั่วไป และ รถยนต์ --
+    xml += `  <c_car_regno>${escapeXML(report.car_plate)}</c_car_regno>\n`;
+    xml += `  <car_provincename>${escapeXML(eclaim.car_province)}</car_provincename>\n`;
+    xml += `  <ctype_code>${escapeXML(eclaim.car_type)}</ctype_code>\n`;
+    xml += `  <chassino>${escapeXML(report.vin_no)}</chassino>\n`;
+    xml += `  <c_engineno>${escapeXML(eclaim.engine_no)}</c_engineno>\n`;
+    xml += `  <cmfg>${escapeXML(report.car_brand)}</cmfg>\n`;
+    xml += `  <cmodel>${escapeXML(report.car_model)}</cmodel>\n`;
+    xml += `  <ctrimlevel>${escapeXML(eclaim.trim_level)}</ctrimlevel>\n`;
+    xml += `  <c_dstyear>${escapeXML(eclaim.model_year)}</c_dstyear>\n`;
+    xml += `  <carcolor>${escapeXML(eclaim.car_color)}</carcolor>\n`;
+    xml += `  <cpt_id>${escapeXML(eclaim.paint_type_id)}</cpt_id>\n`;
+    xml += `  <car_km>${escapeXML(eclaim.car_km)}</car_km>\n`;
+    xml += `  <c_engsize>${escapeXML(eclaim.engine_cc)}</c_engsize>\n`;
+    xml += `  <car_desc_id>${escapeXML(eclaim.car_condition_id)}</car_desc_id>\n`;
+    xml += `  <cariden>${escapeXML(eclaim.car_iden)}</cariden>\n`;
+    xml += `  <caridenno>${escapeXML(eclaim.car_iden_no)}</caridenno>\n`;
+    
+    // -- ข้อมูลผู้ติดต่อ ระยะเวลา --
+    xml += `  <rep_bring_name>${escapeXML(eclaim.bring_name || report.customer_name)}</rep_bring_name>\n`;
+    xml += `  <rep_get_name>${escapeXML(eclaim.get_car_name || report.sa_owner)}</rep_get_name>\n`;
+    xml += `  <jobno>${escapeXML(report.id)}</jobno>\n`;
+    xml += `  <rep_estimate_days>${estimateDays}</rep_estimate_days>\n`;
+    xml += `  <rep_estimate_date>${escapeXML(report.target_finish_date ? String(report.target_finish_date).split('T')[0] : '')}</rep_estimate_date>\n`;
+
+    // -- ข้อมูลกรมธรรม์ --
+    xml += `  <acc_policy_no>${escapeXML(eclaim.policy_no)}</acc_policy_no>\n`;
+    xml += `  <acc_policy_type_id>${escapeXML(eclaim.policy_type_id)}</acc_policy_type_id>\n`;
+    xml += `  <acc_insuree_name>${escapeXML(eclaim.insuree_name)}</acc_insuree_name>\n`;
+    xml += `  <ref_claim_no>${escapeXML(eclaim.claim_no)}</ref_claim_no>\n`;
+    xml += `  <acc_claimref_no>${escapeXML(eclaim.claim_ref_no)}</acc_claimref_no>\n`;
+    
+    // -- หมวดรายการค่าแรง (L) --
+    if (labors.length > 0) {
+      xml += `  <LABOR_ITEMS>\n`;
+      labors.forEach(l => {
+        xml += `    <ITEM>\n`;
+        xml += `      <t_gendesc>${escapeXML(l.item_name_th)}</t_gendesc>\n`;
+        xml += `      <rep_level>${escapeXML(l.damage_level)}</rep_level>\n`;
+        xml += `      <rep_price>${escapeXML(l.total_after_discount)}</rep_price>\n`;
+        xml += `    </ITEM>\n`;
+      });
+      xml += `  </LABOR_ITEMS>\n`;
+    }
+
+    // -- หมวดรายการค่าอะไหล่ (P) --
+    if (parts.length > 0) {
+      xml += `  <PART_ITEMS>\n`;
+      parts.forEach(p => {
+        xml += `    <ITEM>\n`;
+        xml += `      <cmfgpartno>${escapeXML(p.part_no)}</cmfgpartno>\n`;
+        xml += `      <t_partdesc>${escapeXML(p.item_name_th)}</t_partdesc>\n`;
+        xml += `      <fprice>${escapeXML(p.unit_price)}</fprice>\n`;
+        xml += `      <partnumber>${escapeXML(p.qty)}</partnumber>\n`;
+        xml += `      <rep_edit_price>${escapeXML(p.total_after_discount)}</rep_edit_price>\n`;
+        xml += `    </ITEM>\n`;
+      });
+      xml += `  </PART_ITEMS>\n`;
+    }
+
+    xml += `</TXN_CLAIM>`;
+
+    // 5. ส่งไฟล์ให้เบราว์เซอร์ดาวน์โหลด
+    res.set('Content-Type', 'application/xml');
+    res.attachment(`EMCS_Claim_Job_${report_id}.xml`);
+    res.send(xml);
+
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
 module.exports = router;

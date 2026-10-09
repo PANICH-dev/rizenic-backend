@@ -17,13 +17,11 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 🚗 ระบบเปลี่ยนสถานะจอดซ่อมอัตโนมัติตาม Job Status
     const jobStatusInput = document.getElementById('job_status');
-    const isParkedInput = document.getElementById('park_status'); // ใน HTML ช่องนี้ใช้ ID=park_status
+    const isParkedInput = document.getElementById('park_status');
 
     if (jobStatusInput && isParkedInput) {
         jobStatusInput.addEventListener('change', function() {
             const statusValue = this.value;
-            
-            // 🎯 กำหนดกลุ่มสถานะที่ต้องเป็น "จอดซ่อม" 
             const parkedStatuses = [
                 '09.จอดรอเข้าซ่อม',
                 '10.กำลังซ่อม',
@@ -33,9 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 '23.รื้อตรวจสอบความเสียหาย'
             ];
 
-            // เช็คว่าสถานะที่เลือก อยู่ในกลุ่มที่ต้อง "จอดซ่อม" หรือไม่
             const shouldBeParked = parkedStatuses.some(s => statusValue.includes(s));
-
             if (shouldBeParked) {
                 isParkedInput.value = 'จอดซ่อม';
             } else {
@@ -189,7 +185,7 @@ async function loadInitialData() {
             fetch(`${API_BASE_URL}/api/car-models`).then(r => r.json()),
             fetch(`${API_BASE_URL}/api/insurances`).then(r => r.json()),
             fetch(`${API_BASE_URL}/api/body-parts`).then(r => r.json()),
-            fetch(`${API_BASE_URL}/api/part-orders`).then(r => r.json()) // 🌟 1. เพิ่มการดึงข้อมูลอะไหล่
+            fetch(`${API_BASE_URL}/api/part-orders`).then(r => r.json())
         ]);
 
         if (results[0].status === 'fulfilled' && Array.isArray(results[0].value)) {
@@ -245,7 +241,6 @@ async function loadInitialData() {
             if (typeof renderBodyPartsUI === 'function') renderBodyPartsUI();
         }
 
-        // 🌟 2. เก็บข้อมูลอะไหล่ไว้ใช้แสดงผล
         if (results[6].status === 'fulfilled' && Array.isArray(results[6].value)) {
             window.allPartOrders = results[6].value;
         } else {
@@ -309,7 +304,6 @@ function autoCalculateDamageLevel() {
     else if (totalParts > 7) { selectDamage('หนัก'); }
 }
 
-// 🌟 ฟังก์ชันสร้างการ์ด Flow ดีไซน์เดิม (เพิ่มได้หลายชุด) 🌟
 window.addPipelineRow = function(claim = '', qt = '', so = '', bl = '') {
     const container = document.getElementById('doc_pipeline_container');
     if (!container) return;
@@ -330,7 +324,6 @@ window.addPipelineRow = function(claim = '', qt = '', so = '', bl = '') {
         <div class="flex flex-col md:flex-row items-stretch justify-between gap-4 relative">
             <div class="hidden md:block absolute top-1/2 left-[10%] right-[10%] h-1 bg-slate-200 -z-10 -translate-y-1/2 rounded-full"></div>
 
-            <!-- 1. เคลม / รับแจ้ง -->
             <div class="flex-1 bg-white p-4 rounded-xl border-2 border-indigo-200 shadow-sm relative z-0 flex flex-col items-center text-center group hover:border-indigo-400 transition-colors">
                 <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-black mb-3 border-2 border-indigo-300 group-hover:scale-110 transition-transform">1</div>
                 <label class="label-text text-indigo-800 text-[10px]">เลขที่ เคลม/รับแจ้ง <span class="text-red-500">*</span></label>
@@ -340,7 +333,6 @@ window.addPipelineRow = function(claim = '', qt = '', so = '', bl = '') {
             <i class="fa-solid fa-chevron-right text-slate-300 md:self-center hidden md:block text-xl"></i>
             <i class="fa-solid fa-chevron-down text-slate-300 self-center md:hidden text-xl"></i>
 
-            <!-- 2. ใบเสนอราคา (QT) -->
             <div class="flex-1 bg-white p-4 rounded-xl border-2 border-emerald-200 shadow-sm relative z-0 flex flex-col items-center text-center group hover:border-emerald-400 transition-colors">
                 <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-black mb-3 border-2 border-emerald-300 group-hover:scale-110 transition-transform">2</div>
                 <label class="label-text text-emerald-800 text-[10px]">ใบเสนอราคา (QT)</label>
@@ -350,7 +342,6 @@ window.addPipelineRow = function(claim = '', qt = '', so = '', bl = '') {
             <i class="fa-solid fa-chevron-right text-slate-300 md:self-center hidden md:block text-xl"></i>
             <i class="fa-solid fa-chevron-down text-slate-300 self-center md:hidden text-xl"></i>
 
-            <!-- 3. ใบสั่งซ่อม (SO) -->
             <div class="flex-1 bg-white p-4 rounded-xl border-2 border-amber-200 shadow-sm relative z-0 flex flex-col items-center text-center group hover:border-amber-400 transition-colors">
                 <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-black mb-3 border-2 border-amber-300 group-hover:scale-110 transition-transform">3</div>
                 <label class="label-text text-amber-800 text-[10px]">ใบสั่งซ่อม (SO)</label>
@@ -360,7 +351,6 @@ window.addPipelineRow = function(claim = '', qt = '', so = '', bl = '') {
             <i class="fa-solid fa-chevron-right text-slate-300 md:self-center hidden md:block text-xl"></i>
             <i class="fa-solid fa-chevron-down text-slate-300 self-center md:hidden text-xl"></i>
 
-            <!-- 4. ใบวางบิล (BL) - ส่วนของบัญชี -->
             <div class="flex-1 bg-slate-50 p-4 rounded-xl border-2 border-slate-200 shadow-inner relative z-0 flex flex-col items-center text-center opacity-80">
                 <div class="w-10 h-10 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center font-black mb-3 border-2 border-slate-300"><i class="fa-solid fa-file-invoice-dollar"></i></div>
                 <label class="label-text text-slate-600 text-[10px]">ใบวางบิล / แจ้งหนี้ (BL)</label>
@@ -458,7 +448,6 @@ async function checkCrossPageEditMode() {
         if (carPlateEl) carPlateEl.value = job.car_plate || ''; 
         if (vinEl) vinEl.value = job.vin_no || '';
 
-        // 🌟 ดึงข้อมูลจากฐานข้อมูลมาแยกด้วยลูกน้ำ แล้วสร้างการ์ด Flow ตามจำนวนที่มี 🌟
         if (container) container.innerHTML = '';
         
         const claims = job.claim_no ? job.claim_no.split(',').map(s=>s.trim()) : [];
@@ -478,6 +467,11 @@ async function checkCrossPageEditMode() {
         selectedBodyParts.main = job.main_part_name ? job.main_part_name.split(',').map(s => s.trim()).filter(Boolean) : [];
         selectedBodyParts.sub = job.sub_part_name ? job.sub_part_name.split(',').map(s => s.trim()).filter(Boolean) : [];
         renderBodyPartsUI();
+
+        // 🌟 โหลดรายการประเมินราคา E-Claim เก่ามาแสดง (Line Items) 🌟
+        if (typeof loadEclaimItems === 'function') {
+            await loadEclaimItems(job.id || idToEdit);
+        }
 
         const stations = ['kho', 'pou', 'puan', 'pon', 'prak', 'kat', 'qc', 'mag', 'kraj', 'film', 'pak', 'ready'];
         stations.forEach(st => {
@@ -546,6 +540,12 @@ function cancelEditMode() {
     selectedBodyParts.sub = [];
     renderBodyPartsUI();
 
+    // 🌟 เคลียร์ตาราง E-Claim (Line Items) ตอนกดยกเลิก
+    const eclaimBody = document.getElementById('eclaim_items_body');
+    if (eclaimBody) {
+        eclaimBody.innerHTML = '<tr id="eclaim_empty_row"><td colspan="7" class="text-center py-10 text-purple-400 text-xs font-bold bg-purple-50/20">ยังไม่มีรายการ (กดปุ่ม "นำเข้าไฟล์บัญชี" จากด้านบนเพื่อดึงข้อมูลอัตโนมัติ)</td></tr>';
+    }
+
     selectDamage('เบา');
 
     const stations = ['kho', 'pou', 'puan', 'pon', 'prak', 'kat', 'qc', 'mag', 'kraj', 'film', 'pak', 'ready'];
@@ -570,7 +570,6 @@ function cancelEditMode() {
 async function submitSaForm(event) {
     event.preventDefault(); 
     
-    // 🎯 [เพิ่มใหม่] ตรวจสอบเงื่อนไขบังคับใส่วันที่เข้าจอด (arrived_date)
     const jobStatusCheck = document.getElementById('job_status')?.value || '';
     const arrivedDateCheck = document.getElementById('arrived_date')?.value || '';
 
@@ -590,14 +589,12 @@ async function submitSaForm(event) {
         const arrInput = document.getElementById('arrived_date');
         if (arrInput) {
             arrInput.focus();
-            // เด้งกรอบสีแดงแจ้งเตือนให้เห็นชัดๆ
             arrInput.classList.add('ring-4', 'ring-red-500/50', 'border-red-500');
             setTimeout(() => arrInput.classList.remove('ring-4', 'ring-red-500/50', 'border-red-500'), 3000);
         }
-        return; // สั่งหยุดการทำงาน ไม่ส่งข้อมูลไปบันทึก
+        return; 
     }
 
-    // 🌟 ดึงข้อมูลจากทุกชุดเอกสารมารวมกันคั่นด้วย (,) 🌟
     let claimArr = [], qtArr = [], soArr = [], blArr = [];
     document.querySelectorAll('.pipeline-set').forEach(row => {
         const claim = row.querySelector('.pipe-claim')?.value?.trim() || '';
@@ -612,8 +609,6 @@ async function submitSaForm(event) {
             blArr.push(bl);
         }
     });
-
-    // ... โค้ดส่วนที่เหลือของฟังก์ชัน submitSaForm ปล่อยไว้เหมือนเดิมยาวลงไปเลยครับ ...
 
     const requiredFields = [
         { id: 'contact_date', name: '1. วันที่ติดต่อ' },
@@ -735,6 +730,11 @@ async function submitSaForm(event) {
         const resJson = await response.json();
         const savedJobId = editId || resJson?.insertedId || resJson?.id || null;
 
+        // 🌟 บันทึกรายการย่อย (E-Claim Line Items) 🌟
+        if (savedJobId) {
+            await saveEclaimItems(savedJobId);
+        }
+
         if (routingDept.includes('อะไหล่') || formData.job_status.includes('06.สั่งอะไหล่')) {
             const partRows = document.querySelectorAll('#order_parts_body tr');
             for (let tr of partRows) {
@@ -824,4 +824,122 @@ function autoMapRouting() {
     }
 
     deptSelect.value = targetDept;
+}
+
+// =========================================================
+// 🛒 ระบบจัดการตารางรายการย่อย E-Claim (Line Items)
+// =========================================================
+
+// 1. ฟังก์ชันเพิ่มบรรทัดใหม่ในตาราง (ปุ่ม + เพิ่มรายการ)
+function addEclaimItemRow(item = null) {
+    const tbody = document.getElementById('eclaim_items_body');
+    const emptyRow = document.getElementById('eclaim_empty_row');
+    if (emptyRow) emptyRow.style.display = 'none';
+
+    const tr = document.createElement('tr');
+    tr.className = 'eclaim-item-row hover:bg-purple-50/50 transition';
+    
+    // โหลดค่าเดิมมาแสดง (ถ้ามี) หรือตั้งค่าเริ่มต้น
+    const iType = item ? item.item_type : 'P';
+    const iPartNo = item ? (item.part_no || '') : '';
+    const iName = item ? (item.item_name_th || '') : '';
+    const iQty = item ? (item.qty || 1) : 1;
+    const iPrice = item ? (item.unit_price || 0) : 0;
+    const iTotal = item ? (item.total_after_discount || 0) : 0;
+
+    tr.innerHTML = `
+        <td class="px-2 py-2">
+            <select class="minimal-input !py-1 item-type border-purple-200">
+                <option value="P" ${iType === 'P' ? 'selected' : ''}>อะไหล่ (P)</option>
+                <option value="L" ${iType === 'L' ? 'selected' : ''}>ค่าแรง (L)</option>
+            </select>
+        </td>
+        <td class="px-2 py-2"><input type="text" class="minimal-input !py-1 item-partno border-purple-200" value="${iPartNo}" placeholder="รหัสอ้างอิง..."></td>
+        <td class="px-2 py-2"><input type="text" class="minimal-input !py-1 item-name border-purple-200" value="${iName}" placeholder="ชื่อรายการ..." required></td>
+        <td class="px-2 py-2"><input type="number" class="minimal-input !py-1 text-center item-qty border-purple-200" value="${iQty}" min="1" onkeyup="calcEclaimRow(this)" onchange="calcEclaimRow(this)"></td>
+        <td class="px-2 py-2"><input type="number" class="minimal-input !py-1 text-right item-price border-purple-200" value="${iPrice}" min="0" onkeyup="calcEclaimRow(this)" onchange="calcEclaimRow(this)"></td>
+        <td class="px-2 py-2"><input type="number" class="minimal-input !py-1 text-right item-total bg-slate-100 border-purple-200" value="${iTotal}" readonly></td>
+        <td class="px-2 py-2 text-center">
+            <button type="button" onclick="this.closest('tr').remove(); checkEmptyEclaimTable();" class="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded transition shadow-sm"><i class="fa-solid fa-trash"></i></button>
+        </td>
+    `;
+    tbody.appendChild(tr);
+}
+
+// 2. ฟังก์ชันคำนวณราคารวม (จำนวน x ราคา)
+function calcEclaimRow(input) {
+    const tr = input.closest('tr');
+    const qty = parseFloat(tr.querySelector('.item-qty').value) || 0;
+    const price = parseFloat(tr.querySelector('.item-price').value) || 0;
+    tr.querySelector('.item-total').value = (qty * price).toFixed(2);
+}
+
+// 3. เช็กซ่อน/แสดง แถว "ยังไม่มีรายการ"
+function checkEmptyEclaimTable() {
+    const tbody = document.getElementById('eclaim_items_body');
+    const rows = tbody.querySelectorAll('.eclaim-item-row');
+    const emptyRow = document.getElementById('eclaim_empty_row');
+    if (rows.length === 0 && emptyRow) {
+        emptyRow.style.display = '';
+    }
+}
+
+// 4. ฟังก์ชันกวาดข้อมูลในตารางส่งไปบันทึก (POST)
+async function saveEclaimItems(reportId) {
+    const rows = document.querySelectorAll('.eclaim-item-row');
+    const items = [];
+
+    rows.forEach(tr => {
+        const name = tr.querySelector('.item-name').value.trim();
+        if (name) {
+            items.push({
+                item_type: tr.querySelector('.item-type').value,
+                part_no: tr.querySelector('.item-partno').value.trim(),
+                item_name_th: name,
+                qty: parseFloat(tr.querySelector('.item-qty').value) || 0,
+                unit_price: parseFloat(tr.querySelector('.item-price').value) || 0,
+                total_before_discount: parseFloat(tr.querySelector('.item-total').value) || 0,
+                total_after_discount: parseFloat(tr.querySelector('.item-total').value) || 0
+            });
+        }
+    });
+
+    try {
+        await fetch(`${API_BASE_URL}/api/report/${reportId}/eclaim-items`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items })
+        });
+    } catch (err) {
+        console.error('Save Eclaim Items Error:', err);
+    }
+}
+
+// 5. ฟังก์ชันดึงข้อมูลมาแสดงตอนเปิดบิลเก่ามาแก้ไข (GET)
+async function loadEclaimItems(reportId) {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/report/${reportId}/eclaim-items`);
+        const data = await res.json();
+        
+        document.querySelectorAll('.eclaim-item-row').forEach(row => row.remove()); // เคลียร์ของเก่าออกก่อน
+        
+        if (data.success && data.data.length > 0) {
+            data.data.forEach(item => addEclaimItemRow(item)); // เอาข้อมูลที่โหลดมาวาดใส่ตาราง
+        } else {
+            checkEmptyEclaimTable();
+        }
+    } catch (err) {
+        console.error('Load Eclaim Items Error:', err);
+    }
+}
+
+function exportEMCSXml() {
+  const reportId = document.getElementById('sa_report_id')?.value;
+  
+  if (!reportId) {
+    alert('กรุณาบันทึกข้อมูลใบงานเข้าสู่ระบบก่อนทำการ Export ไฟล์ XML ครับ!');
+    return;
+  }
+  
+  window.open(`${API_BASE_URL}/api/report/${reportId}/export-xml`, '_blank');
 }
