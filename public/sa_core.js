@@ -999,3 +999,126 @@ function exportEMCSXml() {
   
   window.open(`${API_BASE_URL}/api/report/${reportId}/export-xml`, '_blank');
 }
+
+// =========================================================
+// 🚀 ดึงรายการอะไหล่จาก PO เข้าตาราง E-Claim
+// =========================================================
+function pullPartsToEclaim() {
+    const editId = document.getElementById('sa_report_id')?.value;
+    if (!editId) {
+        alert('กรุณาบันทึกข้อมูลเปิดบิลก่อนดึงรายการอะไหล่ครับ!');
+        return;
+    }
+
+    if (!window.allPartOrders || window.allPartOrders.length === 0) {
+        alert('ไม่พบรายการอะไหล่ในระบบ หรือกำลังโหลดข้อมูล...');
+        return;
+    }
+
+    // 🎯 ดึงเฉพาะอะไหล่ที่เป็นของ Job ID ปัจจุบัน และยังไม่ถูกยกเลิก
+    const currentJobParts = window.allPartOrders.filter(po => 
+        (String(po.job_id) === String(editId) || String(po.report_id) === String(editId)) && 
+        po.order_status !== 'ยกเลิก'
+    );
+
+    if (currentJobParts.length === 0) {
+        alert('ไม่พบรายการอะไหล่ในบิลซ่อมนี้ (คุณได้เพิ่มรายการในบล็อก 4 หรือยัง?)');
+        return;
+    }
+
+    // เคลียร์ตารางเดิมถ้ามีแค่แถวว่าง
+    const emptyRow = document.getElementById('eclaim_empty_row');
+    if (emptyRow) emptyRow.style.display = 'none';
+
+    // เช็กว่ามีอะไหล่รหัสนี้อยู่แล้วหรือไม่ ถ้ามีจะไม่สร้างซ้ำ
+    const existingPartNos = Array.from(document.querySelectorAll('.eclaim-item-row .item-partno')).map(inp => inp.value.trim().toUpperCase());
+    let addedCount = 0;
+
+    currentJobParts.forEach(po => {
+        const pNo = (po.part_no || '').trim().toUpperCase();
+        if (pNo && !existingPartNos.includes(pNo)) {
+            // สร้างไอเทมใหม่ส่งไปให้ addEclaimItemRow
+            const partItem = {
+                item_type: 'P',
+                part_no: po.part_no,
+                item_name_th: po.part_name || '',
+                qty: parseInt(po.qty_ordered) || 1,
+                unit_price: 0,
+                total_after_discount: 0
+            };
+            
+            addEclaimItemRow(partItem);
+            
+            // ให้ช่องราคาดึงราคาจาก Master อีกที (ถ้าฟังก์ชัน autoFillEclaimPart ทำงาน)
+            const newRows = document.querySelectorAll('.eclaim-item-row');
+            const lastRow = newRows[newRows.length - 1];
+            const noInput = lastRow.querySelector('.item-partno');
+            if(noInput) autoFillEclaimPart(noInput);
+            
+            addedCount++;
+        }
+    });
+
+    if (addedCount > 0) {
+        alert(`ดึงรายการอะไหล่ใหม่สำเร็จ ${addedCount} รายการ!`);
+    } else {
+        alert('อะไหล่ทั้งหมดมีอยู่ในตารางประเมินราคาเรียบร้อยแล้วครับ');
+    }
+}
+
+// =========================================================
+// 🚗 เช็กประวัติรถเก่าเพื่อดึงข้อมูลลูกค้าอัตโนมัติ (ใส่แทน Onchange เดิม)
+// =========================================================
+async function checkCarHistory(plateInput) {
+    const plate = plateInput.trim().toUpperCase();
+    if (!plate) return;
+
+    // 1. เรียกโหลดตาราง PO Tracking ตามปกติ
+    if (typeof loadPartsTrackingTable === 'function') {
+        loadPartsTrackingTable(plate);
+    }
+
+    // 2. ข้ามการเช็กประวัติถ้านี่คือโหมด Edit ใบงานเก่า
+    if (document.getElementById('sa_report_id')?.value) return;
+
+    try {
+        // ค้นหาประวัติรถเก่าจากฐานข้อมูลรายงาน
+        const res = await fetch(`${API_BASE_URL}/api/reports?start=2020-01-01&end=2030-12-31`);
+        if (!res.ok) return;
+        
+        const allReports = await res.json();
+        
+        // กรองเอาเฉพาะทะเบียนที่ตรงกัน และดึงบิลล่าสุด
+        const carHistory = allReports.filter(r => (r.car_plate || '').trim().toUpperCase() === plate)
+                                     .sort((a,b) => b.id - a.id);
+
+        if (carHistory.length > 0) {
+            const lastJob = carHistory[0];
+            
+            // แจ้งเตือน SA เบาๆ
+            if(typeof showToast === 'function') showToast('เจอประวัติรถเก่า! กำลังดึงข้อมูลลูกค้า...', 'info');
+
+            // หยอดข้อมูลลูกค้า
+            const cName = document.getElementById('customer_name');
+            const phone = document.getElementById('phone_number');
+            const brand = document.getElementById('car_brand');
+            const model = document.getElementById('car_model');
+            const vin = document.getElementById('vin_no');
+            const cType = document.getElementById('customer_type');
+
+            if (cName && !cName.value) cName.value = lastJob.customer_name || '';
+            if (phone && !phone.value) phone.value = lastJob.phone_number || '';
+            if (brand && !brand.value) {
+                brand.value = lastJob.car_brand || '';
+                updateCarModels(lastJob.car_brand);
+            }
+            if (model && !model.value) {
+                setTimeout(() => { model.value = lastJob.car_model || ''; }, 500); // รอรุ่นรถโหลดแปปนึง
+            }
+            if (vin && !vin.value) vin.value = lastJob.vin_no || '';
+            if (cType && !cType.value) cType.value = lastJob.customer_type || '';
+        }
+    } catch (e) {
+        console.error("Error checking car history:", e);
+    }
+}
