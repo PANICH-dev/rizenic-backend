@@ -730,7 +730,7 @@ async function submitSaForm(event) {
         // 🌟 1. บันทึกข้อมูล E-Claim Details (ข้อมูลรายละเอียดรถและประกัน) 🌟
         if (savedJobId) {
             const eclaimDetails = {
-                eclaim_province: document.getElementById('eclaim_province')?.value || '',
+    eclaim_province: getProvinceCode(document.getElementById('eclaim_province')?.value),
                 eclaim_car_type: document.getElementById('eclaim_car_type')?.value || '',
                 eclaim_year: document.getElementById('eclaim_year')?.value || '',
                 eclaim_trim: document.getElementById('eclaim_trim')?.value || '',
@@ -1083,7 +1083,7 @@ async function exportEMCSXml() {
 
     // 1. บันทึกข้อมูล E-Claim Details (ข้อมูลรถและประกัน)
     const eclaimDetails = {
-        eclaim_province: document.getElementById('eclaim_province')?.value || '',
+    eclaim_province: getProvinceCode(document.getElementById('eclaim_province')?.value),
         eclaim_car_type: document.getElementById('eclaim_car_type')?.value || '',
         eclaim_year: document.getElementById('eclaim_year')?.value || '',
         eclaim_trim: document.getElementById('eclaim_trim')?.value || '',
@@ -1256,4 +1256,31 @@ async function checkCarHistory(plateInput) {
     } catch (e) {
         console.error("Error checking car history:", e);
     }
+}
+
+// 🌟 ฟังก์ชันแปลงชื่อจังหวัดเป็นตัวย่อมาตรฐาน EMCS (2 หลัก)
+function getProvinceCode(provinceInput) {
+    if (!provinceInput) return '';
+    const val = provinceInput.trim();
+    
+    const provinceMap = {
+        "กระบี่": "กบ", "กรุงเทพมหานคร": "กท", "กาญจนบุรี": "กจ", "กาฬสินธุ์": "กส", "กำแพงเพชร": "กพ",
+        "ขอนแก่น": "ขก", "จันทบุรี": "จบ", "ฉะเชิงเทรา": "ฉช", "ชลบุรี": "ชบ", "ชัยนาท": "ชน",
+        "ชัยภูมิ": "ชย", "ชุมพร": "ชพ", "เชียงราย": "ชร", "เชียงใหม่": "ชม", "ตรัง": "ตง",
+        "ตราด": "ตร", "ตาก": "ตก", "นครนายก": "นย", "นครปฐม": "นฐ", "นครพนม": "นพ",
+        "นครราชสีมา": "นม", "นครศรีธรรมราช": "นศ", "นครสวรรค์": "นว", "นนทบุรี": "นบ", "นราธิวาส": "นธ",
+        "น่าน": "นน", "บุรีรัมย์": "บร", "ปทุมธานี": "ปท", "ประจวบคีรีขันธ์": "ปข", "ปราจีนบุรี": "ปจ",
+        "ปัตตานี": "ปน", "พะเยา": "พย", "พังงา": "พง", "พัทลุง": "พท", "พิจิตร": "พจ",
+        "พิษณุโลก": "พล", "เพชรบุรี": "พบ", "เพชรบูรณ์": "พช", "แพร่": "พร", "ภูเก็ต": "ภก",
+        "มหาสารคาม": "มค", "มุกดาหาร": "มห", "แม่ฮ่องสอน": "มส", "ยโสธร": "ยส", "ยะลา": "ยล",
+        "ร้อยเอ็ด": "รอ", "ระนอง": "รน", "ระยอง": "รย", "ราชบุรี": "รบ", "ลพบุรี": "ลบ",
+        "ลำปาง": "ลป", "ลำพูน": "ลพ", "เลย": "ลย", "ศรีสะเกษ": "ศก", "สกลนคร": "สน",
+        "สงขลา": "สخ", "สตูล": "สต", "สมุทรปราการ": "สป", "สมุทรสงคราม": "สส", "สมุทรสาคร": "สค",
+        "สระแก้ว": "สก", "สระบุรี": "สบ", "สิงห์บุรี": "สห", "สุโขทัย": "สท", "สุพรรณบุรี": "สพ",
+        "สุราษฎร์ธานี": "สฎ", "สุรินทร์": "สร", "หนองคาย": "นค", "หนองบัวลำภู": "นภ", "พระนครศรีอยุธยา": "อย",
+        "อ่างทอง": "อท", "อำนาจเจริญ": "อจ", "อุดรธานี": "อด", "อุตรดิตถ์": "อต", "อุทัยธานี": "อน",
+        "อุบลราชธานี": "อบ", "เบตง": "บต", "บึงกาฬ": "บก"
+    };
+
+    return provinceMap[val] || val;
 }
