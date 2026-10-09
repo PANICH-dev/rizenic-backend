@@ -7,6 +7,18 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
+    <!-- 🌟 สคริปต์ดักทางใน <head> เพื่อดีดพาสเนอร์ไปหน้า partner_jobs.html ทันทีโดยไม่รอกระบวนการอื่น -->
+    <script>
+        (function checkPartnerSessionEarly() {
+            const isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
+            const isPartner = sessionStorage.getItem('is_partner') === 'true' || sessionStorage.getItem('emp_role') === 'Partner';
+
+            if (isLoggedIn && isPartner) {
+                window.location.href = 'partner_jobs.html';
+            }
+        })();
+    </script>
+
     <style type="text/tailwindcss">
     @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;900&display=swap');
     body { font-family: 'Prompt', sans-serif; background-color: #f8fafc; }
@@ -81,7 +93,9 @@
             <div class="flex items-center justify-center gap-3 mb-6"><div class="bg-gradient-to-tr from-[#00320D] to-green-600 w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg"><i class="fa-solid fa-car text-2xl text-white"></i></div></div>
             <h1 class="text-2xl font-black tracking-widest text-slate-800 mb-1">RIZENIC <span class="text-green-600">ERP</span></h1>
             <h2 class="text-slate-500 mb-8 font-bold text-xs tracking-wide uppercase">Workspace Login</h2>
-            <form onsubmit="handleLogin(event)" class="space-y-5">
+            
+            <!-- 🌟 เปลี่ยนชื่อฟังก์ชันเป็น handlePartnerLogin เพื่อแก้ปัญหา sa_core.js เขียนทับ -->
+            <form onsubmit="handlePartnerLogin(event)" class="space-y-5">
                 <div class="text-left"><label class="label-text">Username</label><input type="text" id="login_user" required class="minimal-input" placeholder="Enter your ID"></div>
                 <div class="text-left mb-6"><label class="label-text">Password</label><input type="password" id="login_pass" required class="minimal-input font-mono" placeholder="••••••••"></div>
                 <button type="submit" class="w-full py-3.5 bg-[#00320D] hover:bg-black text-white font-bold rounded-xl shadow-lg shadow-green-900/30 transition-all duration-300 transform hover:-translate-y-1">เข้าสู่ระบบ <i class="fa-solid fa-arrow-right-to-bracket ml-2"></i></button>
@@ -105,7 +119,7 @@
                         <a href="finance.html" class="px-4 py-2 rounded-lg text-emerald-300 hover:bg-white/10 font-bold transition-all text-xs"><i class="fa-solid fa-file-invoice-dollar mr-1"></i> บัญชี</a>
                         <a href="admin.html" id="nav_admin" class="px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-[#00320D] font-black hover:from-amber-400 hover:to-amber-500 transition-all text-xs shadow-md hidden border border-amber-400"><i class="fa-solid fa-gear mr-1"></i> แอดมิน</a>
                         
-                        <!-- 🌟 1. เพิ่มเมนู แอดมินพาสเนอร์ -->
+                        <!-- 🌟 เมนู แอดมินพาสเนอร์ -->
                         <a href="admin_partner.html" id="nav_admin_partner" class="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-black hover:from-emerald-400 hover:to-emerald-500 transition-all text-xs shadow-md hidden border border-emerald-400"><i class="fa-solid fa-handshake mr-1"></i> แอดมินพาสเนอร์</a>
                         
                         <button onclick="logout()" class="px-3 py-2 text-red-300 hover:text-red-100 transition-all text-xs bg-white/5 hover:bg-red-700/50 rounded-lg ml-2 border border-white/10"><i class="fa-solid fa-power-off"></i></button>
@@ -577,19 +591,19 @@
         </div>
     </div>
 
-    <!-- 🌟 2. ลอจิกตรวจสอบการล็อกอิน & Redirect พาสเนอร์ -->
+    <!-- 🌟 ลอจิกการตรวจสอบสิทธิ์และเข้าสู่ระบบแบบแยกฟังก์ชันป้องกันการเขียนทับ -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
             const isPartner = sessionStorage.getItem('is_partner') === 'true' || sessionStorage.getItem('emp_role') === 'Partner';
 
-            // 🎯 ถ้าล็อกอินอยู่แล้ว และเป็น "พาสเนอร์" -> ดีดไปที่ไฟล์ตารางงานพาสเนอร์ (partner_jobs.html) ทันที
+            // 🎯 หากสิทธิ์เป็นพาสเนอร์ ให้ดีดไปที่ partner_jobs.html ทันที
             if (isLoggedIn && isPartner) {
                 window.location.href = 'partner_jobs.html';
                 return;
             }
 
-            // 🎯 ถ้าล็อกอินเป็นพนักงานปกติ -> เปิดใช้งานหน้าเปิดบิลปกติ
+            // 🎯 หากสิทธิ์เป็นพนักงาน ให้แสดงผลหน้าจอเปิดบิลซ่อม
             if (isLoggedIn) {
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('main-app').classList.remove('hidden');
@@ -602,8 +616,8 @@
             }
         });
 
-        // 🎯 ลอจิกการเข้าสู่ระบบ (Dual-Source Login: Employee + Partner)
-        async function handleLogin(event) {
+        // 🎯 ฟังก์ชันจัดการล็อกอินเฉพาะหน้า index.html (handlePartnerLogin)
+        async function handlePartnerLogin(event) {
             event.preventDefault();
             const username = document.getElementById('login_user').value.trim();
             const password = document.getElementById('login_pass').value.trim();
@@ -618,7 +632,7 @@
                 const data = await res.json();
 
                 if (res.ok && data.success) {
-                    // 🟢 กรณีเข้าสู่ระบบสำเร็จในฐานะ "พาสเนอร์"
+                    // 🟢 เมื่อล็อกอินผ่านในฐานะ "พาสเนอร์"
                     if (data.user_type === 'partner' || data.partner) {
                         const p = data.partner;
                         sessionStorage.setItem('isLoggedIn', 'true');
@@ -628,11 +642,11 @@
                         sessionStorage.setItem('customer_type_filter', p.customer_type_filter || '');
 
                         alert(`👋 ยินดีต้อนรับพาสเนอร์: ${p.partner_name}`);
-                        window.location.href = 'partner_jobs.html'; // ดีดไปหน้าตารางงานพาสเนอร์ทันที
+                        window.location.href = 'partner_jobs.html'; // สั่งเปลี่ยนหน้าข้ามไปตารางงานพาสเนอร์
                         return;
                     }
 
-                    // 🟢 กรณีเข้าสู่ระบบสำเร็จในฐานะ "พนักงานปกติ"
+                    // 🟢 เมื่อล็อกอินผ่านในฐานะ "พนักงานปกติ"
                     if (data.employee) {
                         const e = data.employee;
                         sessionStorage.setItem('isLoggedIn', 'true');
@@ -664,7 +678,7 @@
         }
     </script>
 
-    <!-- 🌟 โหลดสคริปต์แยกไฟล์เดิม -->
+    <!-- 🌟 โหลดสคริปต์การทำงานของระบบ SA -->
     <script src="sa_core.js?v=19.0"></script>
     <script src="sa_parts.js?v=19.0"></script>
     <script src="sa_calendar.js?v=19.0"></script>
