@@ -186,106 +186,6 @@ router.post('/report/:id/eclaim-items', async (req, res) => {
 });
 
 // ==========================================
-// 📥 API Export ไฟล์ XML รูปแบบ EMCS (E-Claim)
-// ==========================================
-router.get('/report/:id/export-xml', async (req, res) => {
-  try {
-    const report_id = req.params.id;
-
-    const reportRes = await pool.query('SELECT * FROM rizenicreport WHERE id = $1', [report_id]);
-    const eclaimRes = await pool.query('SELECT * FROM rizenic_eclaim_details WHERE report_id = $1', [report_id]);
-    const itemsRes = await pool.query('SELECT * FROM rizenic_eclaim_items WHERE report_id = $1 ORDER BY item_type ASC, item_id ASC', [report_id]);
-
-    if (reportRes.rows.length === 0) return res.status(404).json({ error: 'ไม่พบข้อมูลใบงานนี้' });
-
-    const report = reportRes.rows[0];
-    const eclaim = eclaimRes.rows.length > 0 ? eclaimRes.rows[0] : {};
-    const items = itemsRes.rows;
-
-    const escapeXML = (str) => {
-      if (!str) return '';
-      return String(str).replace(/[<>&'"]/g, (c) => {
-        switch (c) { case '<': return '&lt;'; case '>': return '&gt;'; case '&': return '&amp;'; case '\'': return '&apos;'; case '"': return '&quot;'; default: return c; }
-      });
-    };
-
-    let estimateDays = 0;
-    if (report.arrived_date && report.target_finish_date) {
-      const start = new Date(report.arrived_date);
-      const end = new Date(report.target_finish_date);
-      estimateDays = Math.max(0, Math.floor((end - start) / (1000 * 60 * 60 * 24)));
-    }
-
-    const labors = items.filter(item => item.item_type === 'L');
-    const parts = items.filter(item => item.item_type === 'P');
-
-    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<TXN_CLAIM>\n`;
-    
-    xml += `  <c_car_regno>${escapeXML(report.car_plate)}</c_car_regno>\n`;
-    xml += `  <car_provincename>${escapeXML(eclaim.car_province)}</car_provincename>\n`;
-    xml += `  <ctype_code>${escapeXML(eclaim.car_type)}</ctype_code>\n`;
-    xml += `  <chassino>${escapeXML(report.vin_no)}</chassino>\n`;
-    xml += `  <c_engineno>${escapeXML(eclaim.engine_no)}</c_engineno>\n`;
-    xml += `  <cmfg>${escapeXML(report.car_brand)}</cmfg>\n`;
-    xml += `  <cmodel>${escapeXML(report.car_model)}</cmodel>\n`;
-    xml += `  <ctrimlevel>${escapeXML(eclaim.trim_level)}</ctrimlevel>\n`;
-    xml += `  <c_dstyear>${escapeXML(eclaim.model_year)}</c_dstyear>\n`;
-    xml += `  <carcolor>${escapeXML(eclaim.car_color)}</carcolor>\n`;
-    xml += `  <cpt_id>${escapeXML(eclaim.paint_type_id)}</cpt_id>\n`;
-    xml += `  <car_km>${escapeXML(eclaim.car_km)}</car_km>\n`;
-    xml += `  <c_engsize>${escapeXML(eclaim.engine_cc)}</c_engsize>\n`;
-    xml += `  <car_desc_id>${escapeXML(eclaim.car_condition_id)}</car_desc_id>\n`;
-    xml += `  <cariden>${escapeXML(eclaim.car_iden)}</cariden>\n`;
-    xml += `  <caridenno>${escapeXML(eclaim.car_iden_no)}</caridenno>\n`;
-    
-    xml += `  <rep_bring_name>${escapeXML(eclaim.bring_name || report.customer_name)}</rep_bring_name>\n`;
-    xml += `  <rep_get_name>${escapeXML(eclaim.get_car_name || report.sa_owner)}</rep_get_name>\n`;
-    xml += `  <jobno>${escapeXML(report.id)}</jobno>\n`;
-    xml += `  <rep_estimate_days>${estimateDays}</rep_estimate_days>\n`;
-    xml += `  <rep_estimate_date>${escapeXML(report.target_finish_date ? String(report.target_finish_date).split('T')[0] : '')}</rep_estimate_date>\n`;
-
-    xml += `  <acc_policy_no>${escapeXML(eclaim.policy_no)}</acc_policy_no>\n`;
-    xml += `  <acc_policy_type_id>${escapeXML(eclaim.policy_type_id)}</acc_policy_type_id>\n`;
-    xml += `  <acc_insuree_name>${escapeXML(eclaim.insuree_name)}</acc_insuree_name>\n`;
-    xml += `  <ref_claim_no>${escapeXML(eclaim.claim_no)}</ref_claim_no>\n`;
-    xml += `  <acc_claimref_no>${escapeXML(eclaim.claim_ref_no)}</acc_claimref_no>\n`;
-    
-    if (labors.length > 0) {
-      xml += `  <LABOR_ITEMS>\n`;
-      labors.forEach(l => {
-        xml += `    <ITEM>\n`;
-        xml += `      <t_gendesc>${escapeXML(l.item_name_th)}</t_gendesc>\n`;
-        xml += `      <rep_level>${escapeXML(l.damage_level)}</rep_level>\n`;
-        xml += `      <rep_price>${escapeXML(l.total_after_discount)}</rep_price>\n`;
-        xml += `    </ITEM>\n`;
-      });
-      xml += `  </LABOR_ITEMS>\n`;
-    }
-
-    if (parts.length > 0) {
-      xml += `  <PART_ITEMS>\n`;
-      parts.forEach(p => {
-        xml += `    <ITEM>\n`;
-        xml += `      <cmfgpartno>${escapeXML(p.part_no)}</cmfgpartno>\n`;
-        xml += `      <t_partdesc>${escapeXML(p.item_name_th)}</t_partdesc>\n`;
-        xml += `      <fprice>${escapeXML(p.unit_price)}</fprice>\n`;
-        xml += `      <partnumber>${escapeXML(p.qty)}</partnumber>\n`;
-        xml += `      <rep_edit_price>${escapeXML(p.total_after_discount)}</rep_edit_price>\n`;
-        xml += `    </ITEM>\n`;
-      });
-      xml += `  </PART_ITEMS>\n`;
-    }
-
-    xml += `</TXN_CLAIM>`;
-
-    res.set('Content-Type', 'application/xml');
-    res.attachment(`EMCS_Claim_Job_${report_id}.xml`);
-    res.send(xml);
-
-  } catch (error) { res.status(500).json({ error: error.message }); }
-});
-
-// ==========================================
 // 📄 API ดึงข้อมูลรายละเอียดรถและประกัน E-Claim (GET)
 // ==========================================
 router.get('/report/:id/eclaim-details', async (req, res) => {
@@ -409,6 +309,115 @@ router.post('/report/:id/eclaim-details', async (req, res) => {
     console.error('Eclaim Details Save Error:', error);
     res.status(500).json({ error: error.message });
   }
+});
+
+// ==========================================
+// 📥 API Export ไฟล์ XML รูปแบบ EMCS (E-Claim)
+// ==========================================
+router.get('/report/:id/export-xml', async (req, res) => {
+  try {
+    const report_id = req.params.id;
+
+    const reportRes = await pool.query('SELECT * FROM rizenicreport WHERE id = $1', [report_id]);
+    const eclaimRes = await pool.query('SELECT * FROM rizenic_eclaim_details WHERE report_id = $1', [report_id]);
+    const itemsRes = await pool.query('SELECT * FROM rizenic_eclaim_items WHERE report_id = $1 ORDER BY item_type ASC, item_id ASC', [report_id]);
+
+    if (reportRes.rows.length === 0) return res.status(404).json({ error: 'ไม่พบข้อมูลใบงานนี้' });
+
+    const report = reportRes.rows[0];
+    const eclaim = eclaimRes.rows.length > 0 ? eclaimRes.rows[0] : {};
+    const items = itemsRes.rows;
+
+    const escapeXML = (str) => {
+      if (!str) return '';
+      return String(str).replace(/[<>&'"]/g, (c) => {
+        switch (c) { case '<': return '&lt;'; case '>': return '&gt;'; case '&': return '&amp;'; case '\'': return '&apos;'; case '"': return '&quot;'; default: return c; }
+      });
+    };
+
+    const formatDate = (dateStr) => {
+      if (!dateStr) return '';
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return String(dateStr).split('T')[0];
+      return d.toISOString().split('T')[0];
+    };
+
+    let estimateDays = 0;
+    if (report.arrived_date && report.target_finish_date) {
+      const start = new Date(report.arrived_date);
+      const end = new Date(report.target_finish_date);
+      estimateDays = Math.max(0, Math.floor((end - start) / (1000 * 60 * 60 * 24)));
+    }
+
+    const labors = items.filter(item => item.item_type === 'L');
+    const parts = items.filter(item => item.item_type === 'P');
+
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<TXN_CLAIM>\n`;
+    
+    xml += `  <c_car_regno>${escapeXML(report.car_plate)}</c_car_regno>\n`;
+    xml += `  <car_provincename>${escapeXML(eclaim.car_province)}</car_provincename>\n`;
+    xml += `  <ctype_code>${escapeXML(eclaim.car_type)}</ctype_code>\n`;
+    xml += `  <chassino>${escapeXML(report.vin_no)}</chassino>\n`;
+    xml += `  <c_engineno>${escapeXML(eclaim.engine_no)}</c_engineno>\n`;
+    xml += `  <cmfg>${escapeXML(report.car_brand)}</cmfg>\n`;
+    xml += `  <cmodel>${escapeXML(report.car_model)}</cmodel>\n`;
+    xml += `  <ctrimlevel>${escapeXML(eclaim.trim_level)}</ctrimlevel>\n`;
+    xml += `  <c_dstyear>${escapeXML(eclaim.model_year)}</c_dstyear>\n`;
+    xml += `  <carcolor>${escapeXML(eclaim.car_color)}</carcolor>\n`;
+    xml += `  <cpt_id>${escapeXML(eclaim.paint_type_id)}</cpt_id>\n`;
+    xml += `  <car_km>${escapeXML(eclaim.car_km)}</car_km>\n`;
+    xml += `  <c_engsize>${escapeXML(eclaim.engine_cc)}</c_engsize>\n`;
+    xml += `  <car_desc_id>${escapeXML(eclaim.car_condition_id !== null && eclaim.car_condition_id !== '' ? eclaim.car_condition_id : '0')}</car_desc_id>\n`;
+    xml += `  <cariden>${escapeXML(eclaim.car_iden || 'own')}</cariden>\n`;
+    xml += `  <caridenno>${escapeXML(eclaim.car_iden_no || '1')}</caridenno>\n`;
+    
+    xml += `  <rep_bring_name>${escapeXML(eclaim.bring_name || report.customer_name)}</rep_bring_name>\n`;
+    xml += `  <rep_get_name>${escapeXML(eclaim.get_car_name || report.sa_owner)}</rep_get_name>\n`;
+    xml += `  <jobno>${escapeXML(report.id)}</jobno>\n`;
+    xml += `  <rep_estimate_days>${estimateDays}</rep_estimate_days>\n`;
+    xml += `  <rep_estimate_date>${formatDate(report.target_finish_date)}</rep_estimate_date>\n`;
+
+    xml += `  <acc_policy_no>${escapeXML(eclaim.policy_no)}</acc_policy_no>\n`;
+    xml += `  <acc_policy_type_id>${escapeXML(eclaim.policy_type_id)}</acc_policy_type_id>\n`;
+    xml += `  <acc_insuree_name>${escapeXML(eclaim.insuree_name)}</acc_insuree_name>\n`;
+    xml += `  <ref_claim_no>${escapeXML(eclaim.claim_no)}</ref_claim_no>\n`;
+    xml += `  <acc_claimref_no>${escapeXML(eclaim.claim_ref_no)}</acc_claimref_no>\n`;
+    
+    if (labors.length > 0) {
+      xml += `  <LABOR_ITEMS>\n`;
+      labors.forEach(l => {
+        xml += `    <ITEM>\n`;
+        xml += `      <t_gendesc>${escapeXML(l.item_name_th)}</t_gendesc>\n`;
+        xml += `      <rep_level>${escapeXML(l.damage_level)}</rep_level>\n`;
+        xml += `      <rep_price>${escapeXML(l.total_after_discount)}</rep_price>\n`;
+        xml += `    </ITEM>\n`;
+      });
+      xml += `  </LABOR_ITEMS>\n`;
+    }
+
+    if (parts.length > 0) {
+      xml += `  <PART_ITEMS>\n`;
+      parts.forEach(p => {
+        xml += `    <ITEM>\n`;
+        xml += `      <cmfgpartno>${escapeXML(p.part_no)}</cmfgpartno>\n`;
+        xml += `      <t_partdesc>${escapeXML(p.item_name_th)}</t_partdesc>\n`;
+        xml += `      <fprice>${escapeXML(p.unit_price)}</fprice>\n`;
+        xml += `      <partnumber>${escapeXML(p.qty)}</partnumber>\n`;
+        xml += `      <rep_edit_price>${escapeXML(p.total_after_discount)}</rep_edit_price>\n`;
+        xml += `      <part_ship>${escapeXML(p.part_ship || 'garage')}</part_ship>\n`;
+        xml += `      <scrap_return>${escapeXML(p.scrap_return || '0')}</scrap_return>\n`;
+        xml += `    </ITEM>\n`;
+      });
+      xml += `  </PART_ITEMS>\n`;
+    }
+
+    xml += `</TXN_CLAIM>`;
+
+    res.set('Content-Type', 'application/xml');
+    res.attachment(`EMCS_Claim_Job_${report_id}.xml`);
+    res.send(xml);
+
+  } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
 module.exports = router;
