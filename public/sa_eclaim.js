@@ -67,6 +67,11 @@ async function loadEclaimDetails(reportId) {
             setVal('eclaim_policy_type', d.policy_type_id);
             setVal('eclaim_insuree_name', d.insuree_name);
             setVal('eclaim_claim_no', d.claim_no);
+            // 👈 เพิ่มบรรทัดนี้: ถ้าในฐานข้อมูลยังไม่มี claim_no ให้ดึงจากส่วนที่ 2 ทันที
+if (!d.claim_no) {
+    syncClaimNoToBlock9();
+}
+            
             setVal('eclaim_claim_ref_no', d.claim_ref_no);
             setVal('eclaim_insured_value', d.insured_value || 0);
             setVal('eclaim_deductible', d.deductible || 0);
@@ -445,3 +450,59 @@ async function exportEMCSXml() {
     }
   }
 }
+
+// 🌟 1. ฟังก์ชันพับ/คลี่ บล็อก 9 (Collapsible Block 9)
+function toggleBlock9() {
+    const body = document.getElementById('block9_body_container');
+    const icon = document.getElementById('block9_toggle_icon');
+    const text = document.getElementById('block9_toggle_text');
+    if (!body) return;
+
+    const isHidden = body.classList.toggle('hidden');
+    if (icon && text) {
+        if (isHidden) {
+            icon.className = 'fa-solid fa-chevron-down transition-transform duration-300';
+            text.innerText = 'คลี่แสดง';
+        } else {
+            icon.className = 'fa-solid fa-chevron-up transition-transform duration-300';
+            text.innerText = 'พับเก็บ';
+        }
+    }
+}
+
+// 🌟 2. ฟังก์ชันดึง "เลขที่ เคลม/รับแจ้ง" จากส่วนที่ 2 มาลงช่อง "เลขที่เคลม (Ref Claim No)" ในส่วนที่ 9 อัตโนมัติ
+function syncClaimNoToBlock9() {
+    const firstClaimInput = document.querySelector('.pipe-claim'); // ช่องในส่วนที่ 2
+    const eclaimClaimNoInput = document.getElementById('eclaim_claim_no'); // ช่องในส่วนที่ 9
+    
+    if (firstClaimInput && eclaimClaimNoInput) {
+        // ซิงค์ถ้าช่องส่วนที่ 9 ยังว่างอยู่ หรือเคยถูกซิงค์อัตโนมัติมา
+        if (!eclaimClaimNoInput.value.trim() || eclaimClaimNoInput.dataset.autoSynced === 'true') {
+            const val = firstClaimInput.value.trim();
+            if (val) {
+                eclaimClaimNoInput.value = val;
+                eclaimClaimNoInput.dataset.autoSynced = 'true';
+            }
+        }
+    }
+}
+
+// 🎯 ดักจับ Event พิมพ์ในส่วนที่ 2 เพื่อซิงค์ไปส่วนที่ 9 เรียลไทม์
+document.addEventListener('DOMContentLoaded', () => {
+    const pipelineContainer = document.getElementById('doc_pipeline_container');
+    if (pipelineContainer) {
+        pipelineContainer.addEventListener('input', (e) => {
+            if (e.target && e.target.classList.contains('pipe-claim')) {
+                syncClaimNoToBlock9();
+            }
+        });
+    }
+
+    // หาก SA พิมพ์แก้ไขในช่องส่วนที่ 9 เอง ให้ปิดการทับอัตโนมัติ
+    const eclaimClaimNoInput = document.getElementById('eclaim_claim_no');
+    if (eclaimClaimNoInput) {
+        eclaimClaimNoInput.addEventListener('input', () => {
+            eclaimClaimNoInput.dataset.autoSynced = 'false';
+        });
+    }
+});
