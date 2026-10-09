@@ -854,16 +854,72 @@ function addEclaimItemRow(item = null) {
                 <option value="L" ${iType === 'L' ? 'selected' : ''}>ค่าแรง (L)</option>
             </select>
         </td>
-        <td class="px-2 py-2"><input type="text" class="minimal-input !py-1 item-partno border-purple-200" value="${iPartNo}" placeholder="รหัสอ้างอิง..."></td>
-        <td class="px-2 py-2"><input type="text" class="minimal-input !py-1 item-name border-purple-200" value="${iName}" placeholder="ชื่อรายการ..." required></td>
-        <td class="px-2 py-2"><input type="number" class="minimal-input !py-1 text-center item-qty border-purple-200" value="${iQty}" min="1" onkeyup="calcEclaimRow(this)" onchange="calcEclaimRow(this)"></td>
-        <td class="px-2 py-2"><input type="number" class="minimal-input !py-1 text-right item-price border-purple-200" value="${iPrice}" min="0" onkeyup="calcEclaimRow(this)" onchange="calcEclaimRow(this)"></td>
-        <td class="px-2 py-2"><input type="number" class="minimal-input !py-1 text-right item-total bg-slate-100 border-purple-200" value="${iTotal}" readonly></td>
+        <td class="px-2 py-2">
+            <!-- 🌟 ใส่ list="master_parts_datalist" และ onchange="autoFillEclaimPart(this)" -->
+            <input type="text" list="master_parts_datalist" class="minimal-input !py-1 item-partno border-purple-200 font-mono uppercase" 
+                   value="${iPartNo}" placeholder="รหัสอ้างอิง..." onchange="autoFillEclaimPart(this)">
+        </td>
+        <td class="px-2 py-2">
+            <input type="text" class="minimal-input !py-1 item-name border-purple-200" value="${iName}" placeholder="ชื่อรายการ..." required>
+        </td>
+        <td class="px-2 py-2">
+            <input type="number" class="minimal-input !py-1 text-center item-qty border-purple-200" value="${iQty}" min="1" onkeyup="calcEclaimRow(this)" onchange="calcEclaimRow(this)">
+        </td>
+        <td class="px-2 py-2">
+            <input type="number" class="minimal-input !py-1 text-right item-price border-purple-200" value="${iPrice}" min="0" onkeyup="calcEclaimRow(this)" onchange="calcEclaimRow(this)">
+        </td>
+        <td class="px-2 py-2">
+            <input type="number" class="minimal-input !py-1 text-right item-total bg-slate-100 border-purple-200" value="${iTotal}" readonly>
+        </td>
         <td class="px-2 py-2 text-center">
             <button type="button" onclick="this.closest('tr').remove(); checkEmptyEclaimTable();" class="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded transition shadow-sm"><i class="fa-solid fa-trash"></i></button>
         </td>
     `;
     tbody.appendChild(tr);
+}
+
+// 🌟 1.1 ฟังก์ชันดึงข้อมูลอะไหล่อัตโนมัติ (Datalist Auto-fill)
+function autoFillEclaimPart(inputEl) {
+    const pNo = inputEl.value.trim().toUpperCase();
+    if (!pNo) return;
+
+    const tr = inputEl.closest('tr');
+    
+    // ตั้งค่าประเภทเป็น P (อะไหล่) ให้อัตโนมัติ
+    tr.querySelector('.item-type').value = 'P';
+
+    // ค้นหาชื่อชิ้นส่วนและราคา จากมาสเตอร์อะไหล่
+    if (typeof window.allMasterPartsCache !== 'undefined') {
+        const matched = window.allMasterPartsCache.find(x => x.part_no && x.part_no.toUpperCase() === pNo);
+        if (matched) {
+            const nameInp = tr.querySelector('.item-name');
+            const priceInp = tr.querySelector('.item-price');
+            
+            if (nameInp && !nameInp.value) nameInp.value = matched.part_name || '';
+            if (priceInp && parseFloat(priceInp.value) === 0) {
+                priceInp.value = parseFloat(matched.unit_price || 0).toFixed(2);
+                calcEclaimRow(priceInp); // คำนวณราคาทันที
+            }
+        }
+    }
+
+    // 🌟 ดึงจำนวนสั่งซื้อ (Qty Ordered) จากรายการ PO Tracking ของรถคันนี้ (ถ้ามี)
+    if (typeof window.allPartOrders !== 'undefined') {
+        const currentCarPlate = document.getElementById('car_plate')?.value?.trim().toUpperCase();
+        if (currentCarPlate) {
+            const poMatch = window.allPartOrders.find(po => po.part_no && po.part_no.toUpperCase() === pNo && po.car_plate?.trim().toUpperCase() === currentCarPlate && po.order_status !== 'ยกเลิก');
+            if (poMatch) {
+                const qtyInp = tr.querySelector('.item-qty');
+                if (qtyInp) {
+                    qtyInp.value = parseInt(poMatch.qty_ordered) || 1;
+                    calcEclaimRow(qtyInp); // คำนวณราคาทันที
+                    
+                    // แจ้งเตือน SA เบาๆ ว่าดึงข้อมูลมาแล้ว
+                    if (typeof showToast === 'function') showToast(`ดึงจำนวนสั่งซื้ออะไหล่จากรายการ PO (${poMatch.qty_ordered} ชิ้น)`);
+                }
+            }
+        }
+    }
 }
 
 // 2. ฟังก์ชันคำนวณราคารวม (จำนวน x ราคา)
