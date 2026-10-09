@@ -856,7 +856,6 @@ function autoMapRouting() {
 // 🛒 ระบบจัดการตารางรายการย่อย E-Claim (Line Items)
 // =========================================================
 
-// 1. ฟังก์ชันเพิ่มบรรทัดใหม่ในตาราง (ปุ่ม + เพิ่มรายการ)
 function addEclaimItemRow(item = null) {
     const tbody = document.getElementById('eclaim_items_body');
     const emptyRow = document.getElementById('eclaim_empty_row');
@@ -878,20 +877,20 @@ function addEclaimItemRow(item = null) {
 
     tr.innerHTML = `
         <td class="px-2 py-2 text-center">
-            <select class="minimal-input !px-2 !py-1 text-xs item-type border-purple-200 font-bold" onchange="toggleEclaimRowType(this)">
+            <select class="minimal-input !px-2 !py-1 text-xs item-type border-purple-200 font-bold min-w-[110px]" onchange="toggleEclaimRowType(this)">
                 <option value="P" ${iType === 'P' ? 'selected' : ''}>อะไหล่ (P)</option>
                 <option value="L" ${iType === 'L' ? 'selected' : ''}>ค่าแรง (L)</option>
             </select>
         </td>
         <td class="px-2 py-2">
-            <input type="text" list="master_parts_datalist" class="minimal-input !px-2 !py-1 text-xs item-partno border-purple-200 font-mono uppercase min-w-[120px]" 
+            <input type="text" list="master_parts_datalist" class="minimal-input !px-2 !py-1 text-xs item-partno border-purple-200 font-mono uppercase min-w-[155px]" 
                    value="${iPartNo}" placeholder="รหัสอ้างอิง..." onchange="autoFillEclaimPart(this)">
         </td>
         <td class="px-2 py-2">
-            <input type="text" class="minimal-input !px-2 !py-1 text-xs item-name border-purple-200 font-bold min-w-[180px]" value="${iName}" placeholder="ชื่อรายการ..." required>
+            <input type="text" class="minimal-input !px-2 !py-1 text-xs item-name border-purple-200 font-bold min-w-[220px]" value="${iName}" placeholder="ชื่อรายการ..." required>
         </td>
         <td class="px-2 py-2 text-center">
-            <select class="minimal-input !px-1.5 !py-1 text-xs item-damage border-purple-200 text-center min-w-[90px]">
+            <select class="minimal-input !px-1.5 !py-1 text-xs item-damage border-purple-200 text-center min-w-[110px]">
                 <option value="เบา" ${iDamage === 'เบา' ? 'selected' : ''}>ซ่อมเบา</option>
                 <option value="กลาง" ${iDamage === 'กลาง' ? 'selected' : ''}>ซ่อมกลาง</option>
                 <option value="หนัก" ${iDamage === 'หนัก' ? 'selected' : ''}>ซ่อมหนัก</option>
@@ -899,25 +898,25 @@ function addEclaimItemRow(item = null) {
             </select>
         </td>
         <td class="px-2 py-2 text-center">
-            <select class="minimal-input !px-1.5 !py-1 text-xs item-ship border-purple-200 text-center min-w-[90px]">
+            <select class="minimal-input !px-1.5 !py-1 text-xs item-ship border-purple-200 text-center min-w-[110px]">
                 <option value="garage" ${iShip === 'garage' ? 'selected' : ''}>ศูนย์จัด</option>
                 <option value="ins" ${iShip === 'ins' ? 'selected' : ''}>ประกันจัด</option>
             </select>
         </td>
         <td class="px-2 py-2 text-center">
-            <input type="number" class="minimal-input !px-1 !py-1 text-center text-xs item-qty border-purple-200 font-mono w-14" value="${iQty}" min="1" onkeyup="calcEclaimRow(this)" onchange="calcEclaimRow(this)">
+            <input type="number" class="minimal-input !px-1 !py-1 text-center text-xs item-qty border-purple-200 font-mono min-w-[65px]" value="${iQty}" min="1" onkeyup="calcEclaimRow(this)" onchange="calcEclaimRow(this)">
         </td>
         <td class="px-2 py-2">
-            <input type="number" step="0.01" class="minimal-input !px-2 !py-1 text-right text-xs item-price border-purple-200 font-mono min-w-[100px]" value="${iPrice}" min="0" placeholder="0.00" onkeyup="calcEclaimRow(this)" onchange="calcEclaimRow(this)">
+            <input type="number" step="0.01" class="minimal-input !px-2 !py-1 text-right text-xs item-price border-purple-200 font-mono min-w-[115px]" value="${iPrice}" min="0" placeholder="0.00" onkeyup="calcEclaimRow(this)" onchange="calcEclaimRow(this)">
         </td>
         <td class="px-2 py-2">
-            <input type="number" step="0.01" class="minimal-input !px-1.5 !py-1 text-right text-xs item-discount border-purple-200 font-mono w-16" value="${iDiscount}" min="0" placeholder="0%" onkeyup="calcEclaimRow(this)" onchange="calcEclaimRow(this)">
+            <input type="number" step="0.01" class="minimal-input !px-1.5 !py-1 text-right text-xs item-discount border-purple-200 font-mono min-w-[80px]" value="${iDiscount}" min="0" placeholder="0%" onkeyup="calcEclaimRow(this)" onchange="calcEclaimRow(this)">
         </td>
         <td class="px-2 py-2">
-            <input type="number" step="0.01" class="minimal-input !px-2 !py-1 text-right text-xs item-total bg-purple-50 font-bold text-purple-900 border-purple-300 font-mono min-w-[105px]" value="${iTotal}" readonly placeholder="0.00">
+            <input type="number" step="0.01" class="minimal-input !px-2 !py-1 text-right text-xs item-total bg-purple-50 font-bold text-purple-900 border-purple-300 font-mono min-w-[125px]" value="${iTotal}" readonly placeholder="0.00">
         </td>
         <td class="px-2 py-2 text-center">
-            <select class="minimal-input !px-1 !py-1 text-xs item-scrap border-purple-200 text-center w-16">
+            <select class="minimal-input !px-1 !py-1 text-xs item-scrap border-purple-200 text-center min-w-[95px]">
                 <option value="0" ${iScrap === '0' || iScrap === 0 ? 'selected' : ''}>ไม่คืน</option>
                 <option value="1" ${iScrap === '1' || iScrap === 1 ? 'selected' : ''}>คืนซาก</option>
             </select>
@@ -931,46 +930,6 @@ function addEclaimItemRow(item = null) {
     if (iPrice > 0 || iDiscount > 0) calcEclaimRow(tr.querySelector('.item-price'));
 }
 
-// 🌟 1.1 ฟังก์ชันดึงข้อมูลอะไหล่อัตโนมัติ (Datalist Auto-fill)
-function autoFillEclaimPart(inputEl) {
-    const pNo = inputEl.value.trim().toUpperCase();
-    if (!pNo) return;
-
-    const tr = inputEl.closest('tr');
-    tr.querySelector('.item-type').value = 'P';
-    toggleEclaimRowType(tr.querySelector('.item-type'));
-
-    if (typeof window.allMasterPartsCache !== 'undefined') {
-        const matched = window.allMasterPartsCache.find(x => x.part_no && x.part_no.toUpperCase() === pNo);
-        if (matched) {
-            const nameInp = tr.querySelector('.item-name');
-            const priceInp = tr.querySelector('.item-price');
-            
-            if (nameInp && !nameInp.value) nameInp.value = matched.part_name || '';
-            if (priceInp && parseFloat(priceInp.value) === 0) {
-                priceInp.value = parseFloat(matched.unit_price || 0).toFixed(2);
-                calcEclaimRow(priceInp);
-            }
-        }
-    }
-
-    if (typeof window.allPartOrders !== 'undefined') {
-        const currentCarPlate = document.getElementById('car_plate')?.value?.trim().toUpperCase();
-        if (currentCarPlate) {
-            const poMatch = window.allPartOrders.find(po => po.part_no && po.part_no.toUpperCase() === pNo && po.car_plate?.trim().toUpperCase() === currentCarPlate && po.order_status !== 'ยกเลิก');
-            if (poMatch) {
-                const qtyInp = tr.querySelector('.item-qty');
-                if (qtyInp) {
-                    qtyInp.value = parseInt(poMatch.qty_ordered) || 1;
-                    calcEclaimRow(qtyInp);
-                    if (typeof showToast === 'function') showToast(`ดึงจำนวนสั่งซื้ออะไหล่จากรายการ PO (${poMatch.qty_ordered} ชิ้น)`);
-                }
-            }
-        }
-    }
-}
-
-// 1.2 สลับเปิด-ปิดช่องเลือกระหว่าง L (ระดับเสียหาย) กับ P (ผู้จัดอะไหล่)
 function toggleEclaimRowType(selectEl) {
     const tr = selectEl.closest('tr');
     const type = selectEl.value;
@@ -1006,7 +965,6 @@ function toggleEclaimRowType(selectEl) {
     }
 }
 
-// 2. ฟังก์ชันคำนวณราคารวม (จำนวน x ราคาเดิม หักด้วยส่วนลด)
 function calcEclaimRow(input) {
     const tr = input.closest('tr');
     const qty = parseFloat(tr.querySelector('.item-qty').value) || 0;
@@ -1027,7 +985,6 @@ function calcEclaimRow(input) {
     tr.querySelector('.item-total').value = finalTotal.toFixed(2);
 }
 
-// 3. เช็กซ่อน/แสดง แถว "ยังไม่มีรายการ"
 function checkEmptyEclaimTable() {
     const tbody = document.getElementById('eclaim_items_body');
     const rows = tbody.querySelectorAll('.eclaim-item-row');
@@ -1037,7 +994,6 @@ function checkEmptyEclaimTable() {
     }
 }
 
-// 4. บันทึกข้อมูลเข้าตาราง (นำความคิดเห็นเพิ่มเติมจาก Textarea ด้านล่างไปแนบ)
 async function saveEclaimItems(reportId) {
     const rows = document.querySelectorAll('.eclaim-item-row');
     const globalComment = document.getElementById('eclaim_center_comment')?.value?.trim() || '';
@@ -1082,7 +1038,6 @@ async function saveEclaimItems(reportId) {
     }
 }
 
-// 5. ดึงข้อมูลแสดงผลเมื่อเปิดบิลเก่า
 async function loadEclaimItems(reportId) {
     try {
         const res = await fetch(`${API_BASE_URL}/api/report/${reportId}/eclaim-items`);
@@ -1108,12 +1063,12 @@ async function loadEclaimItems(reportId) {
     }
 }
 
-// 6. ส่งออกและดาวน์โหลดไฟล์ XML สำหรับ EMCS
+// 🌟 6. ส่งออกและดาวน์โหลดไฟล์ XML สำหรับ EMCS (แก้ไขเพิ่มฟังก์ชันที่หลุดหายไป)
 async function exportEMCSXml() {
   const reportId = document.getElementById('sa_report_id')?.value;
   
   if (!reportId) {
-    alert('กรุณาบันทึกข้อมูลเปิดบิลใบงานเข้าสู่ระบบก่อนทำการ Export ไฟล์ XML ครับ!');
+    alert('⚠️ กรุณาบันทึกข้อมูลเปิดบิลใบงานเข้าสู่ระบบก่อนทำการ Export ไฟล์ XML ครับ!');
     return;
   }
 
@@ -1123,10 +1078,10 @@ async function exportEMCSXml() {
   try {
     if (btn) {
       btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังเตรียมไฟล์ XML...';
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังเซฟข้อมูล...';
     }
 
-    // 🌟 1. บันทึกข้อมูล E-Claim Details (ข้อมูลรถและประกัน) ลงฐานข้อมูลก่อน
+    // 1. บันทึกข้อมูล E-Claim Details (ข้อมูลรถและประกัน)
     const eclaimDetails = {
         eclaim_province: document.getElementById('eclaim_province')?.value || '',
         eclaim_car_type: document.getElementById('eclaim_car_type')?.value || '',
@@ -1151,10 +1106,15 @@ async function exportEMCSXml() {
         body: JSON.stringify(eclaimDetails)
     });
 
-    // 🌟 2. บันทึกรายการย่อย E-Claim (Line Items) ล่าสุดลงฐานข้อมูล
+    // 2. บันทึกรายการย่อย E-Claim (Line Items) ล่าสุด
     await saveEclaimItems(reportId);
 
-    // 🌟 3. สั่งดาวน์โหลดไฟล์ XML (ใช้ hidden iframe เพื่อไม่ให้ติด Popup Blocker)
+    if (btn) {
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังสร้าง XML...';
+    }
+
+    // 3. สั่งดาวน์โหลดไฟล์ XML
+    const xmlUrl = `${API_BASE_URL}/api/report/${reportId}/export-xml`;
     let downloadIframe = document.getElementById('xml_download_iframe');
     if (!downloadIframe) {
         downloadIframe = document.createElement('iframe');
@@ -1162,11 +1122,11 @@ async function exportEMCSXml() {
         downloadIframe.style.display = 'none';
         document.body.appendChild(downloadIframe);
     }
-    downloadIframe.src = `${API_BASE_URL}/api/report/${reportId}/export-xml`;
+    downloadIframe.src = xmlUrl;
 
   } catch (err) {
     console.error('Export XML Error:', err);
-    alert('❌ เกิดข้อผิดพลาดในการสร้างไฟล์ XML: ' + err.message);
+    alert('❌ เกิดข้อผิดพลาดในการสร้างไฟล์ XML: ' + (err.message || 'เน็ตเวิร์กขัดข้อง'));
   } finally {
     if (btn) {
       btn.disabled = false;
