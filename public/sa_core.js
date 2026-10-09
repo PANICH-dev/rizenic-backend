@@ -730,7 +730,7 @@ async function submitSaForm(event) {
         // 🌟 1. บันทึกข้อมูล E-Claim Details (ข้อมูลรายละเอียดรถและประกัน) 🌟
         if (savedJobId) {
             const eclaimDetails = {
-    eclaim_province: getProvinceCode(document.getElementById('eclaim_province')?.value),
+                eclaim_province: getProvinceCode(document.getElementById('eclaim_province')?.value),
                 eclaim_car_type: document.getElementById('eclaim_car_type')?.value || '',
                 eclaim_year: document.getElementById('eclaim_year')?.value || '',
                 eclaim_trim: document.getElementById('eclaim_trim')?.value || '',
@@ -748,16 +748,21 @@ async function submitSaForm(event) {
             };
 
             try {
-                await fetch(`${API_BASE_URL}/api/report/${savedJobId}/eclaim-details`, {
+                const resDet = await fetch(`${API_BASE_URL}/api/report/${savedJobId}/eclaim-details`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(eclaimDetails)
                 });
+
+                if (!resDet.ok) {
+                    const errData = await resDet.json().catch(() => ({}));
+                    alert('❌ บันทึกรายละเอียด E-Claim (บล็อก 9) ไม่สำเร็จ: ' + (errData.error || resDet.statusText));
+                }
             } catch (err) {
                 console.error("Save Eclaim Details Error:", err);
             }
 
-            // 🌟 2. บันทึกรายการย่อย (E-Claim Line Items - จากตาราง Express) 🌟
+            // 🌟 2. บันทึกรายการย่อย (E-Claim Line Items) 🌟
             await saveEclaimItems(savedJobId);
         }
 
