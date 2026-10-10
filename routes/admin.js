@@ -81,7 +81,7 @@ router.get('/admin/drive-callback', async (req, res) => {
             `);
         }
 
-        // อัปเดต Refresh Token ลงในแถวที่ Active อยู่ปัจจุบัน
+        // อัปเดต Refresh Token ลงในแถวที่ Active อยู่ปัจจุบัน (เช่น โฟลเดอร์ 2026)
         const updateRes = await pool.query(
             `UPDATE drive_config SET refresh_token = $1, is_active = true WHERE is_active = true`,
             [tokens.refresh_token]
