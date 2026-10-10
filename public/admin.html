@@ -60,7 +60,7 @@
             
             <button onclick="switchPanel('quota-panel')" id="btn-quota-panel" class="nav-btn"><i class="fa-solid fa-chart-pie w-5 text-center"></i> โควต้าสาขา & ชิ้นงาน</button>
             
-            <!-- 🌟 เพิ่มเมนูตั้งค่า Google Drive -->
+            <!-- 🌟 เมนูตั้งค่า Google Drive -->
             <button onclick="switchPanel('drive-panel')" id="btn-drive-panel" class="nav-btn text-blue-300 hover:text-blue-100"><i class="fa-brands fa-google-drive w-5 text-center"></i> ตั้งค่า Google Drive</button>
         </div>
         <div class="p-5 border-t border-green-800 space-y-2 bg-[#002209]">
@@ -247,15 +247,31 @@
 
                 <!-- 🌟 9. ตั้งค่า Google Drive -->
                 <div id="drive-panel" class="admin-panel h-full flex flex-col p-6">
-                    <div class="max-w-xl mx-auto w-full mt-10">
-                        <!-- แผงตั้งค่า Google Drive -->
-                        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                            <h3 class="text-lg font-black text-slate-800 mb-4"><i class="fa-brands fa-google-drive text-blue-500 mr-2"></i>ตั้งค่าคลังรูปภาพหลัก (Google Drive)</h3>
+                    <div class="max-w-xl mx-auto w-full mt-6 space-y-6">
+                        
+                        <!-- 🔑 บล็อกปุ่มเชื่อมต่อ Google OAuth (สิทธิ์แอป) -->
+                        <div class="bg-emerald-50 p-6 rounded-2xl border border-emerald-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+                            <div>
+                                <h3 class="text-base font-black text-emerald-900 flex items-center gap-2">
+                                    <i class="fa-solid fa-key text-emerald-600"></i> ขั้นตอนที่ 1: อนุญาตสิทธิ์เชื่อมต่อ OAuth
+                                </h3>
+                                <p class="text-xs text-slate-600 mt-1 font-medium">กดปุ่มนี้เพื่ออนุญาตให้ระบบสั่งสร้างโฟลเดอร์ใน Google Drive ได้อัตโนมัติ</p>
+                            </div>
+                            <button type="button" onclick="connectGoogleDrive()" class="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition flex items-center gap-2 text-xs shrink-0">
+                                <i class="fa-brands fa-google-drive text-base"></i> เชื่อมต่อ Google Drive (OAuth)
+                            </button>
+                        </div>
+
+                        <!-- 📁 บล็อกตั้งค่าโฟลเดอร์หลัก -->
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                            <h3 class="text-base font-black text-slate-800 mb-4 flex items-center gap-2">
+                                <i class="fa-brands fa-google-drive text-blue-500"></i> ขั้นตอนที่ 2: ตั้งค่าคลังรูปภาพหลัก (Google Drive)
+                            </h3>
                             
                             <div class="space-y-4">
                                 <div>
                                     <label class="block text-xs font-bold text-slate-600 mb-1">ชื่อเรียกโฟลเดอร์ (เช่น รูปงานซ่อม ปี 2026)</label>
-                                    <input type="text" id="admin_folder_name" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none" placeholder="คลังรูปภาพ 1">
+                                    <input type="text" id="admin_folder_name" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none font-bold" placeholder="คลังรูปภาพ 1">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-slate-600 mb-1">ลิงก์ Google Drive Folder (URL)</label>
@@ -268,7 +284,7 @@
                         </div>
 
                         <!-- แสดงโฟลเดอร์ Active ปัจจุบัน -->
-                        <div class="mt-8 bg-blue-50 p-4 rounded-xl border border-blue-200">
+                        <div class="bg-blue-50 p-4 rounded-xl border border-blue-200">
                             <h4 class="text-sm font-bold text-blue-800 mb-2"><i class="fa-solid fa-circle-check text-green-500 mr-1"></i> โฟลเดอร์ที่ Active อยู่ในปัจจุบัน</h4>
                             <div id="active_drive_display" class="text-xs text-slate-600 bg-white p-3 rounded-lg border border-blue-100 shadow-sm">
                                 โหลดข้อมูล...
@@ -297,19 +313,18 @@
                 <div><label class="label-text">รหัสพนักงาน</label><input type="text" id="emp_code_input" class="minimal-input uppercase" placeholder="EMP001"></div>
                 <div><label class="label-text">ชื่อ - นามสกุล *</label><input type="text" id="emp_name_input" class="minimal-input" placeholder="สมชาย ใจดี"></div>
                 <div>
-    <label class="label-text">ตำแหน่ง (Role) *</label>
-    <input type="text" id="emp_role_input" list="role_list" class="minimal-input" placeholder="เลือกหรือพิมพ์...">
-    <datalist id="role_list">
-        <option value="SA">
-        <option value="Parts">
-        <option value="Technician">
-        <option value="Finance">
-        <option value="Manager">
-        <option value="Admin">
-        <!-- เพิ่มบรรทัดด้านล่างนี้เข้าไป -->
-        <option value="Partner"> 
-    </datalist>
-</div>
+                    <label class="label-text">ตำแหน่ง (Role) *</label>
+                    <input type="text" id="emp_role_input" list="role_list" class="minimal-input" placeholder="เลือกหรือพิมพ์...">
+                    <datalist id="role_list">
+                        <option value="SA">
+                        <option value="Parts">
+                        <option value="Technician">
+                        <option value="Finance">
+                        <option value="Manager">
+                        <option value="Admin">
+                        <option value="Partner"> 
+                    </datalist>
+                </div>
                 <div>
                     <label class="label-text">สาขา (Branch) *</label>
                     <input type="text" id="emp_branch_input" list="branch_list" class="minimal-input" placeholder="เลือกหรือพิมพ์...">
@@ -318,23 +333,21 @@
                 <div><label class="label-text">Username *</label><input type="text" id="emp_user_input" class="minimal-input font-mono" placeholder="username"></div>
                 <div><label class="label-text">Password *</label><input type="password" id="emp_pass_input" class="minimal-input font-mono" placeholder="********"></div>
                 
-              <div class="md:col-span-3 mt-2">
-    <label class="label-text text-blue-700 border-b border-blue-200 pb-2 mb-3"><i class="fa-solid fa-key"></i> สิทธิ์อนุญาตเข้าถึงแผนก / หน้าจอ (Access Control)</label>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-blue-600"><input type="checkbox" class="w-4 h-4 accent-blue-600 page-chk rounded" value="index"> 📝 เปิดบิลซ่อม</label>
-        <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-blue-600"><input type="checkbox" class="w-4 h-4 accent-blue-600 page-chk rounded" value="jobs"> 📋 บอร์ดใบงาน</label>
-        <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-blue-600"><input type="checkbox" class="w-4 h-4 accent-blue-600 page-chk rounded" value="parts"> 📦 แผนกอะไหล่</label>
-        <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-blue-600"><input type="checkbox" class="w-4 h-4 accent-blue-600 page-chk rounded" value="repair"> 🛠️ สถานีช่าง</label>
-        <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-blue-600"><input type="checkbox" class="w-4 h-4 accent-blue-600 page-chk rounded" value="repair_board"> 📺 Kanban ช่าง</label>
-        <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-blue-600"><input type="checkbox" class="w-4 h-4 accent-blue-600 page-chk rounded" value="finance"> 💰 แผนกบัญชี</label>
-        <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-blue-600"><input type="checkbox" class="w-4 h-4 accent-blue-600 page-chk rounded" value="dashboard"> 📊 แดชบอร์ดบริหาร</label>
-        <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-rose-600 text-rose-700"><input type="checkbox" class="w-4 h-4 accent-rose-600 page-chk rounded" value="audit"> 🩺 ศูนย์ตรวจปัญหา (Audit)</label>
-        <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-red-600 text-red-700"><input type="checkbox" class="w-4 h-4 accent-red-600 page-chk rounded" value="admin"> ⚙️ ตั้งค่าแอดมิน</label>
-        
-        <!-- เพิ่มบรรทัดด้านล่างนี้เข้าไป สำหรับพาสเนอร์ -->
-        <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-emerald-600 text-emerald-700"><input type="checkbox" class="w-4 h-4 accent-emerald-600 page-chk rounded" value="partner_portal"> 🤝 หน้าพาสเนอร์ (EV ME)</label>
-    </div>
-</div>
+                <div class="md:col-span-3 mt-2">
+                    <label class="label-text text-blue-700 border-b border-blue-200 pb-2 mb-3"><i class="fa-solid fa-key"></i> สิทธิ์อนุญาตเข้าถึงแผนก / หน้าจอ (Access Control)</label>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-blue-600"><input type="checkbox" class="w-4 h-4 accent-blue-600 page-chk rounded" value="index"> 📝 เปิดบิลซ่อม</label>
+                        <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-blue-600"><input type="checkbox" class="w-4 h-4 accent-blue-600 page-chk rounded" value="jobs"> 📋 บอร์ดใบงาน</label>
+                        <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-blue-600"><input type="checkbox" class="w-4 h-4 accent-blue-600 page-chk rounded" value="parts"> 📦 แผนกอะไหล่</label>
+                        <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-blue-600"><input type="checkbox" class="w-4 h-4 accent-blue-600 page-chk rounded" value="repair"> 🛠️ สถานีช่าง</label>
+                        <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-blue-600"><input type="checkbox" class="w-4 h-4 accent-blue-600 page-chk rounded" value="repair_board"> 📺 Kanban ช่าง</label>
+                        <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-blue-600"><input type="checkbox" class="w-4 h-4 accent-blue-600 page-chk rounded" value="finance"> 💰 แผนกบัญชี</label>
+                        <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-blue-600"><input type="checkbox" class="w-4 h-4 accent-blue-600 page-chk rounded" value="dashboard"> 📊 แดชบอร์ดบริหาร</label>
+                        <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-rose-600 text-rose-700"><input type="checkbox" class="w-4 h-4 accent-rose-600 page-chk rounded" value="audit"> 🩺 ศูนย์ตรวจปัญหา (Audit)</label>
+                        <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-red-600 text-red-700"><input type="checkbox" class="w-4 h-4 accent-red-600 page-chk rounded" value="admin"> ⚙️ ตั้งค่าแอดมิน</label>
+                        <label class="flex items-center gap-2 text-sm font-bold cursor-pointer hover:text-emerald-600 text-emerald-700"><input type="checkbox" class="w-4 h-4 accent-emerald-600 page-chk rounded" value="partner_portal"> 🤝 หน้าพาสเนอร์ (EV ME)</label>
+                    </div>
+                </div>
 
                 <div class="md:col-span-3 flex justify-end gap-3 mt-4 pt-4 border-t border-slate-200">
                     <button onclick="closeModal('empModal')" class="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl text-sm font-bold shadow-sm hover:bg-slate-100 transition">ยกเลิก</button>
@@ -520,7 +533,6 @@
     <script>
         const API_BASE_URL = window.location.origin;
 
-        // 🌟 Data Validation Lists 🌟
         let globalEmp = [];
         let globalCar = [];
         let globalIns = [];
@@ -543,7 +555,7 @@
             }
 
             loadAllData();
-            loadActiveDriveConfig(); // 🌟 โหลดข้อมูล Drive Active ล่าสุด
+            loadActiveDriveConfig();
         });
 
         function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
@@ -556,7 +568,6 @@
             if(btn) btn.classList.add('active', 'bg-[#004a1f]', 'text-white');
         }
 
-        // 🌟 Helper Format วันที่ 🌟
         function formatThaiDate(isoStr) {
             if (!isoStr) return '';
             const parts = String(isoStr).split('T')[0].split('-');
@@ -564,11 +575,9 @@
             return isoStr;
         }
 
-        // 🌟 Modal Controls 🌟
         function openModal(id) { document.getElementById(id).classList.replace('hidden', 'flex'); }
         function closeModal(id) { document.getElementById(id).classList.replace('flex', 'hidden'); }
 
-        // 🌟 แก้ปัญหา INP ด้วย Debounce สำหรับ Search 🌟
         let searchTimers = {};
         function filterTableDebounced(inputId, tbodyId) {
             clearTimeout(searchTimers[inputId]);
@@ -637,7 +646,6 @@
             
             if(!name || !user || !pass || !role || !branch) return alert('⚠️ กรุณากรอกข้อมูลสำคัญให้ครบ (*)');
 
-            // Validation ซ้ำ
             if (globalEmp.some(e => String(e.employee_id) !== String(id) && ((code && e.employee_code === code) || e.username === user))) {
                 return alert('❌ รหัสพนักงาน หรือ Username นี้มีผู้ใช้งานในระบบแล้ว!');
             }
@@ -904,14 +912,13 @@
             if (!branch) return alert('⚠️ กรุณาระบุสาขา');
             if (type === 'special' && !date) return alert('⚠️ กรุณาระบุวันที่สำหรับโควตาวันพิเศษ');
 
-            // Validation ป้องกันสาขาและวันซ้ำ
             const isDup = globalQuota.some(q => {
-                if (id && String(q.id) === String(id)) return false; // ข้ามการเช็คตัวเองตอนอัปเดต
+                if (id && String(q.id) === String(id)) return false;
                 if (q.branch_name === branch && q.quota_type === type) {
-                    if (type === 'default') return true; // ถ้าเป็น Default ห้ามมีซ้ำในสาขาเดียวกัน
+                    if (type === 'default') return true;
                     if (type === 'special') {
                         const qDate = q.quota_date ? q.quota_date.split('T')[0] : '';
-                        return qDate === date; // วันพิเศษ วันที่+สาขา ต้องไม่ซ้ำกัน
+                        return qDate === date;
                     }
                 }
                 return false;
@@ -948,13 +955,24 @@
         }
         
         // ================= 9. จัดการตั้งค่า Google Drive =================
+        
+        // 🔑 ฟังก์ชันเปิดขอสิทธิ์ Google OAuth Flow
+        function connectGoogleDrive() {
+            const clientId = "179096508250-ol9n1jfdnmj8a6lkq41e1au8imh3umfn.apps.googleusercontent.com";
+            const redirectUri = encodeURIComponent(`${API_BASE_URL}/admin/drive-callback`);
+            const scope = encodeURIComponent("https://www.googleapis.com/auth/drive.file");
+            
+            const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&access_type=offline&prompt=consent`;
+            
+            window.location.href = authUrl;
+        }
+
         async function loadActiveDriveConfig() {
             try {
                 const res = await fetch(`${API_BASE_URL}/api/admin/drive-config/active`);
                 const configs = await res.json();
                 const displayArea = document.getElementById('active_drive_display');
                 
-                // หาค่า Active จริง (is_active = true)
                 const activeConfig = configs.find(c => c.is_active);
 
                 if (activeConfig) {
@@ -996,7 +1014,7 @@
                     alert('✅ ' + data.message);
                     document.getElementById('admin_folder_name').value = '';
                     document.getElementById('admin_drive_url').value = '';
-                    loadActiveDriveConfig(); // โหลดข้อมูลมาแสดงใหม่ทันที
+                    loadActiveDriveConfig();
                 } else {
                     alert('❌ ' + data.error);
                 }
