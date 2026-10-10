@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
-
 const { google } = require('googleapis');
 
 // ==========================================
@@ -39,25 +38,6 @@ async function createFolderInDrive(folderName, parentFolderId) {
             fields: 'id, webViewLink'
         });
         return file.data;
-    } catch (err) {
-        console.error('Drive API Error:', err.message);
-        throw err;
-    }
-}
-const drive = google.drive({ version: 'v3', auth });
-
-async function createFolderInDrive(folderName, parentFolderId) {
-    const fileMetadata = {
-        name: folderName,
-        mimeType: 'application/vnd.google-apps.folder',
-        parents: parentFolderId ? [parentFolderId] : []
-    };
-    try {
-        const file = await drive.files.create({
-            resource: fileMetadata,
-            fields: 'id, webViewLink'
-        });
-        return file.data; // จะคืนค่า { id: '...', webViewLink: '...' }
     } catch (err) {
         console.error('Drive API Error:', err.message);
         throw err;
@@ -185,7 +165,6 @@ router.get('/inspection/:job_id', async (req, res) => {
 // 📄 API จัดการรายการย่อย (Line Items) สำหรับ E-Claim
 // ==========================================
 
-// 1. ดึงข้อมูลรายการย่อย (GET)
 router.get('/report/:id/eclaim-items', async (req, res) => {
   try {
     const result = await pool.query(
@@ -198,7 +177,6 @@ router.get('/report/:id/eclaim-items', async (req, res) => {
   }
 });
 
-// 2. บันทึกข้อมูลรายการย่อย (POST) - ลบของเดิมแล้ว Insert ใหม่
 router.post('/report/:id/eclaim-items', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -247,9 +225,6 @@ router.post('/report/:id/eclaim-items', async (req, res) => {
   }
 });
 
-// ==========================================
-// 📄 API ดึงข้อมูลรายละเอียดรถและประกัน E-Claim (GET)
-// ==========================================
 router.get('/report/:id/eclaim-details', async (req, res) => {
   try {
     const report_id = req.params.id;
@@ -264,9 +239,6 @@ router.get('/report/:id/eclaim-details', async (req, res) => {
   }
 });
 
-// ==========================================
-// 📄 API บันทึกข้อมูล E-Claim Details (POST - ครบ 32 คอลัมน์)
-// ==========================================
 router.post('/report/:id/eclaim-details', async (req, res) => {
   try {
     const report_id = parseInt(req.params.id, 10);
@@ -490,7 +462,6 @@ router.post('/report/:id/create-drive-folder', async (req, res) => {
     const { car_plate, arrived_date } = req.body;
 
     try {
-        // 1. ดึง Active Root Drive Link ที่แอดมินตั้งค่าไว้ในหน้า Admin
         const configRes = await pool.query('SELECT drive_folder_id FROM drive_config WHERE is_active = true LIMIT 1');
         if (configRes.rows.length === 0) {
             return res.status(400).json({ error: 'ยังไม่ได้ตั้งค่า Active Google Drive ในระบบหลังบ้าน (โปรดตั้งค่าในหน้า Admin ก่อนครับ)' });
@@ -499,14 +470,11 @@ router.post('/report/:id/create-drive-folder', async (req, res) => {
         const activeRootFolderId = configRes.rows[0].drive_folder_id;
         const mainFolderName = `${car_plate}_${arrived_date || new Date().toISOString().split('T')[0]}`;
 
-        // 2. สร้างโฟลเดอร์หลักประจำรถคันนี้: [ทะเบียนรถ_วันที่]
         const mainFolder = await createFolderInDrive(mainFolderName, activeRootFolderId);
 
-        // 3. สร้าง 2 โฟลเดอร์หลักด้านใน
         const internalFolder = await createFolderInDrive('01_Internal_ซ่อม', mainFolder.id);
         const customerFolder = await createFolderInDrive('02_Customer_View', mainFolder.id);
 
-        // 4. สร้าง Sub-folders สำหรับช่าง (Internal)
         await createFolderInDrive('1_ก่อนซ่อม', internalFolder.id);
         const intRepair = await createFolderInDrive('2_ระหว่างซ่อม', internalFolder.id);
         await createFolderInDrive('3_หลังซ่อม_เสร็จ', internalFolder.id);
@@ -516,7 +484,6 @@ router.post('/report/:id/create-drive-folder', async (req, res) => {
             await createFolderInDrive(st, intRepair.id);
         }
 
-        // 5. สร้าง Sub-folders สำหรับลูกค้า (Customer View)
         await createFolderInDrive('1_สภาพรถก่อนซ่อม', customerFolder.id);
         const custRepair = await createFolderInDrive('2_อัปเดตงานซ่อม', customerFolder.id);
         await createFolderInDrive('3_รถของคุณพร้อมแล้ว', customerFolder.id);
@@ -525,7 +492,6 @@ router.post('/report/:id/create-drive-folder', async (req, res) => {
             await createFolderInDrive(st, custRepair.id);
         }
 
-        // 6. บันทึกลิงก์ Google Drive ถาวรลง Neon DB
         await pool.query(
             'UPDATE rizenicreport SET drive_folder_link = $1 WHERE id = $2',
             [mainFolder.webViewLink, reportId]

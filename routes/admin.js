@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../config/db'); // เปลี่ยน path ให้ตรงกับไฟล์เชื่อมต่อ Database ของคุณ
+const pool = require('../config/db');
+const { google } = require('googleapis');
 
 // ==========================================
 // 📁 ADMIN: ตั้งค่า Google Drive Root Folder
@@ -8,7 +9,6 @@ const pool = require('../config/db'); // เปลี่ยน path ให้ต
 router.post('/admin/drive-config', async (req, res) => {
     const { folder_name, drive_url } = req.body;
     
-    // ตรวจสอบและดึง Folder ID จากลิงก์
     const match = drive_url.match(/folders\/([a-zA-Z0-9_-]+)/);
     if (!match) {
         return res.status(400).json({ error: 'รูปแบบ URL ไม่ถูกต้อง ต้องเป็นลิงก์โฟลเดอร์จาก Google Drive' });
@@ -50,8 +50,6 @@ router.get('/admin/drive-config/active', async (req, res) => {
     }
 });
 
-const { google } = require('googleapis');
-
 // ==========================================
 // 🔑 OAuth 2.0 Callback Receiver
 // ==========================================
@@ -83,13 +81,19 @@ router.get('/admin/drive-callback', async (req, res) => {
             `);
         }
 
-        // บันทึก Refresh Token ลง Neon DB
-        await pool.query(
-            `INSERT INTO drive_config (folder_name, refresh_token, is_active) 
-             VALUES ($1, $2, true)
-             ON CONFLICT (id) DO UPDATE SET refresh_token = $2, is_active = true`,
-            ['Google Drive OAuth', tokens.refresh_token]
+        // อัปเดต Refresh Token ลงในแถวที่ Active อยู่ปัจจุบัน
+        const updateRes = await pool.query(
+            `UPDATE drive_config SET refresh_token = $1, is_active = true WHERE is_active = true`,
+            [tokens.refresh_token]
         );
+
+        // หากยังไม่มีแถว Active เลย ให้ INSERT ใหม่
+        if (updateRes.rowCount === 0) {
+            await pool.query(
+                `INSERT INTO drive_config (folder_name, refresh_token, is_active) VALUES ($1, $2, true)`,
+                ['Google Drive OAuth', tokens.refresh_token]
+            );
+        }
 
         res.send('<h2>✅ เชื่อมต่อ Google Drive สำเร็จเรียบร้อย! ปิดหน้านี้ได้เลยครับ</h2>');
 
