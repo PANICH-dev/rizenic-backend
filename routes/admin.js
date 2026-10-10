@@ -1,0 +1,53 @@
+const express = require('express');
+const router = express.Router();
+const pool = require('../config/db'); // เปลี่ยน path ให้ตรงกับไฟล์เชื่อมต่อ Database ของคุณ
+
+// ==========================================
+// 📁 ADMIN: ตั้งค่า Google Drive Root Folder
+// ==========================================
+router.post('/admin/drive-config', async (req, res) => {
+    const { folder_name, drive_url } = req.body;
+    
+    // ตรวจสอบและดึง Folder ID จากลิงก์
+    const match = drive_url.match(/folders\/([a-zA-Z0-9_-]+)/);
+    if (!match) {
+        return res.status(400).json({ error: 'รูปแบบ URL ไม่ถูกต้อง ต้องเป็นลิงก์โฟลเดอร์จาก Google Drive' });
+    }
+    
+    const folderId = match[1];
+    const client = await pool.connect();
+    
+    try {
+        await client.query('BEGIN');
+        
+        // ยกเลิก Active โฟลเดอร์เก่าทั้งหมด
+        await client.query('UPDATE drive_config SET is_active = false');
+        
+        // บันทึกโฟลเดอร์ใหม่และตั้งให้เป็น Active
+        await client.query(
+            'INSERT INTO drive_config (folder_name, drive_folder_id, drive_folder_url, is_active) VALUES ($1, $2, $3, true)',
+            [folder_name, folderId, drive_url]
+        );
+        
+        await client.query('COMMIT');
+        res.json({ success: true, message: 'บันทึกการตั้งค่าโฟลเดอร์หลักเรียบร้อย' });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Drive Config Error:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาดบนเซิร์ฟเวอร์' });
+    } finally {
+        client.release();
+    }
+});
+
+// API สำหรับดึงการตั้งค่าโฟลเดอร์ปัจจุบัน
+router.get('/admin/drive-config/active', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM drive_config ORDER BY id DESC');
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+module.exports = router;

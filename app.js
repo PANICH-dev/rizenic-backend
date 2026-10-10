@@ -25,6 +25,7 @@ app.use('/api', require('./routes/utils'));
 app.use('/api', require('./routes/masters'));
 app.use('/api', require('./routes/parts'));
 app.use('/api', require('./routes/jobs'));
+app.use('/api', require('./routes/admin'));
 
 // ==========================================
 // 🚀 Start Server

@@ -59,6 +59,9 @@
             <div class="my-3 border-t border-green-800/50 mx-2"></div>
             
             <button onclick="switchPanel('quota-panel')" id="btn-quota-panel" class="nav-btn"><i class="fa-solid fa-chart-pie w-5 text-center"></i> โควต้าสาขา & ชิ้นงาน</button>
+            
+            <!-- 🌟 เพิ่มเมนูตั้งค่า Google Drive -->
+            <button onclick="switchPanel('drive-panel')" id="btn-drive-panel" class="nav-btn text-blue-300 hover:text-blue-100"><i class="fa-brands fa-google-drive w-5 text-center"></i> ตั้งค่า Google Drive</button>
         </div>
         <div class="p-5 border-t border-green-800 space-y-2 bg-[#002209]">
             <a href="index.html" class="w-full block text-center py-2.5 bg-amber-400 text-[#00320D] font-black text-sm rounded-xl hover:bg-amber-500 transition shadow-md"><i class="fa-solid fa-arrow-left mr-1"></i> กลับหน้าเปิดบิล</a>
@@ -239,6 +242,38 @@
                             </thead>
                             <tbody id="quota_table_body" class="divide-y divide-slate-100"></tbody>
                         </table>
+                    </div>
+                </div>
+
+                <!-- 🌟 9. ตั้งค่า Google Drive -->
+                <div id="drive-panel" class="admin-panel h-full flex flex-col p-6">
+                    <div class="max-w-xl mx-auto w-full mt-10">
+                        <!-- แผงตั้งค่า Google Drive -->
+                        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                            <h3 class="text-lg font-black text-slate-800 mb-4"><i class="fa-brands fa-google-drive text-blue-500 mr-2"></i>ตั้งค่าคลังรูปภาพหลัก (Google Drive)</h3>
+                            
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 mb-1">ชื่อเรียกโฟลเดอร์ (เช่น รูปงานซ่อม ปี 2026)</label>
+                                    <input type="text" id="admin_folder_name" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none" placeholder="คลังรูปภาพ 1">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 mb-1">ลิงก์ Google Drive Folder (URL)</label>
+                                    <input type="text" id="admin_drive_url" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none" placeholder="https://drive.google.com/drive/folders/...">
+                                </div>
+                                <button type="button" onclick="saveDriveConfig()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg shadow-md transition">
+                                    <i class="fa-solid fa-save mr-1"></i> บันทึกเป็นโฟลเดอร์หลัก
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- แสดงโฟลเดอร์ Active ปัจจุบัน -->
+                        <div class="mt-8 bg-blue-50 p-4 rounded-xl border border-blue-200">
+                            <h4 class="text-sm font-bold text-blue-800 mb-2"><i class="fa-solid fa-circle-check text-green-500 mr-1"></i> โฟลเดอร์ที่ Active อยู่ในปัจจุบัน</h4>
+                            <div id="active_drive_display" class="text-xs text-slate-600 bg-white p-3 rounded-lg border border-blue-100 shadow-sm">
+                                โหลดข้อมูล...
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -508,6 +543,7 @@
             }
 
             loadAllData();
+            loadActiveDriveConfig(); // 🌟 โหลดข้อมูล Drive Active ล่าสุด
         });
 
         function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
@@ -908,6 +944,64 @@
                 closeModal('quotaModal');
             } catch(e) {
                 alert('❌ เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+            }
+        }
+        
+        // ================= 9. จัดการตั้งค่า Google Drive =================
+        async function loadActiveDriveConfig() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/admin/drive-config/active`);
+                const configs = await res.json();
+                const displayArea = document.getElementById('active_drive_display');
+                
+                // หาค่า Active จริง (is_active = true)
+                const activeConfig = configs.find(c => c.is_active);
+
+                if (activeConfig) {
+                    displayArea.innerHTML = `
+                        <div class="flex flex-col gap-1">
+                            <span class="font-black text-blue-900">${activeConfig.folder_name}</span>
+                            <span class="font-mono text-[10px] text-slate-500 truncate">ID: ${activeConfig.drive_folder_id}</span>
+                            <a href="${activeConfig.drive_folder_url}" target="_blank" class="text-blue-600 hover:underline mt-1 font-bold">
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดดูโฟลเดอร์นี้
+                            </a>
+                        </div>
+                    `;
+                } else {
+                    displayArea.innerHTML = `<span class="text-red-500 font-bold"><i class="fa-solid fa-triangle-exclamation"></i> ยังไม่ได้ตั้งค่าโฟลเดอร์รูปภาพหลัก</span>`;
+                }
+            } catch (err) {
+                console.error("โหลดข้อมูล Drive ไม่สำเร็จ:", err);
+            }
+        }
+
+        async function saveDriveConfig() {
+            const folderName = document.getElementById('admin_folder_name').value;
+            const driveUrl = document.getElementById('admin_drive_url').value;
+
+            if (!folderName || !driveUrl) {
+                alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/admin/drive-config`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ folder_name: folderName, drive_url: driveUrl })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    alert('✅ ' + data.message);
+                    document.getElementById('admin_folder_name').value = '';
+                    document.getElementById('admin_drive_url').value = '';
+                    loadActiveDriveConfig(); // โหลดข้อมูลมาแสดงใหม่ทันที
+                } else {
+                    alert('❌ ' + data.error);
+                }
+            } catch (err) {
+                alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
             }
         }
     </script>
