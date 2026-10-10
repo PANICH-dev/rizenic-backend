@@ -936,3 +936,56 @@ async function checkCarHistory(plateInput) {
         console.error("Error checking car history:", e);
     }
 }
+
+// =========================================================
+// 📁 ระบบจัดการโฟลเดอร์ Google Drive
+// =========================================================
+
+// 🚀 ฟังก์ชันสำหรับเปิดลิงก์ Google Drive ของใบงานปัจจุบัน
+async function openJobGoogleDrive() {
+    const reportId = document.getElementById('sa_report_id')?.value;
+    const carPlate = document.getElementById('car_plate')?.value || 'ไม่ระบุทะเบียน';
+    const arrivedDate = document.getElementById('arrived_date')?.value || new Date().toISOString().split('T')[0];
+
+    // ถ้าไม่มี reportId แสดงว่ายังไม่ได้เซฟใบงาน
+    if (!reportId) {
+        alert('⚠️ กรุณาบันทึกข้อมูลใบงานก่อนสร้างโฟลเดอร์ Google Drive ครับ!');
+        return;
+    }
+
+    try {
+        // 1. ดึงข้อมูลใบงานจากเซิร์ฟเวอร์ เพื่อเช็กลิงก์โฟลเดอร์
+        const res = await fetch(`${API_BASE_URL}/api/report/${reportId}`);
+        const result = await res.json();
+        
+        let driveUrl = result?.data?.drive_folder_link;
+
+        // 2. ถ้ายังไม่มีโฟลเดอร์ ให้ยิง API ไปสั่งสร้างโครงสร้างโฟลเดอร์ (Internal & Customer)
+        if (!driveUrl) {
+            // โชว์แจ้งเตือนว่ากำลังสร้าง
+            if(!confirm('ยังไม่มีโฟลเดอร์เก็บรูปสำหรับใบงานนี้ ระบบจะสร้างโฟลเดอร์ใหม่ให้คุณ ต้องการดำเนินการต่อหรือไม่?')) return;
+            
+            // ปล. API '/api/report/:id/create-drive-folder' จะต้องไปเขียนที่ฝั่ง app.js อีกที
+            const createRes = await fetch(`${API_BASE_URL}/api/report/${reportId}/create-drive-folder`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ car_plate: carPlate, arrived_date: arrivedDate })
+            });
+            const createResult = await createRes.json();
+            
+            if (createResult.success) {
+                driveUrl = createResult.drive_folder_url;
+            } else {
+                alert('❌ ไม่สามารถสร้างโฟลเดอร์ได้: ' + (createResult.error || 'กรุณาตรวจสอบการตั้งค่า Drive ในหน้า Admin'));
+                return;
+            }
+        }
+
+        // 3. เปิดลิงก์โฟลเดอร์ Google Drive ในแท็บใหม่
+        window.open(driveUrl, '_blank');
+
+    } catch (err) {
+        console.error('Open Drive Error:', err);
+        alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ Google Drive');
+    }
+}
