@@ -50,4 +50,56 @@ router.get('/admin/drive-config/active', async (req, res) => {
     }
 });
 
+const { google } = require('googleapis');
+
+// ==========================================
+// 🔑 OAuth 2.0 Callback Receiver
+// ==========================================
+router.get('/admin/drive-callback', async (req, res) => {
+    const { code, error } = req.query;
+
+    if (error) {
+        return res.status(400).send(`<h2>❌ Google OAuth Error: ${error}</h2>`);
+    }
+
+    if (!code) {
+        return res.status(400).send('<h2>❌ ไม่พบ Authorization Code จาก Google</h2>');
+    }
+
+    try {
+        const oauth2Client = new google.auth.OAuth2(
+            process.env.GOOGLE_CLIENT_ID,
+            process.env.GOOGLE_CLIENT_SECRET,
+            process.env.GOOGLE_REDIRECT_URI
+        );
+
+        // แลก Code เป็น Tokens
+        const { tokens } = await oauth2Client.getToken(code);
+        
+        if (!tokens.refresh_token) {
+            return res.send(`
+                <h2>⚠️ เชื่อมต่อสำเร็จ แต่ไม่ได้ Refresh Token</h2>
+                <p>กรุณาเข้าไปที่ <a href="https://myaccount.google.com/permissions">Google Account Permissions</a> แล้วลบสิทธิ์แอปนี้ออก ก่อนกดเชื่อมต่อใหม่อีกครั้งครับ</p>
+            `);
+        }
+
+        // บันทึก Refresh Token ลง Neon DB
+        await pool.query(
+            `INSERT INTO drive_config (folder_name, refresh_token, is_active) 
+             VALUES ($1, $2, true)
+             ON CONFLICT (id) DO UPDATE SET refresh_token = $2, is_active = true`,
+            ['Google Drive OAuth', tokens.refresh_token]
+        );
+
+        res.send('<h2>✅ เชื่อมต่อ Google Drive สำเร็จเรียบร้อย! ปิดหน้านี้ได้เลยครับ</h2>');
+
+    } catch (err) {
+        console.error('OAuth Callback Error:', err.response ? err.response.data : err.message);
+        res.status(500).send(`
+            <h2>❌ เกิดข้อผิดพลาดในการเชื่อมต่อ Google Drive</h2>
+            <p><b>สาเหตุ:</b> ${err.message}</p>
+        `);
+    }
+});
+
 module.exports = router;

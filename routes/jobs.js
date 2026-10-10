@@ -2,6 +2,68 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 
+const { google } = require('googleapis');
+
+// ==========================================
+// 📁 ตั้งค่า Google Drive API & Helper Function (OAuth 2.0)
+// ==========================================
+
+// ดึง OAuth Client instance ที่เก็บบันทึก Refresh Token ใน DB
+async function getOAuth2DriveClient() {
+    const configRes = await pool.query('SELECT refresh_token FROM drive_config WHERE is_active = true AND refresh_token IS NOT NULL LIMIT 1');
+    if (configRes.rows.length === 0) {
+        throw new Error('ยังไม่ได้กดเชื่อมต่อ Google Drive (OAuth) ในหน้า Admin ครับ');
+    }
+
+    const refreshToken = configRes.rows[0].refresh_token;
+    const oauth2Client = new google.auth.OAuth2(
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET,
+        process.env.GOOGLE_REDIRECT_URI
+    );
+
+    oauth2Client.setCredentials({ refresh_token: refreshToken });
+    return google.drive({ version: 'v3', auth: oauth2Client });
+}
+
+async function createFolderInDrive(folderName, parentFolderId) {
+    const drive = await getOAuth2DriveClient();
+    const fileMetadata = {
+        name: folderName,
+        mimeType: 'application/vnd.google-apps.folder',
+        parents: parentFolderId ? [parentFolderId] : []
+    };
+    try {
+        const file = await drive.files.create({
+            resource: fileMetadata,
+            fields: 'id, webViewLink'
+        });
+        return file.data;
+    } catch (err) {
+        console.error('Drive API Error:', err.message);
+        throw err;
+    }
+}
+const drive = google.drive({ version: 'v3', auth });
+
+async function createFolderInDrive(folderName, parentFolderId) {
+    const fileMetadata = {
+        name: folderName,
+        mimeType: 'application/vnd.google-apps.folder',
+        parents: parentFolderId ? [parentFolderId] : []
+    };
+    try {
+        const file = await drive.files.create({
+            resource: fileMetadata,
+            fields: 'id, webViewLink'
+        });
+        return file.data; // จะคืนค่า { id: '...', webViewLink: '...' }
+    } catch (err) {
+        console.error('Drive API Error:', err.message);
+        throw err;
+    }
+}
+
 async function checkColorPartsQuota(branch_name, dateStr, newMainQty, newSubQty, excludeReportId = null) {
     if (!dateStr || !branch_name) return null; 
     const targetDate = dateStr.split('T')[0]; 
@@ -418,6 +480,66 @@ router.get('/report/:id/export-xml', async (req, res) => {
     res.send(xml);
 
   } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// =========================================================
+// 🚀 API สร้างโครงสร้างโฟลเดอร์ Google Drive สำหรับใบงาน
+// =========================================================
+router.post('/report/:id/create-drive-folder', async (req, res) => {
+    const reportId = req.params.id;
+    const { car_plate, arrived_date } = req.body;
+
+    try {
+        // 1. ดึง Active Root Drive Link ที่แอดมินตั้งค่าไว้ในหน้า Admin
+        const configRes = await pool.query('SELECT drive_folder_id FROM drive_config WHERE is_active = true LIMIT 1');
+        if (configRes.rows.length === 0) {
+            return res.status(400).json({ error: 'ยังไม่ได้ตั้งค่า Active Google Drive ในระบบหลังบ้าน (โปรดตั้งค่าในหน้า Admin ก่อนครับ)' });
+        }
+        
+        const activeRootFolderId = configRes.rows[0].drive_folder_id;
+        const mainFolderName = `${car_plate}_${arrived_date || new Date().toISOString().split('T')[0]}`;
+
+        // 2. สร้างโฟลเดอร์หลักประจำรถคันนี้: [ทะเบียนรถ_วันที่]
+        const mainFolder = await createFolderInDrive(mainFolderName, activeRootFolderId);
+
+        // 3. สร้าง 2 โฟลเดอร์หลักด้านใน
+        const internalFolder = await createFolderInDrive('01_Internal_ซ่อม', mainFolder.id);
+        const customerFolder = await createFolderInDrive('02_Customer_View', mainFolder.id);
+
+        // 4. สร้าง Sub-folders สำหรับช่าง (Internal)
+        await createFolderInDrive('1_ก่อนซ่อม', internalFolder.id);
+        const intRepair = await createFolderInDrive('2_ระหว่างซ่อม', internalFolder.id);
+        await createFolderInDrive('3_หลังซ่อม_เสร็จ', internalFolder.id);
+
+        const repairStations = ['01_เคาะ', '02_โป๊ว', '03_เตรียมพื้น', '04_พ่นสี', '05_ประกอบ', '06_ขัดสี', '07_QC', '08_แม็ก', '09_กระจก', '10_ฟิล์ม'];
+        for (const st of repairStations) {
+            await createFolderInDrive(st, intRepair.id);
+        }
+
+        // 5. สร้าง Sub-folders สำหรับลูกค้า (Customer View)
+        await createFolderInDrive('1_สภาพรถก่อนซ่อม', customerFolder.id);
+        const custRepair = await createFolderInDrive('2_อัปเดตงานซ่อม', customerFolder.id);
+        await createFolderInDrive('3_รถของคุณพร้อมแล้ว', customerFolder.id);
+
+        for (const st of repairStations) {
+            await createFolderInDrive(st, custRepair.id);
+        }
+
+        // 6. บันทึกลิงก์ Google Drive ถาวรลง Neon DB
+        await pool.query(
+            'UPDATE rizenicreport SET drive_folder_link = $1 WHERE id = $2',
+            [mainFolder.webViewLink, reportId]
+        );
+
+        res.json({
+            success: true,
+            drive_folder_url: mainFolder.webViewLink
+        });
+
+    } catch (err) {
+        console.error('Create Drive Folder Error:', err);
+        res.status(500).json({ error: err.message || 'เกิดข้อผิดพลาดในการสร้างโฟลเดอร์ Google Drive' });
+    }
 });
 
 module.exports = router;
