@@ -462,59 +462,67 @@ router.post('/report/:id/create-drive-folder', async (req, res) => {
     const { car_plate, arrived_date } = req.body;
 
     try {
-        // 🌟 เช็กก่อนว่าใบงานนี้มี drive_folder_link บันทึกอยู่แล้วหรือไม่
-        const reportCheck = await pool.query('SELECT drive_folder_link FROM rizenicreport WHERE id = $1', [reportId]);
-        if (reportCheck.rows.length > 0 && reportCheck.rows[0].drive_folder_link) {
-            return res.json({
-                success: true,
-                already_exists: true,
-                message: 'ใบงานนี้มีโฟลเดอร์ Google Drive อยู่แล้ว',
-                drive_folder_url: reportCheck.rows[0].drive_folder_link
-            });
-        }
-
-        // ดึง Active Root Folder ID จาก drive_config
         const configRes = await pool.query('SELECT drive_folder_id FROM drive_config WHERE is_active = true LIMIT 1');
         if (configRes.rows.length === 0) {
-            return res.status(400).json({ error: 'ยังไม่ได้ตั้งค่า Google Drive ในระบบหลังบ้าน (โปรดตั้งค่าในหน้า Admin ก่อนครับ)' });
+            return res.status(400).json({ error: 'ยังไม่ได้ตั้งค่า Google Drive ในระบบหลังบ้าน' });
         }
         
         const activeRootFolderId = configRes.rows[0].drive_folder_id;
         const mainFolderName = `${car_plate}_${arrived_date || new Date().toISOString().split('T')[0]}`;
 
-        // สั่งสร้างโครงสร้างโฟลเดอร์ใน Google Drive
+        // 1. สร้าง Main Folder หลัก
         const mainFolder = await createFolderInDrive(mainFolderName, activeRootFolderId);
 
+        // 2. สร้างโฟลเดอร์ Internal (ฝั่งช่าง)
         const internalFolder = await createFolderInDrive('01_Internal_ซ่อม', mainFolder.id);
-        const customerFolder = await createFolderInDrive('02_Customer_View', mainFolder.id);
-
-        await createFolderInDrive('1_ก่อนซ่อม', internalFolder.id);
         const intRepair = await createFolderInDrive('2_ระหว่างซ่อม', internalFolder.id);
+        await createFolderInDrive('1_ก่อนซ่อม', internalFolder.id);
         await createFolderInDrive('3_หลังซ่อม_เสร็จ', internalFolder.id);
 
-        const repairStations = ['01_เคาะ', '02_โป๊ว', '03_เตรียมพื้น', '04_พ่นสี', '05_ประกอบ', '06_ขัดสี', '07_QC', '08_แม็ก', '09_กระจก', '10_ฟิล์ม'];
-        for (const st of repairStations) {
-            await createFolderInDrive(st, intRepair.id);
-        }
-
-        await createFolderInDrive('1_สภาพรถก่อนซ่อม', customerFolder.id);
+        // 3. สร้างโฟลเดอร์ Customer_View (ฝั่งลูกค้า)
+        const customerFolder = await createFolderInDrive('02_Customer_View', mainFolder.id);
+        const custBefore = await createFolderInDrive('1_สภาพรถก่อนซ่อม', customerFolder.id);
         const custRepair = await createFolderInDrive('2_อัปเดตงานซ่อม', customerFolder.id);
-        await createFolderInDrive('3_รถของคุณพร้อมแล้ว', customerFolder.id);
+        const custAfter = await createFolderInDrive('3_รถของคุณพร้อมแล้ว', customerFolder.id);
 
+        // 🌟 สร้าง Map จับลิงก์แยกตาม Key สถานีสำหรับลูกค้า
+        const customerStationLinks = {
+            'before': custBefore.webViewLink,
+            'after': custAfter.webViewLink
+        };
+
+        const repairStations = [
+            { key: 'kho', name: '01_เคาะ' },
+            { key: 'pou', name: '02_โป๊ว' },
+            { key: 'puan', name: '03_เตรียมพื้น' },
+            { key: 'pon', name: '04_พ่นสี' },
+            { key: 'prak', name: '05_ประกอบ' },
+            { key: 'kat', name: '06_ขัดสี' },
+            { key: 'qc', name: '07_QC' },
+            { key: 'ready', name: '08_พร้อมส่งมอบ' }
+        ];
+
+        // วนลูปสร้างสถานีย่อยฝั่งช่าง และฝั่งลูกค้า
         for (const st of repairStations) {
-            await createFolderInDrive(st, custRepair.id);
+            await createFolderInDrive(st.name, intRepair.id);
+            const custStFolder = await createFolderInDrive(st.name, custRepair.id);
+            
+            // เก็บลิงก์โฟลเดอร์สถานีนี้ของฝั่งลูกค้าไว้ใน Object
+            customerStationLinks[st.key] = custStFolder.webViewLink;
         }
 
-        // 🌟 บันทึกลิงก์โฟลเดอร์ลงในตาราง rizenicreport บน Neon DB
+        // 🌟 บันทึกลิงก์ทั้งหมดลง Neon DB
         await pool.query(
-            'UPDATE rizenicreport SET drive_folder_link = $1 WHERE id = $2',
-            [mainFolder.webViewLink, reportId]
+            'UPDATE rizenicreport SET drive_folder_link = $1, customer_drive_link = $2, customer_station_links = $3 WHERE id = $4',
+            [mainFolder.webViewLink, customerFolder.webViewLink, JSON.stringify(customerStationLinks), reportId]
         );
 
         res.json({
             success: true,
             already_exists: false,
-            drive_folder_url: mainFolder.webViewLink
+            drive_folder_url: mainFolder.webViewLink,
+            customer_drive_url: customerFolder.webViewLink,
+            station_links: customerStationLinks
         });
 
     } catch (err) {
@@ -522,46 +530,4 @@ router.post('/report/:id/create-drive-folder', async (req, res) => {
         res.status(500).json({ error: err.message || 'เกิดข้อผิดพลาดในการสร้างโฟลเดอร์ Google Drive' });
     }
 });
-
-// =========================================================
-// 🗑️ 2. API ลบโฟลเดอร์ใน Google Drive (ย้ายไป Trash) และลบลิงก์ออกจาก Neon DB
-// =========================================================
-router.delete('/report/:id/unlink-drive-folder', async (req, res) => {
-    const reportId = req.params.id;
-    try {
-        // 1. ค้นหา drive_folder_link เดิมจาก DB เพื่อสกัด Folder ID
-        const reportRes = await pool.query('SELECT drive_folder_link FROM rizenicreport WHERE id = $1', [reportId]);
-        const driveLink = reportRes.rows[0]?.drive_folder_link;
-
-        if (driveLink) {
-            // ดึง Folder ID จาก URL (เช่น https://drive.google.com/drive/folders/FOLDER_ID หรือ id=FOLDER_ID)
-            const match = driveLink.match(/folders\/([a-zA-Z0-9_-]+)/) || driveLink.match(/id=([a-zA-Z0-9_-]+)/);
-            if (match && match[1]) {
-                const folderId = match[1];
-                try {
-                    const drive = await getOAuth2DriveClient();
-                    // ย้ายโฟลเดอร์ลงถังขยะ (Trash) บน Google Drive
-                    await drive.files.update({
-                        fileId: folderId,
-                        requestBody: { trashed: true }
-                    });
-                } catch (driveErr) {
-                    console.warn('Google Drive Trash Warning:', driveErr.message);
-                }
-            }
-        }
-
-        // 2. ล้างค่า drive_folder_link ใน Neon DB ให้เป็น NULL
-        await pool.query('UPDATE rizenicreport SET drive_folder_link = NULL WHERE id = $1', [reportId]);
-
-        res.json({
-            success: true,
-            message: 'ย้ายโฟลเดอร์ใน Google Drive ลงถังขยะและลบลิงก์ในฐานข้อมูลเรียบร้อยแล้ว'
-        });
-    } catch (err) {
-        console.error('Unlink Drive Error:', err);
-        res.status(500).json({ error: err.message });
-    }
-});
-
 module.exports = router;

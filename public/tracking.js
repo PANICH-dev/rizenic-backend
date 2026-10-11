@@ -1,16 +1,15 @@
 const API_BASE_URL = window.location.origin;
 let currentClientJob = null;
 
-// สถานีช่างหลักสำหรับแสดงสถานะให้ลูกค้า
-const CLIENT_STATIONS = [
-    { key: 'kho', label: 'เคาะตัวถังและปรับสภาพ' },
-    { key: 'pou', label: 'โป๊วสีและจัดทรง' },
-    { key: 'puan', label: 'พ่นสีพื้นและเตรียมผิว' },
-    { key: 'pon', label: 'พ่นสีจริงและเคลือบเงา' },
-    { key: 'prak', label: 'ประกอบชิ้นส่วนกลับ' },
-    { key: 'kat', label: 'ขัดสีและทำความสะอาด' },
-    { key: 'qc', label: 'ตรวจสอบคุณภาพ (QC)' },
-    { key: 'ready', label: 'รถพร้อมส่งมอบ' }
+// รายชื่อสถานีช่างสำหรับลูปขั้นตอนงานซ่อมตัวถังและทำสี
+const REPAIR_STATIONS = [
+    { key: 'kho', name: 'เคาะตัวถังและจัดทรง', icon: 'fa-hammer' },
+    { key: 'pou', name: 'โป๊วสีและแต่งผิว', icon: 'fa-fill-drip' },
+    { key: 'puan', name: 'พ่นสีพื้นและเตรียมพื้นผิว', icon: 'fa-spray-can-sparkles' },
+    { key: 'pon', name: 'พ่นสีจริงและเคลือบเงา', icon: 'fa-spray-can' },
+    { key: 'prak', name: 'ประกอบชิ้นส่วนตัวถัง', icon: 'fa-screwdriver-wrench' },
+    { key: 'kat', name: 'ขัดสีและทำความสะอาด', icon: 'fa-wand-magic-sparkles' },
+    { key: 'qc', name: 'ตรวจสอบคุณภาพงานซ่อม (QC)', icon: 'fa-clipboard-check' }
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -99,83 +98,181 @@ function showDashboard(job) {
 
     document.getElementById('disp_car_plate').innerText = job.car_plate || '-';
     document.getElementById('disp_car_brand_model').innerText = `${job.car_brand || ''} ${job.car_model || ''}`.trim() || 'รถยนต์ของคุณ';
-    
+    document.getElementById('disp_customer_name').innerText = job.customer_name || '-';
+
     document.getElementById('disp_arrived_date').innerText = formatThaiDate(job.arrived_date);
     document.getElementById('disp_target_date').innerText = formatThaiDate(job.target_finish_date);
     document.getElementById('disp_delivery_date').innerText = formatThaiDate(job.delivery_date);
 
     document.getElementById('disp_status_badge').innerText = job.job_status || 'กำลังดำเนินการ';
 
-    renderTimeline(job);
+    renderConveyorTimeline(job);
 }
 
-// 🛠️ วาด Timeline สไตล์แอปส่งอาหาร (Vertical Timeline)
-function renderTimeline(job) {
-    const container = document.getElementById('station_timeline_container');
+// 🛠️ วาดสายพานสถานะ (Conveyor Timeline System)
+function renderConveyorTimeline(job) {
+    const container = document.getElementById('conveyor_timeline_container');
     if (!container) return;
 
-    // หาว่าขั้นตอนล่าสุดที่ทำเสร็จคืออันไหน
-    let lastCompletedIdx = -1;
-    CLIENT_STATIONS.forEach((st, idx) => {
+    // แกะ JSON ลิงก์โฟลเดอร์รูปภาพของแต่ละสถานี
+    let stationLinks = {};
+    if (job.customer_station_links) {
+        try {
+            stationLinks = typeof job.customer_station_links === 'string' 
+                ? JSON.parse(job.customer_station_links) 
+                : job.customer_station_links;
+        } catch (e) { stationLinks = {}; }
+    }
+
+    const currentStatus = job.job_status || '';
+
+    // เช็คสภาวะแต่ละเฟส
+    const isPreRepairDone = Boolean(job.arrived_date || /^(09|10|11|12|22)/.test(currentStatus));
+    const isPostRepairDone = Boolean(job.repair_finish_date || job.station_ready || /^(11|12|22)/.test(currentStatus));
+    const isDeliveryDone = Boolean(/^(12\.ส่งมอบ|12\.ส่งมอบแล้ว|22\.ปิดงาน)/.test(currentStatus));
+
+    // เช็คสถานีย่อยว่าถึงขั้นไหน
+    let lastCompletedRepairIdx = -1;
+    REPAIR_STATIONS.forEach((st, idx) => {
         if (job[`station_${st.key}`] === true || job[`station_${st.key}`] === 'true' || job[`station_${st.key}`] === 1) {
-            lastCompletedIdx = idx;
+            lastCompletedRepairIdx = idx;
         }
     });
 
-    let html = '<div class="relative border-l-2 border-slate-100 ml-4 space-y-8 mt-2 py-2">';
+    const isCurrentlyInRepairLoop = isPreRepairDone && !isPostRepairDone;
 
-    CLIENT_STATIONS.forEach((st, idx) => {
-        const isDone = idx <= lastCompletedIdx;
-        const isCurrent = idx === lastCompletedIdx + 1; // สถานีที่กำลังทำอยู่ (ถัดจากที่เสร็จล่าสุด)
-        const isLastItem = idx === CLIENT_STATIONS.length - 1;
+    let html = `<div class="relative border-l-2 border-slate-200 ml-5 space-y-8 py-2">`;
 
-        if (isDone) {
-            // สำเร็จแล้ว (สีเขียวติ๊กถูก)
-            html += `
-                <div class="relative pl-8">
-                    <div class="absolute -left-[11px] top-1 w-5 h-5 bg-emerald-500 rounded-full border-4 border-white shadow-sm flex items-center justify-center">
-                        <i class="fa-solid fa-check text-[8px] text-white"></i>
+    // 🔴 1. เฟสก่อนซ่อม (Pre-Repair Phase)
+    const preRepairLink = stationLinks.before || job.customer_drive_link || job.drive_folder_link;
+    html += `
+        <div class="relative pl-8">
+            <div class="absolute -left-[17px] top-0 w-8 h-8 ${isPreRepairDone ? 'bg-emerald-500 text-white' : 'bg-amber-400 text-slate-900 active-pulse-node'} rounded-full border-4 border-white shadow-md flex items-center justify-center text-xs font-bold">
+                <i class="fa-solid ${isPreRepairDone ? 'fa-check' : 'fa-clipboard-list'}"></i>
+            </div>
+            <div class="flex flex-col">
+                <div class="flex items-center justify-between">
+                    <span class="font-black text-slate-800 text-sm">1. เตรียมความพร้อมและก่อนเข้าซ่อม</span>
+                    ${isPreRepairDone ? '<span class="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-md font-bold border border-emerald-100"><i class="fa-solid fa-check mr-1"></i>เรียบร้อย</span>' : '<span class="text-[10px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded-md font-bold border border-amber-100"><i class="fa-solid fa-spinner fa-spin mr-1"></i>กำลังดำเนินการ</span>'}
+                </div>
+                <p class="text-xs text-slate-400 mt-1">เสนอประกัน / อนุมัติเคลม / สั่งซื้ออะไหล่ / นัดหมายเข้าซ่อม</p>
+                ${preRepairLink ? `
+                    <div class="mt-2">
+                        <a href="${preRepairLink}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 text-xs font-bold rounded-xl border border-slate-200 hover:border-emerald-200 transition shadow-sm">
+                            <i class="fa-solid fa-images text-emerald-500"></i> ดูรูปสภาพรถก่อนซ่อม
+                        </a>
                     </div>
-                    <div class="flex flex-col">
-                        <span class="font-bold text-slate-800 text-sm">${st.label}</span>
-                        <span class="text-[10px] text-slate-400 mt-0.5">เสร็จสิ้นเรียบร้อย</span>
+                ` : ''}
+            </div>
+        </div>
+    `;
+
+    // 🔴 2. เฟสระหว่างซ่อมตัวถังและทำสี (In-Repair Conveyor Loop)
+    html += `
+        <div class="relative pl-8">
+            <div class="absolute -left-[17px] top-0 w-8 h-8 ${isPostRepairDone ? 'bg-emerald-500 text-white' : (isCurrentlyInRepairLoop ? 'bg-amber-500 text-white active-pulse-node' : 'bg-slate-200 text-slate-400')} rounded-full border-4 border-white shadow-md flex items-center justify-center text-xs font-bold">
+                <i class="fa-solid fa-screwdriver-wrench"></i>
+            </div>
+            
+            <div class="flex flex-col">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="font-black text-slate-800 text-sm">2. ขั้นตอนการซ่อมตัวถังและทำสี</span>
+                    ${isPostRepairDone ? '<span class="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-md font-bold border border-emerald-100">ซ่อมเสร็จแล้ว</span>' : (isCurrentlyInRepairLoop ? '<span class="text-[10px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded-md font-bold border border-amber-100"><i class="fa-solid fa-gear fa-spin mr-1"></i>กำลังซ่อมแซม</span>' : '')}
+                </div>
+
+                <!-- SUB-STATIONS CONVEYOR BRANCH -->
+                <div class="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-4">
+    `;
+
+    REPAIR_STATIONS.forEach((st, idx) => {
+        const isStDone = idx <= lastCompletedRepairIdx;
+        const isStCurrent = isCurrentlyInRepairLoop && (idx === lastCompletedRepairIdx + 1);
+        const stPhotoUrl = stationLinks[st.key];
+
+        html += `
+            <div class="flex items-start justify-between gap-3 pb-3 border-b border-slate-200/60 last:border-b-0 last:pb-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-7 h-7 rounded-xl ${isStDone ? 'bg-emerald-500 text-white' : (isStCurrent ? 'bg-amber-400 text-slate-900 animate-pulse' : 'bg-slate-200 text-slate-400')} flex items-center justify-center text-xs shrink-0 shadow-sm">
+                        <i class="fa-solid ${st.icon}"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold ${isStDone ? 'text-slate-800' : (isStCurrent ? 'text-amber-900 font-black' : 'text-slate-400')}">${st.name}</p>
+                        ${isStCurrent ? '<span class="text-[10px] text-amber-600 font-bold flex items-center gap-1 mt-0.5"><i class="fa-solid fa-circle-notch fa-spin"></i> ช่างกำลังดำเนินการในขั้นตอนนี้</span>' : ''}
                     </div>
                 </div>
-            `;
-        } else if (isCurrent) {
-            // กำลังดำเนินการ (สีส้ม/เหลือง กระพริบ)
-            html += `
-                <div class="relative pl-8">
-                    <div class="absolute -left-[11px] top-1 w-5 h-5 bg-amber-400 rounded-full border-4 border-white shadow-sm animate-pulse"></div>
-                    <div class="flex flex-col bg-amber-50/50 -mt-2 p-3 rounded-2xl border border-amber-100">
-                        <span class="font-black text-amber-800 text-sm">${st.label}</span>
-                        <span class="text-[11px] font-bold text-amber-600 mt-0.5 flex items-center gap-1.5">
-                            <i class="fa-solid fa-circle-notch fa-spin"></i> ช่างกำลังดำเนินการ...
-                        </span>
-                    </div>
-                </div>
-            `;
-        } else {
-            // ยังไม่ถึง (สีเทาจางๆ)
-            html += `
-                <div class="relative pl-8 opacity-40">
-                    <div class="absolute -left-[9px] top-1.5 w-4 h-4 bg-slate-200 rounded-full border-4 border-white"></div>
-                    <div class="flex flex-col">
-                        <span class="font-medium text-slate-500 text-sm">${st.label}</span>
-                    </div>
-                </div>
-            `;
-        }
+
+                ${stPhotoUrl ? `
+                    <a href="${stPhotoUrl}" target="_blank" class="px-2.5 py-1 bg-white hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 text-[11px] font-bold rounded-lg border border-slate-200 hover:border-emerald-300 transition shadow-sm shrink-0 flex items-center gap-1">
+                        <i class="fa-solid fa-camera text-emerald-500"></i> ดูรูป
+                    </a>
+                ` : ''}
+            </div>
+        `;
     });
 
-    html += '</div>';
+    html += `
+                </div>
+            </div>
+        </div>
+    `;
+
+    // 🔴 3. เฟสซ่อมเสร็จแล้ว (Post-Repair Completed)
+    const postRepairLink = stationLinks.after || job.customer_drive_link || job.drive_folder_link;
+    html += `
+        <div class="relative pl-8">
+            <div class="absolute -left-[17px] top-0 w-8 h-8 ${isPostRepairDone ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-400'} rounded-full border-4 border-white shadow-md flex items-center justify-center text-xs font-bold">
+                <i class="fa-solid fa-car-circle-check"></i>
+            </div>
+            <div class="flex flex-col">
+                <div class="flex items-center justify-between">
+                    <span class="font-black text-slate-800 text-sm">3. รถซ่อมเสร็จสมบูรณ์</span>
+                    ${isPostRepairDone ? '<span class="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-md font-bold border border-emerald-100"><i class="fa-solid fa-check mr-1"></i>พร้อมส่งมอบ</span>' : ''}
+                </div>
+                <p class="text-xs text-slate-400 mt-1">ทำความสะอาด ตรวจเช็คขั้นสุดท้าย และเตรียมส่งมอบ</p>
+                ${(isPostRepairDone && postRepairLink) ? `
+                    <div class="mt-2">
+                        <a href="${postRepairLink}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold rounded-xl border border-emerald-200 transition shadow-sm">
+                            <i class="fa-solid fa-images text-emerald-600"></i> ดูรูปสภาพรถที่ซ่อมเสร็จแล้ว
+                        </a>
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+
+    // 🔴 4. เฟสส่งมอบรถยนต์ (Final Delivery)
+    html += `
+        <div class="relative pl-8">
+            <div class="absolute -left-[17px] top-0 w-8 h-8 ${isDeliveryDone ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-400'} rounded-full border-4 border-white shadow-md flex items-center justify-center text-xs font-bold">
+                <i class="fa-solid fa-key"></i>
+            </div>
+            <div class="flex flex-col">
+                <div class="flex items-center justify-between">
+                    <span class="font-black text-slate-800 text-sm">4. ส่งมอบรถคืนลูกค้า</span>
+                    ${isDeliveryDone ? '<span class="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-bold border border-emerald-300">ส่งมอบเรียบร้อย</span>' : ''}
+                </div>
+                <p class="text-xs text-slate-400 mt-1">ลูกค้าตรวจรับรถยนต์และส่งมอบกุญแจ</p>
+            </div>
+        </div>
+    `;
+
+    html += `</div>`;
     container.innerHTML = html;
 }
 
-function openCustomerDriveFolder() {
+function openCustomerDriveFolder(type) {
     if (!currentClientJob) return;
 
-    const driveUrl = currentClientJob.drive_folder_link;
+    let stationLinks = {};
+    if (currentClientJob.customer_station_links) {
+        try {
+            stationLinks = typeof currentClientJob.customer_station_links === 'string'
+                ? JSON.parse(currentClientJob.customer_station_links)
+                : currentClientJob.customer_station_links;
+        } catch (e) { stationLinks = {}; }
+    }
+
+    const driveUrl = stationLinks[type] || currentClientJob.customer_drive_link || currentClientJob.drive_folder_link;
     if (driveUrl && driveUrl.trim() !== '') {
         window.open(driveUrl, '_blank');
     } else {

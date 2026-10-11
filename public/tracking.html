@@ -3,20 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RIZENIC - Service Tracking</title>
+    <title>RIZENIC - Service Tracking System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
     <style type="text/tailwindcss">
         @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;900&display=swap');
-        body { font-family: 'Prompt', sans-serif; background-color: #f8fafc; color: #334155; }
+        body { font-family: 'Prompt', sans-serif; background-color: #f8fafc; color: #1e293b; }
         
         .clean-card {
-            @apply bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100;
+            @apply bg-white rounded-3xl shadow-[0_10px_35px_rgba(0,0,0,0.03)] border border-slate-100 transition-all duration-300;
         }
         
         .clean-input {
             @apply w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none text-slate-800 font-bold tracking-wide focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all placeholder:text-slate-400 placeholder:font-medium;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+            50% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+        }
+
+        @keyframes floatIcon {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-4px); }
+        }
+
+        .active-pulse-node {
+            animation: pulseGlow 2s infinite;
+        }
+
+        .floating-icon {
+            animation: floatIcon 3s ease-in-out infinite;
         }
 
         .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
@@ -26,15 +44,15 @@
 <body class="min-h-screen flex flex-col selection:bg-emerald-500 selection:text-white">
 
     <!-- 🌟 TOP HEADER -->
-    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 px-6 py-4 shadow-sm">
+    <header class="bg-white/90 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 px-6 py-4 shadow-sm">
         <div class="max-w-3xl mx-auto flex justify-between items-center">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-2xl bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/20 text-white font-black text-xl">
+                <div class="w-10 h-10 rounded-2xl bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/20 text-white font-black text-xl floating-icon">
                     <i class="fa-solid fa-car-rear"></i>
                 </div>
                 <div>
                     <h1 class="font-black text-lg tracking-wide text-slate-800 flex items-center gap-2">
-                        RIZENIC <span class="text-emerald-600 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 uppercase tracking-widest border border-emerald-100">Tracking</span>
+                        RIZENIC <span class="text-emerald-600 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 uppercase tracking-widest border border-emerald-100">Live Tracking</span>
                     </h1>
                 </div>
             </div>
@@ -48,28 +66,30 @@
     <!-- 🌟 LOGIN SCREEN FOR CLIENT -->
     <div id="client_login_screen" class="flex-1 flex items-center justify-center p-4">
         <div class="clean-card w-full max-w-md p-8 relative overflow-hidden">
-            <!-- Decorative Elements -->
             <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-teal-500"></div>
 
             <div class="text-center mb-8 pt-4">
-                <h2 class="text-2xl font-black text-slate-800 tracking-tight">เช็คสถานะงานซ่อม</h2>
-                <p class="text-sm text-slate-500 mt-2">กรุณาระบุข้อมูลเพื่อเข้าสู่ระบบ</p>
+                <div class="w-16 h-16 rounded-3xl bg-emerald-50 text-emerald-500 flex items-center justify-center mx-auto mb-4 text-2xl border border-emerald-100 shadow-inner">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <h2 class="text-2xl font-black text-slate-800 tracking-tight">ตรวจสอบสถานะงานซ่อม</h2>
+                <p class="text-xs text-slate-400 mt-2 font-medium">กรอกทะเบียนรถและเบอร์โทรศัพท์ที่แจ้งไว้กับศูนย์บริการ</p>
             </div>
 
             <form onsubmit="handleClientLogin(event)" class="space-y-5">
                 <div>
                     <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 pl-1">ทะเบียนรถยนต์</label>
-                    <input type="text" id="client_car_plate" required class="clean-input uppercase text-center text-lg" placeholder="เช่น 1กข 1234">
+                    <input type="text" id="client_car_plate" required class="clean-input uppercase text-center text-lg font-mono" placeholder="เช่น 1กข 1234">
                 </div>
 
                 <div>
-                    <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 pl-1">เบอร์โทรศัพท์ (รหัสผ่าน)</label>
+                    <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 pl-1">เบอร์โทรศัพท์</label>
                     <input type="tel" id="client_phone" required class="clean-input text-center text-lg font-mono" placeholder="08X-XXX-XXXX">
                 </div>
 
                 <div class="pt-4">
                     <button type="submit" id="btn_client_submit" class="w-full py-4 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black text-sm tracking-wide shadow-xl shadow-slate-900/10 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2">
-                        <span>ตรวจสอบสถานะ</span>
+                        <span>เช็คสถานะปัจจุบัน</span>
                         <i class="fa-solid fa-arrow-right"></i>
                     </button>
                 </div>
@@ -77,64 +97,68 @@
         </div>
     </div>
 
-    <!-- 🌟 CLIENT TRACKING DASHBOARD (DELIVERY APP STYLE) -->
+    <!-- 🌟 CLIENT TRACKING DASHBOARD -->
     <main id="client_dashboard" class="hidden flex-1 max-w-3xl w-full mx-auto p-4 md:p-6 space-y-6">
         
         <!-- 🚗 CAR OVERVIEW CARD -->
         <div class="clean-card p-6 border-t-4 border-t-emerald-500">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div>
-                    <span class="text-[10px] uppercase font-bold text-slate-400 tracking-widest block mb-1">พาหนะของคุณ</span>
+                    <span class="text-[10px] uppercase font-bold text-slate-400 tracking-widest block mb-1">ข้อมูลพาหนะ</span>
                     <h2 id="disp_car_brand_model" class="text-xl font-black text-slate-800"></h2>
+                    <p class="text-xs text-slate-500 font-medium mt-0.5">เจ้าของรถ: <span id="disp_customer_name" class="font-bold text-slate-700"></span></p>
                 </div>
-                <div class="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-center shadow-sm">
-                    <span id="disp_car_plate" class="text-lg font-black text-slate-800 uppercase tracking-wider"></span>
+                <div class="px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-center shadow-sm">
+                    <span class="text-[9px] uppercase font-bold text-slate-400 block tracking-widest">ทะเบียน</span>
+                    <span id="disp_car_plate" class="text-lg font-black text-slate-800 uppercase tracking-wider font-mono"></span>
                 </div>
             </div>
 
             <!-- TIMELINE SCHEDULE DATES -->
             <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col justify-center">
-                    <span class="text-[10px] text-slate-400 font-bold uppercase mb-1"><i class="fa-solid fa-calendar-check mr-1"></i>เข้าอู่</span>
-                    <span id="disp_arrived_date" class="text-sm font-black text-slate-700">-</span>
+                    <span class="text-[10px] text-slate-400 font-bold uppercase mb-1 flex items-center gap-1.5"><i class="fa-solid fa-calendar-check text-blue-500"></i> วันรถเข้าอู่</span>
+                    <span id="disp_arrived_date" class="text-sm font-black text-slate-700 font-mono">-</span>
                 </div>
-                <div class="bg-amber-50 p-4 rounded-2xl border border-amber-100 flex flex-col justify-center">
-                    <span class="text-[10px] text-amber-600 font-bold uppercase mb-1"><i class="fa-solid fa-hammer mr-1"></i>กำหนดเสร็จ</span>
-                    <span id="disp_target_date" class="text-sm font-black text-amber-800">-</span>
+                <div class="bg-amber-50/60 p-4 rounded-2xl border border-amber-100 flex flex-col justify-center">
+                    <span class="text-[10px] text-amber-600 font-bold uppercase mb-1 flex items-center gap-1.5"><i class="fa-solid fa-hammer text-amber-500"></i> กำหนดซ่อมเสร็จ</span>
+                    <span id="disp_target_date" class="text-sm font-black text-amber-800 font-mono">-</span>
                 </div>
-                <div class="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex flex-col justify-center col-span-2 md:col-span-1">
-                    <span class="text-[10px] text-emerald-600 font-bold uppercase mb-1"><i class="fa-solid fa-key mr-1"></i>วันส่งมอบ</span>
-                    <span id="disp_delivery_date" class="text-sm font-black text-emerald-800">-</span>
+                <div class="bg-emerald-50/60 p-4 rounded-2xl border border-emerald-100 flex flex-col justify-center col-span-2 md:col-span-1">
+                    <span class="text-[10px] text-emerald-600 font-bold uppercase mb-1 flex items-center gap-1.5"><i class="fa-solid fa-key text-emerald-500"></i> นัดหมายส่งมอบ</span>
+                    <span id="disp_delivery_date" class="text-sm font-black text-emerald-800 font-mono">-</span>
                 </div>
             </div>
         </div>
 
-        <!-- 📷 GOOGLE DRIVE ALBUM BUTTON -->
+        <!-- 📷 MAIN GOOGLE DRIVE ALBUM -->
         <div class="clean-card p-2">
-            <button id="btn_open_customer_drive" onclick="openCustomerDriveFolder()" class="w-full p-4 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 transition flex items-center justify-between group">
+            <button id="btn_open_customer_drive" onclick="openCustomerDriveFolder('main')" class="w-full p-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/15 transition flex items-center justify-between group transform hover:-translate-y-0.5">
                 <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-xl shadow-sm text-emerald-500 group-hover:scale-110 transition-transform">
+                    <div class="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-xl text-white group-hover:scale-110 transition-transform">
                         <i class="fa-brands fa-google-drive"></i>
                     </div>
                     <div class="text-left">
-                        <h4 class="font-black text-sm tracking-wide">แกลลอรี่ภาพถ่ายงานซ่อม</h4>
-                        <p class="text-[11px] text-emerald-600/70 font-medium mt-0.5">กดเพื่อดูรูปภาพความคืบหน้าแบบจัดหมวดหมู่</p>
+                        <h4 class="font-black text-sm tracking-wide">อัลบั้มรูปภาพงานซ่อมทั้งหมด</h4>
+                        <p class="text-[11px] text-emerald-100 font-medium mt-0.5">เปิดดูรูปภาพการอัปเดตงานซ่อมใน Google Drive</p>
                     </div>
                 </div>
-                <i class="fa-solid fa-chevron-right text-emerald-300"></i>
+                <i class="fa-solid fa-arrow-up-right-from-square text-emerald-200"></i>
             </button>
         </div>
 
-        <!-- 📊 PROGRESS TIMELINE (FOOD DELIVERY STYLE) -->
+        <!-- 📊 CONVEYOR TRACKING TIMELINE -->
         <div class="clean-card p-6">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="font-black text-slate-800 text-base">สถานะการดำเนินงาน</h3>
-                <span id="disp_status_badge" class="px-3 py-1 rounded-full text-[10px] font-black bg-slate-100 text-slate-600 border border-slate-200 uppercase tracking-widest"></span>
+            <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-100">
+                <h3 class="font-black text-slate-800 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-route text-emerald-500"></i> สายพานติดตามความคืบหน้า
+                </h3>
+                <span id="disp_status_badge" class="px-3 py-1 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wider"></span>
             </div>
 
-            <!-- STATION TIMELINE -->
-            <div id="station_timeline_container" class="mt-4">
-                <!-- Javascript Render Timeline Here -->
+            <!-- DYNAMIC CONVEYOR TIMELINE -->
+            <div id="conveyor_timeline_container">
+                <!-- JavaScript Render Timeline -->
             </div>
         </div>
 
@@ -142,10 +166,10 @@
 
     <!-- 🌟 FOOTER -->
     <footer class="py-8 text-center text-xs font-medium text-slate-400 mt-auto">
-        <p>ขับเคลื่อนระบบโดย RIZENIC ERP</p>
+        <p>© 2026 RIZENIC ERP System. All rights reserved.</p>
     </footer>
 
-    <!-- โหลดสคริปต์ควบคุม Client Portal -->
+    <!-- สคริปต์ควบคุม Client Portal -->
     <script src="tracking.js"></script>
 </body>
 </html>
