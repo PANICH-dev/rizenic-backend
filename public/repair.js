@@ -42,7 +42,7 @@ let columnsDef = [
     { idx: 2, key: 'car_brand', title: 'ยี่ห้อ/รุ่น', w: 180, filter: true },
     { idx: 37, key: 'car_color', title: 'สีรถ', w: 110, filter: true },
     { idx: 16, key: 'vin_no', title: 'เลขตัวถัง/เครื่อง', w: 180, filter: true },
-    { idx: 3, key: 'appointment_date', title: 'รถเข้า', w: 120, filter: true, showCount: true },
+    { idx: 3, key: 'arrived_date', title: 'รถเข้า', w: 120, filter: true, showCount: true },
     { idx: 4, key: 'target_finish_date', title: 'เป้าเสร็จ', w: 120, filter: true, showCount: true },
     { idx: 5, key: 'repair_finish_date', title: 'เสร็จจริง', w: 150, filter: true, showCount: true },
     { idx: 6, key: 'delivery_date', title: 'ส่งมอบ', w: 120, filter: true, showCount: true },
@@ -109,7 +109,6 @@ async function loadUserColumnPreferences() {
                 if (data.hidden_columns.hidden) hiddenCols = new Set(data.hidden_columns.hidden);
                 
                 if (data.hidden_columns.order && Array.isArray(data.hidden_columns.order)) {
-                    // จัดเรียงตามออเดอร์เก่า
                     const colMap = new Map(); 
                     columnsDef.forEach(c => colMap.set(c.key, c));
                     
@@ -117,15 +116,14 @@ async function loadUserColumnPreferences() {
                     data.hidden_columns.order.forEach(k => { 
                         if(colMap.has(k)) { 
                             newCols.push(colMap.get(k)); 
-                            colMap.delete(k); // ลบตัวที่ดึงไปแล้วทิ้ง
+                            colMap.delete(k);
                         } 
                     });
                     
-                    // 🌟 ดึงคอลัมน์ใหม่ทั้งหมดที่เหลืออยู่ (รวมถึง vin_no) ไปต่อท้าย
                     colMap.forEach(c => newCols.push(c));
                     
                     columnsDef.length = 0; 
-                    columnsDef.push(...newCols); // อัปเดตตารางด้วยคอลัมน์ใหม่
+                    columnsDef.push(...newCols);
                 }
                 if (data.hidden_columns.sort) {
                     savedSortCol = data.hidden_columns.sort.col;
@@ -409,7 +407,11 @@ function runTableFilters() {
             const colDef = columnsDef.find(c => c.idx == colIdx);
             if(!colDef) continue;
             const key = colDef.key; let val = '';
-            if(['appointment_date', 'target_finish_date', 'repair_finish_date', 'delivery_date'].includes(key)) { val = job[key] ? String(job[key]).split('T')[0] : ''; } 
+            if(['arrived_date', 'appointment_date', 'target_finish_date', 'repair_finish_date', 'delivery_date'].includes(key)) { 
+                let rawVal = job[key];
+                if (key === 'arrived_date' && !rawVal) rawVal = job.appointment_date;
+                val = rawVal ? String(rawVal).split('T')[0] : ''; 
+            } 
             else if (key === 'car_brand') { val = `${job.car_brand || ''} ${job.car_model || ''}`.trim(); } 
             else if (key === 'main_part_qty') { val = String(Number(job.main_part_qty) || (job.main_part_name ? job.main_part_name.split(',').filter(Boolean).length : 0)); }
             else if (key === 'sub_part_qty') { val = String(Number(job.sub_part_qty) || (job.sub_part_name ? job.sub_part_name.split(',').filter(Boolean).length : 0)); }
@@ -499,7 +501,6 @@ async function fetchJobList() {
         document.getElementById('repair_list_body').innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-12 text-slate-400 font-mono text-sm"><i class="fa-solid fa-circle-notch fa-spin text-[#00320D] text-lg mr-2"></i> กำลังโหลดข้อมูล...</td></tr>`;
         const nocache = `?_t=${new Date().getTime()}`;
         
-        // 🌟 แก้ไข: ลบ API ตัว part-statuses ออกให้ตรงจำนวนที่ destructure เพื่อกันบั๊กโหลดค้าง 🌟
         const [resReports, resQuotas, resParts, resBodyParts] = await Promise.all([
             safeFetch(`${API_BASE_URL}/api/reports${nocache}`), 
             safeFetch(`${API_BASE_URL}/api/quotas${nocache}`), 
@@ -597,7 +598,7 @@ function renderRepairListTable(data) {
     let allRowsHtml = '';
 
     data.forEach(j => {
-        const arrDateStr = j.appointment_date ? j.appointment_date.split('T')[0] : '';
+        const arrDateStr = (j.arrived_date || j.appointment_date) ? String(j.arrived_date || j.appointment_date).split('T')[0] : '';
         const targetDateStr = j.target_finish_date ? j.target_finish_date.split('T')[0] : '';
         const finishDateStr = j.repair_finish_date ? j.repair_finish_date.split('T')[0] : '';
         const deliveryDateStr = j.delivery_date ? j.delivery_date.split('T')[0] : '';
@@ -633,8 +634,9 @@ function renderRepairListTable(data) {
                 case 'car_color': 
                     cellData = `<div class="px-2 py-1.5 w-full"><input type="text" value="${j.car_color || ''}" placeholder="-" onchange="fastUpdateField('${j.id}', 'car_color', this.value)" class="inline-edit-input text-left w-full text-base font-bold"></div>`; 
                     break;
+                case 'arrived_date':
                 case 'appointment_date': 
-                    cellData = `<div class="text-slate-500 text-[14px] font-mono font-bold text-center px-2 py-2">${formatThaiDate(j.appointment_date)}</div>`; 
+                    cellData = `<div class="text-slate-500 text-[14px] font-mono font-bold text-center px-2 py-2">${formatThaiDate(j.arrived_date || j.appointment_date)}</div>`; 
                     break;
                 case 'target_finish_date': 
                     cellData = `<div class="${isOverdue ? 'text-rose-600' : 'text-amber-600'} text-[14px] font-mono font-bold text-center px-2 py-2">${formatThaiDate(j.target_finish_date)}</div>`; 
@@ -692,6 +694,7 @@ function renderRepairListTable(data) {
     
     document.getElementById('table_row_count').innerText = data.length;
 
+    if(document.getElementById('hdr_cnt_arrived_date')) document.getElementById('hdr_cnt_arrived_date').innerText = cArr;
     if(document.getElementById('hdr_cnt_appointment_date')) document.getElementById('hdr_cnt_appointment_date').innerText = cArr;
     if(document.getElementById('hdr_cnt_target_finish_date')) document.getElementById('hdr_cnt_target_finish_date').innerText = cTar;
     if(document.getElementById('hdr_cnt_repair_finish_date')) document.getElementById('hdr_cnt_repair_finish_date').innerText = cRep;
@@ -709,7 +712,11 @@ function openExcelFilter(e, colIndex, title) {
         if (selectedBranchFilter !== 'ALL' && job.branch_name !== selectedBranchFilter) return;
 
         let val = ''; const key = columnsDef.find(c => c.idx === colIndex).key;
-        if(['appointment_date', 'target_finish_date', 'repair_finish_date', 'delivery_date'].includes(key)) { val = job[key] ? String(job[key]).split('T')[0] : ''; } 
+        if(['arrived_date', 'appointment_date', 'target_finish_date', 'repair_finish_date', 'delivery_date'].includes(key)) { 
+            let rawVal = job[key];
+            if (key === 'arrived_date' && !rawVal) rawVal = job.appointment_date;
+            val = rawVal ? String(rawVal).split('T')[0] : ''; 
+        } 
         else if (key === 'car_brand') { val = `${job.car_brand || ''} ${job.car_model || ''}`.trim(); } 
         else if (key === 'main_part_qty') { val = String(Number(job.main_part_qty) || (job.main_part_name ? job.main_part_name.split(',').filter(Boolean).length : 0)); }
         else if (key === 'sub_part_qty') { val = String(Number(job.sub_part_qty) || (job.sub_part_name ? job.sub_part_name.split(',').filter(Boolean).length : 0)); }
@@ -811,7 +818,12 @@ function renderCalendar() {
     let monthMaxQty = 1; 
     for(let day = 1; day <= totalDays; day++) {
         const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-        const aQty = jobsForCalendar.filter(j => j.appointment_date && j.appointment_date.split('T')[0] === dateStr).length;
+        
+        const aQty = jobsForCalendar.filter(j => {
+            const d = j.arrived_date || j.appointment_date;
+            return d && String(d).split('T')[0] === dateStr;
+        }).length;
+
         const tQty = jobsForCalendar.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).length;
         const dQty = jobsForCalendar.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
         const maxInDay = Math.max(aQty, tQty, dQty);
@@ -825,12 +837,15 @@ function renderCalendar() {
     for(let day = 1; day <= totalDays; day++) {
         const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
         
-        const arrivedQty = jobsForCalendar.filter(j => j.appointment_date && j.appointment_date.split('T')[0] === dateStr).length;
+        const arrivedQty = jobsForCalendar.filter(j => {
+            const d = j.arrived_date || j.appointment_date;
+            return d && String(d).split('T')[0] === dateStr;
+        }).length;
+
         const targetJobsInDay = jobsForCalendar.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr);
         const targetQty = targetJobsInDay.length;
         
         const doneQty = targetJobsInDay.filter(j => isJobDone(j.job_status)).length;
-        
         const deliveryQty = jobsForCalendar.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
 
         let sumMainDay = 0, sumSubDay = 0;
@@ -912,11 +927,14 @@ function filterBoardByDate(dateStr, type) {
     isCalendarFilterActive = true; 
     
     let colIdx;
-    if (type === 'arrived') colIdx = columnsDef.find(c => c.key === 'appointment_date').idx;
+    if (type === 'arrived') {
+        const col = columnsDef.find(c => c.key === 'arrived_date' || c.key === 'appointment_date');
+        if (col) colIdx = col.idx;
+    }
     if (type === 'target') colIdx = columnsDef.find(c => c.key === 'target_finish_date').idx;
     if (type === 'delivery') colIdx = columnsDef.find(c => c.key === 'delivery_date').idx;
     
-    activeFilters[colIdx] = new Set([dateStr]);
+    if (colIdx !== undefined) activeFilters[colIdx] = new Set([dateStr]);
     
     document.querySelectorAll('.filter-icon').forEach(icon => icon.classList.remove('active'));
     const thIcon = document.getElementById(`th_${colIdx}`)?.querySelector('.filter-icon');
@@ -952,7 +970,6 @@ function generateMiniCardHTML(j, type) {
     let partsHTML = '';
     if(carParts.length > 0) {
         partsHTML = carParts.map(p => {
-            // 🌟 แก้บั๊กกันการพัง หากสถานะอะไหล่ว่างเปล่า 🌟
             let isComplete = p.order_status && p.order_status.includes('ครบ'); 
             let colorClass = isComplete ? 'text-emerald-600' : ((p.order_status && (p.order_status.includes('รอ') || p.order_status.includes('Back Order'))) ? 'text-rose-500' : 'text-amber-600');
             return `<span class="${colorClass} text-xs block font-bold mb-0.5"><i class="fa-solid ${isComplete ? 'fa-check' : 'fa-clock'}"></i> ${p.part_name}</span>`;
@@ -1231,7 +1248,6 @@ async function openModal(jobId) {
         document.getElementById('m_plate').innerText = job.car_plate || '-';
         document.getElementById('m_car').innerText = `${job.car_brand} ${job.car_model || ''}`;
         document.getElementById('m_sa_owner').innerText = job.sa_owner || 'ไม่ระบุ';
-        // 🌟 เพิ่มบรรทัดนี้ดึง VIN ลง Modal
         document.getElementById('m_vin').innerHTML = job.vin_no ? `<i class="fa-solid fa-barcode mr-1"></i> ${job.vin_no}` : '';
         
         const qtListDiv = document.getElementById('m_qt_list'); qtListDiv.innerHTML = '';
