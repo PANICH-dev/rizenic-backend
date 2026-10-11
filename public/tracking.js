@@ -1,4 +1,5 @@
 const API_BASE_URL = window.location.origin;
+let allClientJobs = [];
 let currentClientJob = null;
 
 // รายชื่อสถานีช่างสำหรับลูปขั้นตอนงานซ่อมตัวถังและทำสี
@@ -22,13 +23,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    const savedJob = sessionStorage.getItem('client_job_data');
-    if (savedJob) {
+    const savedJobs = sessionStorage.getItem('client_jobs_data');
+    if (savedJobs) {
         try {
-            currentClientJob = JSON.parse(savedJob);
-            showDashboard(currentClientJob);
+            allClientJobs = JSON.parse(savedJobs);
+            if (allClientJobs.length > 0) {
+                showDashboard(allClientJobs[0]);
+            }
         } catch (e) {
-            sessionStorage.removeItem('client_job_data');
+            sessionStorage.removeItem('client_jobs_data');
         }
     }
 });
@@ -46,6 +49,7 @@ async function handleClientLogin(e) {
     await verifyAndFetchJob(plateInput, phoneInput);
 }
 
+// 🔍 ค้นหาใบงานทั้งหมดของรถคันนี้ และเรียงจากล่าสุดไปเก่าสุด
 async function verifyAndFetchJob(plate, phone) {
     const btnSubmit = document.getElementById('btn_client_submit');
     const oldText = btnSubmit ? btnSubmit.innerHTML : '';
@@ -59,31 +63,42 @@ async function verifyAndFetchJob(plate, phone) {
         if (!res.ok) throw new Error('ไม่สามารถดึงข้อมูลได้');
 
         const reports = await res.json();
-        const cleanPlate = plate.replace(/\s+/g, '').toUpperCase();
-        const cleanPhone = phone ? phone.replace(/[- ]/g, '') : '';
 
-        const matchedJob = reports.find(r => {
-            const rPlate = (r.car_plate || '').replace(/\s+/g, '').toUpperCase();
-            const rPhone = (r.phone_number || r.customer_phone || '').replace(/[- ]/g, '');
+        // 🟢 คลีนทะเบียนรถ และเบอร์โทรศัพท์
+        const cleanPlate = plate.replace(/[^a-zA-Z0-9ก-ฮ]/g, '').toUpperCase();
+        const cleanPhone = phone ? phone.replace(/\D/g, '') : '';
 
-            if (cleanPhone) {
-                return rPlate === cleanPlate && rPhone.includes(cleanPhone);
+        // ดึงใบงาน "ทั้งหมด" ที่ตรงกับทะเบียนรถและเบอร์โทร
+        const matchedJobs = reports.filter(r => {
+            const rPlate = (r.car_plate || '').replace(/[^a-zA-Z0-9ก-ฮ]/g, '').toUpperCase();
+            const rPhone = (r.phone_number || r.customer_phone || '').replace(/\D/g, '');
+
+            const isPlateMatch = rPlate === cleanPlate || String(r.id) === cleanPlate;
+
+            if (cleanPhone && rPhone) {
+                const isPhoneMatch = rPhone.includes(cleanPhone) || cleanPhone.includes(rPhone) || rPhone.endsWith(cleanPhone.slice(-4));
+                return isPlateMatch && isPhoneMatch;
             }
-            return rPlate === cleanPlate || String(r.id) === cleanPlate;
+            return isPlateMatch;
         });
 
-        if (matchedJob) {
-            currentClientJob = matchedJob;
-            sessionStorage.setItem('client_job_data', JSON.stringify(matchedJob));
-            showDashboard(matchedJob);
+        if (matchedJobs.length > 0) {
+            // 🌟 เรียงลำดับจาก ID ใหม่ล่าสุดลงไปหาเก่าสุด (บิลล่าสุดอยู่บนสุด)
+            matchedJobs.sort((a, b) => Number(b.id) - Number(a.id));
+
+            allClientJobs = matchedJobs;
+            sessionStorage.setItem('client_jobs_data', JSON.stringify(matchedJobs));
+            
+            // แสดงผลใบงานล่าสุดเป็นหลัก
+            showDashboard(matchedJobs[0]);
         } else {
-            alert('❌ ไม่พบข้อมูลงานซ่อมสำหรับทะเบียนรถหรือเบอร์โทรศัพท์นี้');
+            alert('❌ ไม่พบข้อมูลงานซ่อมสำหรับทะเบียนรถหรือเบอร์โทรศัพท์นี้\n\nกรุณาตรวจสอบข้อมูล หรือสอบถาม SA ผู้ดูแลครับ');
         }
 
     } catch (err) {
         console.error("Tracking Error:", err);
         alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
-    } fontally {
+    } finally {
         if (btnSubmit) {
             btnSubmit.innerHTML = oldText;
             btnSubmit.disabled = false;
@@ -91,11 +106,18 @@ async function verifyAndFetchJob(plate, phone) {
     }
 }
 
+// 🌟 แสดงผล Dashboard
 function showDashboard(job) {
+    currentClientJob = job;
+
     document.getElementById('client_login_screen').classList.add('hidden');
     document.getElementById('client_dashboard').classList.remove('hidden');
     document.getElementById('btn_logout_client').classList.remove('hidden');
 
+    // 📜 แสดง/ซ่อน แถบเลือกประวัติย้อนหลัง
+    renderJobHistorySelector();
+
+    document.getElementById('disp_job_id_badge').innerText = `ใบงาน #${job.id}`;
     document.getElementById('disp_car_plate').innerText = job.car_plate || '-';
     document.getElementById('disp_car_brand_model').innerText = `${job.car_brand || ''} ${job.car_model || ''}`.trim() || 'รถยนต์ของคุณ';
     document.getElementById('disp_customer_name').innerText = job.customer_name || '-';
@@ -107,6 +129,39 @@ function showDashboard(job) {
     document.getElementById('disp_status_badge').innerText = job.job_status || 'กำลังดำเนินการ';
 
     renderConveyorTimeline(job);
+}
+
+// 📜 วาดแถบดร็อปดาวน์เลือกประวัติใบงานย้อนหลัง
+function renderJobHistorySelector() {
+    const historyContainer = document.getElementById('job_history_container');
+    const historySelect = document.getElementById('select_job_history');
+    const totalJobsSpan = document.getElementById('disp_total_jobs');
+
+    if (!historyContainer || !historySelect) return;
+
+    if (allClientJobs.length > 1) {
+        historyContainer.classList.remove('hidden');
+        if (totalJobsSpan) totalJobsSpan.innerText = allClientJobs.length;
+
+        historySelect.innerHTML = allClientJobs.map((j, idx) => {
+            const isLatest = idx === 0;
+            const jobDate = formatThaiDate(j.arrived_date || j.contact_date);
+            const statusText = j.job_status || 'กำลังดำเนินการ';
+            const labelText = `ใบงาน #${j.id} (${jobDate}) - ${statusText} ${isLatest ? '★ [ล่าสุด]' : ''}`;
+            
+            return `<option value="${j.id}" ${j.id === currentClientJob.id ? 'selected' : ''}>${labelText}</option>`;
+        }).join('');
+    } else {
+        historyContainer.classList.add('hidden');
+    }
+}
+
+// 🔄 สลับไปดูใบงานย้อนหลังเมื่อเลือกลิสต์ใน Dropdown
+function switchClientJob(selectedJobId) {
+    const targetJob = allClientJobs.find(j => String(j.id) === String(selectedJobId));
+    if (targetJob) {
+        showDashboard(targetJob);
+    }
 }
 
 // 🛠️ วาดสายพานสถานะ (Conveyor Timeline System)
@@ -122,7 +177,6 @@ function renderConveyorTimeline(job) {
                 ? JSON.parse(job.customer_station_links) 
                 : job.customer_station_links;
         } catch (e) { 
-            console.error('JSON Parse station links error:', e);
             stationLinks = {}; 
         }
     }
@@ -146,7 +200,7 @@ function renderConveyorTimeline(job) {
 
     let html = `<div class="relative border-l-2 border-slate-200 ml-5 space-y-8 py-2">`;
 
-    // 🔴 1. โฟลเดอร์ก่อนซ่อม (ใช้เฉพาะลิงก์ stationLinks.before เท่านั้น ไม่เอาริงก์รวมแล้ว)
+    // 🔴 1. โฟลเดอร์ก่อนซ่อม (Pre-Repair)
     const preRepairLink = stationLinks.before; 
     html += `
         <div class="relative pl-8">
@@ -170,7 +224,7 @@ function renderConveyorTimeline(job) {
         </div>
     `;
 
-    // 🔴 2. สายพานสถานีซ่อมตัวถังและทำสี
+    // 🔴 2. สายพานสถานีซ่อมตัวถังและทำสี (In-Repair)
     html += `
         <div class="relative pl-8">
             <div class="absolute -left-[17px] top-0 w-8 h-8 ${isPostRepairDone ? 'bg-emerald-500 text-white' : (isCurrentlyInRepairLoop ? 'bg-amber-500 text-white active-pulse-node' : 'bg-slate-200 text-slate-400')} rounded-full border-4 border-white shadow-md flex items-center justify-center text-xs font-bold">
@@ -218,7 +272,7 @@ function renderConveyorTimeline(job) {
         </div>
     `;
 
-    // 🔴 3. โฟลเดอร์หลังซ่อมเสร็จสมบูรณ์ (ใช้เฉพาะ stationLinks.after เท่านั้น)
+    // 🔴 3. โฟลเดอร์หลังซ่อมเสร็จสมบูรณ์ (Post-Repair Completed)
     const postRepairLink = stationLinks.after;
     html += `
         <div class="relative pl-8">
@@ -263,7 +317,7 @@ function renderConveyorTimeline(job) {
 }
 
 function clientLogout() {
-    sessionStorage.removeItem('client_job_data');
+    sessionStorage.removeItem('client_jobs_data');
     window.location.href = 'tracking.html';
 }
 
