@@ -453,15 +453,26 @@ router.get('/report/:id/export-xml', async (req, res) => {
 
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
-
 // =========================================================
-// 🚀 API สร้างโครงสร้างโฟลเดอร์ Google Drive สำหรับใบงาน
+// 🚀 API สร้าง/เปิดโครงสร้างโฟลเดอร์ Google Drive สำหรับใบงาน (ป้องกันการสร้างซ้ำ)
 // =========================================================
 router.post('/report/:id/create-drive-folder', async (req, res) => {
     const reportId = req.params.id;
     const { car_plate, arrived_date } = req.body;
 
     try {
+        // 🌟 1. เช็กก่อนว่าใบงานนี้มี drive_folder_link บันทึกอยู่แล้วหรือไม่
+        const reportCheck = await pool.query('SELECT drive_folder_link FROM rizenicreport WHERE id = $1', [reportId]);
+        if (reportCheck.rows.length > 0 && reportCheck.rows[0].drive_folder_link) {
+            return res.json({
+                success: true,
+                already_exists: true,
+                message: 'ใบงานนี้มีโฟลเดอร์ Google Drive อยู่แล้ว',
+                drive_folder_url: reportCheck.rows[0].drive_folder_link
+            });
+        }
+
+        // 🌟 2. ดึง Active Root Folder ID
         const configRes = await pool.query('SELECT drive_folder_id FROM drive_config WHERE is_active = true LIMIT 1');
         if (configRes.rows.length === 0) {
             return res.status(400).json({ error: 'ยังไม่ได้ตั้งค่า Active Google Drive ในระบบหลังบ้าน (โปรดตั้งค่าในหน้า Admin ก่อนครับ)' });
@@ -470,6 +481,7 @@ router.post('/report/:id/create-drive-folder', async (req, res) => {
         const activeRootFolderId = configRes.rows[0].drive_folder_id;
         const mainFolderName = `${car_plate}_${arrived_date || new Date().toISOString().split('T')[0]}`;
 
+        // 🌟 3. สร้างโครงสร้างโฟลเดอร์ใน Google Drive
         const mainFolder = await createFolderInDrive(mainFolderName, activeRootFolderId);
 
         const internalFolder = await createFolderInDrive('01_Internal_ซ่อม', mainFolder.id);
@@ -492,6 +504,71 @@ router.post('/report/:id/create-drive-folder', async (req, res) => {
             await createFolderInDrive(st, custRepair.id);
         }
 
+        // 🌟 4. เซฟลิงก์โฟลเดอร์บันทึกลง Neon DB
+        await pool.query(
+            'UPDATE rizenicreport SET drive_folder_link = $1 WHERE id = $2',
+            [mainFolder.webViewLink, reportId]
+        );
+
+        res.json({
+            success: true,
+            already_exists: false,
+            drive_folder_url: mainFolder.webViewLink
+        });
+
+    } catch (err) {
+        console.error('Create Drive Folder Error:', err);
+        res.status(500).json({ error: err.message || 'เกิดข้อผิดพลาดในการสร้างโฟลเดอร์ Google Drive' });
+    }
+});
+
+router.post('/report/:id/create-drive-folder', async (req, res) => {
+    const reportId = req.params.id;
+    const { car_plate, arrived_date } = req.body;
+
+    try {
+        // 1. ตรวจสอบว่าใบงานนี้มี drive_folder_link บันทึกไว้แล้วหรือไม่ (ป้องกันการสร้างซ้ำ)
+        const reportCheck = await pool.query('SELECT drive_folder_link FROM rizenicreport WHERE id = $1', [reportId]);
+        if (reportCheck.rows.length > 0 && reportCheck.rows[0].drive_folder_link) {
+            return res.json({
+                success: true,
+                already_exists: true,
+                drive_folder_url: reportCheck.rows[0].drive_folder_link
+            });
+        }
+
+        // 2. ดึง Active Root Folder ID จากตาราง drive_config
+        const configRes = await pool.query('SELECT drive_folder_id FROM drive_config WHERE is_active = true LIMIT 1');
+        if (configRes.rows.length === 0) {
+            return res.status(400).json({ error: 'ยังไม่ได้ตั้งค่า Google Drive ในหน้า Admin' });
+        }
+        
+        const activeRootFolderId = configRes.rows[0].drive_folder_id;
+        const mainFolderName = `${car_plate}_${arrived_date || new Date().toISOString().split('T')[0]}`;
+
+        // 3. สั่งสร้างโครงสร้างโฟลเดอร์หลักและโฟลเดอร์ย่อยใน Google Drive
+        const mainFolder = await createFolderInDrive(mainFolderName, activeRootFolderId);
+        const internalFolder = await createFolderInDrive('01_Internal_ซ่อม', mainFolder.id);
+        const customerFolder = await createFolderInDrive('02_Customer_View', mainFolder.id);
+
+        await createFolderInDrive('1_ก่อนซ่อม', internalFolder.id);
+        const intRepair = await createFolderInDrive('2_ระหว่างซ่อม', internalFolder.id);
+        await createFolderInDrive('3_หลังซ่อม_เสร็จ', internalFolder.id);
+
+        const repairStations = ['01_เคาะ', '02_โป๊ว', '03_เตรียมพื้น', '04_พ่นสี', '05_ประกอบ', '06_ขัดสี', '07_QC', '08_แม็ก', '09_กระจก', '10_ฟิล์ม'];
+        for (const st of repairStations) {
+            await createFolderInDrive(st, intRepair.id);
+        }
+
+        await createFolderInDrive('1_สภาพรถก่อนซ่อม', customerFolder.id);
+        const custRepair = await createFolderInDrive('2_อัปเดตงานซ่อม', customerFolder.id);
+        await createFolderInDrive('3_รถของคุณพร้อมแล้ว', customerFolder.id);
+
+        for (const st of repairStations) {
+            await createFolderInDrive(st, custRepair.id);
+        }
+
+        // 4. บันทึก URL ลิงก์โฟลเดอร์ลงในตาราง rizenicreport บน Neon DB
         await pool.query(
             'UPDATE rizenicreport SET drive_folder_link = $1 WHERE id = $2',
             [mainFolder.webViewLink, reportId]

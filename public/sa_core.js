@@ -989,3 +989,48 @@ async function openJobGoogleDrive() {
         alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ Google Drive');
     }
 }
+
+async function openJobGoogleDrive() {
+    const reportId = document.getElementById('sa_report_id')?.value;
+    const carPlate = document.getElementById('car_plate')?.value || 'ไม่ระบุทะเบียน';
+    const arrivedDate = document.getElementById('arrived_date')?.value || new Date().toISOString().split('T')[0];
+
+    if (!reportId) {
+        alert('⚠️ กรุณาบันทึกข้อมูลใบงานเข้าสู่ระบบก่อนสร้างหรือเปิดโฟลเดอร์ Google Drive ครับ!');
+        return;
+    }
+
+    try {
+        // 1. ดึงข้อมูลใบงานเพื่อเช็กว่ามีลิงก์โฟลเดอร์บันทึกไว้ใน DB หรือยัง
+        const res = await fetch(`${API_BASE_URL}/api/report/${reportId}`);
+        const result = await res.json();
+        
+        let driveUrl = result?.drive_folder_link || result?.data?.drive_folder_link;
+
+        // 2. ถ้ายังไม่มี ให้ยิง API ไปสั่งสร้างโฟลเดอร์ใหม่และบันทึกลง DB
+        if (!driveUrl) {
+            if (!confirm('ใบงานนี้ยังไม่มีโฟลเดอร์เก็บรูปภาพ ต้องการสั่งสร้างโฟลเดอร์ Google Drive ใหม่หรือไม่?')) return;
+            
+            const createRes = await fetch(`${API_BASE_URL}/api/report/${reportId}/create-drive-folder`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ car_plate: carPlate, arrived_date: arrivedDate })
+            });
+            const createResult = await createRes.json();
+            
+            if (createResult.success) {
+                driveUrl = createResult.drive_folder_url;
+            } else {
+                alert('❌ ไม่สามารถสร้างโฟลเดอร์ได้: ' + (createResult.error || 'กรุณาตรวจสอบการตั้งค่าในหน้า Admin'));
+                return;
+            }
+        }
+
+        // 3. เปิดลิงก์โฟลเดอร์ในแท็บใหม่เพื่อเข้าไปอัปโหลด/จัดการรูปภาพ
+        window.open(driveUrl, '_blank');
+
+    } catch (err) {
+        console.error('Open Drive Error:', err);
+        alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ Google Drive');
+    }
+}
