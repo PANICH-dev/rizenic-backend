@@ -955,7 +955,7 @@ async function checkCarHistory(plateInput) {
 // 📁 ระบบจัดการโฟลเดอร์ Google Drive
 // =========================================================
 
-// 🚀 1. ฟังก์ชันเปิด/สั่งสร้างโฟลเดอร์ Google Drive (เช็กลิงก์อัตโนมัติ)
+// 🚀 1. ฟังก์ชันเปิด/สั่งสร้างโฟลเดอร์ Google Drive (เช็กลิงก์อัตโนมัติ พร้อมล็อกปุ่มกันกดเบิ้ล)
 async function openJobGoogleDrive() {
     const reportId = document.getElementById('sa_report_id')?.value;
     const carPlate = document.getElementById('car_plate')?.value || 'ไม่ระบุทะเบียน';
@@ -966,39 +966,57 @@ async function openJobGoogleDrive() {
         return;
     }
 
+    // 🌟 ดักจับปุ่มและเปลี่ยนสถานะเป็น Loading ทันทีที่กด เพื่อป้องกันการกดเบิ้ล
+    const btnDrive = document.getElementById('btn_open_drive');
+    const btnText = document.getElementById('btn_drive_text');
+    const originalText = btnText ? btnText.innerText : 'เปิดรูป Google Drive';
+    
+    if (btnDrive) {
+        btnDrive.disabled = true;
+        btnDrive.classList.add('opacity-70', 'cursor-wait');
+        if (btnText) btnText.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังสร้างโฟลเดอร์...';
+    }
+
     try {
         const res = await fetch(`${API_BASE_URL}/api/report/${reportId}`);
         const result = await res.json();
         
         let driveUrl = result?.drive_folder_link || result?.data?.drive_folder_link;
 
+        // ถ้ามีลิงก์อยู่แล้ว ให้เปิดเลย
         if (driveUrl) {
             document.getElementById('btn_unlink_drive')?.classList.remove('hidden');
             window.open(driveUrl, '_blank');
-            return;
-        }
-
-        if (!confirm('ใบงานนี้ยังไม่มีโฟลเดอร์เก็บรูปภาพ ต้องการสั่งสร้างโฟลเดอร์ Google Drive ใหม่หรือไม่?')) return;
-        
-        const createRes = await fetch(`${API_BASE_URL}/api/report/${reportId}/create-drive-folder`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ car_plate: carPlate, arrived_date: arrivedDate })
-        });
-        const createResult = await createRes.json();
-        
-        if (createResult.success) {
-            driveUrl = createResult.drive_folder_url;
-            document.getElementById('btn_unlink_drive')?.classList.remove('hidden');
-            if (currentEditingJob) currentEditingJob.drive_folder_link = driveUrl;
-            window.open(driveUrl, '_blank');
         } else {
-            alert('❌ ไม่สามารถสร้างโฟลเดอร์ได้: ' + (createResult.error || 'กรุณาตรวจสอบการตั้งค่าในหน้า Admin'));
+            // ถ้ายังไม่มีลิงก์ ให้ถามยืนยันการสร้าง
+            if (confirm('ใบงานนี้ยังไม่มีโฟลเดอร์เก็บรูปภาพ ต้องการสั่งสร้างโฟลเดอร์ Google Drive ใหม่หรือไม่? (อาจใช้เวลา 3-5 วินาที)')) {
+                const createRes = await fetch(`${API_BASE_URL}/api/report/${reportId}/create-drive-folder`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ car_plate: carPlate, arrived_date: arrivedDate })
+                });
+                const createResult = await createRes.json();
+                
+                if (createResult.success) {
+                    driveUrl = createResult.drive_folder_url;
+                    document.getElementById('btn_unlink_drive')?.classList.remove('hidden');
+                    if (currentEditingJob) currentEditingJob.drive_folder_link = driveUrl;
+                    window.open(driveUrl, '_blank');
+                } else {
+                    alert('❌ ไม่สามารถสร้างโฟลเดอร์ได้: ' + (createResult.error || 'กรุณาตรวจสอบการตั้งค่าในหน้า Admin'));
+                }
+            }
         }
-
     } catch (err) {
         console.error('Open Drive Error:', err);
         alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ Google Drive');
+    } finally {
+        // 🌟 ปลดล็อกปุ่มคืนค่าเดิมเสมอ ไม่ว่าจะสร้างสำเร็จ ยกเลิก หรือเกิดข้อผิดพลาด
+        if (btnDrive) {
+            btnDrive.disabled = false;
+            btnDrive.classList.remove('opacity-70', 'cursor-wait');
+            if (btnText) btnText.innerText = originalText;
+        }
     }
 }
 
