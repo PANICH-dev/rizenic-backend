@@ -434,3 +434,62 @@ async function sendReportToLine(branchName) {
         }
     }
 }
+
+// 🎯 ภาพรวมสถิติ (KPIs) - คำนวณนับยอดรถเข้าจอดจำนวนเต็ม (อ้างอิง arrived_date)
+function renderKPIs(startDate, endDate) {
+    let contactedCount = 0;
+    let parkedCount = 0;
+    let deliveredCount = 0;
+    let billedCount = 0;
+
+    let totalLabor = 0;
+    let totalParts = 0;
+    let totalOutsource = 0;
+
+    filteredJobs.forEach(j => {
+        const st = j.job_status || '';
+        if (st.includes('ยกเลิก')) return; // ข้ามใบงานที่ยกเลิก
+
+        // 1. รถเข้ามาที่ศูนย์ (ติดต่อ/นัดหมาย)
+        const contactDate = j.contact_date || j.appointment_date;
+        if (contactDate && isDateInRange(contactDate, startDate, endDate)) {
+            contactedCount++;
+        }
+
+        // 2. รถที่เข้ามาจอด (Parked Total) - นับจำนวนเต็มรวมทุกคันที่มี arrived_date ในช่วงเวลา
+        const arrivedDate = j.arrived_date || j.appointment_date;
+        if (arrivedDate && isDateInRange(arrivedDate, startDate, endDate)) {
+            parkedCount++;
+        }
+
+        // 3. ยอดส่งมอบ (Delivered)
+        const deliveryDate = j.delivery_date || j.actual_finish_date;
+        if (deliveryDate && isDateInRange(deliveryDate, startDate, endDate)) {
+            deliveredCount++;
+        }
+
+        // 4. ยอดปิดบิล (Billed)
+        const billingDate = j.billing_date || j.insurance_pay_date;
+        if (billingDate && isDateInRange(billingDate, startDate, endDate)) {
+            billedCount++;
+        }
+
+        // 💰 รวมยอดการเงินของรถที่เข้าจอดในงวดนี้
+        if (arrivedDate && isDateInRange(arrivedDate, startDate, endDate)) {
+            totalLabor += parseFloat(j.cost_labor) || 0;
+            totalParts += parseFloat(j.cost_part) || 0;
+            totalOutsource += parseFloat(j.cost_external) || 0;
+        }
+    });
+
+    // แสดงผลตัวเลขจำนวนเต็มเข้าการ์ด KPIs
+    if (document.getElementById('stat_contacted')) document.getElementById('stat_contacted').innerText = contactedCount.toLocaleString();
+    if (document.getElementById('stat_parked')) document.getElementById('stat_parked').innerText = parkedCount.toLocaleString();
+    if (document.getElementById('stat_delivered')) document.getElementById('stat_delivered').innerText = deliveredCount.toLocaleString();
+    if (document.getElementById('stat_billed')) document.getElementById('stat_billed').innerText = billedCount.toLocaleString();
+
+    // แสดงผลสรุปยอดการเงิน
+    if (document.getElementById('sum_labor')) document.getElementById('sum_labor').innerText = totalLabor.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (document.getElementById('sum_parts')) document.getElementById('sum_parts').innerText = totalParts.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (document.getElementById('sum_outsource')) document.getElementById('sum_outsource').innerText = totalOutsource.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
