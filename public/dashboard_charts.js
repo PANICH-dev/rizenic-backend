@@ -10,18 +10,22 @@ if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
 }
 
 function renderKPIs(start, end) {
+    // 1. รถเข้ามาที่ศูนย์
     const contacted = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end)).length;
     
+    // 2. รถที่เข้ามาจอด (นับรถทุกคันที่มีวันเข้าจอดอยู่ในช่วงเวลาที่เลือก หลักการเดียวกับส่งมอบ)
     const parked = filteredJobs.filter(j => {
         const st = j.job_status || '';
-        const inProcess = activeProcessStatuses.some(s => st.includes(s) || st.startsWith(s.substring(0, 2)));
-        const targetDate = j.appointment_date || j.arrived_date;
-        return inProcess && isDateInRange(targetDate, start, end);
+        if (st.includes('ยกเลิก')) return false;
+        const targetDate = j.arrived_date || j.appointment_date;
+        return isDateInRange(targetDate, start, end);
     }).length;
 
+    // 3. ยอดปิดบิล
     const billedJobs = filteredJobs.filter(j => isDateInRange(j.billing_date, start, end));
     const billed = billedJobs.length;
 
+    // 4. ยอดส่งมอบ
     const deliveredStatuses = [
         '12.ส่งมอบ', '13.วางบิลประกัน', '14.ชำระเงินสด', 
         '15.วางบิล Tesla', '16.วางบิล EV ME', '17.รอออกบิล', '19.ออกบิลแล้ว'
@@ -129,7 +133,6 @@ function openReportModal(cat, itemIdx) {
     if(document.getElementById('jobListModal')) document.getElementById('jobListModal').classList.remove('hidden');
 }
 
-// 🎯 กราฟแท่งสถานะ: เรียงตามลำดับที่นายสั่งเป๊ะๆ และขยายให้รองรับมือถือ
 function renderStatusChart() {
     const canvas = document.getElementById('statusChart');
     if (!canvas) return;
@@ -137,7 +140,6 @@ function renderStatusChart() {
     const start = document.getElementById('dash_start_date')?.value;
     const end = document.getElementById('dash_end_date')?.value;
 
-    // 🌟 ลำดับเป๊ะๆ ตามที่สั่งมา 01-23
     const targetStatuses = [
         '01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ', 
         '04.รอลูกค้าอนุมัติ', '05.อนุมัติแล้ว', '06.สั่งอะไหล่', 
@@ -194,7 +196,7 @@ function renderStatusChart() {
                 data: activeData, 
                 backgroundColor: barColors, 
                 borderRadius: 6, 
-                barPercentage: 0.65 // ขนาดความหนาของแท่ง
+                barPercentage: 0.65
             }]
         },
         options: { 
@@ -202,23 +204,23 @@ function renderStatusChart() {
             responsive: true, 
             maintainAspectRatio: false, 
             layout: {
-                padding: { right: 40 } // 🌟 เว้นระยะขอบขวาให้ตัวเลขไม่ตกขอบมือถือ
+                padding: { right: 40 }
             },
             plugins: { 
                 legend: { display: false },
                 datalabels: { 
                     color: '#1e293b',
-                    font: { family: 'Kanit', weight: '900', size: 13 }, // 🌟 ฟอนต์ตัวเลขหนาและใหญ่ขึ้น
+                    font: { family: 'Kanit', weight: '900', size: 13 },
                     anchor: 'end', 
                     align: 'right', 
-                    formatter: (val) => val > 0 ? val + ' คัน' : '' // 🌟 เติมคำว่า "คัน" ให้อ่านง่าย
+                    formatter: (val) => val > 0 ? val + ' คัน' : ''
                 }
             }, 
             scales: { 
                 y: { 
                     grid: { display: false }, 
                     ticks: { 
-                        font: { family: 'Kanit', size: 12, weight: '600' }, // 🌟 ฟอนต์แกน Y ใหญ่ขึ้น
+                        font: { family: 'Kanit', size: 12, weight: '600' },
                         color: '#334155' 
                     } 
                 }, 
@@ -233,6 +235,7 @@ function renderStatusChart() {
         }
     });
 }
+
 function openStatusModal(statusName) {
     const start = document.getElementById('dash_start_date')?.value;
     const end = document.getElementById('dash_end_date')?.value;
@@ -255,7 +258,6 @@ function openStatusModal(statusName) {
     if(document.getElementById('jobListModal')) document.getElementById('jobListModal').classList.remove('hidden');
 }
 
-/// 🎯 โดนัทสัดส่วนลูกค้า (Filter ตามวันที่เลือกด้านบน)
 function renderInsuranceChart() {
     const canvas = document.getElementById('insuranceChart');
     if (!canvas) return;
@@ -265,11 +267,10 @@ function renderInsuranceChart() {
 
     const customerTypes = {};
     filteredJobs.forEach(j => {
-        // 🌟 กรองข้อมูลตามวันที่ โดยให้ความสำคัญกับ appointment_date ก่อน
         const targetDate = j.appointment_date || j.arrived_date || j.contact_date;
         
         if (start && end && !isDateInRange(targetDate, start, end)) {
-            return; // ถ้านอกช่วงปฏิทินให้ข้ามไป
+            return;
         }
 
         const type = (j.customer_type || 'ไม่มีข้อมูล').trim();
@@ -295,6 +296,7 @@ function renderInsuranceChart() {
         }
     });
 }
+
 function renderDailyLineChart(start, end) {
     const canvas = document.getElementById('dailyLineChart');
     if (!canvas || !start || !end) return;
