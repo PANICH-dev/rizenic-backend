@@ -937,59 +937,11 @@ async function checkCarHistory(plateInput) {
     }
 }
 
-// =========================================================
+/// =========================================================
 // 📁 ระบบจัดการโฟลเดอร์ Google Drive
 // =========================================================
 
-// 🚀 ฟังก์ชันสำหรับเปิดลิงก์ Google Drive ของใบงานปัจจุบัน
-async function openJobGoogleDrive() {
-    const reportId = document.getElementById('sa_report_id')?.value;
-    const carPlate = document.getElementById('car_plate')?.value || 'ไม่ระบุทะเบียน';
-    const arrivedDate = document.getElementById('arrived_date')?.value || new Date().toISOString().split('T')[0];
-
-    // ถ้าไม่มี reportId แสดงว่ายังไม่ได้เซฟใบงาน
-    if (!reportId) {
-        alert('⚠️ กรุณาบันทึกข้อมูลใบงานก่อนสร้างโฟลเดอร์ Google Drive ครับ!');
-        return;
-    }
-
-    try {
-        // 1. ดึงข้อมูลใบงานจากเซิร์ฟเวอร์ เพื่อเช็กลิงก์โฟลเดอร์
-        const res = await fetch(`${API_BASE_URL}/api/report/${reportId}`);
-        const result = await res.json();
-        
-        let driveUrl = result?.data?.drive_folder_link;
-
-        // 2. ถ้ายังไม่มีโฟลเดอร์ ให้ยิง API ไปสั่งสร้างโครงสร้างโฟลเดอร์ (Internal & Customer)
-        if (!driveUrl) {
-            // โชว์แจ้งเตือนว่ากำลังสร้าง
-            if(!confirm('ยังไม่มีโฟลเดอร์เก็บรูปสำหรับใบงานนี้ ระบบจะสร้างโฟลเดอร์ใหม่ให้คุณ ต้องการดำเนินการต่อหรือไม่?')) return;
-            
-            // ปล. API '/api/report/:id/create-drive-folder' จะต้องไปเขียนที่ฝั่ง app.js อีกที
-            const createRes = await fetch(`${API_BASE_URL}/api/report/${reportId}/create-drive-folder`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ car_plate: carPlate, arrived_date: arrivedDate })
-            });
-            const createResult = await createRes.json();
-            
-            if (createResult.success) {
-                driveUrl = createResult.drive_folder_url;
-            } else {
-                alert('❌ ไม่สามารถสร้างโฟลเดอร์ได้: ' + (createResult.error || 'กรุณาตรวจสอบการตั้งค่า Drive ในหน้า Admin'));
-                return;
-            }
-        }
-
-        // 3. เปิดลิงก์โฟลเดอร์ Google Drive ในแท็บใหม่
-        window.open(driveUrl, '_blank');
-
-    } catch (err) {
-        console.error('Open Drive Error:', err);
-        alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ Google Drive');
-    }
-}
-
+// 🚀 1. ฟังก์ชันเปิด/สั่งสร้างโฟลเดอร์ Google Drive (เช็กลิงก์อัตโนมัติ)
 async function openJobGoogleDrive() {
     const reportId = document.getElementById('sa_report_id')?.value;
     const carPlate = document.getElementById('car_plate')?.value || 'ไม่ระบุทะเบียน';
@@ -1001,36 +953,67 @@ async function openJobGoogleDrive() {
     }
 
     try {
-        // 1. ดึงข้อมูลใบงานเพื่อเช็กว่ามีลิงก์โฟลเดอร์บันทึกไว้ใน DB หรือยัง
+        // ดึงข้อมูลใบงานจากเซิร์ฟเวอร์เพื่อเช็กลิงก์ล่าสุดใน Neon DB
         const res = await fetch(`${API_BASE_URL}/api/report/${reportId}`);
         const result = await res.json();
         
         let driveUrl = result?.drive_folder_link || result?.data?.drive_folder_link;
 
-        // 2. ถ้ายังไม่มี ให้ยิง API ไปสั่งสร้างโฟลเดอร์ใหม่และบันทึกลง DB
-        if (!driveUrl) {
-            if (!confirm('ใบงานนี้ยังไม่มีโฟลเดอร์เก็บรูปภาพ ต้องการสั่งสร้างโฟลเดอร์ Google Drive ใหม่หรือไม่?')) return;
-            
-            const createRes = await fetch(`${API_BASE_URL}/api/report/${reportId}/create-drive-folder`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ car_plate: carPlate, arrived_date: arrivedDate })
-            });
-            const createResult = await createRes.json();
-            
-            if (createResult.success) {
-                driveUrl = createResult.drive_folder_url;
-            } else {
-                alert('❌ ไม่สามารถสร้างโฟลเดอร์ได้: ' + (createResult.error || 'กรุณาตรวจสอบการตั้งค่าในหน้า Admin'));
-                return;
-            }
+        // ถ้ามีลิงก์อยู่แล้ว ให้เปิดเข้าหน้า Google Drive ทันที (ไม่สร้างซ้ำ)
+        if (driveUrl) {
+            document.getElementById('btn_unlink_drive')?.classList.remove('hidden');
+            window.open(driveUrl, '_blank');
+            return;
         }
 
-        // 3. เปิดลิงก์โฟลเดอร์ในแท็บใหม่เพื่อเข้าไปอัปโหลด/จัดการรูปภาพ
-        window.open(driveUrl, '_blank');
+        // ถ้ายังไม่มีลิงก์ ให้สอบถามเพื่อยืนยันสร้างโฟลเดอร์ใหม่
+        if (!confirm('ใบงานนี้ยังไม่มีโฟลเดอร์เก็บรูปภาพ ต้องการสั่งสร้างโฟลเดอร์ Google Drive ใหม่หรือไม่?')) return;
+        
+        const createRes = await fetch(`${API_BASE_URL}/api/report/${reportId}/create-drive-folder`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ car_plate: carPlate, arrived_date: arrivedDate })
+        });
+        const createResult = await createRes.json();
+        
+        if (createResult.success) {
+            driveUrl = createResult.drive_folder_url;
+            document.getElementById('btn_unlink_drive')?.classList.remove('hidden');
+            window.open(driveUrl, '_blank');
+        } else {
+            alert('❌ ไม่สามารถสร้างโฟลเดอร์ได้: ' + (createResult.error || 'กรุณาตรวจสอบการตั้งค่า Drive ในหน้า Admin'));
+        }
 
     } catch (err) {
         console.error('Open Drive Error:', err);
         alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ Google Drive');
+    }
+}
+
+// 🗑️ 2. ฟังก์ชันลบลิงก์ Google Drive ออกจาก Neon DB (เพื่อให้รีเซ็ตหรือสร้างใหม่ได้)
+async function unlinkJobGoogleDrive() {
+    const reportId = document.getElementById('sa_report_id')?.value;
+
+    if (!reportId) return;
+
+    if (!confirm('🚨 ยืนยันการลบลิงก์ Google Drive ออกจากใบงานนี้?\n(ลิงก์ในฐานข้อมูลจะถูกล้างออก เพื่อให้คุณกดสร้างหรือแนบลิงก์ใหม่ได้)')) {
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/report/${reportId}/unlink-drive-folder`, {
+            method: 'DELETE'
+        });
+        const result = await res.json();
+
+        if (result.success) {
+            alert('✅ ลบลิงก์ Google Drive สำเร็จ');
+            document.getElementById('btn_unlink_drive')?.classList.add('hidden');
+            if (currentEditingJob) currentEditingJob.drive_folder_link = null;
+        } else {
+            alert('❌ เกิดข้อผิดพลาด: ' + (result.error || 'ไม่สามารถลบลิงก์ได้'));
+        }
+    } catch (err) {
+        alert('❌ ไม่สามารถติดต่อเซิร์ฟเวอร์ได้');
     }
 }
