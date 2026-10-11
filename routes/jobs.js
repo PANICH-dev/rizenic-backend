@@ -524,12 +524,40 @@ router.post('/report/:id/create-drive-folder', async (req, res) => {
 });
 
 // =========================================================
-// 🗑️ 2. API ลบลิงก์ Google Drive ออกจากใบงานใน Neon DB
+// 🗑️ 2. API ลบโฟลเดอร์ใน Google Drive (ย้ายไป Trash) และลบลิงก์ออกจาก Neon DB
 // =========================================================
 router.delete('/report/:id/unlink-drive-folder', async (req, res) => {
+    const reportId = req.params.id;
     try {
-        await pool.query('UPDATE rizenicreport SET drive_folder_link = NULL WHERE id = $1', [req.params.id]);
-        res.json({ success: true, message: 'ลบลิงก์ Google Drive ออกเรียบร้อย' });
+        // 1. ค้นหา drive_folder_link เดิมจาก DB เพื่อสกัด Folder ID
+        const reportRes = await pool.query('SELECT drive_folder_link FROM rizenicreport WHERE id = $1', [reportId]);
+        const driveLink = reportRes.rows[0]?.drive_folder_link;
+
+        if (driveLink) {
+            // ดึง Folder ID จาก URL (เช่น https://drive.google.com/drive/folders/FOLDER_ID หรือ id=FOLDER_ID)
+            const match = driveLink.match(/folders\/([a-zA-Z0-9_-]+)/) || driveLink.match(/id=([a-zA-Z0-9_-]+)/);
+            if (match && match[1]) {
+                const folderId = match[1];
+                try {
+                    const drive = await getOAuth2DriveClient();
+                    // ย้ายโฟลเดอร์ลงถังขยะ (Trash) บน Google Drive
+                    await drive.files.update({
+                        fileId: folderId,
+                        requestBody: { trashed: true }
+                    });
+                } catch (driveErr) {
+                    console.warn('Google Drive Trash Warning:', driveErr.message);
+                }
+            }
+        }
+
+        // 2. ล้างค่า drive_folder_link ใน Neon DB ให้เป็น NULL
+        await pool.query('UPDATE rizenicreport SET drive_folder_link = NULL WHERE id = $1', [reportId]);
+
+        res.json({
+            success: true,
+            message: 'ย้ายโฟลเดอร์ใน Google Drive ลงถังขยะและลบลิงก์ในฐานข้อมูลเรียบร้อยแล้ว'
+        });
     } catch (err) {
         console.error('Unlink Drive Error:', err);
         res.status(500).json({ error: err.message });

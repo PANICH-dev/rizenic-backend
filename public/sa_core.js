@@ -384,6 +384,7 @@ async function checkCrossPageEditMode() {
     if(!idToEdit) {
         if (container) { container.innerHTML = ''; addPipelineRow(); }
         if(orderPartsBody && orderPartsBody.children.length === 0 && typeof addPartRow === 'function') addPartRow();
+        document.getElementById('btn_unlink_drive')?.classList.add('hidden');
         return;
     }
 
@@ -393,6 +394,16 @@ async function checkCrossPageEditMode() {
         const job = await res.json();
         currentEditingJob = job; 
         
+        // 🌟 เช็ก drive_folder_link เพื่อแสดง/ซ่อน ปุ่มลบลิงก์หลังรีเฟรชหน้า
+        const btnUnlink = document.getElementById('btn_unlink_drive');
+        if (btnUnlink) {
+            if (job.drive_folder_link && String(job.drive_folder_link).trim() !== '') {
+                btnUnlink.classList.remove('hidden');
+            } else {
+                btnUnlink.classList.add('hidden');
+            }
+        }
+
         const saRepId = document.getElementById('sa_report_id');
         const curEditId = document.getElementById('current_editing_id');
         const editBadge = document.getElementById('edit_mode_badge');
@@ -521,6 +532,9 @@ function cancelEditMode() {
     currentEditingJob = null;
     sessionStorage.removeItem('edit_job_id'); 
     
+    // 🌟 ซ่อนปุ่มลบลิงก์เมื่อเปิดบิลใหม่
+    document.getElementById('btn_unlink_drive')?.classList.add('hidden');
+
     const saForm = document.getElementById('saForm');
     const saRepId = document.getElementById('sa_report_id');
     const editBadge = document.getElementById('edit_mode_badge');
@@ -937,7 +951,7 @@ async function checkCarHistory(plateInput) {
     }
 }
 
-/// =========================================================
+// =========================================================
 // 📁 ระบบจัดการโฟลเดอร์ Google Drive
 // =========================================================
 
@@ -953,20 +967,17 @@ async function openJobGoogleDrive() {
     }
 
     try {
-        // ดึงข้อมูลใบงานจากเซิร์ฟเวอร์เพื่อเช็กลิงก์ล่าสุดใน Neon DB
         const res = await fetch(`${API_BASE_URL}/api/report/${reportId}`);
         const result = await res.json();
         
         let driveUrl = result?.drive_folder_link || result?.data?.drive_folder_link;
 
-        // ถ้ามีลิงก์อยู่แล้ว ให้เปิดเข้าหน้า Google Drive ทันที (ไม่สร้างซ้ำ)
         if (driveUrl) {
             document.getElementById('btn_unlink_drive')?.classList.remove('hidden');
             window.open(driveUrl, '_blank');
             return;
         }
 
-        // ถ้ายังไม่มีลิงก์ ให้สอบถามเพื่อยืนยันสร้างโฟลเดอร์ใหม่
         if (!confirm('ใบงานนี้ยังไม่มีโฟลเดอร์เก็บรูปภาพ ต้องการสั่งสร้างโฟลเดอร์ Google Drive ใหม่หรือไม่?')) return;
         
         const createRes = await fetch(`${API_BASE_URL}/api/report/${reportId}/create-drive-folder`, {
@@ -979,9 +990,10 @@ async function openJobGoogleDrive() {
         if (createResult.success) {
             driveUrl = createResult.drive_folder_url;
             document.getElementById('btn_unlink_drive')?.classList.remove('hidden');
+            if (currentEditingJob) currentEditingJob.drive_folder_link = driveUrl;
             window.open(driveUrl, '_blank');
         } else {
-            alert('❌ ไม่สามารถสร้างโฟลเดอร์ได้: ' + (createResult.error || 'กรุณาตรวจสอบการตั้งค่า Drive ในหน้า Admin'));
+            alert('❌ ไม่สามารถสร้างโฟลเดอร์ได้: ' + (createResult.error || 'กรุณาตรวจสอบการตั้งค่าในหน้า Admin'));
         }
 
     } catch (err) {
@@ -990,13 +1002,18 @@ async function openJobGoogleDrive() {
     }
 }
 
-// 🗑️ 2. ฟังก์ชันลบลิงก์ Google Drive ออกจาก Neon DB (เพื่อให้รีเซ็ตหรือสร้างใหม่ได้)
+// 🗑️ 2. ฟังก์ชันลบลิงก์ Google Drive ออกจาก Neon DB (พร้อมกล่องข้อความถามยืนยันชื่อผู้ใช้งาน/รหัสผ่าน)
 async function unlinkJobGoogleDrive() {
     const reportId = document.getElementById('sa_report_id')?.value;
 
     if (!reportId) return;
 
-    if (!confirm('🚨 ยืนยันการลบลิงก์ Google Drive ออกจากใบงานนี้?\n(ลิงก์ในฐานข้อมูลจะถูกล้างออก เพื่อให้คุณกดสร้างหรือแนบลิงก์ใหม่ได้)')) {
+    const passInput = prompt('🚨 คำเตือน: ระบบจะลบทั้งโฟลเดอร์ใน Google Drive และล้างลิงก์ในฐานข้อมูล!\n\nกรุณากรอกชื่อผู้ใช้งาน หรือ พิมพ์ "admin" เพื่อยืนยันการลบ:');
+    if (!passInput) return;
+
+    const currentEmpName = sessionStorage.getItem('emp_name') || '';
+    if (passInput.trim() !== currentEmpName && passInput.trim().toLowerCase() !== 'admin') {
+        alert('❌ รหัสยืนยันไม่ถูกต้อง! ไม่อนุญาตให้ทำการลบ');
         return;
     }
 
@@ -1007,7 +1024,7 @@ async function unlinkJobGoogleDrive() {
         const result = await res.json();
 
         if (result.success) {
-            alert('✅ ลบลิงก์ Google Drive สำเร็จ');
+            alert('✅ ลบโฟลเดอร์ใน Google Drive และเคลียร์ลิงก์สำเร็จ');
             document.getElementById('btn_unlink_drive')?.classList.add('hidden');
             if (currentEditingJob) currentEditingJob.drive_folder_link = null;
         } else {
