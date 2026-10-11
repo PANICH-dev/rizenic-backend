@@ -83,7 +83,7 @@ async function verifyAndFetchJob(plate, phone) {
     } catch (err) {
         console.error("Tracking Error:", err);
         alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
-    } finally {
+    } fontally {
         if (btnSubmit) {
             btnSubmit.innerHTML = oldText;
             btnSubmit.disabled = false;
@@ -121,7 +121,10 @@ function renderConveyorTimeline(job) {
             stationLinks = typeof job.customer_station_links === 'string' 
                 ? JSON.parse(job.customer_station_links) 
                 : job.customer_station_links;
-        } catch (e) { stationLinks = {}; }
+        } catch (e) { 
+            console.error('JSON Parse station links error:', e);
+            stationLinks = {}; 
+        }
     }
 
     const currentStatus = job.job_status || '';
@@ -143,8 +146,8 @@ function renderConveyorTimeline(job) {
 
     let html = `<div class="relative border-l-2 border-slate-200 ml-5 space-y-8 py-2">`;
 
-    // 🔴 1. โฟลเดอร์ก่อนซ่อม (Pre-Repair Phase)
-    const preRepairLink = stationLinks.before || job.customer_drive_link || job.drive_folder_link;
+    // 🔴 1. โฟลเดอร์ก่อนซ่อม (ใช้เฉพาะลิงก์ stationLinks.before เท่านั้น ไม่เอาริงก์รวมแล้ว)
+    const preRepairLink = stationLinks.before; 
     html += `
         <div class="relative pl-8">
             <div class="absolute -left-[17px] top-0 w-8 h-8 ${isPreRepairDone ? 'bg-emerald-500 text-white' : 'bg-amber-400 text-slate-900 active-pulse-node'} rounded-full border-4 border-white shadow-md flex items-center justify-center text-xs font-bold">
@@ -162,12 +165,12 @@ function renderConveyorTimeline(job) {
                             <i class="fa-solid fa-folder-open text-emerald-500"></i> เปิดดูรูปโฟลเดอร์ก่อนซ่อม
                         </a>
                     </div>
-                ` : ''}
+                ` : '<span class="text-[11px] text-slate-400 mt-2 italic"><i class="fa-regular fa-clock mr-1"></i>กำลังรอเจ้าหน้าที่อัปโหลดรูปภาพ</span>'}
             </div>
         </div>
     `;
 
-    // 🔴 2. สายพานสถานีซ่อมตัวถังและทำสี (In-Repair Conveyor Loop)
+    // 🔴 2. สายพานสถานีซ่อมตัวถังและทำสี
     html += `
         <div class="relative pl-8">
             <div class="absolute -left-[17px] top-0 w-8 h-8 ${isPostRepairDone ? 'bg-emerald-500 text-white' : (isCurrentlyInRepairLoop ? 'bg-amber-500 text-white active-pulse-node' : 'bg-slate-200 text-slate-400')} rounded-full border-4 border-white shadow-md flex items-center justify-center text-xs font-bold">
@@ -204,7 +207,7 @@ function renderConveyorTimeline(job) {
                     <a href="${stPhotoUrl}" target="_blank" class="px-3 py-1 bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 text-[11px] font-bold rounded-xl border border-slate-200 hover:border-emerald-300 transition shadow-sm shrink-0 flex items-center gap-1.5">
                         <i class="fa-solid fa-folder-open text-emerald-500"></i> ดูรูปสถานีนี้
                     </a>
-                ` : ''}
+                ` : '<span class="text-[10px] text-slate-300 italic shrink-0">ไม่มีรูป</span>'}
             </div>
         `;
     });
@@ -215,8 +218,8 @@ function renderConveyorTimeline(job) {
         </div>
     `;
 
-    // 🔴 3. โฟลเดอร์หลังซ่อมเสร็จสมบูรณ์ (Post-Repair Completed Phase)
-    const postRepairLink = stationLinks.after || job.customer_drive_link || job.drive_folder_link;
+    // 🔴 3. โฟลเดอร์หลังซ่อมเสร็จสมบูรณ์ (ใช้เฉพาะ stationLinks.after เท่านั้น)
+    const postRepairLink = stationLinks.after;
     html += `
         <div class="relative pl-8">
             <div class="absolute -left-[17px] top-0 w-8 h-8 ${isPostRepairDone ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-400'} rounded-full border-4 border-white shadow-md flex items-center justify-center text-xs font-bold">
@@ -228,18 +231,18 @@ function renderConveyorTimeline(job) {
                     ${isPostRepairDone ? '<span class="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-md font-bold border border-emerald-100"><i class="fa-solid fa-check mr-1"></i>พร้อมส่งมอบ</span>' : ''}
                 </div>
                 <p class="text-xs text-slate-400 mt-0.5">ทำความสะอาด ตรวจเช็ค QC ขั้นสุดท้าย และเตรียมส่งมอบ</p>
-                ${(isPostRepairDone && postRepairLink) ? `
+                ${postRepairLink ? `
                     <div class="mt-2.5">
                         <a href="${postRepairLink}" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold rounded-xl border border-emerald-200 transition shadow-sm">
                             <i class="fa-solid fa-folder-open text-emerald-600"></i> เปิดดูรูปโฟลเดอร์หลังซ่อมเสร็จ
                         </a>
                     </div>
-                ` : ''}
+                ` : (isPostRepairDone ? '<span class="text-[11px] text-slate-400 mt-2 italic"><i class="fa-regular fa-clock mr-1"></i>กำลังรอเจ้าหน้าที่อัปโหลดรูปภาพ</span>' : '')}
             </div>
         </div>
     `;
 
-    // 🔴 4. เฟสส่งมอบรถคืนลูกค้า (Final Delivery Phase)
+    // 🔴 4. เฟสส่งมอบรถคืนลูกค้า
     html += `
         <div class="relative pl-8">
             <div class="absolute -left-[17px] top-0 w-8 h-8 ${isDeliveryDone ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-400'} rounded-full border-4 border-white shadow-md flex items-center justify-center text-xs font-bold">
