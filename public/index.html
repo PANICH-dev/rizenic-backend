@@ -129,45 +129,43 @@
 
         <main class="max-w-[1500px] mx-auto px-4 py-8">
          <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
-    <div>
-        <h2 class="text-2xl font-black text-slate-800 tracking-tight">เปิดบิลและประเมินงานซ่อม</h2>
-        <p class="text-slate-500 text-sm mt-1 font-bold">Service Advisor Portal</p>
-    </div>
+            <div>
+                <h2 class="text-2xl font-black text-slate-800 tracking-tight">เปิดบิลและประเมินงานซ่อม</h2>
+                <p class="text-slate-500 text-sm mt-1 font-bold">Service Advisor Portal</p>
+            </div>
 
-    <div class="flex flex-wrap items-center gap-3">
-        <!-- 📁 ปุ่มจัดการ Google Drive -->
-        <div id="drive_button_group" class="flex items-center gap-2">
-            <button type="button" 
-                    id="btn_open_drive"
-                    onclick="openJobGoogleDrive()" 
-                    class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs rounded-full shadow-md transition-all flex items-center gap-1.5 border border-emerald-700">
-                <i class="fa-brands fa-google-drive text-amber-300 text-sm"></i>
-                <span id="btn_drive_text">เปิดรูป Google Drive</span>
-            </button>
-            
-            <button type="button" 
-                    id="btn_unlink_drive"
-                    onclick="unlinkJobGoogleDrive()" 
-                    class="hidden px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-full shadow-md transition-all flex items-center gap-1 border border-rose-700"
-                    title="ลบโฟลเดอร์ Google Drive และลิงก์ในระบบ">
-                <i class="fa-solid fa-trash-can"></i>
-                <span>ลบลิงก์</span>
-            </button>
+            <div class="flex flex-wrap items-center gap-3">
+                <!-- 📁 ปุ่มจัดการ Google Drive -->
+                <div id="drive_button_group" class="flex items-center gap-2">
+                    <button type="button" 
+                            id="btn_open_drive"
+                            onclick="openJobGoogleDrive()" 
+                            class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs rounded-full shadow-md transition-all flex items-center gap-1.5 border border-emerald-700">
+                        <i class="fa-brands fa-google-drive text-amber-300 text-sm"></i>
+                        <span id="btn_drive_text">เปิดรูป Google Drive</span>
+                    </button>
+                    
+                    <button type="button" 
+                            id="btn_unlink_drive"
+                            onclick="unlinkJobGoogleDrive()" 
+                            class="hidden px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-full shadow-md transition-all flex items-center gap-1 border border-rose-700"
+                            title="ลบโฟลเดอร์ Google Drive และลิงก์ในระบบ">
+                        <i class="fa-solid fa-trash-can"></i>
+                        <span>ลบลิงก์</span>
+                    </button>
+                </div>
+
+                <!-- 🏷️ แถบสถานะแก้ไขใบงาน -->
+                <div id="edit_mode_badge" class="hidden flex items-center gap-3 bg-amber-50 pl-4 pr-1 py-1 rounded-full border border-amber-300 shadow-sm">
+                    <span class="text-amber-700 text-xs font-bold animate-pulse"><i class="fa-solid fa-pen-to-square mr-1"></i> กำลังแก้ไขใบงาน: <span id="current_editing_id" class="font-mono bg-white px-2 py-0.5 rounded shadow-sm text-amber-700 border border-amber-200"></span></span>
+                    <button type="button" onclick="cancelEditMode()" id="btn_cancel_edit" class="px-4 py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-bold rounded-full hover:bg-slate-100 hover:text-slate-900 transition shadow-sm">เปิดบิลใหม่ (+)</button>
+                </div>
+            </div>
         </div>
 
-        <!-- 🏷️ แถบสถานะแก้ไขใบงาน -->
-        <div id="edit_mode_badge" class="hidden flex items-center gap-3 bg-amber-50 pl-4 pr-1 py-1 rounded-full border border-amber-300 shadow-sm">
-            <span class="text-amber-700 text-xs font-bold animate-pulse"><i class="fa-solid fa-pen-to-square mr-1"></i> กำลังแก้ไขใบงาน: <span id="current_editing_id" class="font-mono bg-white px-2 py-0.5 rounded shadow-sm text-amber-700 border border-amber-200"></span></span>
-            <button type="button" onclick="cancelEditMode()" id="btn_cancel_edit" class="px-4 py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-bold rounded-full hover:bg-slate-100 hover:text-slate-900 transition shadow-sm">เปิดบิลใหม่ (+)</button>
-        </div>
-    </div>
-</div>
-
-   
-    
-   
-
-           
+        <!-- 🌟 เริ่มแทรก <form id="saForm"> คลุม Input ของทั้งหน้าไว้ตรงนี้ 🌟 -->
+        <form id="saForm" novalidate onsubmit="submitSaForm(event)">
+            <input type="hidden" id="sa_report_id" value="">
                 
             <!-- 🚗 บล็อก 1 -->
                 <div class="card-container">
@@ -650,12 +648,14 @@
                         </div>
 
                         <div class="overflow-x-auto border border-purple-200 rounded-xl shadow-sm custom-scrollbar bg-white mb-4">
-                            <table class="modern-table w-full text-xs min-w-[1400px]">
+                            <!-- เพิ่ม min-w เพื่อให้ตารางขยายได้ และไม่ทำให้ช่องชื่อชิ้นงานบีบเกินไป -->
+                            <table class="modern-table w-full text-xs min-w-[1600px]">
                                 <thead class="!bg-purple-900 !text-white border-b border-purple-800">
                                     <tr>
                                         <th class="w-[110px] min-w-[110px] py-3 px-2 text-center shrink-0">ประเภท</th>
                                         <th class="w-[155px] min-w-[155px] py-3 px-2 shrink-0">รหัสอ้างอิง</th>
-                                        <th class="min-w-[220px] py-3 px-2">รายการ / ชื่อชิ้นงาน (Thai)</th>
+                                        <!-- ขยายความกว้างช่องรายการให้เป็น 350px -->
+                                        <th class="w-[350px] min-w-[350px] py-3 px-2">รายการ / ชื่อชิ้นงาน (Thai)</th>
                                         <th class="w-[110px] min-w-[110px] py-3 px-2 text-center shrink-0">ระดับเสียหาย (L04)</th>
                                         <th class="w-[110px] min-w-[110px] py-3 px-2 text-center shrink-0">ผู้จัดอะไหล่ (P04)</th>
                                         <th class="w-[65px] min-w-[65px] py-3 px-2 text-center shrink-0">จำนวน</th>
@@ -676,9 +676,9 @@
                             </table>
                         </div>
 
-                        <div class="bg-purple-50/50 p-4 rounded-xl border border-purple-200 shadow-sm w-full">
+                        <div class="bg-purple-50/50 p-4 rounded-xl border border-purple-200 shadow-sm w-full mt-4">
                             <label class="label-text text-purple-900 font-bold mb-2 flex items-center gap-1.5"><i class="fa-solid fa-comment-dots text-purple-600"></i> ความคิดเห็นเพิ่มเติมจากศูนย์ (L08 / P09)</label>
-                            <textarea id="eclaim_center_comment" rows="2" class="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl outline-none text-xs font-medium text-slate-800 focus:border-purple-600 focus:ring-2 focus:ring-purple-500/20 resize-y" placeholder="ระบุความคิดเห็นหรือเหตุผลเพิ่มเติมจากศูนย์บริการสำหรับเคลมนี้..."></textarea>
+                            <textarea id="eclaim_center_comment" rows="4" class="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl outline-none text-xs font-medium text-slate-800 focus:border-purple-600 focus:ring-2 focus:ring-purple-500/20 resize-y" placeholder="ระบุความคิดเห็นหรือเหตุผลเพิ่มเติมจากศูนย์บริการสำหรับเคลมนี้..."></textarea>
                         </div>
 
                     </div> <!-- 👈 ปิด div block9_body_container ตรงนี้ -->
