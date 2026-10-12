@@ -2,13 +2,13 @@
 // 📅 โมดูลปฏิทินปฏิบัติงาน (Tab 1: Calendar)
 // ==========================================
 
-// 🌟 ฟังก์ชันช่วยเช็กว่ารถซ่อมเสร็จแล้วหรือยัง (รองรับทั้ง Station และ Status ERP)
-function checkIfDone(j) {
+// 🌟 ฟังก์ชันช่วยเช็กว่ารถซ่อมเสร็จแล้วหรือยัง (นับจาก station_ready / calculated_station = 12.รอส่งมอบ)
+function isCarRepairDone(j) {
     if (!j) return false;
-    const isDoneStation = j.calculated_station === '12.รอส่งมอบ';
-    const isDoneStatus = isJobDone(j.job_status) || 
+    const isDoneByStation = j.calculated_station === '12.รอส่งมอบ';
+    const isDoneByStatus = isJobDone(j.job_status) || 
                          (j.job_status && (j.job_status.includes('11.รถซ่อมเสร็จรอส่งมอบ') || j.job_status.includes('12.รอส่งมอบ')));
-    return isDoneStation || isDoneStatus;
+    return isDoneByStation || isDoneByStatus;
 }
 
 function changeMonth(step) {
@@ -63,8 +63,8 @@ function renderCalendar() {
         const targetJobsInDay = jobsForCalendar.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr);
         const targetQty = targetJobsInDay.length;
         
-        // 🌟 เพิ่มเงื่อนไขนับรถซ่อมเสร็จแล้ว โดยใช้ checkIfDone()
-        const doneQty = targetJobsInDay.filter(j => checkIfDone(j)).length;
+        // 🌟 คำนวณหลอดพลังเป้าเสร็จ: นับรถที่ calculated_station = '12.รอส่งมอบ' หรือ สเตตัสเสร็จแล้ว
+        const doneQty = targetJobsInDay.filter(j => isCarRepairDone(j)).length;
         const deliveryQty = jobsForCalendar.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length;
 
         let sumMainDay = 0, sumSubDay = 0;
@@ -145,9 +145,9 @@ function openDayListForTarget(dateStr) {
         j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr
     );
     
-    // 🌟 แยกกลุ่มโดยใช้ checkIfDone()
-    const doneJobs = targetJobs.filter(j => checkIfDone(j));
-    const pendingJobs = targetJobs.filter(j => !checkIfDone(j));
+    // 🌟 แยกประเภทรถในป็อปอัปโดยอิงจากสถานี 12.รอส่งมอบ เช่นกัน
+    const doneJobs = targetJobs.filter(j => isCarRepairDone(j));
+    const pendingJobs = targetJobs.filter(j => !isCarRepairDone(j));
 
     const title = `เป้าซ่อมเสร็จ วันที่ ${formatThaiDate(dateStr)}`;
     document.getElementById('dayListDateTitle').innerHTML = `<span class="text-[#00320D]"><i class="fa-solid fa-bullseye text-amber-500"></i> ${title} <span class="text-emerald-600 font-mono ml-2">(เสร็จแล้ว ${doneJobs.length}/${targetJobs.length} คัน)</span></span>`;
