@@ -798,8 +798,8 @@
 
             // 🎯 หากสิทธิ์เป็นพนักงาน ให้แสดงผลหน้าจอเปิดบิลซ่อม
             if (isLoggedIn) {
-                document.getElementById('login-screen').classList.add('hidden');
-                document.getElementById('main-app').classList.remove('hidden');
+                document.getElementById('login-screen')?.classList.add('hidden');
+                document.getElementById('main-app')?.classList.remove('hidden');
 
                 const allowedPages = (sessionStorage.getItem('accessible_pages') || '').split(',');
                 if (allowedPages.includes('admin')) {
@@ -825,49 +825,53 @@
                 const data = await res.json();
 
                 if (res.ok && data.success) {
-                   // 🟢 เมื่อล็อกอินผ่านในฐานะ "พาสเนอร์"
-if (data.user_type === 'partner' || data.partner) {
-    const p = data.partner;
-    sessionStorage.setItem('isLoggedIn', 'true');
-    sessionStorage.setItem('is_partner', 'true');
-    sessionStorage.setItem('emp_name', p.partner_name);
-    sessionStorage.setItem('emp_role', 'Partner');
-    sessionStorage.setItem('customer_type_filter', p.customer_type_filter || '');
+                    // 🟢 เมื่อล็อกอินผ่านในฐานะ "พาสเนอร์"
+                    if (data.user_type === 'partner' || data.partner) {
+                        const p = data.partner;
+                        sessionStorage.setItem('isLoggedIn', 'true');
+                        sessionStorage.setItem('is_partner', 'true');
+                        sessionStorage.setItem('emp_name', p.partner_name);
+                        sessionStorage.setItem('emp_role', 'Partner');
+                        sessionStorage.setItem('customer_type_filter', p.customer_type_filter || '');
 
-    alert(`👋 ยินดีต้อนรับพาสเนอร์: ${p.partner_name}`);
-    window.location.href = 'partner_jobs.html'; // สั่งเปลี่ยนหน้าข้ามไปตารางงานพาสเนอร์
-    return;
-}
+                        alert(`👋 ยินดีต้อนรับพาสเนอร์: ${p.partner_name}`);
+                        window.location.href = 'partner_jobs.html';
+                        return;
+                    }
 
-// 🟢 เมื่อล็อกอินผ่านในฐานะ "พนักงานปกติ"
-if (data.employee) {
-    const e = data.employee;
-    sessionStorage.setItem('isLoggedIn', 'true');
-    sessionStorage.setItem('is_partner', 'false');
-    sessionStorage.setItem('emp_name', e.employee_name);
-    sessionStorage.setItem('emp_role', e.employee_role);
-    sessionStorage.setItem('emp_branch', e.branch_name || 'สำนักงานใหญ่');
-    sessionStorage.setItem('accessible_pages', e.accessible_pages || '');
+                    // 🟢 เมื่อล็อกอินผ่านในฐานะ "พนักงานปกติ"
+                    if (data.employee) {
+                        const e = data.employee;
+                        sessionStorage.setItem('isLoggedIn', 'true');
+                        sessionStorage.setItem('is_partner', 'false');
+                        sessionStorage.setItem('emp_name', e.employee_name);
+                        sessionStorage.setItem('emp_role', e.employee_role);
+                        sessionStorage.setItem('emp_branch', e.branch_name || 'สำนักงานใหญ่');
+                        sessionStorage.setItem('accessible_pages', e.accessible_pages || '');
 
-    if (e.employee_role === 'Partner') {
-        window.location.href = 'partner_jobs.html';
-        return;
-    }
+                        if (e.employee_role === 'Partner') {
+                            window.location.href = 'partner_jobs.html';
+                            return;
+                        }
 
-    // 🌟 เพิ่มส่วนนี้: อัปเดตแสดงผลชื่อผู้ใช้และสาขาบน Header ทันทีโดยไม่ต้องรอรีเฟรชหน้า
-    const nameEl = document.getElementById('display_emp_name');
-    const branchEl = document.getElementById('display_branch');
-    if (nameEl) nameEl.innerText = e.employee_name;
-    if (branchEl) branchEl.innerText = e.branch_name || 'สำนักงานใหญ่';
+                        // 🌟 เรียกใช้ enterApp() เพื่อโหลดชื่อผู้ใช้ สาขา และข้อมูล UI ทันทีโดยไม่ต้องรีเฟรชหน้า
+                        if (typeof enterApp === 'function') {
+                            await enterApp();
+                        } else {
+                            const nameEl = document.getElementById('display_emp_name');
+                            const branchEl = document.getElementById('display_branch');
+                            if (nameEl) nameEl.innerText = e.employee_name;
+                            if (branchEl) branchEl.innerText = e.branch_name || 'สำนักงานใหญ่';
 
-    document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('main-app').classList.remove('hidden');
+                            document.getElementById('login-screen')?.classList.add('hidden');
+                            document.getElementById('main-app')?.classList.remove('hidden');
+                        }
 
-    if ((e.accessible_pages || '').split(',').includes('admin')) {
-        document.getElementById('nav_admin')?.classList.remove('hidden');
-        document.getElementById('nav_admin_partner')?.classList.remove('hidden');
-    }
-}
+                        if ((e.accessible_pages || '').split(',').includes('admin')) {
+                            document.getElementById('nav_admin')?.classList.remove('hidden');
+                            document.getElementById('nav_admin_partner')?.classList.remove('hidden');
+                        }
+                    }
                 } else {
                     alert('❌ ' + (data.error || 'Username หรือ Password ไม่ถูกต้อง'));
                 }
