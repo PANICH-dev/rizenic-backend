@@ -1,5 +1,5 @@
 // ==========================================
-// 📜 RIZENIC - History Report Module
+// 📜 RIZENIC - History Report Module (Editable + Preferences)
 // ==========================================
 
 const API_BASE_URL = window.location.origin;
@@ -11,16 +11,16 @@ let activeFilters = {};
 let currentFilterKey = -1;
 let draggedColIdx = null;
 
-// 📋 รายการคอลัมน์ของ rizenicreport
+// 📋 รายการคอลัมน์มาตรฐาน
 let historyColsDef = [
     { idx: 0, key: 'action', title: 'Action', width: 80, filter: false },
     { idx: 1, key: 'car_plate', title: 'ทะเบียนรถ', width: 110, filter: true },
-    { idx: 2, key: 'contact_date', title: 'วันที่ติดต่อ', width: 110, filter: true },
-    { idx: 3, key: 'arrived_date', title: 'วันที่รถเข้าจอด', width: 115, filter: true },
-    { idx: 4, key: 'target_finish_date', title: 'วันกำหนดซ่อมเสร็จ', width: 125, filter: true },
-    { idx: 5, key: 'repair_finish_date', title: 'วันที่ซ่อมเสร็จ', width: 115, filter: true },
-    { idx: 6, key: 'delivery_date', title: 'วันที่ส่งมอบ', width: 110, filter: true },
-    { idx: 24, key: 'billing_date', title: 'วันที่ปิดบิล', width: 110, filter: true },
+    { idx: 2, key: 'contact_date', title: 'วันที่ติดต่อ', width: 125, filter: true },
+    { idx: 3, key: 'arrived_date', title: 'วันที่รถเข้าจอด', width: 125, filter: true },
+    { idx: 4, key: 'target_finish_date', title: 'วันกำหนดซ่อมเสร็จ', width: 135, filter: true },
+    { idx: 5, key: 'repair_finish_date', title: 'วันที่ซ่อมเสร็จ', width: 125, filter: true },
+    { idx: 6, key: 'delivery_date', title: 'วันที่ส่งมอบ', width: 125, filter: true },
+    { idx: 24, key: 'billing_date', title: 'วันที่ปิดบิล', width: 125, filter: true },
     { idx: 7, key: 'car_brand', title: 'ยี่ห้อรถ', width: 110, filter: true },
     { idx: 8, key: 'car_model', title: 'รุ่นรถ', width: 110, filter: true },
     { idx: 9, key: 'car_color', title: 'สีรถ', width: 100, filter: true },
@@ -33,9 +33,9 @@ let historyColsDef = [
     { idx: 16, key: 'damage_level', title: 'ระดับความเสียหาย', width: 120, filter: true },
     { idx: 17, key: 'main_part_name', title: 'ชิ้นส่วนหลัก', width: 220, filter: true },
     { idx: 18, key: 'sub_part_name', title: 'ชิ้นส่วนรอง', width: 220, filter: true },
-    { idx: 19, key: 'cost_labor', title: 'ค่าแรง', width: 90, filter: true },
-    { idx: 20, key: 'cost_part', title: 'ค่าอะไหล่', width: 90, filter: true },
-    { idx: 21, key: 'cost_external', title: 'งานนอก', width: 90, filter: true },
+    { idx: 19, key: 'cost_labor', title: 'ค่าแรง', width: 100, filter: true },
+    { idx: 20, key: 'cost_part', title: 'ค่าอะไหล่', width: 100, filter: true },
+    { idx: 21, key: 'cost_external', title: 'งานนอก', width: 100, filter: true },
     { idx: 22, key: 'job_status', title: 'สถานะงาน', width: 140, filter: true },
     { idx: 23, key: 'department_routing', title: 'ส่งต่อแผนก', width: 120, filter: true },
     { idx: 25, key: 'qt_no', title: 'เลข QT', width: 120, filter: true },
@@ -48,7 +48,7 @@ let historyColsDef = [
 let hiddenCols = new Set();
 
 function formatToThaiDate(isoStr) {
-    if (!isoStr) return '-';
+    if (!isoStr) return '';
     const parts = String(isoStr).split('T')[0].split('-');
     if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
     return isoStr;
@@ -63,13 +63,83 @@ function showToast(msg, type='success') {
     setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 2500);
 }
 
+// 💾 1. บันทึกและโหลดการตั้งค่าคอลัมน์ส่วนตัว (User Preferences)
+async function loadUserColumnPreferences() {
+    const empName = sessionStorage.getItem('emp_name');
+    if (!empName) return;
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/user-preferences/${encodeURIComponent(empName + '_history_report')}`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.hidden_columns && typeof data.hidden_columns === 'object') {
+                if (data.hidden_columns.hidden) hiddenCols = new Set(data.hidden_columns.hidden);
+                if (data.hidden_columns.order && Array.isArray(data.hidden_columns.order)) {
+                    const colMap = new Map(); historyColsDef.forEach(c => colMap.set(c.key, c));
+                    let newCols = [];
+                    data.hidden_columns.order.forEach(k => { if(colMap.has(k)) { newCols.push(colMap.get(k)); colMap.delete(k); } });
+                    colMap.forEach(c => newCols.push(c));
+                    historyColsDef.length = 0; historyColsDef.push(...newCols);
+                }
+            }
+        }
+    } catch (err) {
+        console.error('Error loading preferences:', err);
+    }
+}
+
+async function saveUserPreferences() {
+    const empName = sessionStorage.getItem('emp_name');
+    if (!empName) return;
+    try {
+        await fetch(`${API_BASE_URL}/api/user-preferences`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                emp_name: empName + '_history_report',
+                hidden_columns: {
+                    hidden: Array.from(hiddenCols),
+                    order: historyColsDef.map(c => c.key)
+                }
+            })
+        });
+    } catch (err) {
+        console.error('Error saving preferences:', err);
+    }
+}
+
+// ✏️ 2. ระบบแก้ไขข้อมูลด่วนในตาราง (Fast Inline Update)
+async function fastUpdateHistoryJob(jobId, field, value) {
+    let formattedValue = value;
+    if (field.includes('date') || ['repair_finish_date', 'target_finish_date', 'delivery_date', 'contact_date', 'arrived_date', 'billing_date'].includes(field)) {
+        if (!value) formattedValue = null;
+        else formattedValue = String(value).split('T')[0];
+    }
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/report/${jobId}/fast-date`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ field: field, value: formattedValue })
+        });
+
+        if (res.ok) {
+            const job = rawMasterData.find(j => String(j.id) === String(jobId));
+            if (job) job[field] = formattedValue;
+            showToast('อัปเดตข้อมูลเรียบร้อย!');
+        } else {
+            showToast('อัปเดตไม่สำเร็จ', 'error');
+        }
+    } catch (err) {
+        showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     if(sessionStorage.getItem('isLoggedIn') !== 'true') { window.location.href = 'index.html'; return; }
     
     document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name') || 'Staff';
     document.getElementById('display_branch').innerText = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
 
-    // ตั้งค่าเริ่มต้นย้อนหลัง 30 วัน
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
     
@@ -80,6 +150,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('start_date').value = pastStr;
     document.getElementById('end_date').value = todayStr;
 
+    await loadUserColumnPreferences();
     initColumns();
     await loadBranchOptions();
     renderInitialState();
@@ -143,7 +214,9 @@ function handleDrop(e, targetIdx) {
     const srcPos = historyColsDef.findIndex(c => c.idx === draggedColIdx);
     const tgtPos = historyColsDef.findIndex(c => c.idx === targetIdx);
     const [movedCol] = historyColsDef.splice(srcPos, 1); historyColsDef.splice(tgtPos, 0, movedCol);
-    initColumns(); applyHistoryFilters();
+    saveUserPreferences();
+    initColumns(); 
+    applyHistoryFilters();
 }
 function handleDragEnd(e) { e.target.style.opacity = '1'; }
 
@@ -153,6 +226,7 @@ function toggleColumnVisibility(idx, isShow) {
     if (isShow) hiddenCols.delete(idx);
     else hiddenCols.add(idx);
     applyColumnStyles();
+    saveUserPreferences();
 }
 
 function applyColumnStyles() {
@@ -391,8 +465,10 @@ function sortTable(colIndex) {
     const thIndex = Array.from(table.querySelectorAll('th')).findIndex(th => th.id === `th_${colIndex}`);
 
     rows.sort((a, b) => {
-        let valA = a.cells[thIndex] ? a.cells[thIndex].innerText.trim() : '';
-        let valB = b.cells[thIndex] ? b.cells[thIndex].innerText.trim() : '';
+        let cellA = a.cells[thIndex];
+        let cellB = b.cells[thIndex];
+        let valA = cellA ? (cellA.querySelector('input, select')?.value || cellA.innerText).trim() : '';
+        let valB = cellB ? (cellB.querySelector('input, select')?.value || cellB.innerText).trim() : '';
 
         let dateMatchA = valA.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
         let dateMatchB = valB.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
@@ -412,6 +488,7 @@ function sortTable(colIndex) {
     rows.forEach(row => tbody.appendChild(row));
 }
 
+// 🖼️ 3. วาดตารางแบบ Inline Edit
 function renderHistoryTable(data) {
     const tbody = document.getElementById('history_table_body');
     if (!data || data.length === 0) {
@@ -424,27 +501,27 @@ function renderHistoryTable(data) {
         let trHtml = `<tr class="${idx % 2 === 1 ? 'bg-slate-50' : 'bg-white'} hover:bg-amber-50/60 transition">`;
 
         historyColsDef.forEach(col => {
-            let val = job[col.key] || '-';
+            let val = job[col.key] !== undefined && job[col.key] !== null ? job[col.key] : '';
+            let cellHtml = '';
 
             if (col.key === 'action') {
-                val = `<div class="text-center"><button onclick="sessionStorage.setItem('edit_job_id', '${job.id}'); window.location.href='index.html';" class="bg-[#00320D] text-white px-2.5 py-0.5 rounded text-[10px] font-bold hover:bg-black transition shadow-xs"><i class="fa-solid fa-pen"></i> เปิด</button></div>`;
-            } else if (col.key.includes('date') && job[col.key]) {
-                val = `<div class="text-center font-mono font-bold text-slate-700">${formatToThaiDate(job[col.key])}</div>`;
-            } else if (col.key === 'car_plate') {
-                val = `<div class="text-center font-black text-indigo-900">${job.car_plate || '-'}</div>`;
-            } else if (col.key === 'car_brand') {
-                val = `<div class="font-bold text-slate-800">${job.car_brand || ''} <span class="text-slate-500 font-normal">${job.car_model || ''}</span></div>`;
-            } else if (col.key === 'main_part_name' || col.key === 'sub_part_name') {
-                const badgeClass = col.key === 'main_part_name' ? 'part-badge-main' : 'part-badge-sub';
-                val = job[col.key] ? `<div class="px-2 py-1 flex flex-wrap gap-1">${String(job[col.key]).split(',').map(p => `<span class="${badgeClass}">${p.trim()}</span>`).join('')}</div>` : '-';
-            } else if (col.key === 'cost_labor' || col.key === 'cost_part' || col.key === 'cost_external') {
-                const num = Number(val) || 0;
-                val = `<div class="text-right font-mono font-bold">${num.toLocaleString('th-TH', {minimumFractionDigits: 0})}</div>`;
-            } else {
-                val = `<div class="px-2 py-1 truncate" title="${val}">${val}</div>`;
+                cellHtml = `<div class="text-center"><button onclick="sessionStorage.setItem('edit_job_id', '${job.id}'); window.location.href='index.html';" class="bg-[#00320D] text-white px-2.5 py-0.5 rounded text-[10px] font-bold hover:bg-black transition shadow-xs"><i class="fa-solid fa-pen"></i> เปิด</button></div>`;
+            } 
+            else if (col.key.includes('date')) {
+                const dateVal = val ? String(val).split('T')[0] : '';
+                cellHtml = `<input type="date" value="${dateVal}" onchange="fastUpdateHistoryJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input font-mono text-center text-slate-700 font-bold">`;
+            } 
+            else if (col.key === 'car_plate') {
+                cellHtml = `<input type="text" value="${val}" onchange="fastUpdateHistoryJob('${job.id}', 'car_plate', this.value)" class="inline-edit-input text-center font-black text-indigo-900 uppercase">`;
+            } 
+            else if (col.key === 'cost_labor' || col.key === 'cost_part' || col.key === 'cost_external') {
+                cellHtml = `<input type="number" value="${val}" onchange="fastUpdateHistoryJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input text-right font-mono font-bold">`;
+            } 
+            else {
+                cellHtml = `<input type="text" value="${val}" onchange="fastUpdateHistoryJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input text-slate-800" placeholder="-">`;
             }
 
-            trHtml += `<td class="p-0">${val}</td>`;
+            trHtml += `<td class="p-0">${cellHtml}</td>`;
         });
 
         html += trHtml + '</tr>';
