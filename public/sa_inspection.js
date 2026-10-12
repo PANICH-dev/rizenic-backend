@@ -6,6 +6,28 @@ let canvasLarge, ctxLarge;
 let canvasSmall, ctxSmall;
 let currentTool = 'O'; 
 
+// 🏢 1. ข้อมูล Master ของบริษัทและสาขาต่างๆ
+const COMPANY_MASTERS = {
+    "raisen_navamin": {
+        name: "บริษัท ไรเซน เอนเนอร์จี จำกัด (สาขานวมินทร์)",
+        taxId: "0-1055-60176-43-4",
+        address: "50/5-6 ซอย นวมินทร์ 151 แขวงนวลจันทร์ เขตบึงกุ่ม กรุงเทพมหานคร 10240",
+        phone: "02-051-9199 / 098-151-5155"
+    },
+    "raisen_rangsit": {
+        name: "บริษัท ไรเซน เอนเนอร์จี จำกัด (สาขารังสิต)",
+        taxId: "0-1055-60176-43-4",
+        address: "47/1 หมู่ที่ 1 ตำบลคลองหนึ่ง อำเภอคลองหลวง จังหวัดปทุมธานี 12120",
+        phone: "02-055-9199 / 090-954-1115"
+    },
+    "rizenic_head": {
+        name: "บริษัท ไรเซนิค จำกัด (สำนักงานใหญ่)",
+        taxId: "0-1055-67000-00-0",
+        address: "50/5-6 ซอย นวมินทร์ 151 แขวงนวลจันทร์ เขตบึงกุ่ม กรุงเทพมหานคร 10240",
+        phone: "02-051-9199 / 098-151-5155"
+    }
+};
+
 async function loadInspectionTemplate() {
     if (!document.getElementById('inspectionModal')) {
         try {
@@ -16,6 +38,21 @@ async function loadInspectionTemplate() {
         } catch (e) {
             console.error("❌ ไม่สามารถโหลดไฟล์ inspection.html ได้:", e);
         }
+    }
+}
+
+// 🏢 ฟังก์ชันอัปเดตส่วนหัวบริษัทตามการเลือก
+function updateCompanyHeader(key) {
+    const comp = COMPANY_MASTERS[key] || COMPANY_MASTERS["raisen_navamin"];
+    const addrBox = document.getElementById('ins_company_address');
+    
+    if (addrBox) {
+        addrBox.innerHTML = `
+            <p class="text-[12px] font-black text-[#00320D] uppercase tracking-wide mb-0.5">${comp.name}</p>
+            <p class="text-[10px] text-slate-700 font-bold">เลขที่เสียภาษี ${comp.taxId}</p>
+            <p class="text-[10px] text-slate-700">${comp.address}</p>
+            <p class="text-[10px] text-slate-700">โทรศัพท์ : ${comp.phone}</p>
+        `;
     }
 }
 
@@ -42,19 +79,20 @@ async function openInspectionModal() {
         return;
     }
 
-    if (document.getElementById('ins_car_plate')) document.getElementById('ins_car_plate').value = carPlate;
-    if (document.getElementById('ins_car_brand')) document.getElementById('ins_car_brand').value = carBrand;
-    if (document.getElementById('ins_car_model')) document.getElementById('ins_car_model').value = carModel;
-    if (document.getElementById('ins_cust_name')) document.getElementById('ins_cust_name').value = custName;
-    if (document.getElementById('ins_phone')) document.getElementById('ins_phone').value = phone;
-    if (document.getElementById('ins_vin')) document.getElementById('ins_vin').value = vin;
-    if (document.getElementById('ins_arr_date')) document.getElementById('ins_arr_date').value = arrDate;
-    if (document.getElementById('ins_tgt_date')) document.getElementById('ins_tgt_date').value = tgtDate;
-    if (document.getElementById('ins_job_no')) document.getElementById('ins_job_no').value = jobId ? `JOB-${jobId}` : '';
-    if (document.getElementById('sign_cust_name')) document.getElementById('sign_cust_name').value = custName;
+    // หยอดข้อมูลลงช่อง
+    if (document.getElementById('ins_car_plate')) document.getElementById('ins_car_plate').innerText = carPlate;
+    if (document.getElementById('ins_car_brand')) document.getElementById('ins_car_brand').innerText = carBrand;
+    if (document.getElementById('ins_car_model')) document.getElementById('ins_car_model').innerText = carModel;
+    if (document.getElementById('ins_cust_name')) document.getElementById('ins_cust_name').innerText = custName;
+    if (document.getElementById('ins_phone')) document.getElementById('ins_phone').innerText = phone;
+    if (document.getElementById('ins_vin')) document.getElementById('ins_vin').innerText = vin;
+    if (document.getElementById('ins_arr_date')) document.getElementById('ins_arr_date').innerText = arrDate;
+    if (document.getElementById('ins_tgt_date')) document.getElementById('ins_tgt_date').innerText = tgtDate;
+    if (document.getElementById('ins_job_no')) document.getElementById('ins_job_no').innerText = jobId ? `JOB-${jobId}` : '';
+    if (document.getElementById('sign_cust_name')) document.getElementById('sign_cust_name').innerText = custName;
 
-    if (document.getElementById('ins_insurance')) document.getElementById('ins_insurance').value = paymentType;
-    if (document.getElementById('ins_claim_no')) document.getElementById('ins_claim_no').value = claimNo;
+    if (document.getElementById('ins_insurance')) document.getElementById('ins_insurance').innerText = paymentType;
+    if (document.getElementById('ins_claim_no')) document.getElementById('ins_claim_no').innerText = claimNo;
 
     if (damageLevel) {
         let jobTypeVal = 'L'; 
@@ -63,31 +101,21 @@ async function openInspectionModal() {
         
         const radios = document.getElementsByName('ins_job_type');
         for (let i = 0; i < radios.length; i++) {
-            if (radios[i].value === jobTypeVal) {
-                radios[i].checked = true;
-                break;
-            }
+            radios[i].checked = (radios[i].value === jobTypeVal);
         }
     }
 
-    const addrBox = document.getElementById('ins_company_address');
-    if (addrBox) {
-        if (branchName.includes('Navamin') || branchName.includes('นวมินทร์')) {
-            addrBox.innerHTML = `
-                <p class="text-[11px] font-black text-[#00320D]">บริษัท ไรเซน เอนเนอร์จี จำกัด</p>
-                <p>เลขที่เสียภาษี 0-1055-60176-43-4</p>
-                <p>50/5-6 ซอย นวมินทร์ 151 นวลจันทร์ เขตบึงกุ่ม กรุงเทพมหานคร 10230</p>
-                <p>โทรศัพท์ : 0981515155</p>
-            `;
-        } else {
-            addrBox.innerHTML = `
-                <p class="text-[11px] font-black text-[#00320D]">บริษัท ไรเซน เอนเนอร์จี จำกัด</p>
-                <p>เลขที่เสียภาษี 0-1055-60176-43-4</p>
-                <p>47/1 หมู่ที่ 1 ตำบลคลองหนึ่ง อำเภอคลองหลวง จังหวัดปทุมธานี 12120</p>
-                <p>โทรศัพท์ : 02-055-9199 / 090-954-1115</p>
-            `;
-        }
+    // 🏢 ตั้งค่าบริษัทเริ่มต้นตามสาขาพนักงาน
+    let defaultCompKey = 'raisen_navamin';
+    if (branchName.includes('รังสิต') || branchName.includes('Rangsit') || branchName.includes('คลองหลวง')) {
+        defaultCompKey = 'raisen_rangsit';
+    } else if (branchName.includes('RIZENIC') || branchName.includes('ไรเซนิค')) {
+        defaultCompKey = 'rizenic_head';
     }
+
+    const companySelect = document.getElementById('ins_company_select');
+    if (companySelect) companySelect.value = defaultCompKey;
+    updateCompanyHeader(defaultCompKey);
 
     document.getElementById('inspectionModal').classList.remove('hidden');
     document.getElementById('inspectionModal').classList.add('flex');
@@ -98,7 +126,7 @@ async function openInspectionModal() {
     }, 200);
 }
 
-// 🌟 บังคับใส่คลาส !text-left ให้ชิ้นส่วนชิดซ้ายเด็ดขาด
+// 🌟 สร้างตารางรายการซ่อมฝั่งซ้าย
 function renderPartsTable() {
     const partsList = [
         { name: "กันชนหน้า", sides: false }, { name: "ฝากระโปรงหน้า", sides: false },
@@ -119,32 +147,32 @@ function renderPartsTable() {
         if(part.sides) {
             tbodyHtml += `
                 <tr>
-                    <td rowspan="2" class="!text-left pl-2 pr-1 border-b border-r border-slate-500 w-[60%] leading-tight">${part.name}</td>
-                    <td class="text-center border-b border-r border-slate-500 w-[15%] font-bold text-[7.5px]">ซ้าย</td>
-                    <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="border-b border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
+                    <td rowspan="2" class="text-left pl-2 pr-1 border-b border-r border-slate-400 font-medium text-[10px] leading-tight">${part.name}</td>
+                    <td class="text-center border-b border-r border-slate-400 font-bold text-[9px] bg-slate-50">ซ้าย</td>
+                    <td class="text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="text-center border-b border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
                 </tr>
                 <tr>
-                    <td class="text-center border-b border-r border-slate-500 font-bold text-[7.5px]">ขวา</td>
-                    <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="border-b border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="text-center border-b border-r border-slate-400 font-bold text-[9px] bg-slate-50">ขวา</td>
+                    <td class="text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="text-center border-b border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
                 </tr>
             `;
         } else {
             tbodyHtml += `
                 <tr>
-                    <td colspan="2" class="!text-left pl-2 pr-1 border-b border-r border-slate-500 leading-tight">${part.name}</td>
-                    <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="border-b border-r border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="border-b border-slate-500"><input type="checkbox" class="cb-box-sm"></td>
+                    <td colspan="2" class="text-left pl-2 pr-1 border-b border-r border-slate-400 font-medium text-[10px] leading-tight">${part.name}</td>
+                    <td class="text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="text-center border-b border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
                 </tr>`;
         }
     });
@@ -157,6 +185,7 @@ function closeInspectionModal() {
     document.getElementById('inspectionModal').classList.remove('flex');
 }
 
+// 🌟 ระบบ Canvas ป้องกันตำแหน่งมาร์กเคลื่อน
 function initCanvas() {
     canvasSmall = document.getElementById('carCanvasSmall');
     canvasLarge = document.getElementById('carCanvasLarge');
@@ -186,16 +215,12 @@ function openCarDrawModal() {
     document.getElementById('carDrawModal').classList.remove('hidden');
     document.getElementById('carDrawModal').classList.add('flex');
     
-    const rectL = canvasLarge.parentElement.getBoundingClientRect();
-    const tempImg = new Image();
-    tempImg.src = canvasSmall.toDataURL();
-    
-    canvasLarge.width = 1000;
-    canvasLarge.height = 400;
-    
-    tempImg.onload = () => {
-        ctxLarge.drawImage(tempImg, 0, 0, canvasLarge.width, canvasLarge.height);
-    };
+    if (canvasSmall && canvasLarge) {
+        canvasLarge.width = 1000;
+        canvasLarge.height = 400;
+        ctxLarge.clearRect(0, 0, 1000, 400);
+        ctxLarge.drawImage(canvasSmall, 0, 0, 1000, 400);
+    }
 }
 
 function closeCarDrawModal(isSaved) {
@@ -203,8 +228,8 @@ function closeCarDrawModal(isSaved) {
     document.getElementById('carDrawModal').classList.remove('flex');
     
     if (isSaved && canvasSmall && canvasLarge) {
-        ctxSmall.clearRect(0, 0, canvasSmall.width, canvasSmall.height);
-        ctxSmall.drawImage(canvasLarge, 0, 0, canvasSmall.width, canvasSmall.height);
+        ctxSmall.clearRect(0, 0, 1000, 400);
+        ctxSmall.drawImage(canvasLarge, 0, 0, 1000, 400);
     }
 }
 
@@ -222,14 +247,12 @@ function setDrawTool(tool) {
     }
 }
 
+// 🎯 คำนวณพิกัดคลิกบน Canvas อย่างแม่นยำ
 function stampMark(e) {
     let clientX, clientY;
     if (e.touches && e.touches.length > 0) {
         clientX = e.touches[0].clientX;
         clientY = e.touches[0].clientY;
-    } else if (e.changedTouches && e.changedTouches.length > 0) {
-        clientX = e.changedTouches[0].clientX;
-        clientY = e.changedTouches[0].clientY;
     } else {
         clientX = e.clientX;
         clientY = e.clientY;
@@ -242,15 +265,15 @@ function stampMark(e) {
     const x = (clientX - rect.left) * scaleX;
     const y = (clientY - rect.top) * scaleY;
 
-    ctxLarge.lineWidth = 6;
+    ctxLarge.lineWidth = 5;
     
     if (currentTool === 'O') {
         ctxLarge.strokeStyle = '#10b981';
         ctxLarge.beginPath();
-        ctxLarge.arc(x, y, 20, 0, Math.PI * 2);
+        ctxLarge.arc(x, y, 18, 0, Math.PI * 2);
         ctxLarge.stroke();
     } else if (currentTool === 'X') {
-        const size = 15;
+        const size = 14;
         ctxLarge.strokeStyle = '#ef4444';
         ctxLarge.beginPath();
         ctxLarge.moveTo(x - size, y - size);
@@ -271,7 +294,7 @@ let currentZoom = 1;
 function changeZoom(delta) {
     currentZoom += delta;
     if(currentZoom < 0.5) currentZoom = 0.5;
-    if(currentZoom > 2.0) currentZoom = 2.0;
+    if(currentZoom > 1.8) currentZoom = 1.8;
     applyZoom();
 }
 
@@ -304,23 +327,16 @@ function printInspection() {
 
 async function saveInspectionForm() {
     const jobId = document.getElementById('sa_report_id')?.value || 'JOB-' + Date.now();
-    const carPlate = document.getElementById('ins_car_plate')?.value || '';
+    const carPlate = document.getElementById('ins_car_plate')?.innerText || '';
     const carImageBase64 = canvasSmall ? canvasSmall.toDataURL("image/png") : '';
 
     const payload = {
         job_id: jobId,
         car_plate: carPlate,
         branch_name: sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่',
+        company_code: document.getElementById('ins_company_select')?.value || 'raisen_navamin',
         fuel_level: document.getElementById('ins_fuel_level')?.value || 50,
         current_mileage: document.getElementById('ins_mileage')?.value || 0,
-        inventory_checklist: {
-            tools: document.getElementById('inv_tools')?.checked,
-            jack: document.getElementById('inv_jack')?.checked,
-            spare_tire: document.getElementById('inv_spare_tire')?.checked,
-            radio: document.getElementById('inv_radio')?.checked,
-            carpet: document.getElementById('inv_carpet')?.checked,
-            rubber: document.getElementById('inv_rubber')?.checked
-        },
         car_diagram_image: carImageBase64,
         notes: document.getElementById('ins_extra_notes')?.value || ''
     };
@@ -341,7 +357,7 @@ async function saveInspectionForm() {
             closeInspectionModal();
         } else {
             const err = await res.json();
-            alert('❌ บันทึกไม่สำเร็จ: ' + err.error);
+            alert('❌ บันทึกไม่สำเร็จ: ' + (err.error || 'โปรดตรวจสอบข้อมูล'));
         }
 
         if(btn) { btn.innerHTML = oldText; btn.disabled = false; }
@@ -351,13 +367,19 @@ async function saveInspectionForm() {
     }
 }
 
-async function loadExistingInspectionData(jobId) {
+async function loadExistingInspectionData(carPlate) {
     try {
-        const res = await fetch(`${API_BASE_URL}/api/inspection/${jobId}`);
+        const res = await fetch(`${API_BASE_URL}/api/inspection/${encodeURIComponent(carPlate)}`);
         if (res.ok) {
             const result = await res.json();
             const data = result.data;
             if (!data) return;
+
+            if (data.company_code) {
+                const compSelect = document.getElementById('ins_company_select');
+                if (compSelect) compSelect.value = data.company_code;
+                updateCompanyHeader(data.company_code);
+            }
 
             if (data.fuel_level && document.getElementById('ins_fuel_level')) {
                 document.getElementById('ins_fuel_level').value = data.fuel_level;
@@ -373,8 +395,8 @@ async function loadExistingInspectionData(jobId) {
             if (data.car_diagram_image && canvasSmall) {
                 const img = new Image();
                 img.onload = function() {
-                    ctxSmall.clearRect(0, 0, canvasSmall.width, canvasSmall.height);
-                    ctxSmall.drawImage(img, 0, 0, canvasSmall.width, canvasSmall.height);
+                    ctxSmall.clearRect(0, 0, 1000, 400);
+                    ctxSmall.drawImage(img, 0, 0, 1000, 400);
                 };
                 img.src = data.car_diagram_image;
             }
