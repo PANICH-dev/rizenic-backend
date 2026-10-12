@@ -1,9 +1,10 @@
-// ==========================================
+/// ==========================================
 // 📊 โมดูลสรุปสถานี (Tab 2: Donut Chart & Breakdown)
 // ==========================================
 
 function renderPieChartAndList() {
-    const counters = { "เคาะ":0, "โป๊ว":0, "เตรียมพื้น":0, "พ่นสี":0, "ประกอบ":0, "ขัดสี":0, "QC":0, "แม็ก":0, "กระจก":0, "ฟิล์ม":0, "พักซ่อม":0, "รอส่งมอบ":0 };
+    // 🌟 1. เพิ่ม "ส่งจ๊อบ" เข้าไปในสถานีเริ่มต้น
+    const counters = { "ส่งจ๊อบ":0, "เคาะ":0, "โป๊ว":0, "เตรียมพื้น":0, "พ่นสี":0, "ประกอบ":0, "ขัดสี":0, "QC":0, "แม็ก":0, "กระจก":0, "ฟิล์ม":0, "พักซ่อม":0, "รอส่งมอบ":0 };
     const stationJobs = {}; 
     Object.keys(counters).forEach(k => stationJobs[k] = []); 
 
@@ -30,7 +31,8 @@ function renderPieChartAndList() {
         else if(fullStation.includes("ฟิล์ม")) key = "ฟิล์ม"; 
         else if(fullStation.includes("พักซ่อม")) key = "พักซ่อม"; 
         
-        if(key !== "ส่งจ๊อบ" && counters[key] !== undefined) { 
+        // 🌟 2. ถอดเงื่อนไข key !== "ส่งจ๊อบ" ออก เพื่อให้นับจำนวนสถานะส่งจ๊อบด้วย
+        if(counters[key] !== undefined) { 
             counters[key]++; 
             stationJobs[key].push(j); 
         }
@@ -47,7 +49,8 @@ function renderPieChartAndList() {
             labels: Object.keys(counters).filter(k => counters[k] > 0), 
             datasets: [{ 
                 data: Object.values(counters).filter(v => v > 0), 
-                backgroundColor: ['#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', '#22c55e', '#10b981', '#06b6d4', '#3b82f6', '#6366f1', '#a855f7', '#ec4899', '#6b7280'],
+                // เพิ่มโทนสีเทา (#64748b) ด้านหน้าสำหรับ "ส่งจ๊อบ"
+                backgroundColor: ['#64748b', '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', '#22c55e', '#10b981', '#06b6d4', '#3b82f6', '#6366f1', '#a855f7', '#ec4899', '#6b7280'],
                 borderWidth: 1, borderColor: '#ffffff', hoverOffset: 12
             }]
         },
@@ -63,7 +66,6 @@ function renderPieChartAndList() {
                     const index = elements[0].index;
                     const labelName = chartInstance.data.labels[index];
                     
-                    // 🌟 แก้ไข: ถ้ากดโดนัทรอส่งมอบ ให้เรียกใช้ KPI กรองรถซ่อมเสร็จรอส่งมอบโดยตรง
                     if (labelName === 'รอส่งมอบ') {
                         filterBoardByKpi('done');
                     } else {
@@ -80,6 +82,7 @@ function renderPieChartAndList() {
                         else if(labelName === 'เตรียมพื้น') filterVal = '03.เตรียมพื้น';
                         else if(labelName === 'โป๊ว') filterVal = '02.โป๊ว';
                         else if(labelName === 'เคาะ') filterVal = '01.เคาะ';
+                        else if(labelName === 'ส่งจ๊อบ') filterVal = 'ส่งจ๊อบ'; // 🌟 3. รองรับการฟิลเตอร์เมื่อคลิกส่วน "ส่งจ๊อบ" บนกราฟ
 
                         document.getElementById('global_search_input').value = filterVal;
                         runTableFilters();
