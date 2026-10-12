@@ -10,8 +10,6 @@ let filteredHistoryData = [];
 let activeFilters = {};
 let currentFilterKey = -1;
 let draggedColIdx = null;
-let savedSortCol = null;
-let savedSortDir = 'asc';
 
 // 📋 รายการคอลัมน์ของ rizenicreport
 let historyColsDef = [
@@ -84,7 +82,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     initColumns();
     await loadBranchOptions();
-    await loadHistoryReportData();
+    
+    // 🌟 แสดงข้อความแจ้งเตือนให้กด "ดึงรายงาน" ก่อน (ไม่ดึงข้อมูลอัตโนมัติ)
+    renderInitialState();
 
     document.addEventListener('click', (e) => {
         const modal = document.getElementById('excelFilterModal');
@@ -93,6 +93,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 });
+
+function renderInitialState() {
+    const tbody = document.getElementById('history_table_body');
+    if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="40" class="text-center py-20 text-slate-400 font-bold bg-white"><i class="fa-solid fa-file-invoice text-3xl mb-2 text-indigo-500 block"></i>กรุณาเลือกช่วงเวลา แล้วกดปุ่ม "ดึงรายงาน" เพื่อแสดงข้อมูล</td></tr>`;
+    }
+}
 
 // ------------------------------------------
 // 🛠️ 1. จัดการโครงสร้างคอลัมน์ & ยืด/หด/สลับ
@@ -116,7 +123,6 @@ function initColumns() {
     });
     thead.innerHTML = trHtml + '</tr>';
 
-    // วาดรายการคอลัมน์ใน Panel
     const toggleContainer = document.getElementById('col_toggles_container');
     let togglesHtml = '';
     historyColsDef.forEach(col => {
@@ -474,7 +480,7 @@ function renderHistoryTable(data) {
 // ------------------------------------------
 function exportHistoryExcel() {
     if (!filteredHistoryData || filteredHistoryData.length === 0) {
-        showToast('ไม่มีข้อมูลประวัติให้ดาวน์โหลดครับ', 'error');
+        showToast('⚠️ กรุณากดปุ่ม "ดึงรายงาน" เพื่อโหลดข้อมูลก่อนดาวน์โหลด Excel ครับ', 'error');
         return;
     }
 
