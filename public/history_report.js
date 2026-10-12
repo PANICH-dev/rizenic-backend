@@ -20,6 +20,7 @@ let historyColsDef = [
     { idx: 4, key: 'target_finish_date', title: 'วันกำหนดซ่อมเสร็จ', width: 125, filter: true },
     { idx: 5, key: 'repair_finish_date', title: 'วันที่ซ่อมเสร็จ', width: 115, filter: true },
     { idx: 6, key: 'delivery_date', title: 'วันที่ส่งมอบ', width: 110, filter: true },
+    { idx: 24, key: 'billing_date', title: 'วันที่ปิดบิล', width: 110, filter: true },
     { idx: 7, key: 'car_brand', title: 'ยี่ห้อรถ', width: 110, filter: true },
     { idx: 8, key: 'car_model', title: 'รุ่นรถ', width: 110, filter: true },
     { idx: 9, key: 'car_color', title: 'สีรถ', width: 100, filter: true },
@@ -37,7 +38,6 @@ let historyColsDef = [
     { idx: 21, key: 'cost_external', title: 'งานนอก', width: 90, filter: true },
     { idx: 22, key: 'job_status', title: 'สถานะงาน', width: 140, filter: true },
     { idx: 23, key: 'department_routing', title: 'ส่งต่อแผนก', width: 120, filter: true },
-    { idx: 24, key: 'billing_date', title: 'วันที่ออกบิล', width: 110, filter: true },
     { idx: 25, key: 'qt_no', title: 'เลข QT', width: 120, filter: true },
     { idx: 26, key: 'so_no', title: 'เลข SO', width: 120, filter: true },
     { idx: 27, key: 'sa_owner', title: 'SA ผู้รับผิดชอบ', width: 120, filter: true },
@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name') || 'Staff';
     document.getElementById('display_branch').innerText = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
 
-    // ตั้งค่าเริ่มต้นของปฏิทินย้อนหลัง 30 วัน จนถึงวันนี้
+    // ตั้งค่าเริ่มต้นย้อนหลัง 30 วัน
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
     
@@ -82,8 +82,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     initColumns();
     await loadBranchOptions();
-    
-    // 🌟 แสดงข้อความแจ้งเตือนให้กด "ดึงรายงาน" ก่อน (ไม่ดึงข้อมูลอัตโนมัติ)
     renderInitialState();
 
     document.addEventListener('click', (e) => {
@@ -97,13 +95,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 function renderInitialState() {
     const tbody = document.getElementById('history_table_body');
     if (tbody) {
-        tbody.innerHTML = `<tr><td colspan="40" class="text-center py-20 text-slate-400 font-bold bg-white"><i class="fa-solid fa-file-invoice text-3xl mb-2 text-indigo-500 block"></i>กรุณาเลือกช่วงเวลา แล้วกดปุ่ม "ดึงรายงาน" เพื่อแสดงข้อมูล</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="40" class="text-center py-20 text-slate-400 font-bold bg-white"><i class="fa-solid fa-file-invoice text-3xl mb-2 text-indigo-500 block"></i>กรุณาเลือกช่วงเวลา และปุ่มอ้างอิงวันที่ แล้วกดปุ่ม "ดึงรายงาน" เพื่อแสดงข้อมูล</td></tr>`;
     }
 }
 
-// ------------------------------------------
-// 🛠️ 1. จัดการโครงสร้างคอลัมน์ & ยืด/หด/สลับ
-// ------------------------------------------
 function initColumns() {
     const thead = document.getElementById('history_table_head');
     let trHtml = '<tr>';
@@ -197,9 +192,6 @@ function initResizableColumns() {
     });
 }
 
-// ------------------------------------------
-// 🚀 2. โหลดข้อมูล & ตัวกรองวันที่ 1 ประเภท
-// ------------------------------------------
 async function loadBranchOptions() {
     try {
         const res = await fetch(`${API_BASE_URL}/api/employees`);
@@ -242,7 +234,6 @@ async function loadHistoryReportData() {
     }
 }
 
-// 🎯 กรองตามวันที่ 1 ประเภทที่เลือก + ปฏิทินช่วงเวลา
 function applyDateRangeFilter() {
     const startDate = document.getElementById('start_date').value;
     const endDate = document.getElementById('end_date').value;
@@ -270,7 +261,6 @@ function applyDateRangeFilter() {
     applyHistoryFilters();
 }
 
-// 🎯 กรองคำค้นหา + ฟิลเตอร์หัวตาราง Excel
 function applyHistoryFilters() {
     const searchTxt = document.getElementById('search_input').value.toLowerCase().trim();
 
@@ -306,9 +296,6 @@ function clearAllFilters() {
     applyHistoryFilters();
 }
 
-// ------------------------------------------
-// 🔍 3. Excel Filter Modal (หัวตาราง)
-// ------------------------------------------
 function openExcelFilter(e, colIndex, title) {
     e.stopPropagation();
     currentFilterKey = colIndex;
@@ -383,9 +370,6 @@ function clearSpecificExcelFilter() {
     applyHistoryFilters();
 }
 
-// ------------------------------------------
-// ↕️ 4. การจัดเรียงข้อมูล (Sorting Asc / Desc)
-// ------------------------------------------
 function sortTable(colIndex) {
     const table = document.getElementById('historyTable');
     const tbody = table.querySelector('tbody');
@@ -410,7 +394,6 @@ function sortTable(colIndex) {
         let valA = a.cells[thIndex] ? a.cells[thIndex].innerText.trim() : '';
         let valB = b.cells[thIndex] ? b.cells[thIndex].innerText.trim() : '';
 
-        // จัดเรียงวันที่ DD/MM/YYYY
         let dateMatchA = valA.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
         let dateMatchB = valB.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
         if(dateMatchA && dateMatchB) {
@@ -419,21 +402,16 @@ function sortTable(colIndex) {
             return dir === 'asc' ? dateA - dateB : dateB - dateA;
         }
 
-        // จัดเรียงตัวเลข
         let numA = parseFloat(valA.replace(/,/g, ''));
         let numB = parseFloat(valB.replace(/,/g, ''));
         if (!isNaN(numA) && !isNaN(numB)) return dir === 'asc' ? numA - numB : numB - numA;
 
-        // จัดเรียงข้อความภาษาไทย
         return dir === 'asc' ? valA.localeCompare(valB, 'th') : valB.localeCompare(valA, 'th');
     });
 
     rows.forEach(row => tbody.appendChild(row));
 }
 
-// ------------------------------------------
-// 🖼️ 5. วาดตารางแสดงผล (Render Table)
-// ------------------------------------------
 function renderHistoryTable(data) {
     const tbody = document.getElementById('history_table_body');
     if (!data || data.length === 0) {
@@ -475,9 +453,6 @@ function renderHistoryTable(data) {
     tbody.innerHTML = html;
 }
 
-// ------------------------------------------
-// 📥 6. ดาวน์โหลด Excel
-// ------------------------------------------
 function exportHistoryExcel() {
     if (!filteredHistoryData || filteredHistoryData.length === 0) {
         showToast('⚠️ กรุณากดปุ่ม "ดึงรายงาน" เพื่อโหลดข้อมูลก่อนดาวน์โหลด Excel ครับ', 'error');
