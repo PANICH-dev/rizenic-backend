@@ -41,6 +41,18 @@ async function loadInspectionTemplate() {
     }
 }
 
+// Helper ตั้งค่าข้อมูลให้รองรับทั้ง <input> และ <div>/<span>
+function setFieldValue(id, val) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const cleanVal = val || '';
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+        el.value = cleanVal;
+    } else {
+        el.innerText = cleanVal;
+    }
+}
+
 // 🏢 ฟังก์ชันอัปเดตส่วนหัวบริษัทตามการเลือก
 function updateCompanyHeader(key) {
     const comp = COMPANY_MASTERS[key] || COMPANY_MASTERS["raisen_navamin"];
@@ -48,10 +60,10 @@ function updateCompanyHeader(key) {
     
     if (addrBox) {
         addrBox.innerHTML = `
-            <p class="text-[12px] font-black text-[#00320D] uppercase tracking-wide mb-0.5">${comp.name}</p>
-            <p class="text-[10px] text-slate-700 font-bold">เลขที่เสียภาษี ${comp.taxId}</p>
-            <p class="text-[10px] text-slate-700">${comp.address}</p>
-            <p class="text-[10px] text-slate-700">โทรศัพท์ : ${comp.phone}</p>
+            <p class="text-[11px] font-black text-[#00320D] uppercase tracking-wide mb-0.5">${comp.name}</p>
+            <p class="text-[9px] text-slate-700 font-bold">เลขที่เสียภาษี ${comp.taxId}</p>
+            <p class="text-[9px] text-slate-700">${comp.address}</p>
+            <p class="text-[9px] text-slate-700">โทรศัพท์ : ${comp.phone}</p>
         `;
     }
 }
@@ -71,7 +83,7 @@ async function openInspectionModal() {
     const branchName = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
 
     const paymentType = document.getElementById('payment_type')?.value || '';
-    const claimNo = document.getElementById('claim_no')?.value || '';
+    const claimNo = document.getElementById('eclaim_claim_no')?.value || document.getElementById('claim_no')?.value || '';
     const damageLevel = document.getElementById('damage_level')?.value || ''; 
     
     if (!carPlate) {
@@ -79,20 +91,20 @@ async function openInspectionModal() {
         return;
     }
 
-    // หยอดข้อมูลลงช่อง
-    if (document.getElementById('ins_car_plate')) document.getElementById('ins_car_plate').innerText = carPlate;
-    if (document.getElementById('ins_car_brand')) document.getElementById('ins_car_brand').innerText = carBrand;
-    if (document.getElementById('ins_car_model')) document.getElementById('ins_car_model').innerText = carModel;
-    if (document.getElementById('ins_cust_name')) document.getElementById('ins_cust_name').innerText = custName;
-    if (document.getElementById('ins_phone')) document.getElementById('ins_phone').innerText = phone;
-    if (document.getElementById('ins_vin')) document.getElementById('ins_vin').innerText = vin;
-    if (document.getElementById('ins_arr_date')) document.getElementById('ins_arr_date').innerText = arrDate;
-    if (document.getElementById('ins_tgt_date')) document.getElementById('ins_tgt_date').innerText = tgtDate;
-    if (document.getElementById('ins_job_no')) document.getElementById('ins_job_no').innerText = jobId ? `JOB-${jobId}` : '';
-    if (document.getElementById('sign_cust_name')) document.getElementById('sign_cust_name').innerText = custName;
+    // 🎯 หยอดข้อมูลลงช่องแบบรองรับ <input> สม่ำเสมอ
+    setFieldValue('ins_car_plate', carPlate);
+    setFieldValue('ins_car_brand', carBrand);
+    setFieldValue('ins_car_model', carModel);
+    setFieldValue('ins_cust_name', custName);
+    setFieldValue('ins_phone', phone);
+    setFieldValue('ins_vin', vin);
+    setFieldValue('ins_arr_date', arrDate);
+    setFieldValue('ins_tgt_date', tgtDate);
+    setFieldValue('ins_job_no', jobId ? `JOB-${jobId}` : '');
+    setFieldValue('sign_cust_name_display', custName);
 
-    if (document.getElementById('ins_insurance')) document.getElementById('ins_insurance').innerText = paymentType;
-    if (document.getElementById('ins_claim_no')) document.getElementById('ins_claim_no').innerText = claimNo;
+    setFieldValue('ins_insurance', paymentType);
+    setFieldValue('ins_claim_no', claimNo);
 
     if (damageLevel) {
         let jobTypeVal = 'L'; 
@@ -126,7 +138,7 @@ async function openInspectionModal() {
     }, 200);
 }
 
-// 🌟 สร้างตารางรายการซ่อมฝั่งซ้าย
+// 🌟 สร้างตารางรายการซ่อมฝั่งซ้าย (ปรับขนาดคอลัมน์กว้างอ่านง่าย)
 function renderPartsTable() {
     const partsList = [
         { name: "กันชนหน้า", sides: false }, { name: "ฝากระโปรงหน้า", sides: false },
@@ -147,32 +159,32 @@ function renderPartsTable() {
         if(part.sides) {
             tbodyHtml += `
                 <tr>
-                    <td rowspan="2" class="text-left pl-2 pr-1 border-b border-r border-slate-400 font-medium text-[10px] leading-tight">${part.name}</td>
-                    <td class="text-center border-b border-r border-slate-400 font-bold text-[9px] bg-slate-50">ซ้าย</td>
-                    <td class="text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="text-center border-b border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td rowspan="2" class="w-[40%] text-left pl-1.5 pr-1 border-b border-r border-slate-400 font-bold text-[9.5px] leading-tight">${part.name}</td>
+                    <td class="w-[12%] text-center border-b border-r border-slate-400 font-bold text-[8.5px] bg-slate-50">ซ้าย</td>
+                    <td class="w-[9.6%] text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="w-[9.6%] text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="w-[9.6%] text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="w-[9.6%] text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="w-[9.6%] text-center border-b border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
                 </tr>
                 <tr>
-                    <td class="text-center border-b border-r border-slate-400 font-bold text-[9px] bg-slate-50">ขวา</td>
-                    <td class="text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="text-center border-b border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="w-[12%] text-center border-b border-r border-slate-400 font-bold text-[8.5px] bg-slate-50">ขวา</td>
+                    <td class="w-[9.6%] text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="w-[9.6%] text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="w-[9.6%] text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="w-[9.6%] text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="w-[9.6%] text-center border-b border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
                 </tr>
             `;
         } else {
             tbodyHtml += `
                 <tr>
-                    <td colspan="2" class="text-left pl-2 pr-1 border-b border-r border-slate-400 font-medium text-[10px] leading-tight">${part.name}</td>
-                    <td class="text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
-                    <td class="text-center border-b border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td colspan="2" class="w-[52%] text-left pl-1.5 pr-1 border-b border-r border-slate-400 font-bold text-[9.5px] leading-tight">${part.name}</td>
+                    <td class="w-[9.6%] text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="w-[9.6%] text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="w-[9.6%] text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="w-[9.6%] text-center border-b border-r border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
+                    <td class="w-[9.6%] text-center border-b border-slate-400"><input type="checkbox" class="cb-box-sm"></td>
                 </tr>`;
         }
     });
@@ -185,7 +197,7 @@ function closeInspectionModal() {
     document.getElementById('inspectionModal').classList.remove('flex');
 }
 
-// 🌟 ระบบ Canvas ป้องกันตำแหน่งมาร์กเคลื่อน
+// 🌟 ระบบ Canvas ป้องกันตำแหน่งมาร์กเคลื่อนแบบล็อก Resolution 1000x400
 function initCanvas() {
     canvasSmall = document.getElementById('carCanvasSmall');
     canvasLarge = document.getElementById('carCanvasLarge');
@@ -327,7 +339,7 @@ function printInspection() {
 
 async function saveInspectionForm() {
     const jobId = document.getElementById('sa_report_id')?.value || 'JOB-' + Date.now();
-    const carPlate = document.getElementById('ins_car_plate')?.innerText || '';
+    const carPlate = document.getElementById('ins_car_plate')?.value || document.getElementById('ins_car_plate')?.innerText || '';
     const carImageBase64 = canvasSmall ? canvasSmall.toDataURL("image/png") : '';
 
     const payload = {
