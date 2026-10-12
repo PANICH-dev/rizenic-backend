@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIZENIC ERP - ตารางรายงานประวัติย้อนหลัง</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap');
+        body { font-family: 'Kanit', sans-serif; background-color: #f1f5f9; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        
+        .custom-scrollbar::-webkit-scrollbar { height: 10px; width: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f8fafc; border-left: 1px solid #cbd5e1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; border: 2px solid #f8fafc; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        .excel-table {
+            width: 100%; text-align: left; border-collapse: separate; border-spacing: 0; white-space: nowrap;
+            font-size: 12px; background-color: #ffffff; table-layout: fixed; border: 1px solid #cbd5e1;
+        }
+        
+        .excel-table thead th {
+            position: sticky; top: 0; z-index: 30; background-color: #00320D !important;
+            color: #ffffff !important; border-right: 1px solid #1e3a1e !important; border-bottom: 2px solid #f59e0b !important;
+            font-weight: 700; padding: 8px 4px; text-align: center; user-select: none; box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .excel-table tbody td {
+            padding: 2px 4px; border-right: 1px solid #e2e8f0 !important; border-bottom: 1px solid #cbd5e1 !important;
+            color: #1e293b; vertical-align: middle; overflow: hidden; position: relative; background-color: #fff;
+        }
+        
+        .excel-table tbody tr:hover td { background-color: #fef3c7 !important; border-color: #fcd34d !important; color: #78350f !important; }
+        
+        .resizer { position: absolute; top: 0; right: 0; width: 6px; height: 100%; cursor: col-resize; z-index: 40; user-select: none; }
+        .resizer:hover, .resizer.resizing { background-color: #f59e0b !important; }
+        
+        .sort-icon { margin-left: 4px; opacity: 0.5; font-size: 10px; }
+        .filter-icon { margin-left: 6px; color: #cbd5e1; cursor: pointer; }
+        .filter-icon:hover, .filter-icon.active { color: #fbbf24 !important; opacity: 1 !important; }
+        
+        .part-badge-main { display: inline-block; padding: 2px 8px; background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; border-radius: 4px; font-size: 11px; font-weight: 700; margin: 1px; }
+        .part-badge-sub { display: inline-block; padding: 2px 8px; background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a; border-radius: 4px; font-size: 11px; font-weight: 700; margin: 1px; }
+
+        .minimal-input { padding: 4px 8px; background-color: #ffffff; border: 1px solid #cbd5e1; outline: none; font-size: 12px; font-weight: 700; color: #00320D; border-radius: 6px; }
+    </style>
+    <style id="dynamic-col-styles"></style>
+</head>
+<body class="text-slate-800 h-screen flex flex-col">
+
+    <!-- 🔔 Toast Notification -->
+    <div id="toastMsg" class="fixed bottom-5 right-5 bg-emerald-600 text-white font-bold px-5 py-2.5 rounded shadow-2xl transform transition-all duration-300 translate-y-20 opacity-0 z-[200] flex items-center gap-2 border border-white/20 text-xs">
+        <span id="toastContent"><i class="fa-solid fa-circle-check text-base"></i> บันทึกข้อมูลเรียบร้อย!</span>
+    </div>
+
+    <!-- 🔍 Excel Filter Modal -->
+    <div id="excelFilterModal" class="hidden fixed bg-white border border-slate-300 shadow-2xl rounded-lg w-64 z-[9999] flex-col overflow-hidden text-xs">
+        <div class="bg-[#00320D] text-white border-b border-green-800 px-3 py-2 flex justify-between items-center">
+            <span class="font-bold flex items-center gap-1.5"><i class="fa-solid fa-filter text-amber-400"></i> ตัวกรอง: <span id="ef_col_name" class="text-slate-300"></span></span>
+            <button onclick="closeExcelFilter()" class="text-slate-300 hover:text-red-400 transition"><i class="fa-solid fa-xmark text-base"></i></button>
+        </div>
+        <div class="p-2.5 pb-1">
+            <input type="text" id="ef_search" class="w-full border border-slate-300 rounded px-2 py-1 text-xs outline-none focus:border-green-600 mb-2 transition" placeholder="ค้นหา..." onkeyup="searchExcelFilter()">
+            <label class="flex items-center gap-2 px-1.5 py-1 border-b border-slate-100 mb-1 cursor-pointer hover:bg-slate-50 rounded transition">
+                <input type="checkbox" id="ef_select_all" checked onchange="toggleAllExcelFilters(this.checked)" class="w-3.5 h-3.5 accent-[#00320D] cursor-pointer rounded">
+                <span class="font-bold text-slate-700">เลือกทั้งหมด</span>
+            </label>
+            <div id="ef_checkbox_list" class="max-h-44 overflow-y-auto space-y-0.5 custom-scrollbar pr-1"></div>
+        </div>
+        <div class="bg-slate-50 border-t border-slate-200 p-2 flex gap-2">
+            <button onclick="applyExcelFilter()" class="flex-1 bg-[#00320D] text-white font-bold py-1 rounded hover:bg-black transition"><i class="fa-solid fa-check"></i> ตกลง</button>
+            <button onclick="clearSpecificExcelFilter()" class="flex-1 bg-white text-slate-600 border border-slate-300 font-bold py-1 rounded hover:bg-slate-100 transition"><i class="fa-solid fa-eraser"></i> ล้าง</button>
+        </div>
+    </div>
+
+    <!-- Header Bar -->
+    <header class="bg-[#00320D] text-white shadow-md z-50 shrink-0 border-b-4 border-amber-500">
+        <div class="px-4 py-2 flex justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-table-list text-amber-400 text-lg"></i>
+                <h1 class="text-base font-black tracking-wider">RIZENIC <span class="text-amber-400">HISTORY REPORT</span></h1>
+            </div>
+            <nav class="flex items-center gap-3">
+                <div class="text-right border-r border-green-700 pr-4 hidden sm:block">
+                    <p class="text-xs font-bold" id="display_emp_name">Staff Name</p>
+                    <p class="text-[10px] text-green-300">สาขา: <span id="display_branch">Branch</span></p>
+                </div>
+                <div class="flex gap-1">
+                    <a href="dashboard.html" class="px-2.5 py-1 rounded text-green-200 hover:bg-white/10 font-bold text-xs transition">แดชบอร์ด</a>
+                    <a href="index.html" class="px-2.5 py-1 rounded text-green-200 hover:bg-white/10 font-bold text-xs transition">เปิดบิลซ่อม</a>
+                    <a href="jobs_table.html" class="px-2.5 py-1 rounded text-green-200 hover:bg-white/10 font-bold text-xs transition">บอร์ดใบงาน</a>
+                    <a href="repair.html" class="px-2.5 py-1 rounded text-green-200 hover:bg-white/10 font-bold text-xs transition">สถานีช่าง</a>
+                    <a href="parts.html" class="px-2.5 py-1 rounded text-green-200 hover:bg-white/10 font-bold text-xs transition">แผนกอะไหล่</a>
+                    <a href="finance.html" class="px-2.5 py-1 rounded text-green-200 hover:bg-white/10 font-bold text-xs transition">แผนกบัญชี</a>
+                    <button onclick="logout()" class="px-2 py-1 text-red-300 hover:bg-red-500/20 rounded text-xs ml-1 transition"><i class="fa-solid fa-power-off"></i></button>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Tab Navigation -->
+    <div class="bg-white border-b border-slate-200 z-40 shrink-0 shadow-2xs flex px-2 pt-1.5 gap-1 overflow-x-auto text-xs font-bold">
+        <a href="jobs_table.html" class="px-5 py-2 border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 transition-all rounded-t-lg">
+            <i class="fa-solid fa-file-excel text-emerald-600"></i> 1. ตารางใบงานทั้งหมด (Excel Mode)
+        </a>
+        <a href="jobs.html" class="px-5 py-2 border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 transition-all rounded-t-lg">
+            <i class="fa-solid fa-users text-blue-600"></i> 2. ภาพรวมทีมบริการ (SA)
+        </a>
+        <a href="history.html" class="px-5 py-2 border-b-2 border-transparent text-slate-500 hover:text-[#00320D] hover:bg-slate-50 flex items-center gap-2 transition-all rounded-t-lg">
+            <i class="fa-solid fa-clock-rotate-left text-purple-600"></i> 3. เช็คประวัติรถ (History)
+        </a>
+        <a href="history_report.html" class="px-5 py-2 border-b-2 border-[#00320D] text-[#00320D] bg-indigo-50/80 flex items-center gap-2 rounded-t-lg">
+            <i class="fa-solid fa-file-invoice text-indigo-600"></i> 4. ตารางรายงานประวัติย้อนหลัง
+        </a>
+    </div>
+
+    <!-- 🌟 กล่องตัวกรองเลือกช่วงเวลา และประเภทวันที่ 🌟 -->
+    <div class="bg-white border-b border-slate-200 p-3 shrink-0 z-40 shadow-sm text-xs">
+        <div class="max-w-[1600px] mx-auto flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
+            
+            <!-- 1. เลือกประเภทวันที่ 1 อย่าง -->
+            <div class="flex flex-wrap items-center gap-2.5 font-bold text-slate-700">
+                <span class="text-[#00320D] font-black flex items-center gap-1.5"><i class="fa-solid fa-filter text-amber-500"></i> เลือกอ้างอิงวันที่:</span>
+                <label class="flex items-center gap-1.5 cursor-pointer bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-amber-50">
+                    <input type="radio" name="filter_date_type" value="contact_date" checked class="accent-[#00320D]"> วันที่ติดต่อ
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-amber-50">
+                    <input type="radio" name="filter_date_type" value="arrived_date" class="accent-[#00320D]"> วันที่รถเข้าจอด
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-amber-50">
+                    <input type="radio" name="filter_date_type" value="target_finish_date" class="accent-[#00320D]"> วันกำหนดซ่อมเสร็จ
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-amber-50">
+                    <input type="radio" name="filter_date_type" value="repair_finish_date" class="accent-[#00320D]"> วันที่ซ่อมเสร็จ
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-amber-50">
+                    <input type="radio" name="filter_date_type" value="delivery_date" class="accent-[#00320D]"> วันที่ส่งมอบ
+                </label>
+            </div>
+
+            <!-- 2. ปฏิทินเลือกวันที่เริ่มต้น - สิ้นสุด -->
+            <div class="flex items-center gap-2 w-full lg:w-auto">
+                <span class="font-bold text-slate-600"><i class="fa-solid fa-building text-green-700"></i> สาขา:</span>
+                <select id="branch_filter" class="minimal-input w-32 cursor-pointer">
+                    <option value="ALL">-- ทุกสาขา --</option>
+                </select>
+
+                <span class="font-bold text-slate-600">เริ่มต้น:</span>
+                <input type="date" id="start_date" class="minimal-input font-mono text-center">
+                <span class="font-bold text-slate-600">สิ้นสุด:</span>
+                <input type="date" id="end_date" class="minimal-input font-mono text-center">
+                
+                <button onclick="loadHistoryReportData()" class="px-5 py-1.5 bg-[#00320D] text-white font-black rounded-lg hover:bg-black transition shadow-md flex items-center gap-1.5 whitespace-nowrap">
+                    <i class="fa-solid fa-magnifying-glass text-amber-400"></i> ดึงรายงาน
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Sub-toolbar -->
+    <div class="bg-slate-100 border-b border-slate-200 px-3 py-2 shrink-0 z-30 flex flex-wrap justify-between items-center gap-2 text-xs">
+        <div class="flex items-center gap-2">
+            <span class="font-bold text-slate-600"><i class="fa-solid fa-search text-green-700"></i> ค้นหาในผลลัพธ์:</span>
+            <input type="text" id="search_input" onkeyup="applyHistoryFilters()" class="minimal-input w-48" placeholder="พิมพ์ทะเบียน, ลูกค้า, SA...">
+            <span class="font-bold text-slate-600 bg-white px-2.5 py-1 rounded border border-slate-200 ml-2">พบ: <span id="row_count" class="text-blue-700 font-black">0</span> รายการ</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="toggleColManager()" class="px-2.5 py-1 bg-white text-slate-700 font-bold rounded text-xs border border-slate-300 hover:bg-slate-100 transition"><i class="fa-solid fa-sliders"></i> ตั้งค่าคอลัมน์</button>
+            <button onclick="clearAllFilters()" class="px-2.5 py-1 bg-white text-slate-700 font-bold rounded text-xs border border-slate-300 hover:bg-slate-100 transition"><i class="fa-solid fa-eraser"></i> ล้างฟิลเตอร์</button>
+            <button onclick="exportHistoryExcel()" class="px-3 py-1 bg-emerald-600 text-white font-bold rounded hover:bg-emerald-700 transition flex items-center gap-1"><i class="fa-solid fa-file-excel"></i> ดาวน์โหลด Excel</button>
+        </div>
+    </div>
+
+    <!-- Panel จัดการคอลัมน์ (ซ่อน/แสดง/ลากสลับ) -->
+    <div id="colManagerPanel" class="hidden bg-slate-100 border-b border-slate-300 p-2.5 shrink-0 z-30 text-xs">
+        <h3 class="font-black text-slate-700 mb-2"><i class="fa-solid fa-up-down-left-right text-amber-500 mr-1"></i> ลากสลับตำแหน่ง หรือ ติ๊กออกเพื่อซ่อนคอลัมน์</h3>
+        <div class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto custom-scrollbar pr-2" id="col_toggles_container"></div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-hidden relative bg-slate-200 p-1 flex flex-col">
+        <div class="flex-1 overflow-auto custom-scrollbar bg-white border border-slate-300 shadow-2xs relative" id="tableContainer">
+            <table class="excel-table" id="historyTable">
+                <thead id="history_table_head"></thead>
+                <tbody id="history_table_body">
+                    <tr><td colspan="40" class="text-center py-20 text-slate-400 font-bold"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 text-indigo-600 block"></i>กำลังโหลดรายงานประวัติย้อนหลัง...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script src="history_report.js?v=1.0"></script>
+</body>
+</html>
