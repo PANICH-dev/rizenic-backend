@@ -385,49 +385,57 @@ function updateKPIs() {
 }
 
 function runTableFilters() {
-    const searchTxt = (document.getElementById('global_search_input')?.value || '').toLowerCase();
-    
-    const filteredData = originalRepairJobs.filter(job => {
-        if (selectedBranchFilter !== 'ALL' && job.branch_name !== selectedBranchFilter) return false;
-        if (!isCalendarFilterActive && job.department_routing !== 'ซ่อม') return false;
+    // 1. นำ Loader มาแสดงทันทีก่อนเริ่มประมวลผล เพื่อให้ UI ตอบสนองผู้ใช้ (ไม่ค้าง)
+    const tbody = document.getElementById('repair_list_body');
+    if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-12 text-slate-400 font-mono text-sm"><i class="fa-solid fa-circle-notch fa-spin text-amber-500 text-2xl mb-2 block"></i> กำลังจัดเรียงข้อมูล...</td></tr>`;
+    }
 
-        if (activeKpiFilter) {
-            const isDoneStation = job.calculated_station === '12.รอส่งมอบ';
-            const isDoneStatus = job.job_status && (job.job_status.includes('11.รถซ่อมเสร็จรอส่งมอบ') || job.job_status.includes('12.รอส่งมอบ'));
-
-            if (activeKpiFilter === 'repairing') {
-                if (isDoneStation || isDoneStatus) return false;
-            }
-            // 🌟 แก้ไข: ให้การกรอง KPI 'done' รองรับทั้ง station 12 และ job_status 11/12
-            if (activeKpiFilter === 'done') {
-                if (!isDoneStation && !isDoneStatus) return false;
-            }
-            if (activeKpiFilter === 'delayed') {
-                if (!checkOverdue(job)) return false;
-            }
-        }
-
-        if (searchTxt) { const rowContent = Object.values(job).join(' ').toLowerCase(); if (!rowContent.includes(searchTxt)) return false; }
+    // 2. โยนการคำนวณที่หนักไปไว้ใน setTimeout เพื่อคืนพื้นที่ให้หน้าจอขยับได้
+    setTimeout(() => {
+        const searchTxt = (document.getElementById('global_search_input')?.value || '').toLowerCase();
         
-        for (let colIdx in activeFilters) {
-            const colDef = columnsDef.find(c => c.idx == colIdx);
-            if(!colDef) continue;
-            const key = colDef.key; let val = '';
-            if(['arrived_date', 'appointment_date', 'target_finish_date', 'repair_finish_date', 'delivery_date'].includes(key)) { 
-                let rawVal = job[key];
-                if (key === 'arrived_date' && !rawVal) rawVal = job.appointment_date;
-                val = rawVal ? String(rawVal).split('T')[0] : ''; 
-            } 
-            else if (key === 'car_brand') { val = `${job.car_brand || ''} ${job.car_model || ''}`.trim(); } 
-            else if (key === 'main_part_qty') { val = String(Number(job.main_part_qty) || (job.main_part_name ? job.main_part_name.split(',').filter(Boolean).length : 0)); }
-            else if (key === 'sub_part_qty') { val = String(Number(job.sub_part_qty) || (job.sub_part_name ? job.sub_part_name.split(',').filter(Boolean).length : 0)); }
-            else { val = String(job[key] || '').trim(); }
-            if (!activeFilters[colIdx].has(val)) return false;
-        }
-        return true;
-    });
-    
-    renderRepairListTable(filteredData);
+        const filteredData = originalRepairJobs.filter(job => {
+            if (selectedBranchFilter !== 'ALL' && job.branch_name !== selectedBranchFilter) return false;
+            if (!isCalendarFilterActive && job.department_routing !== 'ซ่อม') return false;
+
+            if (activeKpiFilter) {
+                const isDoneStation = job.calculated_station === '12.รอส่งมอบ';
+                const isDoneStatus = job.job_status && (job.job_status.includes('11.รถซ่อมเสร็จรอส่งมอบ') || job.job_status.includes('12.รอส่งมอบ'));
+
+                if (activeKpiFilter === 'repairing') {
+                    if (isDoneStation || isDoneStatus) return false;
+                }
+                if (activeKpiFilter === 'done') {
+                    if (!isDoneStation && !isDoneStatus) return false;
+                }
+                if (activeKpiFilter === 'delayed') {
+                    if (!checkOverdue(job)) return false;
+                }
+            }
+
+            if (searchTxt) { const rowContent = Object.values(job).join(' ').toLowerCase(); if (!rowContent.includes(searchTxt)) return false; }
+            
+            for (let colIdx in activeFilters) {
+                const colDef = columnsDef.find(c => c.idx == colIdx);
+                if(!colDef) continue;
+                const key = colDef.key; let val = '';
+                if(['arrived_date', 'appointment_date', 'target_finish_date', 'repair_finish_date', 'delivery_date'].includes(key)) { 
+                    let rawVal = job[key];
+                    if (key === 'arrived_date' && !rawVal) rawVal = job.appointment_date;
+                    val = rawVal ? String(rawVal).split('T')[0] : ''; 
+                } 
+                else if (key === 'car_brand') { val = `${job.car_brand || ''} ${job.car_model || ''}`.trim(); } 
+                else if (key === 'main_part_qty') { val = String(Number(job.main_part_qty) || (job.main_part_name ? job.main_part_name.split(',').filter(Boolean).length : 0)); }
+                else if (key === 'sub_part_qty') { val = String(Number(job.sub_part_qty) || (job.sub_part_name ? job.sub_part_name.split(',').filter(Boolean).length : 0)); }
+                else { val = String(job[key] || '').trim(); }
+                if (!activeFilters[colIdx].has(val)) return false;
+            }
+            return true;
+        });
+        
+        renderRepairListTable(filteredData);
+    }, 15); // หน่วงเวลา 15ms ให้ Animation Loader ทำงานก่อน แล้วค่อยวาดตาราง
 }
 
 function filterBoardByKpi(type) {
