@@ -200,11 +200,25 @@ window.togglePartAccordion = function(id) {
     }
 };
 
-function openPOExcelFilter(e, colKey, title) {
-    e.stopPropagation();
+// ✅ วางโค้ดนี้แทนที่ฟังก์ชัน openPOExcelFilter เดิม
+window.openPOExcelFilter = function(e, colKey, title) {
+    // 1. ป้องกัน event หลุดหรือ undefined
+    const evt = e || window.event;
+    if (evt) {
+        if (typeof evt.stopPropagation === 'function') evt.stopPropagation();
+        if (typeof evt.preventDefault === 'function') evt.preventDefault();
+        evt.cancelBubble = true;
+    }
+
+    // 2. ตรวจสอบว่ามี Modal อยู่ในหน้าหรือยัง ถ้าไม่มีให้สร้าง
+    injectPOFilterModal();
+
     currentPOFilterKey = colKey;
-    document.getElementById('po_ef_col_name').innerText = title;
-    document.getElementById('po_ef_search').value = '';
+    const titleEl = document.getElementById('po_ef_col_name');
+    if (titleEl) titleEl.innerText = title;
+
+    const searchInput = document.getElementById('po_ef_search');
+    if (searchInput) searchInput.value = '';
 
     const uniqueValues = new Set();
     const pendingParts = filteredPartOrders.filter(o => o.order_status !== 'ยกเลิก');
@@ -214,7 +228,11 @@ function openPOExcelFilter(e, colKey, title) {
         const plate = o.car_plate || 'ไม่ระบุ';
         if (!groupedParts[plate]) {
             const jobMatch = allJobs.find(j => j.car_plate === plate);
-            groupedParts[plate] = { saName: jobMatch ? (jobMatch.sa_owner || 'ไม่ระบุ') : 'ไม่ระบุ', isParked: jobMatch ? (jobMatch.is_parked || 'ไม่ระบุ') : 'ไม่ระบุ', items: [] };
+            groupedParts[plate] = { 
+                saName: jobMatch ? (jobMatch.sa_owner || 'ไม่ระบุ') : 'ไม่ระบุ', 
+                isParked: jobMatch ? (jobMatch.is_parked || 'ไม่ระบุ') : 'ไม่ระบุ', 
+                items: [] 
+            };
         }
         groupedParts[plate].items.push(o);
     });
@@ -227,7 +245,9 @@ function openPOExcelFilter(e, colKey, title) {
         else if (statuses.includes('ติด Back Order')) worstStatus = 'ติด Back Order';
         else if (statuses.includes('รออะไหล่')) worstStatus = 'รออะไหล่';
         else if (statuses.includes('รออัปเดต')) worstStatus = 'รออัปเดต';
-        else if (statuses.some(s => !s.includes('ครบ') && !s.includes('มีของ'))) worstStatus = statuses.find(s => !s.includes('ครบ') && !s.includes('มีของ')) || 'รออะไหล่';
+        else if (statuses.some(s => !s.includes('ครบ') && !s.includes('มีของ'))) {
+            worstStatus = statuses.find(s => !s.includes('ครบ') && !s.includes('มีของ')) || 'รออะไหล่';
+        }
 
         if (colKey === 'plate') uniqueValues.add(plate);
         else if (colKey === 'sa') uniqueValues.add(group.saName);
@@ -236,30 +256,46 @@ function openPOExcelFilter(e, colKey, title) {
     });
 
     const listDiv = document.getElementById('po_ef_checkbox_list');
+    if (!listDiv) return;
     listDiv.innerHTML = '';
     
     [...uniqueValues].sort().forEach(val => {
         const isChecked = activePOFilters[colKey] ? activePOFilters[colKey].has(val) : true;
-        listDiv.innerHTML += `<label class="flex items-start gap-2 hover:bg-slate-100 p-1.5 rounded cursor-pointer po-ef-item transition"><input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''} class="po-ef-check accent-[#00320D] mt-0.5 cursor-pointer w-4 h-4"><span class="text-slate-700 font-medium truncate w-full text-sm" title="${val}">${val}</span></label>`;
+        listDiv.innerHTML += `
+            <label class="flex items-start gap-2 hover:bg-slate-100 p-1.5 rounded cursor-pointer po-ef-item transition">
+                <input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''} class="po-ef-check accent-[#00320D] mt-0.5 cursor-pointer w-4 h-4">
+                <span class="text-slate-700 font-medium truncate w-full text-sm" title="${val}">${val}</span>
+            </label>`;
     });
     
     const selAll = document.getElementById('po_ef_select_all');
-    if(selAll) selAll.checked = Array.from(document.querySelectorAll('.po-ef-check')).every(cb => cb.checked);
+    const allChecks = Array.from(document.querySelectorAll('.po-ef-check'));
+    if (selAll) selAll.checked = allChecks.length > 0 && allChecks.every(cb => cb.checked);
     
+    // 3. กำหนดตำแหน่งแสดงกล่องตัวกรอง
     const modal = document.getElementById('poExcelFilterModal');
-    const th = e.target.closest('th');
-    if(th) {
+    if (!modal) return;
+
+    const targetEl = evt ? (evt.target || evt.srcElement) : null;
+    const th = targetEl ? targetEl.closest('th') : document.getElementById(`po_th_${colKey}`);
+
+    if (th) {
         const rect = th.getBoundingClientRect();
         modal.style.top = (rect.bottom + window.scrollY + 8) + 'px';
         let leftPos = rect.left + window.scrollX;
         if (leftPos + 260 > window.innerWidth) leftPos = window.innerWidth - 270;
+        if (leftPos < 10) leftPos = 10;
         modal.style.left = leftPos + 'px';
+        modal.style.transform = 'none';
     } else {
-        modal.style.top = '50%'; modal.style.left = '50%'; modal.style.transform = 'translate(-50%, -50%)';
+        modal.style.top = '50%';
+        modal.style.left = '50%';
+        modal.style.transform = 'translate(-50%, -50%)';
     }
-    modal.classList.remove('hidden'); modal.classList.add('flex');
-}
 
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+};
 function closePOExcelFilter() {
     const modal = document.getElementById('poExcelFilterModal');
     if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); modal.style.transform = 'none'; }
@@ -329,3 +365,10 @@ window.filterPOTable = function(keyword) {
         }
     });
 };
+
+// ✅ วางเพิ่มไว้ล่างสุดของ dashboard_po.js
+window.closePOExcelFilter = closePOExcelFilter;
+window.searchPOExcelFilter = searchPOExcelFilter;
+window.toggleAllPOExcelFilters = toggleAllPOExcelFilters;
+window.applyPOExcelFilter = applyPOExcelFilter;
+window.clearSpecificPOExcelFilter = clearSpecificPOExcelFilter;

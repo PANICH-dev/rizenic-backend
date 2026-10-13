@@ -1,5 +1,5 @@
 // =====================================
-// 📈 ANALYTICS, CHARTS & REPORTS
+// 📈 ANALYTICS, CHARTS & REPORTS (Mobile-Optimized)
 // =====================================
 if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
     try {
@@ -186,6 +186,7 @@ function renderStatusChart() {
     if (statusChartInstance) statusChartInstance.destroy();
     
     const ctx = canvas.getContext('2d');
+    const isMobile = window.innerWidth < 768; // ตรวจสอบขนาดหน้าจอมือถือ
     
     statusChartInstance = new Chart(ctx, {
         type: 'bar',
@@ -195,8 +196,8 @@ function renderStatusChart() {
                 label: 'จำนวน (คัน)', 
                 data: activeData, 
                 backgroundColor: barColors, 
-                borderRadius: 6, 
-                barPercentage: 0.65
+                borderRadius: 4, 
+                barPercentage: 0.75
             }]
         },
         options: { 
@@ -204,13 +205,14 @@ function renderStatusChart() {
             responsive: true, 
             maintainAspectRatio: false, 
             layout: {
-                padding: { right: 40 }
+                // ขยาย padding ขวา ไม่ให้ตัวเลข '148 คัน' ชนขอบ
+                padding: { right: isMobile ? 60 : 70 }
             },
             plugins: { 
                 legend: { display: false },
                 datalabels: { 
                     color: '#1e293b',
-                    font: { family: 'Kanit', weight: '900', size: 13 },
+                    font: { family: 'Kanit', weight: '900', size: isMobile ? 11 : 13 },
                     anchor: 'end', 
                     align: 'right', 
                     formatter: (val) => val > 0 ? val + ' คัน' : ''
@@ -219,13 +221,18 @@ function renderStatusChart() {
             scales: { 
                 y: { 
                     grid: { display: false }, 
+                    // ล็อกความกว้างแกน Y ป้องกันข้อความซ้ายถูกตัดเหลือตัวเดียว
+                    afterFit: (scale) => {
+                        scale.width = isMobile ? 120 : 160;
+                    },
                     ticks: { 
-                        font: { family: 'Kanit', size: 12, weight: '600' },
+                        font: { family: 'Kanit', size: isMobile ? 10 : 12, weight: '600' },
                         color: '#334155' 
                     } 
                 }, 
                 x: { 
                     beginAtZero: true, 
+                    grace: '15%', // เว้นช่องว่างปลายแท่งกราฟ ป้องกันตัวเลขตกขอบ
                     ticks: { stepSize: 1, font: { family: 'Kanit', size: 10 } } 
                 } 
             },
@@ -290,7 +297,7 @@ function renderInsuranceChart() {
         options: {
             responsive: true, maintainAspectRatio: false, cutout: '60%',
             plugins: { 
-                legend: { position: 'right', labels: { font: { family: 'Kanit', size: 10 } } },
+                legend: { position: window.innerWidth < 768 ? 'bottom' : 'right', labels: { font: { family: 'Kanit', size: 10 } } },
                 datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 12 }, formatter: (val) => val > 0 ? val : '' }
             }
         }
@@ -390,7 +397,7 @@ function renderPaymentChart(start, end) {
         options: {
             responsive: true, maintainAspectRatio: false, cutout: '50%',
             plugins: { 
-                legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
+                legend: { position: window.innerWidth < 768 ? 'bottom' : 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
                 datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? v : '' }
             },
             onClick: (evt, elements) => {
@@ -511,7 +518,7 @@ function renderDamageChart(start, end) {
         options: {
             responsive: true, maintainAspectRatio: false, cutout: '50%',
             plugins: { 
-                legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
+                legend: { position: window.innerWidth < 768 ? 'bottom' : 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
                 datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? `${v} คัน` : '' }
             },
             onClick: (evt, elements) => {
@@ -599,7 +606,7 @@ function renderPartsStatusChart() {
         options: {
             responsive: true, maintainAspectRatio: false, cutout: '50%',
             plugins: { 
-                legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
+                legend: { position: window.innerWidth < 768 ? 'bottom' : 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
                 tooltip: { callbacks: { label: function(c) { return ` ${c.label}: ${carData[c.dataIndex]} คัน (${partsData[c.dataIndex]} ชิ้น)`; } } },
                 datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 10 }, textAlign: 'center', formatter: (v, ctx) => v > 0 ? `${carData[ctx.dataIndex]} คัน\n(${partsData[ctx.dataIndex]} ชิ้น)` : '' }
             },
@@ -673,7 +680,7 @@ function renderMechanicChart() {
         options: {
             responsive: true, maintainAspectRatio: false, cutout: '50%',
             plugins: { 
-                legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
+                legend: { position: window.innerWidth < 768 ? 'bottom' : 'right', labels: { boxWidth: 10, font: { family: 'Kanit', size: 9 } } },
                 datalabels: { color: '#fff', font: { family: 'Kanit', weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? `${v} คัน` : '' }
             },
             onClick: (evt, elements) => { if (elements.length > 0) openMechanicModal(labels[elements[0].index]); }
