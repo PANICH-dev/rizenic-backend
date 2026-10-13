@@ -1,5 +1,5 @@
 // ========================================================
-// 📦 PO TRACKING & EXCEL FILTER SYSTEM
+// 📦 PO TRACKING & EXCEL FILTER SYSTEM (Complete Ready-to-use)
 // ========================================================
 
 let activePOFilters = {};
@@ -8,7 +8,7 @@ let currentPOFilterKey = '';
 function injectPOFilterModal() {
     if (document.getElementById('poExcelFilterModal')) return;
     const modalHtml = `
-    <div id="poExcelFilterModal" class="hidden fixed bg-white border border-slate-300 shadow-2xl rounded-xl w-64 z-[9999] flex-col overflow-hidden text-xs">
+    <div id="poExcelFilterModal" class="hidden fixed bg-white border border-slate-300 shadow-2xl rounded-xl w-64 z-[99999] flex-col overflow-hidden text-xs">
         <div class="bg-[#00320D] text-white border-b border-green-800 px-3 py-2.5 flex justify-between items-center">
             <span class="font-bold flex items-center gap-1.5"><i class="fa-solid fa-filter text-amber-400"></i> ตัวกรอง: <span id="po_ef_col_name" class="text-slate-200"></span></span>
             <button onclick="closePOExcelFilter()" class="text-slate-300 hover:text-red-400 transition"><i class="fa-solid fa-xmark text-base"></i></button>
@@ -16,13 +16,13 @@ function injectPOFilterModal() {
         <div class="p-2.5 pb-1">
             <div class="relative mb-2">
                 <i class="fa-solid fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                <input type="text" id="po_ef_search" class="w-full border border-slate-300 rounded-lg pl-8 pr-2 py-1.5 text-xs outline-none focus:border-amber-500 transition-all bg-white" placeholder="ค้นหา..." onkeyup="searchPOExcelFilter()">
+                <input type="text" id="po_ef_search" class="w-full border border-slate-300 rounded-lg pl-8 pr-2 py-1.5 text-xs outline-none focus:border-amber-500 transition-all bg-white" placeholder="ค้นหา..." oninput="searchPOExcelFilter()" onkeyup="searchPOExcelFilter()">
             </div>
             <label class="flex items-center gap-2 px-1.5 py-1 border-b border-slate-100 mb-1 cursor-pointer hover:bg-slate-50 rounded transition">
                 <input type="checkbox" id="po_ef_select_all" checked onchange="toggleAllPOExcelFilters(this.checked)" class="w-3.5 h-3.5 accent-[#00320D] cursor-pointer rounded">
                 <span class="font-bold text-slate-700 select-none">เลือกทั้งหมด</span>
             </label>
-            <div id="po_ef_checkbox_list" class="max-h-44 overflow-y-auto space-y-0.5 custom-scrollbar pr-1"></div>
+            <div id="po_ef_checkbox_list" class="max-h-48 overflow-y-auto space-y-0.5 custom-scrollbar pr-1"></div>
         </div>
         <div class="bg-slate-50 border-t border-slate-200 p-2 flex gap-2">
             <button onclick="applyPOExcelFilter()" class="flex-1 bg-[#00320D] text-white font-bold py-1.5 rounded-lg hover:bg-black transition shadow-sm flex justify-center items-center gap-1"><i class="fa-solid fa-check"></i> ตกลง</button>
@@ -31,6 +31,7 @@ function injectPOFilterModal() {
     </div>`;
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     
+    // ปิด Modal เมื่อคลิกพื้นที่ด้านนอก
     document.addEventListener('click', (e) => {
         const modal = document.getElementById('poExcelFilterModal');
         if (modal && !modal.contains(e.target) && !e.target.closest('.po-filter-icon') && !modal.classList.contains('hidden')) {
@@ -80,7 +81,7 @@ function renderPartsTracking() {
 
     if (!tbody) return;
 
-    const pendingParts = filteredPartOrders.filter(o => o.order_status !== 'ยกเลิก');
+    const pendingParts = (typeof filteredPartOrders !== 'undefined' ? filteredPartOrders : []).filter(o => o.order_status !== 'ยกเลิก');
 
     if (pendingParts.length === 0) { 
         tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-400 font-bold bg-slate-50"><i class="fa-solid fa-box-open text-3xl mb-3 block opacity-50"></i>ไม่มีประวัติใบสั่งอะไหล่ 🎉</td></tr>`; 
@@ -88,11 +89,17 @@ function renderPartsTracking() {
     }
 
     const groupedParts = {};
+    const safeJobs = (typeof allJobs !== 'undefined' ? allJobs : []);
+
     pendingParts.forEach(o => {
         const plate = o.car_plate || 'ไม่ระบุ';
         if (!groupedParts[plate]) {
-            const jobMatch = allJobs.find(j => j.car_plate === plate);
-            groupedParts[plate] = { saName: jobMatch ? (jobMatch.sa_owner || 'ไม่ระบุ') : 'ไม่ระบุ', isParked: jobMatch ? (jobMatch.is_parked || 'ไม่ระบุ') : 'ไม่ระบุ', items: [] };
+            const jobMatch = safeJobs.find(j => j.car_plate === plate);
+            groupedParts[plate] = { 
+                saName: jobMatch ? (jobMatch.sa_owner || 'ไม่ระบุ') : 'ไม่ระบุ', 
+                isParked: jobMatch ? (jobMatch.is_parked || 'ไม่ระบุ') : 'ไม่ระบุ', 
+                items: [] 
+            };
         }
         groupedParts[plate].items.push(o);
     });
@@ -117,6 +124,7 @@ function renderPartsTracking() {
 
         const pkFilterVal = group.isParked === 'จอดซ่อม' ? 'จอดซ่อม' : 'ไม่จอดซ่อม';
 
+        // เช็กตัวกรองคอลัมน์ Excel
         if (activePOFilters['plate'] && !activePOFilters['plate'].has(plate)) return;
         if (activePOFilters['sa'] && !activePOFilters['sa'].has(group.saName)) return;
         if (activePOFilters['status'] && !activePOFilters['status'].has(worstStatus)) return;
@@ -137,7 +145,7 @@ function renderPartsTracking() {
             `<span class="bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded font-bold text-[10px]">ไม่จอดซ่อม</span>`;
 
         html += `
-            <tr class="hover:bg-blue-50/80 transition-colors border-b border-slate-200 cursor-pointer font-medium" onclick="togglePartAccordion('${rowId}')">
+            <tr class="po-row-main hover:bg-blue-50/80 transition-colors border-b border-slate-200 cursor-pointer font-medium" onclick="togglePartAccordion('${rowId}')">
                 <td class="text-center px-3 py-3"><i id="icon_${rowId}" class="fa-solid fa-chevron-right text-slate-400 transition-transform duration-200"></i></td>
                 <td class="font-black text-[#00320D] px-4 py-3"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded text-sm shadow-inner font-mono">${plate}</span></td>
                 <td class="text-center px-2 py-3">${parkedBadge}</td>
@@ -168,7 +176,7 @@ function renderPartsTracking() {
         }).join('');
 
         html += `
-            <tr id="${rowId}" class="hidden bg-slate-100/70">
+            <tr id="${rowId}" class="po-row-sub hidden bg-slate-100/70">
                 <td colspan="7" class="p-3">
                     <div class="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-inner">
                         <div class="bg-slate-200/80 px-3 py-1.5 text-[11px] font-bold text-slate-700 border-b border-slate-300 flex justify-between items-center">
@@ -200,9 +208,7 @@ window.togglePartAccordion = function(id) {
     }
 };
 
-// ✅ วางโค้ดนี้แทนที่ฟังก์ชัน openPOExcelFilter เดิม
 window.openPOExcelFilter = function(e, colKey, title) {
-    // 1. ป้องกัน event หลุดหรือ undefined
     const evt = e || window.event;
     if (evt) {
         if (typeof evt.stopPropagation === 'function') evt.stopPropagation();
@@ -210,7 +216,6 @@ window.openPOExcelFilter = function(e, colKey, title) {
         evt.cancelBubble = true;
     }
 
-    // 2. ตรวจสอบว่ามี Modal อยู่ในหน้าหรือยัง ถ้าไม่มีให้สร้าง
     injectPOFilterModal();
 
     currentPOFilterKey = colKey;
@@ -221,13 +226,14 @@ window.openPOExcelFilter = function(e, colKey, title) {
     if (searchInput) searchInput.value = '';
 
     const uniqueValues = new Set();
-    const pendingParts = filteredPartOrders.filter(o => o.order_status !== 'ยกเลิก');
-    
+    const pendingParts = (typeof filteredPartOrders !== 'undefined' ? filteredPartOrders : []).filter(o => o.order_status !== 'ยกเลิก');
+    const safeJobs = (typeof allJobs !== 'undefined' ? allJobs : []);
+
     const groupedParts = {};
     pendingParts.forEach(o => {
         const plate = o.car_plate || 'ไม่ระบุ';
         if (!groupedParts[plate]) {
-            const jobMatch = allJobs.find(j => j.car_plate === plate);
+            const jobMatch = safeJobs.find(j => j.car_plate === plate);
             groupedParts[plate] = { 
                 saName: jobMatch ? (jobMatch.sa_owner || 'ไม่ระบุ') : 'ไม่ระบุ', 
                 isParked: jobMatch ? (jobMatch.is_parked || 'ไม่ระบุ') : 'ไม่ระบุ', 
@@ -272,19 +278,26 @@ window.openPOExcelFilter = function(e, colKey, title) {
     const allChecks = Array.from(document.querySelectorAll('.po-ef-check'));
     if (selAll) selAll.checked = allChecks.length > 0 && allChecks.every(cb => cb.checked);
     
-    // 3. กำหนดตำแหน่งแสดงกล่องตัวกรอง
     const modal = document.getElementById('poExcelFilterModal');
     if (!modal) return;
 
+    // คำนวณพิกัดสำหรับ Fixed Element (ห้ามบวก scrollY เด็ดขาด)
     const targetEl = evt ? (evt.target || evt.srcElement) : null;
     const th = targetEl ? targetEl.closest('th') : document.getElementById(`po_th_${colKey}`);
 
     if (th) {
         const rect = th.getBoundingClientRect();
-        modal.style.top = (rect.bottom + window.scrollY + 8) + 'px';
-        let leftPos = rect.left + window.scrollX;
-        if (leftPos + 260 > window.innerWidth) leftPos = window.innerWidth - 270;
+        let topPos = rect.bottom + 8;
+        if (topPos + 320 > window.innerHeight) {
+            topPos = Math.max(10, rect.top - 320);
+        }
+        let leftPos = rect.left;
+        if (leftPos + 270 > window.innerWidth) {
+            leftPos = window.innerWidth - 280;
+        }
         if (leftPos < 10) leftPos = 10;
+
+        modal.style.top = topPos + 'px';
         modal.style.left = leftPos + 'px';
         modal.style.transform = 'none';
     } else {
@@ -296,23 +309,29 @@ window.openPOExcelFilter = function(e, colKey, title) {
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 };
-function closePOExcelFilter() {
+
+window.closePOExcelFilter = function() {
     const modal = document.getElementById('poExcelFilterModal');
-    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); modal.style.transform = 'none'; }
-}
+    if (modal) { 
+        modal.classList.add('hidden'); 
+        modal.classList.remove('flex'); 
+    }
+};
 
-function searchPOExcelFilter() {
-    const txt = document.getElementById('po_ef_search').value.toLowerCase();
+window.searchPOExcelFilter = function() {
+    const txt = (document.getElementById('po_ef_search')?.value || '').toLowerCase();
     document.querySelectorAll('.po-ef-item').forEach(l => {
-        l.style.display = l.querySelector('.po-ef-check').value.toLowerCase().includes(txt) ? 'flex' : 'none';
+        const chk = l.querySelector('.po-ef-check');
+        const val = (chk ? chk.value : '').toLowerCase();
+        l.style.display = val.includes(txt) ? 'flex' : 'none';
     });
-}
+};
 
-function toggleAllPOExcelFilters(checked) {
+window.toggleAllPOExcelFilters = function(checked) {
     document.querySelectorAll('.po-ef-item:not([style*="display: none"]) .po-ef-check').forEach(cb => cb.checked = checked);
-}
+};
 
-function applyPOExcelFilter() {
+window.applyPOExcelFilter = function() {
     const checks = document.querySelectorAll('.po-ef-check');
     const checkedVals = Array.from(checks).filter(cb => cb.checked).map(cb => cb.value);
     const thIcon = document.querySelector(`#po_th_${currentPOFilterKey} .po-filter-icon`);
@@ -324,40 +343,44 @@ function applyPOExcelFilter() {
         activePOFilters[currentPOFilterKey] = new Set(checkedVals);
         if(thIcon) { thIcon.classList.remove('text-blue-300'); thIcon.classList.add('text-amber-400'); }
     }
-    closePOExcelFilter(); renderPartsTracking();
-}
+    closePOExcelFilter(); 
+    renderPartsTracking();
+};
 
-function clearSpecificPOExcelFilter() {
+window.clearSpecificPOExcelFilter = function() {
     delete activePOFilters[currentPOFilterKey];
     const thIcon = document.querySelector(`#po_th_${currentPOFilterKey} .po-filter-icon`);
     if(thIcon) { thIcon.classList.remove('text-amber-400'); thIcon.classList.add('text-blue-300'); }
-    closePOExcelFilter(); renderPartsTracking();
-}
+    closePOExcelFilter(); 
+    renderPartsTracking();
+};
 
+// ฟังก์ชันค้นหาช่องข้อความหลัก (รองรับทั้งคอมและมือถือแบบ Real-time)
 window.filterPOTable = function(keyword) {
     const tbody = document.getElementById('parts_tracking_body');
     if (!tbody) return;
-    const lowerKeyword = keyword.toLowerCase().trim();
-    const mainRows = Array.from(tbody.querySelectorAll('tr[onclick^="togglePartAccordion"]'));
+    const lowerKeyword = (keyword || '').toLowerCase().trim();
+    const mainRows = Array.from(tbody.querySelectorAll('.po-row-main'));
     
     mainRows.forEach(row => {
         const nextRow = row.nextElementSibling;
         let isMatch = false;
 
-        if (lowerKeyword === '') { isMatch = true; } 
-        else {
+        if (lowerKeyword === '') { 
+            isMatch = true; 
+        } else {
             const mainText = row.innerText.toLowerCase();
-            if (mainText.includes(lowerKeyword)) { isMatch = true; } 
-            else if (nextRow && nextRow.id.startsWith('part_group_')) {
-                const subText = nextRow.innerText.toLowerCase();
-                if (subText.includes(lowerKeyword)) isMatch = true;
+            const subText = (nextRow && nextRow.classList.contains('po-row-sub')) ? nextRow.innerText.toLowerCase() : '';
+            if (mainText.includes(lowerKeyword) || subText.includes(lowerKeyword)) { 
+                isMatch = true; 
             }
         }
 
-        if (isMatch) row.style.display = '';
-        else {
+        if (isMatch) {
+            row.style.display = '';
+        } else {
             row.style.display = 'none';
-            if (nextRow && nextRow.id.startsWith('part_group_')) {
+            if (nextRow && nextRow.classList.contains('po-row-sub')) {
                 nextRow.classList.add('hidden');
                 const icon = row.querySelector('.fa-chevron-right');
                 if(icon) icon.classList.remove('rotate-90');
@@ -365,6 +388,14 @@ window.filterPOTable = function(keyword) {
         }
     });
 };
+
+// ดักจับ input เพื่อให้คีย์บอร์ดมือถือพิมพ์ค้นหาได้ทันที
+document.addEventListener('DOMContentLoaded', () => {
+    const searchBox = document.querySelector('input[onkeyup*="filterPOTable"]');
+    if (searchBox) {
+        searchBox.addEventListener('input', (e) => window.filterPOTable(e.target.value));
+    }
+});
 
 // ✅ วางเพิ่มไว้ล่างสุดของ dashboard_po.js
 window.closePOExcelFilter = closePOExcelFilter;
