@@ -302,6 +302,42 @@ function renderParkedCars() {
 // ==========================================
 // 🗓️ 3. ปฏิทินปฏิบัติงาน (อัปเกรด โควต้าไทย/อังกฤษ + เอฟเฟคไฟลุก)
 // ==========================================
+
+// 🌟 เพิ่มตัวแปรเก็บค่าเดือน/ปี ปัจจุบันสำหรับปฏิทิน 🌟
+let calCurrentMonth = new Date().getMonth();
+let calCurrentYear = new Date().getFullYear();
+
+// 🌟 เพิ่มฟังก์ชันเลื่อนเดือน/ปี 🌟
+window.changeCalendarMonth = function(step) {
+    calCurrentMonth += step;
+    if (calCurrentMonth > 11) { calCurrentMonth = 0; calCurrentYear++; }
+    if (calCurrentMonth < 0) { calCurrentMonth = 11; calCurrentYear--; }
+    renderCalendarBySelectedMonth();
+}
+
+// 🌟 เพิ่มฟังก์ชันกลับมาเดือนปัจจุบัน 🌟
+window.resetCalendarMonth = function() {
+    calCurrentMonth = new Date().getMonth();
+    calCurrentYear = new Date().getFullYear();
+    renderCalendarBySelectedMonth();
+}
+
+// 🌟 เพิ่มฟังก์ชันเรียกปฏิทินตามเดือนที่เลือก 🌟
+window.renderCalendarBySelectedMonth = function() {
+    const startDate = new Date(calCurrentYear, calCurrentMonth, 1);
+    const endDate = new Date(calCurrentYear, calCurrentMonth + 1, 0);
+
+    const startStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-01`;
+    const endStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
+
+    const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+    const titleEl = document.getElementById('calendar_month_title');
+    if (titleEl) titleEl.innerText = `${monthNames[calCurrentMonth]} ${calCurrentYear}`;
+
+    renderCalendarByRange(startStr, endStr);
+}
+
+// 🌟 ในส่วนของ renderCalendarByRange เดิม ให้เพิ่มโค้ดสลับชื่อเดือนตอนเริ่มฟังก์ชัน
 function renderCalendarByRange(startDate, endDate) {
     moveCalendarUp(); // 🎯 ดันปฏิทินขึ้นด้านบนเสมอ!
     
@@ -314,12 +350,21 @@ function renderCalendarByRange(startDate, endDate) {
     if(isNaN(start) || isNaN(end) || start > end) {
         grid.innerHTML = `<div class="col-span-7 text-center py-10 text-slate-400 font-bold bg-slate-50 rounded-xl">วันที่ไม่ถูกต้อง</div>`; return;
     }
+
+    // 🌟 เพิ่มโค้ดอัปเดตชื่อเดือนหากไม่ได้กดปุ่มเลื่อนเดือนแต่ถูกสั่งงานจากที่อื่น 🌟
+    const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+    const titleEl = document.getElementById('calendar_month_title');
+    if (titleEl && titleEl.innerText === 'เดือนปัจจุบัน') {
+        titleEl.innerText = `${monthNames[start.getMonth()]} ${start.getFullYear()}`;
+    }
+
     if(Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)) > 31) {
         grid.innerHTML = `<div class="col-span-7 text-center py-10 text-slate-400 font-bold bg-slate-50 rounded-xl">รองรับสูงสุด 31 วัน</div>`; return;
     }
 
     for(let i = 0; i < start.getDay(); i++) grid.innerHTML += `<div class="bg-slate-50/50 rounded-xl border border-transparent"></div>`; 
 
+    // โค้ดเดิมยาวๆ ด้านล่างเหมือนเดิมทั้งหมด ไม่ต้องแก้ไขแล้ว...
     const safeFilteredJobs = getSafeJobsData();
 
     let maxCount = 1; const daysData = [];
