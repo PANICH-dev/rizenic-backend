@@ -75,16 +75,61 @@ router.post('/quotas', async (req, res) => { try { const d = req.body; const res
 router.put('/quotas/:id', async (req, res) => { try { const d = req.body; await pool.query(`UPDATE rizenic_quotas SET quota_type=$1, quota_date=$2, branch_name=$3, quota_arrived=$4, quota_target=$5, quota_delivery=$6, quota_main_parts=$7, quota_sub_parts=$8 WHERE id=$9;`, [d.quota_type || 'default', d.quota_type === 'special' ? d.quota_date : null, d.branch_name, parseInt(d.quota_arrived) || 0, parseInt(d.quota_target) || 0, parseInt(d.quota_delivery) || 0, parseInt(d.quota_main_parts) || 0, parseInt(d.quota_sub_parts) || 0, req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 router.delete('/quotas/:id', async (req, res) => { try { await pool.query('DELETE FROM rizenic_quotas WHERE id = $1', [req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 
+const BOARD_FIELDS = [
+  'id', 'branch_name', 'department_routing', 'job_status', 'sa_owner',
+  'customer_name', 'phone_number', 'car_plate', 'car_brand', 'car_model', 'vin_no',
+  'damage_level', 'arrived_date', 'contact_date', 'target_finish_date',
+  'repair_finish_date', 'delivery_date', 'repair_notes',
+  'station_ready', 'station_pak', 'station_film', 'station_kraj', 'station_mag',
+  'station_qc', 'station_kat', 'station_prak', 'station_pon', 'station_puan',
+  'station_pou', 'station_kho'
+].join(', ');
+
+router.get('/reports/search', async (req, res) => {
+  const plate = typeof req.query.plate === 'string' ? req.query.plate.trim() : '';
+  if (!plate) return res.status(400).json({ error: 'กรุณาระบุทะเบียนรถ' });
+  const rawLimit = req.query.limit ?? '20';
+  if (typeof rawLimit !== 'string' || !/^[1-9]\d*$/.test(rawLimit)) {
+    return res.status(400).json({ error: 'limit ต้องเป็นจำนวนเต็มบวก' });
+  }
+  const limit = Math.min(Number(rawLimit), 100);
+  const pattern = plate.replace(/[\\%_]/g, char => '\\' + char);
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, car_plate, customer_name, phone_number, car_brand, car_model, vin_no, customer_type FROM rizenicreport WHERE BTRIM(car_plate) ILIKE $1 ORDER BY id DESC LIMIT $2',
+      [pattern, limit]
+    );
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.get('/reports', async (req, res) => {
   try {
-    const { start, end, branch } = req.query;
+    const { start, end, branch, department, active_only, fields, include_repair_statuses } = req.query;
     let conditions = []; let params = [];
-    if (branch && branch !== 'all') { params.push(branch); conditions.push(`branch_name = $${params.length}`); }
+    if (branch && String(branch).toLowerCase() !== 'all') { params.push(branch); conditions.push(`branch_name = $${params.length}`); }
     if (start && end) {
       params.push(start, end);
       conditions.push(`((arrived_date >= $${params.length-1} AND arrived_date <= $${params.length}) OR (contact_date >= $${params.length-1} AND contact_date <= $${params.length}) OR (job_status NOT IN ('12.ส่งมอบ', '12.ส่งมอบแล้ว', '22.ปิดงาน', '18.ลูกค้ายกเลิก')))`);
     }
-    const result = await pool.query(`SELECT * FROM rizenicreport ${conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : ''} ORDER BY id DESC`, params);
+    if (typeof department === 'string' && department && department.toLowerCase() !== 'all') {
+      params.push(department);
+      let condition = 'department_routing = $' + params.length;
+      // The station board also shows these jobs before their department is updated.
+      if (fields === 'board' && department === 'ซ่อม' && include_repair_statuses === 'true') {
+        params.push(['09.จอดรอเข้าซ่อม', '10.กำลังซ่อม', '11.รถซ่อมเสร็จรอส่งมอบ']);
+        condition = '(' + condition + ' OR job_status = ANY($' + params.length + '))';
+      }
+      conditions.push(condition);
+    }
+    if (active_only === 'true') {
+      params.push(['12.ส่งมอบ', '12.ส่งมอบแล้ว', '18.ลูกค้ายกเลิก', '22.ปิดงาน']);
+      conditions.push('(job_status IS NULL OR job_status <> ALL($' + params.length + '))');
+    }
+    const columns = fields === 'board' ? BOARD_FIELDS : '*';
+    const result = await pool.query(`SELECT ${columns} FROM rizenicreport ${conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : ''} ORDER BY id DESC`, params);
     res.json(result.rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

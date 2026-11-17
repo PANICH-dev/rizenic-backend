@@ -234,7 +234,7 @@ async function loadJobsData() {
     try {
         const results = await Promise.allSettled([
             fetch(`${API_BASE_URL}/api/statuses`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/api/part-orders`).then(res => res.json()),
+            fetch(`${API_BASE_URL}/api/part-orders?active_only=true`).then(res => res.json()),
             fetch(`${API_BASE_URL}/api/body-parts`).then(res => res.json()),
             fetch(`${API_BASE_URL}/api/reports`).then(res => res.json()),
             fetch(`${API_BASE_URL}/api/customer-types`).then(res => res.json()),

@@ -8,7 +8,26 @@ router.post('/parts', async (req, res) => { const client = await pool.connect();
 router.put('/parts/:id', async (req, res) => { const client = await pool.connect(); try { const { part_main_no, part_no, part_name, car_model, part_category, unit_price, location, safety_stock, branch_name } = req.body; const branch = branch_name || 'สำนักงานใหญ่'; await client.query('BEGIN'); await client.query(`UPDATE rizenicpartsmaster SET part_main_no=$1, part_no=$2, part_name=$3, car_model=$4, part_category=$5, unit_price=$6 WHERE part_id=$7;`, [part_main_no || null, part_no, part_name, car_model || null, part_category, parseFloat(unit_price) || 0.00, req.params.id]); await client.query(`INSERT INTO rizenic_part_locations (part_no, branch_name, location, safety_stock) VALUES ($1, $2, $3, $4) ON CONFLICT (part_no, branch_name) DO UPDATE SET location = $3, safety_stock = $4;`, [part_no, branch, location || null, parseInt(safety_stock) || 0]); await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { client.release(); } });
 router.delete('/parts/:id', async (req, res) => { try { await pool.query('DELETE FROM rizenicpartsmaster WHERE part_id = $1', [req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 
-router.get('/part-orders', async (req, res) => { try { res.json((await pool.query('SELECT * FROM rizenic_part_orders ORDER BY order_id DESC')).rows); } catch (e) { res.status(500).json({ error: e.message }); } });
+router.get('/part-orders', async (req, res) => {
+    try {
+        const { branch, active_only } = req.query;
+        const params = [];
+        const conditions = [];
+        if (typeof branch === 'string' && branch && branch.toLowerCase() !== 'all') {
+            params.push(branch);
+            conditions.push('branch_name = $' + params.length);
+        }
+        if (active_only === 'true') {
+            params.push('ยกเลิก');
+            conditions.push('order_status IS DISTINCT FROM $' + params.length);
+        }
+        const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : '';
+        const { rows } = await pool.query('SELECT * FROM rizenic_part_orders' + where + ' ORDER BY order_id DESC', params);
+        res.json(rows);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
 router.post('/part-orders', async (req, res) => { try { const d = req.body; const result = await pool.query(`INSERT INTO rizenic_part_orders (qt_no, so_no, epc_no, order_date, est_arrival_date, car_plate, vin_no, car_model, part_main_no, part_no, part_name, qty_ordered, qty_received, order_status, part_type, branch_name, notes, job_id, received_date) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 0, $13, $14, $15, $16, $17, $18) RETURNING *;`, [d.qt_no || null, d.so_no || null, d.epc_no || null, d.order_date, d.est_arrival_date || null, d.car_plate || null, d.vin_no || null, d.car_model || null, d.part_main_no || null, d.part_no, d.part_name, parseInt(d.qty_ordered) || 1, d.order_status || 'รอสั่งซื้อ', d.part_type || 'อะไหล่แท้', d.branch_name, d.notes || null, d.job_id || null, d.received_date || null]); res.status(201).json({ success: true, data: result.rows[0] }); } catch (e) { res.status(500).json({ error: e.message }); } });
 router.put('/part-orders/:id', async (req, res) => { try { const d = req.body; await pool.query(`UPDATE rizenic_part_orders SET part_no=COALESCE($1, part_no), part_main_no=$2, part_name=COALESCE($3, part_name), qty_ordered=COALESCE($4, qty_ordered), epc_no=$5, order_status=COALESCE($6, order_status), est_arrival_date=$7, received_date=$8, qt_no=COALESCE($9, qt_no), so_no=COALESCE($10, so_no), order_date=COALESCE($11, order_date), car_plate=COALESCE($12, car_plate), vin_no=COALESCE($13, vin_no), car_model=COALESCE($14, car_model), part_type=COALESCE($15, part_type), notes=$16, job_id=COALESCE($17, job_id) WHERE order_id=$18`, [d.part_no || null, d.part_main_no || null, d.part_name || null, d.qty_ordered || null, d.epc_no || null, d.order_status || null, d.est_arrival_date || null, d.received_date || null, d.qt_no || null, d.so_no || null, d.order_date || null, d.car_plate || null, d.vin_no || null, d.car_model || null, d.part_type || null, d.notes || null, d.job_id || null, req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 router.put('/part-orders/:id/fast', async (req, res) => { try { const { field, value } = req.body; const validFields = ['epc_no', 'part_no', 'part_main_no', 'part_name', 'qty_ordered', 'order_status', 'est_arrival_date', 'received_date', 'notes', 'car_plate', 'qt_no', 'so_no']; if (!validFields.includes(field)) return res.status(400).json({ error: 'ไม่อนุญาตให้แก้ฟิลด์นี้' }); await pool.query(`UPDATE rizenic_part_orders SET ${field} = $1 WHERE order_id = $2`, [value === '' ? null : value, req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });

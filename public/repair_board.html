@@ -138,6 +138,9 @@ document.addEventListener('DOMContentLoaded', () => {
     loadData();
     // รีเฟรชทุกๆ 30 วินาที
     setInterval(loadData, 30000);
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) loadData();
+    });
 });
 
 function toggleVoice() {
@@ -225,21 +228,42 @@ function computeHighestStationIFS(j) {
     return "ยังไม่ระบุสถานี";
 }
 
-async function loadData() {
-    try {
-        const res = await fetch(`${API_BASE_URL}/api/reports`);
-        const allJobs = await res.json();
-        
-        // กรองเฉพาะงานซ่อม และเฉพาะ "สาขาของคนที่ล็อกอิน"
-        const currentBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+let boardRequest;
+const boardDebug = new URLSearchParams(location.search).get('debug') === '1';
 
-        const repairJobs = allJobs.filter(j => 
-            j.branch_name === currentBranch &&
-            (j.department_routing === 'ซ่อม' || 
-            j.job_status === '09.จอดรอเข้าซ่อม' || 
-            j.job_status === '10.กำลังซ่อม' || 
-            j.job_status === '11.รถซ่อมเสร็จรอส่งมอบ')
-        );
+async function loadData() {
+    if (document.hidden) return;
+    const branch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+    if (boardRequest?.branch === branch) return;
+    boardRequest?.controller.abort();
+    const request = { branch, controller: new AbortController() };
+    boardRequest = request;
+    const query = new URLSearchParams({
+        active_only: 'true', fields: 'board', department: 'ซ่อม', include_repair_statuses: 'true'
+    });
+    if (branch.toLowerCase() !== 'all') query.set('branch', branch);
+
+    try {
+        const started = boardDebug ? performance.now() : 0;
+        const res = await fetch(API_BASE_URL + '/api/reports?' + query, { signal: request.controller.signal });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        let repairJobs;
+        if (boardDebug) {
+            const payload = await res.text();
+            repairJobs = JSON.parse(payload);
+            console.debug('Repair board reports', {
+                durationMs: performance.now() - started,
+                rows: repairJobs.length,
+                bytes: new TextEncoder().encode(payload).length
+            });
+        } else {
+            repairJobs = await res.json();
+        }
+        if (boardRequest !== request) return;
+        if ((sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่') !== branch) {
+            boardRequest = undefined;
+            return loadData();
+        }
 
         // จัดกลุ่มตามสถานี
         const groupedData = {};
@@ -264,7 +288,9 @@ async function loadData() {
         render(groupedData);
 
     } catch (e) {
-        console.error("ดึงข้อมูลกระดานล้มเหลว", e);
+        if (e.name !== 'AbortError') console.error('ดึงข้อมูลกระดานล้มเหลว', e);
+    } finally {
+        if (boardRequest === request) boardRequest = undefined;
     }
 }
 

@@ -903,7 +903,10 @@ function autoMapRouting() {
 }
 
 // 🚗 เช็กประวัติรถเก่าเพื่อดึงข้อมูลลูกค้าอัตโนมัติ
+let carHistoryRequest = 0;
+
 async function checkCarHistory(plateInput) {
+    const request = ++carHistoryRequest;
     const plate = plateInput.trim().toUpperCase();
     if (!plate) return;
 
@@ -914,40 +917,46 @@ async function checkCarHistory(plateInput) {
     if (document.getElementById('sa_report_id')?.value) return;
 
     try {
-        const res = await fetch(`${API_BASE_URL}/api/reports?start=2020-01-01&end=2030-12-31`);
-        if (!res.ok) return;
-        
-        const allReports = await res.json();
-        
-        const carHistory = allReports.filter(r => (r.car_plate || '').trim().toUpperCase() === plate)
-                                     .sort((a,b) => b.id - a.id);
+        const query = new URLSearchParams({ plate, limit: '1' });
+        const res = await fetch(API_BASE_URL + '/api/reports/search?' + query);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const carHistory = await res.json();
+        if (request !== carHistoryRequest ||
+            document.getElementById('car_plate')?.value.trim().toUpperCase() !== plate ||
+            document.getElementById('sa_report_id')?.value) return;
 
-        if (carHistory.length > 0) {
-            const lastJob = carHistory[0];
-            
-            if(typeof showToast === 'function') showToast('เจอประวัติรถเก่า! กำลังดึงข้อมูลลูกค้า...', 'info');
-
-            const cName = document.getElementById('customer_name');
-            const phone = document.getElementById('phone_number');
-            const brand = document.getElementById('car_brand');
-            const model = document.getElementById('car_model');
-            const vin = document.getElementById('vin_no');
-            const cType = document.getElementById('customer_type');
-
-            if (cName && !cName.value) cName.value = lastJob.customer_name || '';
-            if (phone && !phone.value) phone.value = lastJob.phone_number || '';
-            if (brand && !brand.value) {
-                brand.value = lastJob.car_brand || '';
-                updateCarModels(lastJob.car_brand);
-            }
-            if (model && !model.value) {
-                setTimeout(() => { model.value = lastJob.car_model || ''; }, 500);
-            }
-            if (vin && !vin.value) vin.value = lastJob.vin_no || '';
-            if (cType && !cType.value) cType.value = lastJob.customer_type || '';
+        if (!carHistory.length) {
+            if (typeof showToast === 'function') showToast('ไม่พบประวัติรถทะเบียนนี้', 'info');
+            return;
         }
+
+        const lastJob = carHistory[0];
+
+        if(typeof showToast === 'function') showToast('พบประวัติรถ กำลังเติมข้อมูลจากใบงานล่าสุด', 'info');
+
+        const cName = document.getElementById('customer_name');
+        const phone = document.getElementById('phone_number');
+        const brand = document.getElementById('car_brand');
+        const model = document.getElementById('car_model');
+        const vin = document.getElementById('vin_no');
+        const cType = document.getElementById('customer_type');
+
+        if (cName && !cName.value) cName.value = lastJob.customer_name || '';
+        if (phone && !phone.value) phone.value = lastJob.phone_number || '';
+        if (brand && !brand.value) {
+            brand.value = lastJob.car_brand || '';
+            updateCarModels(lastJob.car_brand);
+        }
+        if (model && !model.value) {
+            model.value = lastJob.car_model || '';
+        }
+        if (vin && !vin.value) vin.value = lastJob.vin_no || '';
+        if (cType && !cType.value) cType.value = lastJob.customer_type || '';
     } catch (e) {
-        console.error("Error checking car history:", e);
+        if (request === carHistoryRequest && document.getElementById('car_plate')?.value.trim().toUpperCase() === plate) {
+            if (typeof showToast === 'function') showToast('ค้นประวัติรถไม่สำเร็จ', 'error');
+            console.error('Error checking car history:', e);
+        }
     }
 }
 
