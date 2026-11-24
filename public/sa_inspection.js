@@ -9,22 +9,22 @@ let currentTool = 'O';
 // 🏢 1. ข้อมูล Master ของบริษัทและสาขาต่างๆ
 const COMPANY_MASTERS = {
     "raisen_navamin": {
-        name: "บริษัท ไรเซน เอนเนอร์จี จำกัด (สาขานวมินทร์)",
-        taxId: "0-1055-60176-43-4",
-        address: "50/5-6 ซอย นวมินทร์ 151 แขวงนวลจันทร์ เขตบึงกุ่ม กรุงเทพมหานคร 10240",
-        phone: "02-051-9199 / 098-151-5155"
+        name: "บริษัท ไรเซน เอนเนอร์จี จำกัด",
+        taxId: "0105560176434",
+        address: "50/5-6 ซอยนวมินทร์ 151 แขวงนวลจันทร์ เขตบึงกุ่ม กรุงเทพมหานคร 10230",
+        phone: "02-051-9199"
     },
     "raisen_rangsit": {
         name: "บริษัท ไรเซน เอนเนอร์จี จำกัด (สาขารังสิต)",
-        taxId: "0-1055-60176-43-4",
-        address: "47/1 หมู่ที่ 1 ตำบลคลองหนึ่ง อำเภอคลองหลวง จังหวัดปทุมธานี 12120",
-        phone: "02-055-9199 / 090-954-1115"
+        taxId: "0105560176434",
+        address: "47/1 ตำบลคลองหนึ่ง อำเภอคลองหลวง จังหวัดปทุมธานี 12110",
+        phone: "090-956-1115"
     },
     "rizenic_head": {
         name: "บริษัท ไรเซนิค จำกัด (สำนักงานใหญ่)",
         taxId: "0-1055-67000-00-0",
-        address: "50/5-6 ซอย นวมินทร์ 151 แขวงนวลจันทร์ เขตบึงกุ่ม กรุงเทพมหานคร 10240",
-        phone: "02-051-9199 / 098-151-5155"
+        address: "50/5-6 ซอยนวมินทร์ 151 แขวงนวลจันทร์ เขตบึงกุ่ม กรุงเทพมหานคร 10230",
+        phone: "02-051-9199"
     }
 };
 
@@ -35,6 +35,9 @@ async function loadInspectionTemplate() {
             const html = await res.text();
             document.body.insertAdjacentHTML('beforeend', html);
             renderPartsTable();
+            document.getElementById('ins_cust_name').oninput = event => {
+                setFieldValue('sign_cust_name_display', event.target.value);
+            };
         } catch (e) {
             console.error("❌ ไม่สามารถโหลดไฟล์ inspection.html ได้:", e);
         }
@@ -78,9 +81,17 @@ async function openInspectionModal() {
     const phone = document.getElementById('phone_number')?.value || '';
     const vin = document.getElementById('vin_no')?.value || '';
     const arrDate = document.getElementById('arrived_date')?.value || '';
-    const tgtDate = document.getElementById('target_finish_date')?.value || '';
+    const deliveryDate = document.getElementById('delivery_date')?.value;
+    const quotationNo = document.getElementById('qt_no')?.value;
     const jobId = document.getElementById('sa_report_id')?.value || '';
-    const branchName = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
+    let branchName = sessionStorage.getItem('emp_branch') || '';
+    let job;
+    if (jobId) {
+        const response = await fetch(API_BASE_URL + '/api/report/' + encodeURIComponent(jobId));
+        if (!response.ok) { alert('โหลดข้อมูลสาขาของใบงานไม่สำเร็จ'); return; }
+        job = await response.json();
+        branchName = job.branch_name || branchName;
+    }
 
     const paymentType = document.getElementById('payment_type')?.value || '';
     const claimNo = document.getElementById('eclaim_claim_no')?.value || document.getElementById('claim_no')?.value || '';
@@ -99,8 +110,8 @@ async function openInspectionModal() {
     setFieldValue('ins_phone', phone);
     setFieldValue('ins_vin', vin);
     setFieldValue('ins_arr_date', arrDate);
-    setFieldValue('ins_tgt_date', tgtDate);
-    setFieldValue('ins_job_no', jobId ? `JOB-${jobId}` : '');
+    setFieldValue('ins_tgt_date', deliveryDate ?? job?.delivery_date?.slice(0, 10) ?? '');
+    setFieldValue('ins_job_no', quotationNo ?? job?.qt_no ?? job?.quotation_no ?? '');
     setFieldValue('sign_cust_name_display', custName);
 
     setFieldValue('ins_insurance', paymentType);
@@ -121,8 +132,7 @@ async function openInspectionModal() {
     let defaultCompKey = 'raisen_navamin';
     if (branchName.includes('รังสิต') || branchName.includes('Rangsit') || branchName.includes('คลองหลวง')) {
         defaultCompKey = 'raisen_rangsit';
-    } else if (branchName.includes('RIZENIC') || branchName.includes('ไรเซนิค')) {
-        defaultCompKey = 'rizenic_head';
+
     }
 
     const companySelect = document.getElementById('ins_company_select');
@@ -134,7 +144,7 @@ async function openInspectionModal() {
 
     setTimeout(() => {
         initCanvas();
-        loadExistingInspectionData(carPlate);
+        loadExistingInspectionData(jobId);
     }, 200);
 }
 
@@ -324,13 +334,8 @@ function applyZoom() {
 
 function updateFuelGauge(val) {
     if(document.getElementById('fuel_txt')) document.getElementById('fuel_txt').innerText = val;
-    const arcLength = 110;
-    const filled = (val / 100) * arcLength;
-    const offset = arcLength - filled; 
-    if(document.getElementById('fuel_arc')) {
-        document.getElementById('fuel_arc').style.strokeDasharray = `${arcLength}`;
-        document.getElementById('fuel_arc').style.strokeDashoffset = `${offset}`;
-    }
+    const batteryFill = document.getElementById('ins_battery_fill');
+    batteryFill?.setAttribute('width', String(Number(val) * 0.81));
 }
 
 function printInspection() {
@@ -379,9 +384,9 @@ async function saveInspectionForm() {
     }
 }
 
-async function loadExistingInspectionData(carPlate) {
+async function loadExistingInspectionData(jobId) {
     try {
-        const res = await fetch(`${API_BASE_URL}/api/inspection/${encodeURIComponent(carPlate)}`);
+        const res = await fetch(`${API_BASE_URL}/api/inspection/${encodeURIComponent(jobId)}`);
         if (res.ok) {
             const result = await res.json();
             const data = result.data;
@@ -393,11 +398,11 @@ async function loadExistingInspectionData(carPlate) {
                 updateCompanyHeader(data.company_code);
             }
 
-            if (data.fuel_level && document.getElementById('ins_fuel_level')) {
+            if (data.fuel_level != null && document.getElementById('ins_fuel_level')) {
                 document.getElementById('ins_fuel_level').value = data.fuel_level;
                 updateFuelGauge(data.fuel_level);
             }
-            if (data.current_mileage && document.getElementById('ins_mileage')) {
+            if (data.current_mileage != null && document.getElementById('ins_mileage')) {
                 document.getElementById('ins_mileage').value = data.current_mileage;
             }
             if (data.notes && document.getElementById('ins_extra_notes')) {

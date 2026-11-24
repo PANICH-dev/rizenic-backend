@@ -2,44 +2,80 @@
 <!-- 🚗 แบบฟอร์มตรวจสภาพรถ (Vehicle Inspection) -->
 <!-- ========================================== -->
 <style>
-    #inspectionModal, #inspectionModal *,
-    #carDrawModal, #carDrawModal * {
+    #inspectionModal, #inspectionModal *, #carDrawModal, #carDrawModal * {
         font-family: 'Prompt', sans-serif !important;
     }
-
-    /* 🌟 CSS สำหรับการพิมพ์ A4 โดยเฉพาะ 🌟 */
-    @media print {
-        @page { size: A4 portrait; margin: 2mm 4mm 2mm 4mm; }
-        html, body { width: 210mm; height: 297mm; overflow: hidden !important; background: #fff !important; font-family: 'Prompt', sans-serif !important; }
-        body * { visibility: hidden; }
-        #inspectionModal { position: absolute !important; left: 0 !important; top: 0 !important; width: 210mm !important; height: 293mm !important; margin: 0 !important; padding: 0 !important; background: white !important; visibility: visible !important; overflow: hidden !important; }
-        
-        #inspection_scroll_container { overflow: visible !important; padding: 0 !important; display: block !important; }
-        #inspection_print_area, #inspection_print_area * { visibility: visible; }
-        #inspection_print_area { 
-            width: 202mm !important; 
-            height: 289mm !important; 
-            margin: 0 auto !important; 
-            padding: 0 !important; 
-            box-shadow: none !important; 
-            border: none !important; 
-            overflow: hidden !important; 
-            font-family: 'Prompt', sans-serif !important;
-            transform: scale(1) !important;
-            transform-origin: top left !important;
-        }
-        
-        .print-exact { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-        .no-print { display: none !important; }
-        .form-input-line { border-bottom: 1px solid #000 !important; color: #1d4ed8 !important; font-weight: 700 !important; }
+    #inspection_print_area {
+        box-sizing: border-box;
+        width: 210mm; height: 297mm;
+        padding: 7mm 8mm 7mm;
+        background: white;
+        color: #171717;
+        border: 0;
+        border-bottom: 6mm solid #1b2f1c;
+        font-size: 9px;
+        line-height: 1.2;
+        isolation: isolate;
     }
-
-    /* 🌟 บังคับสีข้อความปากกาสีน้ำเงิน 🌟 */
-    .form-input-line { border-bottom: 1px dashed #64748b; background: transparent; outline: none; padding: 0 2px; color: #1d4ed8 !important; font-weight: 700 !important; }
-    
-    .insp-table-compact th, .insp-table-compact td { border: 1px solid #475569; text-align: center; padding: 1.5px 0; font-size: 8.5px; height: 11px; }
-    .cb-box-sm { width: 11px; height: 11px; border: 1px solid #475569; cursor: pointer; accent-color: #00320D; margin: 0; appearance: auto; }
-    .sec-title-sm { background-color: #00320D; color: white; text-align: center; font-weight: 700; font-size: 9.5px; padding: 2.5px 0; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    #inspection_print_area::before, #inspection_print_area::after {
+        content: '';
+        position: absolute;
+        z-index: -1;
+        pointer-events: none;
+        width: 55mm; height: 14mm;
+        border: 5mm solid #bec3bf;
+        transform: skewX(-12deg);
+    }
+    #inspection_print_area::before { top: 0; left: 0; border-left: 0; opacity: .65; }
+    #inspection_print_area::after { bottom: -1mm; right: -5mm; opacity: .25; }
+    #inspection_print_area > div { position: relative; }
+    .inspection-header { min-height: 19mm; margin-bottom: 1mm; }
+    #inspection_print_area img[alt="RIZENIC LOGO"] {
+        width: 57mm; height: 14mm; object-fit: contain; object-position: left center;
+    }
+    #ins_company_address { width: 67mm; line-height: 1.35; font-size: 8px; text-align: left; }
+    #ins_company_address p:first-child { font-size: 10px; }
+    .inspection-title { background: #1b2f1c; padding: 2mm 0; font-size: 12px; border-radius: 0; box-shadow: none; }
+    .inspection-dates { min-height: 5mm; font-size: 10px; font-weight: 500; }
+    .inspection-customer { border: 0; border-top: 1px solid #222; margin-top: 2mm; padding: 2mm 0; }
+    .inspection-customer legend { float: left; width: 100%; margin: 0 0 1mm; padding: 0; text-decoration: underline; }
+    .inspection-customer > div { clear: both; font-size: 9px; gap: 1mm; }
+    #inspection_print_area input, #inspection_print_area textarea { min-width: 0; }
+    .form-input-line { background: transparent; border-bottom: 1px dotted #555; outline: none; padding: 0 2px; color: #1d4ed8; font-weight: 500; }
+    .inspection-main { height: 148mm; border: 1px solid #222; border-radius: 0; margin-bottom: 1mm; }
+    .inspection-main > div:first-child { width: 48%; border-right: 1px solid #222; }
+    .inspection-main > div:last-child { width: 52%; }
+    .sec-title-sm { background: #1b2f1c; color: white; text-align: center; font-weight: 600; font-size: 10px; padding: 1mm 0; }
+    .insp-table-compact { table-layout: fixed; }
+    .insp-table-compact th, .insp-table-compact td { border: 1px solid #333; text-align: center; padding: 0; font-size: 8px; font-weight: 400; line-height: 1.1; }
+    .insp-table-compact td[colspan], .insp-table-compact td[rowspan] { text-align: left; padding-left: 1px; }
+    .insp-table-compact th { background: white; font-weight: 600; height: 3mm; }
+    .cb-box-sm { box-sizing: border-box; width: 10px; height: 10px; margin: 0; accent-color: #1b2f1c; cursor: pointer; flex-shrink: 0; }
+    #inspection_print_area .cb-box-sm { appearance: none; border: 1px solid #333; border-radius: 0; background: white; }
+    #inspection_print_area .cb-box-sm:checked { background: #1b2f1c; box-shadow: inset 0 0 0 2px white; }
+    .inspection-car { flex: 0 0 auto; aspect-ratio: 1195 / 521; }
+    .inspection-electrical { flex: 1; min-height: 0; }
+    .inspection-signatures { border: 0; border-top: 1px solid #222; border-radius: 0; }
+    .inspection-signatures > div { background: transparent; padding: 2mm 1mm 1mm; }
+    .inspection-signatures > div + div { border-top: 1px solid #222; }
+    .inspection-signatures .mb-3 { margin-bottom: 2mm; }
+    .inspection-signatures .mb-1\.5 { margin-bottom: 1mm; }
+    #carCanvasLarge { touch-action: none; }
+    @media screen and (max-width: 1100px) {
+        #inspectionModal > .absolute { position: static; flex-wrap: wrap; justify-content: center; margin: 6px; }
+        #inspection_scroll_container { padding-top: 16px; justify-content: flex-start; }
+    }
+    @media print {
+        @page { size: A4 portrait; margin: 0; }
+        html, body { width: 210mm; height: auto; margin: 0 !important; padding: 0 !important; background: white !important; }
+        body > :not(#inspectionModal) { display: none !important; }
+        #inspectionModal { display: block !important; position: static !important; width: 210mm !important; height: auto !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; background: white !important; backdrop-filter: none !important; }
+        #inspection_scroll_container { display: block !important; height: auto !important; overflow: visible !important; padding: 0 !important; }
+        #inspection_print_area { width: 210mm !important; height: 297mm !important; margin: 0 !important; transform: none !important; box-shadow: none !important; transition: none !important; break-inside: avoid; }
+        #inspection_print_area, #inspection_print_area * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+        #inspection_print_area input, #inspection_print_area textarea { color: #111; }
+        .no-print { display: none !important; }
+    }
 </style>
 
 <!-- Modal หลัก -->
@@ -64,7 +100,6 @@
             <select id="ins_company_select" onchange="updateCompanyHeader(this.value)" class="bg-slate-100 text-slate-800 text-xs font-bold px-2 py-1 rounded-lg border border-slate-300 outline-none focus:border-[#00320D]">
                 <option value="raisen_navamin">บริษัท ไรเซน เอนเนอร์จี จำกัด (นวมินทร์)</option>
                 <option value="raisen_rangsit">บริษัท ไรเซน เอนเนอร์จี จำกัด (รังสิต)</option>
-                <option value="rizenic_head">บริษัท ไรเซนิค จำกัด (สำนักงานใหญ่)</option>
             </select>
         </div>
 
@@ -80,7 +115,7 @@
             
             <div>
                 <!-- Header -->
-                <div class="flex justify-between items-start mb-1.5">
+                <div class="inspection-header flex justify-between items-start mb-1.5">
                     <img src="photo/logo.png" alt="RIZENIC LOGO" class="h-9 object-contain">
                     <div id="ins_company_address" class="text-right text-[8px] font-bold leading-[1.2]">
                         <p class="text-[11px] font-black text-[#00320D]">บริษัท ไรเซน เอนเนอร์จี จำกัด</p>
@@ -90,23 +125,23 @@
                     </div>
                 </div>
 
-                <div class="bg-[#00320D] text-white text-center font-bold text-[11px] py-[3px] mb-1.5 print-exact rounded-sm shadow-sm border border-[#00320D]">
+                <div class="inspection-title bg-[#00320D] text-white text-center font-bold text-[11px] py-[3px] mb-1.5 print-exact rounded-sm shadow-sm border border-[#00320D]">
                     แบบฟอร์มตรวจสภาพรถก่อนรับบริการ (Vehicle Inspection Form)
                 </div>
 
                 <!-- วันที่ & NO -->
-                <div class="flex justify-between items-center mb-0.5 font-bold text-[8.5px]">
+                <div class="inspection-dates flex justify-between items-center mb-0.5 font-bold text-[8.5px]">
                     <div class="flex items-center gap-1">
-                        <span>วันที่ นำรถซ่อม</span> <input type="text" id="ins_arr_date" class="form-input-line w-24 text-center">
+                        <span>วันที่นำรถเข้าซ่อม</span> <input type="text" id="ins_arr_date" class="form-input-line w-24 text-center">
                         <span class="ml-2">เวลา</span> <input type="text" id="ins_arr_time" class="form-input-line w-16 text-center">
                     </div>
                     <div class="flex items-center gap-1">
-                        <span class="text-[10px] font-black">NO.</span> <input type="text" id="ins_job_no" class="form-input-line w-32 uppercase text-center font-black bg-transparent border-slate-800">
+                        <span class="text-[10px] font-black">เลขที่ใบเสนอราคา</span> <input type="text" id="ins_job_no" class="form-input-line w-32 uppercase text-center font-black bg-transparent border-slate-800">
                     </div>
                 </div>
-                <div class="flex justify-between items-center mb-2 font-bold text-[8.5px]">
+                <div class="inspection-dates flex justify-between items-center mb-2 font-bold text-[8.5px]">
                     <div class="flex items-center gap-1">
-                        <span>วันที่ นัดรับรถ</span> <input type="text" id="ins_tgt_date" class="form-input-line w-24 text-center">
+                        <span>วันที่ส่งมอบรถ</span> <input type="text" id="ins_tgt_date" class="form-input-line w-24 text-center">
                         <span class="ml-2">เวลา</span> <input type="text" id="ins_tgt_time" class="form-input-line w-16 text-center">
                     </div>
                     <div class="flex items-center gap-2">
@@ -118,7 +153,7 @@
                 </div>
 
                 <!-- ข้อมูลลูกค้า -->
-                <fieldset class="border-[1.5px] border-slate-500 px-2 py-1 mb-2 font-bold rounded-sm relative mt-3">
+                <fieldset class="inspection-customer border-[1.5px] border-slate-500 px-2 py-1 mb-2 font-bold rounded-sm relative mt-3">
                     <legend class="text-[8.5px] font-black text-slate-800 px-1 ml-2 bg-white select-none leading-none">ข้อมูลลูกค้า</legend>
                     <div class="grid grid-cols-12 gap-x-2 gap-y-1 items-center pb-0.5 mt-0.5">
                         <div class="col-span-3 flex"><span>ทะเบียน</span><input type="text" id="ins_car_plate" class="form-input-line flex-1 uppercase"></div>
@@ -133,10 +168,10 @@
                 </fieldset>
 
                 <!-- ตารางหลัก 2 ฝั่ง -->
-                <div class="flex border-[1.5px] border-slate-600 h-[160mm] mb-1.5 rounded-sm overflow-hidden">
+                <div class="inspection-main flex border-[1.5px] border-slate-600 h-[160mm] mb-1.5 rounded-sm overflow-hidden">
                     
                     <!-- 👈 ฝั่งซ้าย: รายการซ่อม (42%) -->
-                    <div class="w-[42%] border-r-[1.5px] border-slate-600 flex flex-col justify-between">
+                    <div class="w-[48%] border-r-[1.5px] border-slate-600 flex flex-col justify-between">
                         <div class="sec-title-sm bg-[#00320D] border-b border-[#00320D]">รายการซ่อม</div>
                         <table class="insp-table-compact w-full flex-1" style="border-collapse: collapse;">
                             <thead class="bg-slate-100 text-[#00320D] print-exact font-bold">
@@ -164,11 +199,11 @@
                     </div>
 
                     <!-- 👉 ฝั่งขวา: สภาพรถและอุปกรณ์ (58%) -->
-                    <div class="w-[58%] flex flex-col justify-between">
+                    <div class="w-[52%] flex flex-col justify-between">
                         <div class="sec-title-sm bg-[#00320D] border-b border-[#00320D]">สภาพรถและอุปกรณ์</div>
                         
                         <!-- 🌟 🚗 รูปรถวาดแผล (ล็อกสัดส่วนแบบเป๊ะไม่เพี้ยน) 🌟 -->
-                        <div class="relative w-full aspect-[2.5/1] border-b border-slate-400 flex justify-center items-center group cursor-pointer overflow-hidden bg-white" onclick="openCarDrawModal()">
+                        <div class="inspection-car relative w-full aspect-[1195/521] shrink-0 border-b border-slate-400 flex justify-center items-center group cursor-pointer overflow-hidden bg-white" onclick="openCarDrawModal()">
                             <div class="absolute inset-0 bg-black/60 hidden group-hover:flex flex-col justify-center items-center text-white font-bold z-50 no-print transition-all">
                                 <i class="fa-solid fa-expand text-xl mb-0.5"></i>
                                 <span class="text-[10px]">แตะเพื่อขยายวาดรูป</span>
@@ -182,20 +217,13 @@
                         <div class="flex px-1.5 py-1.5 border-b border-slate-400">
                             <div class="w-[38%] flex flex-col items-center justify-center border-r border-slate-300 pr-2">
                                 <div class="relative w-full max-w-[90px] h-[45px] overflow-hidden mt-1">
-                                    <svg viewBox="0 0 100 50" class="w-full h-full drop-shadow-sm">
-                                        <path d="M 10 45 A 35 35 0 0 1 90 45" fill="none" stroke="#e2e8f0" stroke-width="12" stroke-linecap="round"/>
-                                        <path id="fuel_arc" d="M 10 45 A 35 35 0 0 1 50 10" fill="none" stroke="url(#evGradient)" stroke-width="12" stroke-dasharray="110" stroke-dashoffset="55" stroke-linecap="round"/>
-                                        <defs>
-                                            <linearGradient id="evGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                                <stop offset="0%" stop-color="#ef4444" />
-                                                <stop offset="50%" stop-color="#f59e0b" />
-                                                <stop offset="100%" stop-color="#10b981" />
-                                            </linearGradient>
-                                        </defs>
-                                        <text x="50" y="41" font-size="15" font-weight="900" text-anchor="middle" fill="#00320D"><tspan id="fuel_txt">50</tspan>%</text>
-                                        <text x="50" y="24" font-size="8" font-weight="bold" text-anchor="middle" fill="#64748b">SOC</text>
+                                    <svg viewBox="0 0 110 55" class="w-full h-full" role="img" aria-label="ระดับแบตเตอรี่ EV">
+                                        <rect x="7" y="5" width="89" height="27" rx="5" fill="#fff" stroke="#173b18" stroke-width="2"/>
+                                        <rect x="96" y="13" width="6" height="11" rx="2" fill="#173b18"/>
+                                        <rect id="ins_battery_fill" x="11" y="9" width="40.5" height="19" rx="2" fill="#173b18"/>
+                                        <text x="55" y="46" font-size="12" font-weight="700" text-anchor="middle" fill="#173b18">EV · <tspan id="fuel_txt">50</tspan>%</text>
                                     </svg>
-                                    <input type="range" id="ins_fuel_level" min="0" max="100" value="50" oninput="updateFuelGauge(this.value)" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer no-print">
+                                    <input type="range" aria-label="ระดับแบตเตอรี่ EV" id="ins_fuel_level" min="0" max="100" value="50" oninput="updateFuelGauge(this.value)" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer no-print">
                                 </div>
                                 <div class="flex items-center gap-1 w-full text-[8.5px] font-bold mt-1.5">
                                     <span>เลขไมล์</span><input type="text" id="ins_mileage" class="form-input-line flex-1 text-center font-mono text-[8px]"><span>กม.</span>
@@ -226,7 +254,7 @@
                         </div>
 
                         <!-- 🌟 1. คืนหัวข้อ "อุปกรณ์ไฟฟ้า" และ "เอกสารแนบ" (แก้ลบ opacity-0) 🌟 -->
-                        <div class="flex p-1.5 font-bold text-[8px] h-full items-start">
+                        <div class="inspection-electrical flex p-1.5 font-bold text-[8px] h-full items-start">
                             <div class="w-[58%] flex flex-col gap-1 pr-1.5">
                                 <span class="font-black text-[#00320D] text-[9.5px] mb-0.5 border-b border-slate-300 pb-0.5 block">อุปกรณ์ไฟฟ้า</span>
                                 <div class="flex justify-between items-center pr-1"><span>ชุดไฟหน้าซ้าย-ขวา</span> <div class="flex gap-2"><label class="flex items-center gap-0.5"><input type="radio" name="el_hlight" class="cb-box-sm rounded-full" checked>ปกติ</label> <label class="flex items-center gap-0.5"><input type="radio" name="el_hlight" class="cb-box-sm rounded-full">ไม่</label></div></div>
@@ -258,17 +286,18 @@
 
             <div>
                 <!-- Consent PDPA -->
-                <div class="text-[6px] leading-[7.5px] text-justify font-bold mb-1">
-                    <p>ข้อมูลลูกค้าให้ความยินยอมของลูกค้า Customer Consent Clause ภายใต้พระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562. ("บริษัท" มีหน้าที่ต้องแจ้งให้ท่านทราบถึงรายละเอียดนโยบายความเป็นส่วนตัวของบริษัท...)</p>
-                    <div class="flex flex-col gap-0.5 mt-0.5 ml-0.5">
-                        <label class="flex items-start gap-1"><input type="checkbox" checked class="cb-box-sm shrink-0 mt-[1px]"> ข้าพเจ้าได้รับทราบถึงนโยบายความเป็นส่วนตัวของบริษัท และให้ความยินยอมโดยชัดแจ้ง</label>
-                        <label class="flex items-start gap-1"><input type="checkbox" checked class="cb-box-sm shrink-0 mt-[1px]"> ข้าพเจ้าให้ความยินยอมในการเก็บ รวบรวม ใช้ เปิดเผย โอนข้อมูลส่วนบุคคลหลังการขาย</label>
-                        <label class="flex items-start gap-1"><input type="checkbox" checked class="cb-box-sm shrink-0 mt-[1px]"> ข้าพเจ้าให้ความยินยอมโดยชัดแจ้งในการรับข้อมูลทางการตลาด กิจกรรมส่งเสริมการขาย</label>
+                <section aria-label="ข้อตกลงให้ความยินยอมของลูกค้า" style="font-size:7px;line-height:1.28;color:#171717;margin-bottom:5px">
+                    <p style="margin:0 0 3px"><strong>ข้อตกลงให้ความยินยอมของลูกค้า Customer Consent Clause</strong> ภายใต้พระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 บริษัทมีหน้าที่ต้องแจ้งให้ท่านทราบถึงรายละเอียดนโยบายความเป็นส่วนตัวของบริษัท บริษัทมีความจำเป็นต้องขอความยินยอมในการเก็บรวบรวม ใช้ เปิดเผย ส่ง หรือโอนข้อมูลส่วนบุคคลของท่านในบางกรณี โปรดทำเครื่องหมายที่กล่องด้านล่างเพื่อยืนยันการรับทราบ และ/หรือเพื่อให้ความยินยอมโดยชัดแจ้งแก่บริษัทในการเก็บรวบรวม ใช้ เปิดเผย ส่ง หรือโอนข้อมูลส่วนบุคคลของท่านทั้งในประเทศและต่างประเทศให้แก่บริษัทในเครือ บริษัทในกลุ่ม เพื่อประโยชน์ในการประมวลผล การตรวจสอบภายใน และการพัฒนาบริการของเราเพื่อประโยชน์ของท่านในอนาคต</p>
+                    <div style="display:grid;gap:3px;padding-inline:10px">
+                        <label class="flex items-start gap-2"><input type="checkbox" class="cb-box-sm shrink-0"><span>ข้าพเจ้าได้รับทราบถึงนโยบายความเป็นส่วนตัวของบริษัท และให้ความยินยอมโดยชัดแจ้งให้บริษัทเก็บรวบรวม ใช้ เปิดเผย ส่งหรือโอนข้อมูลส่วนบุคคลของข้าพเจ้าทั้งในประเทศและต่างประเทศ ตามวัตถุประสงค์ที่กำหนดไว้ในกฎหมายและที่ระบุไว้ในนโยบายความเป็นส่วนตัว</span></label>
+                        <label class="flex items-start gap-2"><input type="checkbox" class="cb-box-sm shrink-0"><span>ข้าพเจ้าให้ความยินยอมในการเก็บรวบรวม ใช้ เปิดเผย โอนข้อมูลส่วนบุคคลของท่านทั้งในประเทศและต่างประเทศให้แก่บริษัท บริษัทในเครือ บริษัทในกลุ่ม พันธมิตรทางธุรกิจของบริษัท และผู้แทนจำหน่ายอย่างเป็นทางการของบริษัท ไรเซน เอนเนอร์จี จำกัด เพื่อประมวลผลข้อมูลประกอบการซ่อมแซมรถยนต์ การบำรุงรักษารถยนต์ การซ่อมสี รวมถึงเพื่อการเพิ่มประสิทธิภาพการซ่อมแซมและวัตถุประสงค์อื่นใดในการให้บริการหลังการขาย</span></label>
+                        <label class="flex items-start gap-2"><input type="checkbox" class="cb-box-sm shrink-0"><span>ข้าพเจ้าให้ความยินยอมโดยชัดแจ้งในการรับข้อมูลทางการตลาด ข้อเสนอพิเศษ กิจกรรมส่งเสริมการขาย หรือโฆษณาต่าง ๆ ที่เกี่ยวกับสินค้าและบริการจากบริษัท บริษัทในเครือ บริษัทในกลุ่ม พันธมิตรทางธุรกิจของบริษัท ผ่านทางโทรศัพท์ อีเมล หรือจดหมายตามที่อยู่ของข้าพเจ้า</span></label>
+                        <label class="flex items-start gap-2"><input type="checkbox" class="cb-box-sm shrink-0"><span>กรุณานำทรัพย์สินมีค่า เงินสด และเอกสารสำคัญออกจากรถยนต์ก่อนเข้ารับบริการ ทางศูนย์บริการขอสงวนสิทธิ์ไม่รับผิดชอบต่อการสูญหาย เสียหาย หรือความเสียหายใด ๆ ที่เกิดขึ้นกับทรัพย์สินมีค่า เงินสด เอกสารสำคัญ หรือสิ่งของส่วนตัวที่ตกค้างอยู่ภายในรถยนต์ ไม่ว่ากรณีใด ๆ ทั้งสิ้น</span></label>
                     </div>
-                </div>
+                </section>
 
                 <!-- กล่องลายเซ็น 2 ชั้น -->
-                <div class="border-[1.5px] border-slate-600 rounded-lg overflow-hidden">
+                <div class="inspection-signatures border-[1.5px] border-slate-600 rounded-lg overflow-hidden">
                     <div class="flex px-2 pt-2 pb-1 font-bold border-b-[1.5px] border-slate-400 bg-white items-end">
                         <div class="w-[20%] text-[8px] underline underline-offset-2 pb-1.5 self-start">สำหรับเจ้าของรถ/ลูกค้า (วันเปิดใบซ่อม)</div>
                         <div class="w-[40%] flex flex-col items-center justify-end pb-1 pr-6">
@@ -325,7 +354,7 @@
         </div>
         
         <div class="flex-1 overflow-auto p-4 flex justify-center items-center bg-slate-100 custom-scrollbar">
-            <div class="relative w-full aspect-[2.5/1] bg-white rounded-xl shadow-inner border border-slate-200" style="background-image: url('photo/car_outline.png'); background-size: 100% 100%; background-position: center; background-repeat: no-repeat;">
+            <div class="relative w-full aspect-[1195/521] bg-white rounded-xl shadow-inner border border-slate-200" style="background-image: url('photo/car_outline.png'); background-size: 100% 100%; background-position: center; background-repeat: no-repeat;">
                 <canvas id="carCanvasLarge" class="absolute top-0 left-0 w-full h-full cursor-crosshair"></canvas>
             </div>
         </div>
@@ -336,67 +365,3 @@
         </div>
     </div>
 </div>
-
-<script>
-    let currentZoom = 1;
-
-    function changeZoom(delta) {
-        currentZoom += delta;
-        if(currentZoom < 0.5) currentZoom = 0.5;
-        if(currentZoom > 2.0) currentZoom = 2.0;
-        applyZoom();
-    }
-
-    function resetZoom() {
-        currentZoom = 1;
-        applyZoom();
-    }
-
-    function applyZoom() {
-        const area = document.getElementById('inspection_print_area');
-        const text = document.getElementById('zoomLevelText');
-        if(area) area.style.transform = `scale(${currentZoom})`;
-        if(text) text.innerText = Math.round(currentZoom * 100) + '%';
-    }
-
-    function syncCustomerName() {
-        const custNameInput = document.getElementById('ins_cust_name');
-        const signDisplay = document.getElementById('sign_cust_name_display');
-        if(custNameInput && signDisplay) {
-            signDisplay.innerText = custNameInput.value;
-            signDisplay.classList.add('text-blue-700'); 
-            custNameInput.addEventListener('input', (e) => {
-                signDisplay.innerText = e.target.value;
-            });
-        }
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        const targetNode = document.getElementById('inspectionModal');
-        if(!targetNode) return;
-        
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (mutation.attributeName === 'class') {
-                    const isVisible = !targetNode.classList.contains('hidden');
-                    if(isVisible) {
-                        resetZoom();
-                        syncCustomerName();
-                    }
-                }
-            });
-        });
-        observer.observe(targetNode, { attributes: true });
-    });
-
-    function updateFuelGauge(val) {
-        if(document.getElementById('fuel_txt')) document.getElementById('fuel_txt').innerText = val;
-        const arcLength = 110;
-        const filled = (val / 100) * arcLength;
-        const offset = arcLength - filled; 
-        if(document.getElementById('fuel_arc')) {
-            document.getElementById('fuel_arc').style.strokeDasharray = `${arcLength}`;
-            document.getElementById('fuel_arc').style.strokeDashoffset = `${offset}`;
-        }
-    }
-</script>
