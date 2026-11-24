@@ -9,7 +9,7 @@ const DELIVERY_TRUNK = ['ยางอะไหล่','แม่แรง','ช�
 function deliveryFields() { return [...document.querySelectorAll('#deliveryPrintArea [data-delivery]')]; }
 async function loadDeliveryTemplate() {
  if(document.getElementById('deliveryInspectionModal'))return;
- const res=await fetch('delivery_inspection.html?v=20261124.5',{cache:'no-store'});
+ const res=await fetch('delivery_inspection.html?v=20261124.6',{cache:'no-store'});
  if(!res.ok)throw Error('โหลดแบบฟอร์มไม่สำเร็จ');
  document.body.insertAdjacentHTML('beforeend',await res.text());
  const parts=document.getElementById('deliveryParts');
@@ -30,7 +30,16 @@ async function loadDeliveryTemplate() {
  const canvas=document.getElementById('deliveryCanvas');canvas.style.touchAction='none';canvas.onpointerdown=event=>{
   event.preventDefault();const rect=canvas.getBoundingClientRect(),x=(event.clientX-rect.left)*canvas.width/rect.width,y=(event.clientY-rect.top)*canvas.height/rect.height;
   const ctx=canvas.getContext('2d');ctx.strokeStyle='#b91c1c';ctx.lineWidth=4;ctx.beginPath();
-  if(document.getElementById('deliveryMarkTool').value==='O')ctx.arc(x,y,15,0,Math.PI*2);
+  const tool=document.getElementById('deliveryMarkTool').value;
+  if(tool==='T') {
+   const text=document.getElementById('deliveryMarkText').value.trim();
+   if(!text){document.getElementById('deliveryMarkText').focus();return;}
+   ctx.save();ctx.font='24px Prompt, sans-serif';ctx.strokeStyle='white';ctx.lineWidth=4;ctx.lineJoin='round';ctx.fillStyle='#b91c1c';
+   const textX=Math.max(0,Math.min(x,Math.max(0,canvas.width-ctx.measureText(text).width)));
+   const textY=Math.max(24,Math.min(y,canvas.height-3));
+   ctx.strokeText(text,textX,textY);ctx.fillText(text,textX,textY);ctx.restore();return;
+  }
+  if(tool==='O')ctx.arc(x,y,15,0,Math.PI*2);
   else {ctx.moveTo(x-12,y-12);ctx.lineTo(x+12,y+12);ctx.moveTo(x+12,y-12);ctx.lineTo(x-12,y+12);}ctx.stroke();
  };
 }

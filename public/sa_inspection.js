@@ -43,7 +43,7 @@ const COMPANY_MASTERS = {
 async function loadInspectionTemplate() {
     if (!document.getElementById('inspectionModal')) {
         try {
-            const res = await fetch('inspection.html?v=20261124.5', { cache: 'no-store' });
+            const res = await fetch('inspection.html?v=20261124.6', { cache: 'no-store' });
             const html = await res.text();
             document.body.insertAdjacentHTML('beforeend', html);
             renderPartsTable();
@@ -93,7 +93,7 @@ async function openInspectionModal() {
     const custName = document.getElementById('customer_name')?.value || '';
     const phone = document.getElementById('phone_number')?.value || '';
     const vin = document.getElementById('vin_no')?.value || '';
-    const appointmentDate = document.getElementById('appointment_date')?.value;
+    const arrivedDate = document.getElementById('arrived_date')?.value;
     const deliveryDate = document.getElementById('delivery_date')?.value;
     const pipelineValues = selector => [...document.querySelectorAll(selector)].map(el => el.value.trim()).filter(Boolean).join(', ');
     const quotationNo = pipelineValues('.pipe-qt') || document.getElementById('qt_no')?.value;
@@ -132,7 +132,7 @@ async function openInspectionModal() {
     setFieldValue('ins_cust_name', custName);
     setFieldValue('ins_phone', phone);
     setFieldValue('ins_vin', vin);
-    setFieldValue('ins_arr_date', (appointmentDate ?? job?.appointment_date ?? '').split('T')[0]);
+    setFieldValue('ins_arr_date', (arrivedDate || job?.arrived_date || '').split('T')[0]);
     setFieldValue('ins_tgt_date', deliveryDate ?? job?.delivery_date?.slice(0, 10) ?? '');
     setFieldValue('ins_job_no', quotationNo ?? job?.qt_no ?? job?.quotation_no ?? '');
     setFieldValue('ins_so_no', salesOrderNo ?? job?.so_no ?? '');
@@ -173,6 +173,11 @@ async function openInspectionModal() {
     inspectionLoadFailed = false;
     try {
         if (jobId) await loadExistingInspectionData(jobId, session);
+        if (session === inspectionSession) {
+            // Job source fields take precedence over old saved print-form snapshots.
+            setFieldValue('ins_arr_date', (arrivedDate || job?.arrived_date || '').split('T')[0]);
+            setFieldValue('ins_so_no', salesOrderNo || job?.so_no || '');
+        }
     } finally {
         if (session === inspectionSession) inspectionLoading = false;
     }
