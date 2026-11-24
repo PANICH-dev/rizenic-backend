@@ -4,7 +4,12 @@
 
 let canvasLarge, ctxLarge;
 let canvasSmall, ctxSmall;
-let currentTool = 'O'; 
+let currentTool = 'O';
+let inspectionSession = 0;
+let inspectionLoading = false;
+let inspectionSaving = false;
+let inspectionLoadFailed = false;
+let inspectionBranch = '';
 
 // 🏢 1. ข้อมูล Master ของบริษัทและสาขาต่างๆ
 const COMPANY_MASTERS = {
@@ -12,7 +17,7 @@ const COMPANY_MASTERS = {
         name: "บริษัท ไรเซน เอนเนอร์จี จำกัด",
         taxId: "0105560176434",
         address: "50/5-6 ซอยนวมินทร์ 151 แขวงนวลจันทร์ เขตบึงกุ่ม กรุงเทพมหานคร 10230",
-        phone: "02-051-9199"
+        phone: "098-151-5155"
     },
     "raisen_rangsit": {
         name: "บริษัท ไรเซน เอนเนอร์จี จำกัด (สาขารังสิต)",
@@ -24,7 +29,7 @@ const COMPANY_MASTERS = {
         name: "บริษัท ไรเซนิค จำกัด (สำนักงานใหญ่)",
         taxId: "0-1055-67000-00-0",
         address: "50/5-6 ซอยนวมินทร์ 151 แขวงนวลจันทร์ เขตบึงกุ่ม กรุงเทพมหานคร 10230",
-        phone: "02-051-9199"
+        phone: "098-151-5155"
     }
 };
 
@@ -48,7 +53,7 @@ async function loadInspectionTemplate() {
 function setFieldValue(id, val) {
     const el = document.getElementById(id);
     if (!el) return;
-    const cleanVal = val || '';
+    const cleanVal = val ?? '';
     if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
         el.value = cleanVal;
     } else {
@@ -72,6 +77,7 @@ function updateCompanyHeader(key) {
 }
 
 async function openInspectionModal() {
+    const session = ++inspectionSession;
     await loadInspectionTemplate();
 
     const carPlate = document.getElementById('car_plate')?.value || '';
@@ -80,7 +86,7 @@ async function openInspectionModal() {
     const custName = document.getElementById('customer_name')?.value || '';
     const phone = document.getElementById('phone_number')?.value || '';
     const vin = document.getElementById('vin_no')?.value || '';
-    const arrDate = document.getElementById('arrived_date')?.value || '';
+    const appointmentDate = document.getElementById('appointment_date')?.value;
     const deliveryDate = document.getElementById('delivery_date')?.value;
     const quotationNo = document.getElementById('qt_no')?.value;
     const jobId = document.getElementById('sa_report_id')?.value || '';
@@ -102,6 +108,14 @@ async function openInspectionModal() {
         return;
     }
 
+    if (session !== inspectionSession) return;
+    inspectionBranch = branchName;
+    document.querySelectorAll('#inspection_print_area input, #inspection_print_area textarea').forEach(el => {
+        if (el.type === 'checkbox' || el.type === 'radio') el.checked = el.defaultChecked;
+        else el.value = el.defaultValue;
+    });
+    updateFuelGauge(50);
+
     // 🎯 หยอดข้อมูลลงช่องแบบรองรับ <input> สม่ำเสมอ
     setFieldValue('ins_car_plate', carPlate);
     setFieldValue('ins_car_brand', carBrand);
@@ -109,7 +123,7 @@ async function openInspectionModal() {
     setFieldValue('ins_cust_name', custName);
     setFieldValue('ins_phone', phone);
     setFieldValue('ins_vin', vin);
-    setFieldValue('ins_arr_date', arrDate);
+    setFieldValue('ins_arr_date', (appointmentDate ?? job?.appointment_date ?? '').split('T')[0]);
     setFieldValue('ins_tgt_date', deliveryDate ?? job?.delivery_date?.slice(0, 10) ?? '');
     setFieldValue('ins_job_no', quotationNo ?? job?.qt_no ?? job?.quotation_no ?? '');
     setFieldValue('sign_cust_name_display', custName);
@@ -142,10 +156,14 @@ async function openInspectionModal() {
     document.getElementById('inspectionModal').classList.remove('hidden');
     document.getElementById('inspectionModal').classList.add('flex');
 
-    setTimeout(() => {
-        initCanvas();
-        loadExistingInspectionData(jobId);
-    }, 200);
+    initCanvas();
+    inspectionLoading = true;
+    inspectionLoadFailed = false;
+    try {
+        if (jobId) await loadExistingInspectionData(jobId, session);
+    } finally {
+        if (session === inspectionSession) inspectionLoading = false;
+    }
 }
 
 // 🌟 สร้างตารางรายการซ่อมฝั่งซ้าย (ปรับขนาดคอลัมน์กว้างอ่านง่าย)
@@ -333,92 +351,124 @@ function applyZoom() {
 }
 
 function updateFuelGauge(val) {
-    if(document.getElementById('fuel_txt')) document.getElementById('fuel_txt').innerText = val;
-    const batteryFill = document.getElementById('ins_battery_fill');
-    batteryFill?.setAttribute('width', String(Number(val) * 0.81));
+    const numeric = Number(val);
+    const level = Math.round(Math.max(0, Math.min(100, Number.isFinite(numeric) ? numeric : 50)));
+    setFieldValue('ins_fuel_level', level);
+    setFieldValue('ins_battery_percent', level);
+    const text = document.getElementById('fuel_txt');
+    if (text) text.textContent = level;
+    document.getElementById('ins_battery_fill')?.setAttribute('width', String(level * 0.81));
 }
 
 function printInspection() {
     window.print();
 }
 
-async function saveInspectionForm() {
-    const jobId = document.getElementById('sa_report_id')?.value || 'JOB-' + Date.now();
-    const carPlate = document.getElementById('ins_car_plate')?.value || document.getElementById('ins_car_plate')?.innerText || '';
-    const carImageBase64 = canvasSmall ? canvasSmall.toDataURL("image/png") : '';
+// Store stable form keys in the existing JSON checklist column; no database migration is needed.
+function inspectionControls() {
+    const controls = [...document.querySelectorAll('#inspection_print_area input, #inspection_print_area textarea')];
+    controls.forEach((el, index) => {
+        if (!el.dataset.inspectionKey) el.dataset.inspectionKey = el.id || 'control_' + index;
+    });
+    return controls;
+}
 
+async function saveInspectionForm() {
+    if (inspectionSaving || inspectionLoading) return;
+    if (inspectionLoadFailed) { alert('กรุณาเปิดใบตรวจใหม่เพื่อโหลดข้อมูลเดิมก่อนบันทึก'); return; }
+    const jobId = document.getElementById('sa_report_id')?.value;
+    if (!jobId) {
+        alert('กรุณาบันทึกใบงานหลักก่อนบันทึกใบตรวจรับรถ');
+        return;
+    }
+    const formFields = {};
+    inspectionControls().forEach(el => {
+        formFields[el.dataset.inspectionKey] = ['radio', 'checkbox'].includes(el.type) ? el.checked : el.value;
+    });
+    const selected = name => document.querySelector('input[name="' + name + '"]:checked')?.value;
     const payload = {
         job_id: jobId,
-        car_plate: carPlate,
-        branch_name: sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่',
-        company_code: document.getElementById('ins_company_select')?.value || 'raisen_navamin',
-        fuel_level: document.getElementById('ins_fuel_level')?.value || 50,
-        current_mileage: document.getElementById('ins_mileage')?.value || 0,
-        car_diagram_image: carImageBase64,
-        notes: document.getElementById('ins_extra_notes')?.value || ''
+        car_plate: document.getElementById('ins_car_plate').value,
+        branch_name: inspectionBranch || sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่',
+        fuel_level: Number(document.getElementById('ins_fuel_level').value),
+        current_mileage: document.getElementById('ins_mileage').value || 0,
+        job_type: selected('ins_job_type'),
+        job_category: selected('ins_job_cat'),
+        repair_checklist: {
+            version: 1,
+            company_code: document.getElementById('ins_company_select').value,
+            form_fields: formFields
+        },
+        car_diagram_image: canvasSmall?.toDataURL('image/png') || '',
+        notes: document.getElementById('ins_extra_notes').value
     };
-
+    const btn = document.querySelector('button[onclick="saveInspectionForm()"]');
+    const oldText = btn?.innerHTML;
+    inspectionSaving = true;
+    if (btn) { btn.disabled = true; btn.textContent = 'กำลังบันทึก...'; }
     try {
-        const btn = document.querySelector('button[onclick="saveInspectionForm()"]');
-        const oldText = btn ? btn.innerHTML : '';
-        if(btn) { btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...'; btn.disabled = true; }
-
-        const res = await fetch(`${API_BASE_URL}/api/inspection`, {
+        const res = await fetch(API_BASE_URL + '/api/inspection', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-
-        if (res.ok) {
-            alert('🎉 บันทึกข้อมูลใบตรวจรับรถเรียบร้อยครับ!');
-            closeInspectionModal();
-        } else {
-            const err = await res.json();
-            alert('❌ บันทึกไม่สำเร็จ: ' + (err.error || 'โปรดตรวจสอบข้อมูล'));
-        }
-
-        if(btn) { btn.innerHTML = oldText; btn.disabled = false; }
+        const result = await res.json();
+        if (!res.ok || result.success === false) throw new Error(result.error || 'บันทึกไม่สำเร็จ');
+        alert('บันทึกใบตรวจรับรถแล้ว สามารถพิมพ์ต่อได้');
     } catch (e) {
-        console.error(e);
-        alert('❌ เครือข่ายมีปัญหา ไม่สามารถบันทึกได้');
+        alert('บันทึกไม่สำเร็จ: ' + e.message);
+    } finally {
+        inspectionSaving = false;
+        if (btn) { btn.disabled = false; btn.innerHTML = oldText; }
     }
 }
 
-async function loadExistingInspectionData(jobId) {
+async function loadExistingInspectionData(jobId, session = inspectionSession) {
     try {
-        const res = await fetch(`${API_BASE_URL}/api/inspection/${encodeURIComponent(jobId)}`);
-        if (res.ok) {
-            const result = await res.json();
-            const data = result.data;
-            if (!data) return;
-
-            if (data.company_code) {
-                const compSelect = document.getElementById('ins_company_select');
-                if (compSelect) compSelect.value = data.company_code;
-                updateCompanyHeader(data.company_code);
-            }
-
-            if (data.fuel_level != null && document.getElementById('ins_fuel_level')) {
-                document.getElementById('ins_fuel_level').value = data.fuel_level;
-                updateFuelGauge(data.fuel_level);
-            }
-            if (data.current_mileage != null && document.getElementById('ins_mileage')) {
-                document.getElementById('ins_mileage').value = data.current_mileage;
-            }
-            if (data.notes && document.getElementById('ins_extra_notes')) {
-                document.getElementById('ins_extra_notes').value = data.notes;
-            }
-
-            if (data.car_diagram_image && canvasSmall) {
+        const res = await fetch(API_BASE_URL + '/api/inspection/' + encodeURIComponent(jobId), { cache: 'no-store' });
+        if (res.status === 404) return;
+        const result = await res.json();
+        if (!res.ok || result.success === false) throw new Error(result.error || 'โหลดข้อมูลไม่สำเร็จ');
+        if (session !== inspectionSession || !result.data) return;
+        const data = result.data;
+        const checklist = typeof data.repair_checklist === 'string' ? JSON.parse(data.repair_checklist) : data.repair_checklist;
+        const fields = checklist?.form_fields;
+        if (fields) {
+            inspectionControls().forEach(el => {
+                const value = fields[el.dataset.inspectionKey];
+                if (value === undefined) return;
+                if (['radio', 'checkbox'].includes(el.type)) el.checked = value === true;
+                else el.value = value;
+            });
+        }
+        const companyCode = checklist?.company_code || data.company_code;
+        if (companyCode && COMPANY_MASTERS[companyCode]) {
+            setFieldValue('ins_company_select', companyCode);
+            updateCompanyHeader(companyCode);
+        }
+        for (const [name, value] of [['ins_job_type', data.job_type], ['ins_job_cat', data.job_category]]) {
+            if (value) document.getElementsByName(name).forEach(el => { el.checked = el.value === value; });
+        }
+        updateFuelGauge(data.fuel_level ?? 50);
+        setFieldValue('ins_mileage', data.current_mileage ?? '');
+        setFieldValue('ins_extra_notes', data.notes ?? '');
+        setFieldValue('sign_cust_name_display', document.getElementById('ins_cust_name').value);
+        if (data.car_diagram_image && canvasSmall) {
+            await new Promise((resolve, reject) => {
                 const img = new Image();
-                img.onload = function() {
-                    ctxSmall.clearRect(0, 0, 1000, 400);
-                    ctxSmall.drawImage(img, 0, 0, 1000, 400);
+                img.onload = () => {
+                    if (session === inspectionSession) {
+                        ctxSmall.clearRect(0, 0, canvasSmall.width, canvasSmall.height);
+                        ctxSmall.drawImage(img, 0, 0, canvasSmall.width, canvasSmall.height);
+                    }
+                    resolve();
                 };
+                img.onerror = () => reject(new Error('โหลดภาพรอยแผลไม่สำเร็จ'));
                 img.src = data.car_diagram_image;
-            }
+            });
         }
     } catch (e) {
-        console.log("ยังไม่มีข้อมูลใบตรวจรับรถเดิม");
+        if (session === inspectionSession) alert('โหลดใบตรวจเดิมไม่สำเร็จ กรุณาลองเปิดใหม่ก่อนบันทึก: ' + e.message);
+        if (session === inspectionSession) inspectionLoadFailed = true;
     }
 }
