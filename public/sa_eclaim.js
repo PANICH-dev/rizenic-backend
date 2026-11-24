@@ -52,9 +52,12 @@ async function loadEclaimDetails(reportId) {
             setVal('eclaim_province', d.car_province);
             setVal('eclaim_car_type', d.car_type);
             setVal('eclaim_year', d.model_year);
+            setVal('model_year', d.model_year || document.getElementById('model_year')?.value || '');
             setVal('eclaim_trim', d.trim_level);
             setVal('eclaim_engine_no', d.engine_no);
-            setVal('eclaim_car_color', d.car_color);
+            const color = document.getElementById('car_color')?.value || d.car_color || '';
+            setVal('eclaim_car_color', color);
+            setVal('car_color', color);
             setVal('eclaim_paint_type', d.paint_type_id);
             setVal('eclaim_mileage', d.car_km);
             setVal('eclaim_cc', d.engine_cc);

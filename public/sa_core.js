@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mainApp) mainApp.classList.add('hidden');
         return;
     }
-    
+
     // 🚗 ระบบเปลี่ยนสถานะจอดซ่อมอัตโนมัติตาม Job Status
     const jobStatusInput = document.getElementById('job_status');
     const isParkedInput = document.getElementById('park_status');
@@ -63,7 +63,7 @@ function updateTargetDateSuggestion() {
     const cleanMainParts = selectedBodyParts.main.filter(p => !p.includes('ไม่ชิ้นงาน'));
     const mainQty = cleanMainParts.length;
     const hasGlass = cleanMainParts.some(p => p.includes('กระจก')) || selectedBodyParts.sub.some(p => p.includes('กระจก'));
-    
+
     if (mainQty === 0) {
         suggestionEl.innerHTML = '';
         suggestionEl.classList.add('hidden');
@@ -93,7 +93,7 @@ function updateTargetDateSuggestion() {
 function selectDamage(level) {
     const dmgInput = document.getElementById('damage_level');
     if (dmgInput) dmgInput.value = level;
-    
+
     const b = document.getElementById('dmg_btn_เบา');
     const m = document.getElementById('dmg_btn_กลาง');
     const h = document.getElementById('dmg_btn_หนัก');
@@ -105,7 +105,7 @@ function selectDamage(level) {
     if(level === 'เบา' && b) b.className = 'dmg-btn bg-emerald-600 text-white border-emerald-700 shadow-md scale-[1.02]';
     if(level === 'กลาง' && m) m.className = 'dmg-btn bg-amber-500 text-slate-900 border-amber-600 shadow-md scale-[1.02]';
     if(level === 'หนัก' && h) h.className = 'dmg-btn bg-rose-600 text-white border-rose-700 shadow-md scale-[1.02]';
-    
+
     updateTargetDateSuggestion(); 
 }
 
@@ -113,7 +113,7 @@ async function handleLogin(e) {
     e.preventDefault();
     const userEl = document.getElementById('login_user');
     const passEl = document.getElementById('login_pass');
-    
+
     if (!userEl || !passEl) return alert('❌ ไม่พบช่องกรอกข้อมูล');
 
     try {
@@ -123,17 +123,17 @@ async function handleLogin(e) {
             body: JSON.stringify({ username: userEl.value, password: passEl.value }) 
         });
         const data = await res.json();
-        
+
         if (data.success) {
             const emp = data.employee || {};
             sessionStorage.setItem('isLoggedIn', 'true'); 
             sessionStorage.setItem('emp_name', emp.employee_name || userEl.value);
             sessionStorage.setItem('emp_role', emp.employee_role || 'SA'); 
             sessionStorage.setItem('emp_branch', emp.branch_name || 'สำนักงานใหญ่');
-            
+
             const defaultAccess = 'dashboard,jobs,jobs_table,repair,parts,finance,admin,audit,history,index';
             sessionStorage.setItem('accessible_pages', emp.accessible_pages || defaultAccess);
-            
+
             enterApp(); 
         } else {
             alert('❌ ' + (data.error || 'เข้าสู่ระบบไม่สำเร็จ'));
@@ -147,15 +147,15 @@ async function handleLogin(e) {
 async function enterApp() {
     const loginScr = document.getElementById('login-screen');
     const mainApp = document.getElementById('main-app');
-    
+
     if (loginScr) loginScr.classList.add('hidden');
     if (mainApp) mainApp.classList.remove('hidden');
-    
+
     let currentAccess = sessionStorage.getItem('accessible_pages');
     if (!currentAccess || currentAccess.trim() === '') {
         sessionStorage.setItem('accessible_pages', 'dashboard,jobs,jobs_table,repair,parts,finance,admin,audit,history,index');
     }
-    
+
     const empNameEl = document.getElementById('display_emp_name');
     const branchEl = document.getElementById('display_branch');
     const saOwnerInp = document.getElementById('sa_owner_input');
@@ -165,7 +165,7 @@ async function enterApp() {
     if (branchEl) branchEl.innerText = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
     if (saOwnerInp) saOwnerInp.value = sessionStorage.getItem('emp_name') || '';
     if (contactDateInp) contactDateInp.value = new Date().toISOString().split('T')[0];
-    
+
     try {
         if (typeof selectDamage === 'function') selectDamage('เบา'); 
         await loadInitialData(); 
@@ -268,7 +268,7 @@ function renderBodyPartsUI() {
 
     mainContainer.innerHTML = ''; 
     subContainer.innerHTML = '';
-    
+
     repairBodyPartsList.main.forEach(part => {
         const isSelected = selectedBodyParts.main.includes(part);
         mainContainer.innerHTML += `<span onclick="toggleBodyPart('main', '${part}')" class="part-badge ${isSelected ? 'selected-main' : 'unselected'}">${part}</span>`;
@@ -307,10 +307,10 @@ function autoCalculateDamageLevel() {
 window.addPipelineRow = function(claim = '', qt = '', so = '', bl = '') {
     const container = document.getElementById('doc_pipeline_container');
     if (!container) return;
-    
+
     const div = document.createElement('div');
     div.className = "pipeline-set relative bg-white p-5 rounded-2xl border-2 border-slate-200 shadow-sm transition-all hover:border-blue-300";
-    
+
     div.innerHTML = `
         <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-100">
             <span class="text-xs font-black text-blue-900 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
@@ -393,7 +393,7 @@ async function checkCrossPageEditMode() {
         if (!res.ok) return;
         const job = await res.json();
         currentEditingJob = job; 
-        
+
         // 🌟 เช็ก drive_folder_link เพื่อแสดง/ซ่อน ปุ่มลบลิงก์หลังรีเฟรชหน้า
         const btnUnlink = document.getElementById('btn_unlink_drive');
         if (btnUnlink) {
@@ -423,7 +423,7 @@ async function checkCrossPageEditMode() {
         if (custNameInp) custNameInp.value = job.customer_name || ''; 
         if (phoneInp) phoneInp.value = job.phone_number || '';
         if (carBrandInp) carBrandInp.value = job.car_brand || 'Tesla';
-        
+
         await updateCarModels(job.car_brand || 'Tesla');
 
         const safeSetSelect = (elementId, value) => {
@@ -458,14 +458,16 @@ async function checkCrossPageEditMode() {
         if (notesEl) notesEl.value = job.notes || '';
         if (carPlateEl) carPlateEl.value = job.car_plate || ''; 
         if (vinEl) vinEl.value = job.vin_no || '';
+        document.getElementById('car_color').value = job.car_color || '';
+        document.getElementById('model_year').value = job.model_year || '';
 
         if (container) container.innerHTML = '';
-        
+
         const claims = job.claim_no ? job.claim_no.split(',').map(s=>s.trim()) : [];
         const qts = job.qt_no ? job.qt_no.split(',').map(s=>s.trim()) : [];
         const sos = job.so_no ? job.so_no.split(',').map(s=>s.trim()) : [];
         const bls = job.bl_no ? job.bl_no.split(',').map(s=>s.trim()) : [];
-        
+
         const maxLen = Math.max(claims.length, qts.length, sos.length, bls.length, 1);
         for(let i=0; i<maxLen; i++) {
             addPipelineRow(claims[i]||'', qts[i]||'', sos[i]||'', bls[i]||'');
@@ -508,7 +510,7 @@ async function checkCrossPageEditMode() {
             if (noteDisplay) noteDisplay.classList.add('hidden');
             if (noteText) noteText.innerText = '';
         }
-        
+
         const setDateVal = (elemId, isoVal) => {
             const el = document.getElementById(elemId);
             if (el) el.value = isoVal ? String(isoVal).split('T')[0] : '';
@@ -531,7 +533,7 @@ async function checkCrossPageEditMode() {
 function cancelEditMode() {
     currentEditingJob = null;
     sessionStorage.removeItem('edit_job_id'); 
-    
+
     // 🌟 ซ่อนปุ่มลบลิงก์เมื่อเปิดบิลใหม่
     document.getElementById('btn_unlink_drive')?.classList.add('hidden');
 
@@ -547,12 +549,12 @@ function cancelEditMode() {
     if (saRepId) saRepId.value = '';
     if (editBadge) editBadge.classList.add('hidden');
     if (btnSubSa) btnSubSa.innerHTML = '<i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลและดำเนินการ';
-    
+
     if (container) { container.innerHTML = ''; addPipelineRow(); }
 
     if (orderPartsBody) { orderPartsBody.innerHTML = ''; if(typeof addPartRow === 'function') addPartRow(); }
     if (trackPartsBody) trackPartsBody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400 text-xs font-bold bg-white">กรุณาบันทึกใบงานเพื่อติดตามสถานะอะไหล่</td></tr>`;
-    
+
     selectedBodyParts.main = [];
     selectedBodyParts.sub = [];
     renderBodyPartsUI();
@@ -574,13 +576,14 @@ function cancelEditMode() {
     });
     const noteDisplay = document.getElementById('repair_note_display');
     if (noteDisplay) noteDisplay.classList.add('hidden');
-    
+
     const deptRoute = document.getElementById('department_routing');
     const parkStat = document.getElementById('park_status');
     const saOwnerInp = document.getElementById('sa_owner_input');
 
     // 🌟 เคลียร์ฟิลด์ E-Claim Details
     const resetVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+    resetVal('car_color', ''); resetVal('model_year', '');
     resetVal('eclaim_province', ''); resetVal('eclaim_car_type', ''); resetVal('eclaim_year', '');
     resetVal('eclaim_trim', ''); resetVal('eclaim_engine_no', ''); resetVal('eclaim_car_color', '');
     resetVal('eclaim_paint_type', ''); resetVal('eclaim_mileage', ''); resetVal('eclaim_cc', '');
@@ -593,7 +596,7 @@ function cancelEditMode() {
 
 async function submitSaForm(event) {
     event.preventDefault(); 
-    
+
     const jobStatusCheck = document.getElementById('job_status')?.value || '';
     const arrivedDateCheck = document.getElementById('arrived_date')?.value || '';
 
@@ -609,7 +612,7 @@ async function submitSaForm(event) {
 
     if (requiresArrivedDate && !arrivedDateCheck) {
         alert(`❌ ไม่สามารถบันทึกได้:\nเมื่อรถอยู่ในสถานะ "${jobStatusCheck}"\nกรุณาระบุ "วันที่รถเข้าจอดอู่" (ในข้อ 7) ให้ครบถ้วนด้วยครับ!`);
-        
+
         const arrInput = document.getElementById('arrived_date');
         if (arrInput) {
             arrInput.focus();
@@ -625,7 +628,7 @@ async function submitSaForm(event) {
         const qt = row.querySelector('.pipe-qt')?.value?.trim() || '';
         const so = row.querySelector('.pipe-so')?.value?.trim() || '';
         const bl = row.querySelector('.pipe-bl')?.value?.trim() || '';
-        
+
         if(claim || qt || so || bl) {
             claimArr.push(claim);
             qtArr.push(qt);
@@ -645,7 +648,7 @@ async function submitSaForm(event) {
         { id: 'vin_no', name: '3. หมายเลขตัวถัง (VIN)' },
         { id: 'job_status', name: 'สถานะใบงาน' }
     ];
-    
+
     let missingFields = [];
     requiredFields.forEach(field => {
         const el = document.getElementById(field.id);
@@ -658,6 +661,8 @@ async function submitSaForm(event) {
         return; 
     }
 
+    const modelYear = document.getElementById('model_year')?.value.trim() || '';
+    if (modelYear && !/^[0-9]{4}$/.test(modelYear)) { alert('กรุณาระบุปีรถเป็นตัวเลข 4 หลัก'); return; }
     const branchName = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
     const arrivedDate = document.getElementById('arrived_date')?.value || '';
     const targetFinishDate = document.getElementById('target_finish_date')?.value || '';
@@ -677,7 +682,7 @@ async function submitSaForm(event) {
 
         if(typeof checkQuotaBeforeSubmit === 'function') {
             const quotaCheck = await checkQuotaBeforeSubmit(branchName, arrivedDate, targetFinishDate, deliveryDate, cleanMainParts.length, cleanSubParts.length);
-            
+
             if (quotaCheck !== true) {
                 alert(`❌ ไม่สามารถบันทึกได้:\n\n` + quotaCheck + `\n\nกรุณาเลือกวันที่ใหม่ครับ`);
                 if (btnSubmit) {
@@ -687,13 +692,13 @@ async function submitSaForm(event) {
                 return;
             }
         }
-        
+
         if (btnSubmit) btnSubmit.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> กำลังบันทึก...';
     }
 
     const editId = document.getElementById('sa_report_id')?.value || '';
     const routingDept = document.getElementById('department_routing')?.value || 'รอดำเนินการ';
-    
+
     let formData = {};
     if (editId && currentEditingJob) { formData = { ...currentEditingJob }; } 
     else {
@@ -710,12 +715,15 @@ async function submitSaForm(event) {
     formData.car_brand = document.getElementById('car_brand')?.value || '';
     formData.car_model = document.getElementById('car_model')?.value || ''; 
     formData.vin_no = document.getElementById('vin_no')?.value || '';
-    
+    formData.car_color = document.getElementById('car_color')?.value.trim() || '';
+    formData.model_year = document.getElementById('model_year')?.value.trim() || '';
+
+
     formData.claim_no = claimArr.join(', ');
     formData.qt_no = qtArr.join(', '); 
     formData.so_no = soArr.join(', '); 
     formData.bl_no = blArr.join(', ');
-    
+
     formData.payment_type = document.getElementById('payment_type')?.value || ''; 
     formData.damage_level = document.getElementById('damage_level')?.value || 'เบา';
     formData.contact_date = document.getElementById('contact_date')?.value || null; 
@@ -735,7 +743,7 @@ async function submitSaForm(event) {
 
     const url = editId ? `${API_BASE_URL}/api/report/${editId}` : `${API_BASE_URL}/api/report`;
     const method = editId ? 'PUT' : 'POST';
-    
+
     try {
         const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
         if (!response.ok) {
@@ -756,17 +764,17 @@ async function submitSaForm(event) {
             const eclaimDetails = {
                 eclaim_province: (typeof getProvinceCode === 'function') ? getProvinceCode(document.getElementById('eclaim_province')?.value) : (document.getElementById('eclaim_province')?.value || ''),
                 eclaim_car_type: document.getElementById('eclaim_car_type')?.value || '',
-                eclaim_year: document.getElementById('eclaim_year')?.value || '',
+                eclaim_year: document.getElementById('model_year')?.value || '',
                 eclaim_trim: document.getElementById('eclaim_trim')?.value || '',
                 eclaim_engine_no: document.getElementById('eclaim_engine_no')?.value || '',
-                eclaim_car_color: document.getElementById('eclaim_car_color')?.value || '',
+                eclaim_car_color: document.getElementById('car_color')?.value || '',
                 eclaim_paint_type: document.getElementById('eclaim_paint_type')?.value || '',
                 eclaim_mileage: document.getElementById('eclaim_mileage')?.value || '',
                 eclaim_cc: document.getElementById('eclaim_cc')?.value || '',
                 eclaim_condition: document.getElementById('eclaim_condition')?.value || '',
                 eclaim_party: document.getElementById('eclaim_party')?.value || '',
                 eclaim_accident_no: document.getElementById('eclaim_accident_no')?.value || '1',
-                
+
                 eclaim_policy_no: document.getElementById('eclaim_policy_no')?.value || '',
                 eclaim_policy_type: document.getElementById('eclaim_policy_type')?.value || '',
                 eclaim_insuree_name: document.getElementById('eclaim_insuree_name')?.value || '',
@@ -799,10 +807,16 @@ async function submitSaForm(event) {
 
                 if (!resDet.ok) {
                     const errData = await resDet.json().catch(() => ({}));
-                    alert('❌ บันทึกรายละเอียด E-Claim (บล็อก 9) ไม่สำเร็จ: ' + (errData.error || resDet.statusText));
+                    throw new Error(errData.error || resDet.statusText);
                 }
             } catch (err) {
+                // The main job may already exist: retain its ID so retry updates it.
+                document.getElementById('sa_report_id').value = savedJobId;
+                sessionStorage.setItem('edit_job_id', savedJobId);
+                if(btnSubmit) { btnSubmit.disabled=false; btnSubmit.innerHTML=oldBtnText; }
+                alert('บันทึกใบงานหลักแล้ว แต่สีรถ ปีรถ และรายละเอียด E-Claim ยังไม่สำเร็จ กรุณากดบันทึกอีกครั้ง');
                 console.error("Save Eclaim Details Error:", err);
+                return;
             }
 
             // 🌟 2. บันทึกรายการย่อย (E-Claim Line Items) 🌟
@@ -819,7 +833,7 @@ async function submitSaForm(event) {
                 const pName = tr.querySelector('.part-name-input')?.value; 
                 const pType = tr.querySelector('.part-type-input')?.value || 'อะไหล่หลัก';
                 const pQty = tr.querySelector('.part-qty-input')?.value || '1';
-                
+
                 if (pNo && pName) {
                     await fetch(`${API_BASE_URL}/api/part-orders`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -848,7 +862,7 @@ async function submitSaForm(event) {
                 }
             }
         }
-        
+
         if (editId) { 
             alert(`🎉 อัปเดตใบงานเรียบร้อย!`); 
             if(formData.car_plate && typeof loadPartsTrackingTable === 'function') loadPartsTrackingTable(formData.car_plate, savedJobId);
@@ -866,7 +880,7 @@ async function submitSaForm(event) {
                 cancelEditMode();
             }
         }
-        
+
     } catch (e) { 
         alert('❌ เครือข่ายขัดข้อง'); 
         if (btnSubmit) {
@@ -879,7 +893,7 @@ async function submitSaForm(event) {
 function autoMapRouting() {
     const statusVal = document.getElementById('job_status')?.value || '';
     const deptSelect = document.getElementById('department_routing');
-    
+
     if (!statusVal || !deptSelect) return;
 
     const matchedStatus = globalStatuses.find(s => s.status_name === statusVal);
@@ -979,7 +993,7 @@ async function openJobGoogleDrive() {
     const btnDrive = document.getElementById('btn_open_drive');
     const btnText = document.getElementById('btn_drive_text');
     const originalText = btnText ? btnText.innerText : 'เปิดรูป Google Drive';
-    
+
     if (btnDrive) {
         btnDrive.disabled = true;
         btnDrive.classList.add('opacity-70', 'cursor-wait');
@@ -989,7 +1003,7 @@ async function openJobGoogleDrive() {
     try {
         const res = await fetch(`${API_BASE_URL}/api/report/${reportId}`);
         const result = await res.json();
-        
+
         let driveUrl = result?.drive_folder_link || result?.data?.drive_folder_link;
 
         // ถ้ามีลิงก์อยู่แล้ว ให้เปิดเลย
@@ -1005,7 +1019,7 @@ async function openJobGoogleDrive() {
                     body: JSON.stringify({ car_plate: carPlate, arrived_date: arrivedDate })
                 });
                 const createResult = await createRes.json();
-                
+
                 if (createResult.success) {
                     driveUrl = createResult.drive_folder_url;
                     document.getElementById('btn_unlink_drive')?.classList.remove('hidden');
@@ -1061,3 +1075,10 @@ async function unlinkJobGoogleDrive() {
         alert('❌ ไม่สามารถติดต่อเซิร์ฟเวอร์ได้');
     }
 }
+// Both vehicle sections edit the same existing E-Claim fields.
+document.addEventListener('DOMContentLoaded',()=>{
+    for(const [basic,detail] of [['car_color','eclaim_car_color'],['model_year','eclaim_year']]) {
+        const a=document.getElementById(basic),b=document.getElementById(detail);
+        if(a&&b){a.addEventListener('input',()=>{b.value=a.value;});b.addEventListener('input',()=>{a.value=b.value;});}
+    }
+});

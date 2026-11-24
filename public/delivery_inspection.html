@@ -1,0 +1,76 @@
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&display=swap');
+#deliveryInspectionModal {position:fixed;inset:0;z-index:210;background:#0f172aeb;overflow:auto;padding:70px 16px 24px;font-family:Prompt,sans-serif;color:#171717;}
+#deliveryInspectionModal[hidden]{display:none;}
+.delivery-toolbar{position:fixed;top:12px;left:50%;transform:translateX(-50%);display:flex;gap:10px;align-items:center;background:white;padding:10px;border-radius:8px;z-index:220;white-space:nowrap;box-shadow:0 3px 15px #0003;}
+.delivery-toolbar button{padding:6px 12px;border:1px solid #94a3b8;border-radius:5px;}
+#deliveryPrintArea{box-sizing:border-box;width:210mm;height:297mm;padding:7mm;margin:auto;background:white;display:flex;flex-direction:column;font-size:11px;border-bottom:5mm solid #073414;}
+#deliveryPrintArea *{box-sizing:border-box;}
+.delivery-header{display:flex;justify-content:space-between;align-items:center;min-height:18mm;margin-bottom:2mm;}
+.delivery-header img{width:57mm;}
+#deliveryCompany{font-size:9px;width:80mm;line-height:1.4;}
+#deliveryPrintArea h1{background:#00320d;color:white;text-align:center;font-size:16px;margin:0;padding:2mm;}
+#deliveryPrintArea table{border-collapse:collapse;width:100%;table-layout:fixed;}
+#deliveryPrintArea td,#deliveryPrintArea th{border:1px solid #222;padding:1mm;vertical-align:top;}
+#deliveryPrintArea th,.delivery-section{background:#00320d;color:white;text-align:center;font-weight:500;}
+#deliveryPrintArea input:not([type=checkbox]),#deliveryPrintArea textarea{width:100%;min-width:0;background:transparent;border:0;border-bottom:1px dotted #888;color:#1d4ed8;font:inherit;outline:none;padding:0 2px;border-radius:0;}
+#deliveryPrintArea input[type=checkbox]{appearance:none;width:12px;height:12px;border:1px solid #444;margin:0;position:relative;flex-shrink:0;}
+#deliveryPrintArea input[type=checkbox]:checked::after{content:'✓';position:absolute;inset:-3px;color:#143c20;font:bold 16px/1 sans-serif;}
+.delivery-meta td{height:10mm;vertical-align:middle!important;}
+.delivery-reviewers{line-height:2.2;}
+.delivery-reviewers label{display:flex;gap:4px;align-items:center;}
+.delivery-reviewers input{flex:1;}
+.delivery-body{display:grid;grid-template-columns:30% 70%;border:1px solid #222;flex:1;min-height:0;}
+.delivery-parts{border-right:1px solid #222;display:flex;flex-direction:column;}
+.delivery-section{font-size:12px;padding:2mm;}
+#deliveryParts{display:flex;flex-direction:column;justify-content:space-around;flex:1;padding:2mm;gap:1px;}
+#deliveryParts label{display:flex;align-items:center;gap:4px;font-size:10px;white-space:nowrap;}
+#deliveryParts input:not([type=checkbox]){flex:1;width:15px;}
+.delivery-right{display:flex;flex-direction:column;min-height:0;}
+.delivery-diagram-row{display:grid;grid-template-columns:70% 30%;border-bottom:1px solid #222;}
+.delivery-diagram{position:relative;background:white;aspect-ratio:1195/521;align-self:center;}
+.delivery-diagram img,.delivery-diagram canvas{position:absolute;inset:0;width:100%;height:100%;}
+.delivery-legend{border-left:1px solid #222;padding:2mm;font-size:9px;line-height:1.6;}
+.delivery-inventory td{height:9mm;text-align:center;vertical-align:middle!important;}
+.delivery-inventory th{background:white!important;color:#111!important;}
+.delivery-notes{padding:2mm;flex:1;min-height:20mm;display:flex;flex-direction:column;gap:2mm;}
+.delivery-notes textarea{flex:1;resize:none;min-height:10mm;}
+.delivery-footer{text-align:center;font-size:17px;font-weight:600;padding:4mm 0 1mm;}
+.delivery-date-print{display:none;}
+@media print {
+ @page{size:A4 portrait;margin:0;}
+ body.printing-delivery > :not(#deliveryInspectionModal){display:none!important;}
+ body.printing-delivery #deliveryInspectionModal{display:block!important;position:static!important;padding:0!important;background:white;overflow:visible;}
+ body.printing-delivery #deliveryPrintArea{margin:0;break-inside:avoid;}
+ body.printing-delivery .delivery-toolbar,body.printing-delivery .delivery-screen-only{display:none!important;}
+ #deliveryPrintArea input[type="date"]{display:none;}
+ #deliveryPrintArea .delivery-date-print{display:inline-block;min-height:14px;}
+ #deliveryPrintArea,#deliveryPrintArea *{print-color-adjust:exact;-webkit-print-color-adjust:exact;}
+}
+</style>
+<div id="deliveryInspectionModal" hidden>
+ <div class="delivery-toolbar"><button type="button" onclick="saveDeliveryInspection()" id="deliverySave">บันทึก</button><button type="button" onclick="printDeliveryInspection()">พิมพ์ A4</button><button type="button" onclick="closeDeliveryInspection()">ปิด</button><span id="deliveryStatus" role="status"></span></div>
+ <div id="deliveryPrintArea">
+  <header class="delivery-header"><img src="photo/logo.png" alt="RIZENIC"><div id="deliveryCompany"></div></header>
+  <h1>ใบตรวจสอบก่อนส่งมอบรถยนต์</h1>
+  <table class="delivery-meta"><colgroup><col span="4" style="width:16%"><col style="width:36%"></colgroup>
+   <tr><th colspan="2">เลขทะเบียนรถ</th><th colspan="2">วันที่ตรวจสอบ</th><th>ผู้ตรวจสอบ</th></tr>
+   <tr><td colspan="2"><input data-delivery="car_plate" aria-label="ทะเบียนรถ"></td><td colspan="2"><input data-delivery="inspection_date" aria-label="วันที่ตรวจสอบ" type="date"></td><td rowspan="3" class="delivery-reviewers"><label>SUB : <input data-delivery="sub_name" aria-label="ผู้ตรวจ SUB"><input type="date" data-delivery="sub_date" aria-label="วันที่ SUB"></label><label>QC : <input data-delivery="qc_name" aria-label="ผู้ตรวจ QC"><input type="date" data-delivery="qc_date" aria-label="วันที่ QC"></label><label>SA : <input data-delivery="sa_name" aria-label="ผู้ตรวจ SA"><input type="date" data-delivery="sa_date" aria-label="วันที่ SA"></label></td></tr>
+   <tr><th>ยี่ห้อ</th><th>รุ่นรถ</th><th>สีรถ / ปีรถ</th><th>วันที่ส่งมอบ</th></tr>
+   <tr><td><input data-delivery="car_brand" aria-label="ยี่ห้อ"></td><td><input data-delivery="car_model" aria-label="รุ่นรถ"></td><td><input data-delivery="car_color" aria-label="สีรถ"><input data-delivery="model_year" aria-label="ปีรถ"></td><td><input data-delivery="delivery_date" type="date" aria-label="วันที่ส่งมอบ"></td></tr>
+   <tr><td colspan="3">VIN <input data-delivery="vin_no" aria-label="VIN"></td><td colspan="2">QT / SO <input data-delivery="reference_no" aria-label="QT SO"></td></tr>
+  </table>
+  <div class="delivery-body">
+   <section class="delivery-parts"><div class="delivery-section">รายการชิ้นส่วนซ่อม</div><div id="deliveryParts"></div></section>
+   <section class="delivery-right">
+    <div class="delivery-section">จุดรายการแก้ไข / รหัสการตรวจสอบ</div>
+    <div class="delivery-screen-only" style="padding:3px"><select id="deliveryMarkTool" aria-label="เครื่องหมาย"><option value="O">วงกลม O</option><option value="X">กากบาท X</option></select> แตะรูปรถเพื่อมาร์ก <button type="button" onclick="clearDeliveryDiagram()">ล้างรอย</button></div>
+    <div class="delivery-diagram-row"><div class="delivery-diagram"><img src="photo/car_outline.png" alt="รูปรถห้ามุม"><canvas id="deliveryCanvas" width="1000" height="436"></canvas></div><div class="delivery-legend">รอยซ่อมสี<br>1. สีต่าง / ด้าน / พอง / ยุบ / เม็ด<br>2. รอยบุบ / รอยแตก<br>3. ระยะห่างชิ้นส่วน (ช่องไฟ)<br>4. อะไหล่ไม่ครบ<br>5. ความสะอาด<br>ผ่าน = งานซ่อมผ่าน<br>ไม่ผ่าน = งานซ่อมไม่ผ่านต้องแก้ไข</div></div>
+    <div class="delivery-section">รายงานสิ่งของต่าง ๆ ในรถลูกค้า</div>
+    <table class="delivery-inventory"><thead><tr><th>ภายในห้องโดยสาร</th><th>จำนวน/สภาพ</th><th>ภายในฝากระโปรงท้าย</th><th>จำนวน/สภาพ</th></tr></thead><tbody id="deliveryInventory"></tbody></table>
+    <div class="delivery-notes"><label>บันทึกการแก้ไข</label><textarea data-delivery="notes" aria-label="บันทึกการแก้ไข"></textarea><label>ลงชื่อผู้แก้ไข/ตรวจสอบ <input data-delivery="inspector_signature" aria-label="ลงชื่อผู้แก้ไขหรือตรวจสอบ"></label></div>
+   </section>
+  </div>
+  <footer class="delivery-footer">ตรวจสอบก่อนส่งมอบ ลูกค้าพอใจ 100%</footer>
+ </div>
+</div>

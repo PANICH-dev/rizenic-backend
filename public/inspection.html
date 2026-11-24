@@ -41,15 +41,15 @@
     .inspection-dates { min-height: 5mm; font-size: 10px; font-weight: 500; }
     .inspection-customer { border: 0; border-top: 1px solid #222; margin-top: 2mm; padding: 2mm 0; }
     .inspection-customer legend { float: left; width: 100%; margin: 0 0 1mm; padding: 0; text-decoration: underline; }
-    .inspection-customer > div { clear: both; font-size: 9.5px; gap: 1mm; }
+    .inspection-customer > div { clear: both; font-size: 10px; gap: 1mm; }
     #inspection_print_area input, #inspection_print_area textarea { min-width: 0; }
     .form-input-line { background: transparent; border-bottom: 1px dotted #555; outline: none; padding: 0 2px; color: #1d4ed8; font-weight: 500; }
-    .inspection-main { height: 151mm; border: 1px solid #222; border-radius: 0; margin-bottom: 1mm; }
+    .inspection-main { height: 140mm; border: 1px solid #222; border-radius: 0; margin-bottom: 1mm; }
     .inspection-main > div:first-child { width: 48%; border-right: 1px solid #222; }
     .inspection-main > div:last-child { width: 52%; }
     .sec-title-sm { background: #1b2f1c; color: white; text-align: center; font-weight: 600; font-size: 10px; padding: 1mm 0; }
     .insp-table-compact { table-layout: fixed; }
-    .insp-table-compact th, .insp-table-compact td { border: 1px solid #333; text-align: center; padding: 0; font-size: 9px; font-weight: 400; line-height: 1.15; }
+    .insp-table-compact th, .insp-table-compact td { border: 1px solid #333; text-align: center; padding: 0; font-size: 9.5px; font-weight: 400; line-height: 1.15; }
     .insp-table-compact td[colspan], .insp-table-compact td[rowspan] { text-align: left; padding-left: 1px; }
     .insp-table-compact th { background: white; font-weight: 600; height: 3mm; }
     .cb-box-sm { box-sizing: border-box; width: 10px; height: 10px; margin: 0; accent-color: #1b2f1c; cursor: pointer; flex-shrink: 0; }
@@ -82,7 +82,15 @@
     .inspection-signatures > div + div { border-top: 1px solid #222; }
     .inspection-signatures .mb-3 { margin-bottom: 2mm; }
     .inspection-signatures .mb-1\.5 { margin-bottom: 1mm; }
+    .inspection-reference { display: flex; align-items: center; gap: 4px; width: 52%; font-size: 10px; }
+    .inspection-reference span { white-space: nowrap; }
+    .inspection-reference input { flex: 1; min-width: 0; font-size: 9px; }
+    .inspection-so { margin: 0; min-height: 4mm; }
     #carCanvasLarge { touch-action: none; }
+    .car-text-toolbar { display:flex; flex-wrap:wrap; gap:8px; padding:8px 16px; align-items:center; }
+    .car-text-toolbar input { border:1px solid #94a3b8; padding:5px; flex:1; min-width:120px; }
+    .car-text-toolbar button { border:1px solid #94a3b8; padding:5px 9px; border-radius:5px; }
+    #carAnnotationList { max-width:220px; padding:5px; }
     @media screen and (max-width: 1100px) {
         #inspectionModal > .absolute { position: static; flex-wrap: wrap; justify-content: center; margin: 6px; }
         #inspection_scroll_container { padding-top: 16px; justify-content: flex-start; }
@@ -157,8 +165,8 @@
                         <span>วันที่นำรถเข้าซ่อม</span> <input type="text" id="ins_arr_date" class="form-input-line w-24 text-center">
                         <span class="ml-2">เวลา</span> <input type="text" id="ins_arr_time" class="form-input-line w-16 text-center">
                     </div>
-                    <div class="flex items-center gap-1">
-                        <span class="text-[10px] font-black">เลขที่ใบเสนอราคา</span> <input type="text" id="ins_job_no" class="form-input-line w-32 uppercase text-center font-black bg-transparent border-slate-800">
+                    <div class="inspection-reference">
+                        <span>เลขที่ใบเสนอราคา (QT)</span> <input type="text" id="ins_job_no" class="form-input-line uppercase">
                     </div>
                 </div>
                 <div class="inspection-dates flex justify-between items-center mb-2 font-bold text-[8.5px]">
@@ -166,14 +174,15 @@
                         <span>วันที่ส่งมอบรถ</span> <input type="text" id="ins_tgt_date" class="form-input-line w-24 text-center">
                         <span class="ml-2">เวลา</span> <input type="text" id="ins_tgt_time" class="form-input-line w-16 text-center">
                     </div>
-                    <div class="flex items-center gap-2">
+<div class="inspection-reference inspection-so"><span>เลขที่ใบสั่งซ่อม (SO)</span><input type="text" id="ins_so_no" data-inspection-new class="form-input-line uppercase"></div>
+                </div>
+
+                                    <div class="flex items-center gap-2" style="justify-content:flex-end;min-height:4mm">
                         <span>ประเภทงานซ่อม</span>
                         <label class="flex items-center gap-0.5"><input type="radio" name="ins_job_type" value="L" class="cb-box-sm rounded-full"> งานเบา L</label>
                         <label class="flex items-center gap-0.5"><input type="radio" name="ins_job_type" value="M" class="cb-box-sm rounded-full"> งานกลาง M</label>
                         <label class="flex items-center gap-0.5"><input type="radio" name="ins_job_type" value="H" class="cb-box-sm rounded-full"> งานหนัก H</label>
                     </div>
-                </div>
-
                 <!-- ข้อมูลลูกค้า -->
                 <fieldset class="inspection-customer border-[1.5px] border-slate-500 px-2 py-1 mb-2 font-bold rounded-sm relative mt-3">
                     <legend class="text-[8.5px] font-black text-slate-800 px-1 ml-2 bg-white select-none leading-none">ข้อมูลลูกค้า</legend>
@@ -181,7 +190,8 @@
                         <div class="col-span-3 flex"><span>ทะเบียน</span><input type="text" id="ins_car_plate" class="form-input-line flex-1 uppercase"></div>
                         <div class="col-span-3 flex"><span>ยี่ห้อ</span><input type="text" id="ins_car_brand" class="form-input-line flex-1"></div>
                         <div class="col-span-3 flex"><span>รุ่น</span><input type="text" id="ins_car_model" class="form-input-line flex-1"></div>
-                        <div class="col-span-3 flex"><span>หมายเลขตัวถัง</span><input type="text" id="ins_vin" class="form-input-line flex-1 font-mono text-[7.5px]"></div>
+                        <div class="col-span-3 flex"><span>หมายเลขตัวถัง</span><input type="text" id="ins_vin" class="form-input-line flex-1 font-mono text-[9px]"></div>
+                        <div class="col-span-6 flex"><span>สีรถ</span><input id="ins_car_color" data-inspection-new class="form-input-line flex-1"></div><div class="col-span-6 flex"><span>ปีรถ</span><input id="ins_model_year" data-inspection-new class="form-input-line flex-1"></div>
                         <div class="col-span-6 flex"><span>บริษัทประกันภัย</span><input type="text" id="ins_insurance" class="form-input-line flex-1"></div>
                         <div class="col-span-6 flex"><span>เลขที่ เคลม/รับแจ้ง</span><input type="text" id="ins_claim_no" class="form-input-line flex-1"></div>
                         <div class="col-span-7 flex"><span>ชื่อ-นามสกุล</span><input type="text" id="ins_cust_name" class="form-input-line flex-1"></div>
@@ -281,11 +291,11 @@
                         <div class="inspection-electrical flex p-1.5 font-bold text-[8px] h-full items-start">
                             <div class="w-[58%] flex flex-col gap-1 pr-1.5">
                                 <span class="font-black text-[#00320D] text-[9.5px] mb-0.5 border-b border-slate-300 pb-0.5 block">อุปกรณ์ไฟฟ้า</span>
-                                <div class="flex justify-between items-center pr-1"><span>ชุดไฟหน้าซ้าย-ขวา</span> <div class="flex gap-2"><label class="flex items-center gap-0.5"><input type="radio" name="el_hlight" class="cb-box-sm rounded-full" checked>ปกติ</label> <label class="flex items-center gap-0.5"><input type="radio" name="el_hlight" class="cb-box-sm rounded-full">ไม่</label></div></div>
-                                <div class="flex justify-between items-center pr-1"><span>ชุดไฟตัดหมอกซ้าย-ขวา</span> <div class="flex gap-2"><label class="flex items-center gap-0.5"><input type="radio" name="el_fog" class="cb-box-sm rounded-full" checked>ปกติ</label> <label class="flex items-center gap-0.5"><input type="radio" name="el_fog" class="cb-box-sm rounded-full">ไม่</label></div></div>
-                                <div class="flex justify-between items-center pr-1"><span>กระจกมองข้างซ้าย-ขวา</span> <div class="flex gap-2"><label class="flex items-center gap-0.5"><input type="radio" name="el_smirror" class="cb-box-sm rounded-full" checked>ปกติ</label> <label class="flex items-center gap-0.5"><input type="radio" name="el_smirror" class="cb-box-sm rounded-full">ไม่</label></div></div>
-                                <div class="flex justify-between items-center pr-1"><span>กระจกประตูหน้าขวา-ซ้าย</span> <div class="flex gap-2"><label class="flex items-center gap-0.5"><input type="radio" name="el_fwin" class="cb-box-sm rounded-full" checked>ปกติ</label> <label class="flex items-center gap-0.5"><input type="radio" name="el_fwin" class="cb-box-sm rounded-full">ไม่</label></div></div>
-                                <div class="flex justify-between items-center pr-1"><span>กระจกประตูหลังขวา-ซ้าย</span> <div class="flex gap-2"><label class="flex items-center gap-0.5"><input type="radio" name="el_rwin" class="cb-box-sm rounded-full" checked>ปกติ</label> <label class="flex items-center gap-0.5"><input type="radio" name="el_rwin" class="cb-box-sm rounded-full">ไม่</label></div></div>
+                                <div class="flex justify-between items-center pr-1"><span>ชุดไฟหน้าซ้าย-ขวา</span> <div class="flex gap-2"><label class="flex items-center gap-0.5"><input type="radio" name="el_hlight" class="cb-box-sm rounded-full">ปกติ</label> <label class="flex items-center gap-0.5"><input type="radio" name="el_hlight" class="cb-box-sm rounded-full">ไม่</label></div></div>
+                                <div class="flex justify-between items-center pr-1"><span>ชุดไฟตัดหมอกซ้าย-ขวา</span> <div class="flex gap-2"><label class="flex items-center gap-0.5"><input type="radio" name="el_fog" class="cb-box-sm rounded-full">ปกติ</label> <label class="flex items-center gap-0.5"><input type="radio" name="el_fog" class="cb-box-sm rounded-full">ไม่</label></div></div>
+                                <div class="flex justify-between items-center pr-1"><span>กระจกมองข้างซ้าย-ขวา</span> <div class="flex gap-2"><label class="flex items-center gap-0.5"><input type="radio" name="el_smirror" class="cb-box-sm rounded-full">ปกติ</label> <label class="flex items-center gap-0.5"><input type="radio" name="el_smirror" class="cb-box-sm rounded-full">ไม่</label></div></div>
+                                <div class="flex justify-between items-center pr-1"><span>กระจกประตูหน้าขวา-ซ้าย</span> <div class="flex gap-2"><label class="flex items-center gap-0.5"><input type="radio" name="el_fwin" class="cb-box-sm rounded-full">ปกติ</label> <label class="flex items-center gap-0.5"><input type="radio" name="el_fwin" class="cb-box-sm rounded-full">ไม่</label></div></div>
+                                <div class="flex justify-between items-center pr-1"><span>กระจกประตูหลังขวา-ซ้าย</span> <div class="flex gap-2"><label class="flex items-center gap-0.5"><input type="radio" name="el_rwin" class="cb-box-sm rounded-full">ปกติ</label> <label class="flex items-center gap-0.5"><input type="radio" name="el_rwin" class="cb-box-sm rounded-full">ไม่</label></div></div>
                                 
                                 <div class="flex justify-between items-center pr-1 mt-1"><span>เบาะนั่ง,พวงมาลัย</span> <div class="flex gap-1.5"><label class="flex items-center gap-0.5"><input type="checkbox" class="cb-box-sm">สะอาด</label> <label class="flex items-center gap-0.5"><input type="checkbox" class="cb-box-sm">รอย</label></div></div>
                                 <div class="flex justify-between items-center pr-1"><span>แผงข้างประตู</span> <div class="flex gap-1.5"><label class="flex items-center gap-0.5"><input type="checkbox" class="cb-box-sm">สะอาด</label> <label class="flex items-center gap-0.5"><input type="checkbox" class="cb-box-sm">รอย</label></div></div>
@@ -377,6 +387,13 @@
             <button onclick="clearCanvas()" class="px-5 py-2.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 font-bold rounded-xl shadow-sm transition"><i class="fa-solid fa-eraser"></i> ล้างทั้งหมด</button>
         </div>
         
+        <div class="car-text-toolbar">
+            <input id="carAnnotationText" placeholder="พิมพ์หมายเหตุ แล้วกดเพิ่มและแตะตำแหน่งบนรูปรถ" aria-label="หมายเหตุบนรูปรถ">
+            <button type="button" onclick="setAnnotationTool()">เพิ่มข้อความ</button>
+            <select id="carAnnotationList" aria-label="เลือกข้อความ" onchange="selectCarAnnotation(this.value)"><option value="">เลือกข้อความเพื่อย้าย/แก้ไข</option></select>
+            <button type="button" onclick="editCarAnnotation()">แก้ไข</button>
+            <button type="button" onclick="deleteCarAnnotation()">ลบข้อความ</button>
+        </div>
         <div class="flex-1 overflow-auto p-4 flex justify-center items-center bg-slate-100 custom-scrollbar">
             <div class="relative w-full aspect-[1195/521] bg-white rounded-xl shadow-inner border border-slate-200" style="background-image: url('photo/car_outline.png'); background-size: 100% 100%; background-position: center; background-repeat: no-repeat;">
                 <canvas id="carCanvasLarge" class="absolute top-0 left-0 w-full h-full cursor-crosshair"></canvas>

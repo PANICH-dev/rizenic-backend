@@ -9,6 +9,13 @@ let inspectionSession = 0;
 let inspectionLoading = false;
 let inspectionSaving = false;
 let inspectionLoadFailed = false;
+let carAnnotations = [];
+let carBaseImage = '';
+let workingAnnotations = [];
+let annotationBaseCanvas;
+let selectedAnnotation = -1;
+let draggingAnnotation = false;
+let annotationDragOffset = { x: 0, y: 0 };
 let inspectionBranch = '';
 
 // 🏢 1. ข้อมูล Master ของบริษัทและสาขาต่างๆ
@@ -36,7 +43,7 @@ const COMPANY_MASTERS = {
 async function loadInspectionTemplate() {
     if (!document.getElementById('inspectionModal')) {
         try {
-            const res = await fetch('inspection.html?v=20261124.4', { cache: 'no-store' });
+            const res = await fetch('inspection.html?v=20261124.5', { cache: 'no-store' });
             const html = await res.text();
             document.body.insertAdjacentHTML('beforeend', html);
             renderPartsTable();
@@ -88,7 +95,9 @@ async function openInspectionModal() {
     const vin = document.getElementById('vin_no')?.value || '';
     const appointmentDate = document.getElementById('appointment_date')?.value;
     const deliveryDate = document.getElementById('delivery_date')?.value;
-    const quotationNo = document.getElementById('qt_no')?.value;
+    const pipelineValues = selector => [...document.querySelectorAll(selector)].map(el => el.value.trim()).filter(Boolean).join(', ');
+    const quotationNo = pipelineValues('.pipe-qt') || document.getElementById('qt_no')?.value;
+    const salesOrderNo = pipelineValues('.pipe-so') || document.getElementById('so_no')?.value;
     const jobId = document.getElementById('sa_report_id')?.value || '';
     let branchName = sessionStorage.getItem('emp_branch') || '';
     let job;
@@ -126,6 +135,9 @@ async function openInspectionModal() {
     setFieldValue('ins_arr_date', (appointmentDate ?? job?.appointment_date ?? '').split('T')[0]);
     setFieldValue('ins_tgt_date', deliveryDate ?? job?.delivery_date?.slice(0, 10) ?? '');
     setFieldValue('ins_job_no', quotationNo ?? job?.qt_no ?? job?.quotation_no ?? '');
+    setFieldValue('ins_so_no', salesOrderNo ?? job?.so_no ?? '');
+    setFieldValue('ins_car_color', document.getElementById('car_color')?.value ?? job?.car_color ?? '');
+    setFieldValue('ins_model_year', document.getElementById('model_year')?.value ?? job?.model_year ?? '');
     setFieldValue('sign_cust_name_display', custName);
 
     setFieldValue('ins_insurance', paymentType);
@@ -218,6 +230,19 @@ function renderPartsTable() {
     });
     const container = document.getElementById('ins_parts_table_body');
     if(container) container.innerHTML = tbodyHtml;
+    const electrical=document.querySelector('.inspection-electrical');
+    if(electrical && !electrical.dataset.optionalRadios) {
+        electrical.dataset.optionalRadios='true';
+        const remember=event=>{
+            const input=event.target.closest('label')?.querySelector('input[type="radio"]') || event.target.closest('input[type="radio"]');
+            if(input) input.dataset.wasChecked=String(input.checked);
+        };
+        electrical.addEventListener('pointerdown',remember);
+        electrical.addEventListener('keydown',event=>{if(event.key===' ')remember(event);});
+        electrical.addEventListener('click',event=>{
+            if(event.target.matches('input[type="radio"]') && event.target.dataset.wasChecked==='true') event.target.checked=false;
+        });
+    }
 }
 
 function closeInspectionModal() {
@@ -230,6 +255,7 @@ function initCanvas() {
     canvasSmall = document.getElementById('carCanvasSmall');
     canvasLarge = document.getElementById('carCanvasLarge');
     
+    carAnnotations = []; carBaseImage = '';
     const RES_W = 1000;
     const RES_H = 400;
 
@@ -251,30 +277,106 @@ function initCanvas() {
     }
 }
 
-function openCarDrawModal() {
+async function openCarDrawModal() {
+    workingAnnotations = carAnnotations.map(item => ({ ...item }));
+    selectedAnnotation = -1;
+    annotationBaseCanvas = document.createElement('canvas');
+    annotationBaseCanvas.width = 1000; annotationBaseCanvas.height = 400;
+    if (carBaseImage) await drawImageOnCanvas(annotationBaseCanvas.getContext('2d'), carBaseImage);
+    else annotationBaseCanvas.getContext('2d').drawImage(canvasSmall, 0, 0);
     document.getElementById('carDrawModal').classList.remove('hidden');
     document.getElementById('carDrawModal').classList.add('flex');
-    
-    if (canvasSmall && canvasLarge) {
-        canvasLarge.width = 1000;
-        canvasLarge.height = 400;
-        ctxLarge.clearRect(0, 0, 1000, 400);
-        ctxLarge.drawImage(canvasSmall, 0, 0, 1000, 400);
-    }
+    setDrawTool('O');
+    renderCarEditor(); refreshAnnotationList();
+    canvasLarge.onmousedown = null; canvasLarge.ontouchstart = null;
+    canvasLarge.onpointerdown = event => {
+        event.preventDefault(); canvasLarge.setPointerCapture(event.pointerId);
+        const p = carPoint(event);
+        if (currentTool === 'T') {
+            const text = document.getElementById('carAnnotationText').value.trim();
+            if (!text) return;
+            workingAnnotations.push({text: text.slice(0, 200), x:p.x, y:p.y});
+            selectedAnnotation = workingAnnotations.length - 1; currentTool = 'MOVE';
+            renderCarEditor(); refreshAnnotationList(); return;
+        }
+        if (currentTool === 'MOVE' && selectedAnnotation >= 0) {
+            const item=workingAnnotations[selectedAnnotation];
+            annotationDragOffset={x:p.x-item.x,y:p.y-item.y}; draggingAnnotation=true; return;
+        }
+        ctxLarge.clearRect(0,0,1000,400); ctxLarge.drawImage(annotationBaseCanvas,0,0);
+        stampMark(event);
+        const base=annotationBaseCanvas.getContext('2d'); base.clearRect(0,0,1000,400); base.drawImage(canvasLarge,0,0);
+        renderCarEditor();
+    };
+    canvasLarge.onpointermove = event => {
+        if (!draggingAnnotation || selectedAnnotation < 0) return;
+        const p=carPoint(event), item=workingAnnotations[selectedAnnotation];
+        item.x=Math.max(0,Math.min(1000,p.x-annotationDragOffset.x));
+        item.y=Math.max(20,Math.min(395,p.y-annotationDragOffset.y)); renderCarEditor();
+    };
+    canvasLarge.onpointerup = canvasLarge.onpointercancel = () => { draggingAnnotation=false; };
 }
 
 function closeCarDrawModal(isSaved) {
+    if (isSaved && annotationBaseCanvas) {
+        carAnnotations=workingAnnotations.map(item=>({...item}));
+        carBaseImage=annotationBaseCanvas.toDataURL('image/png');
+        renderCarEditor(false);
+        ctxSmall.clearRect(0,0,1000,400); ctxSmall.drawImage(canvasLarge,0,0);
+    }
     document.getElementById('carDrawModal').classList.add('hidden');
     document.getElementById('carDrawModal').classList.remove('flex');
-    
-    if (isSaved && canvasSmall && canvasLarge) {
-        ctxSmall.clearRect(0, 0, 1000, 400);
-        ctxSmall.drawImage(canvasLarge, 0, 0, 1000, 400);
+}
+function carPoint(event) {
+    const rect=canvasLarge.getBoundingClientRect();
+    return {x:(event.clientX-rect.left)*1000/rect.width,y:(event.clientY-rect.top)*400/rect.height};
+}
+function paintCarAnnotations(ctx, items) {
+    ctx.save(); ctx.font="24px Prompt, sans-serif"; ctx.fillStyle='#b91c1c';
+    ctx.lineWidth=4; ctx.strokeStyle='white'; ctx.lineJoin='round';
+    for(const item of items) { ctx.strokeText(item.text,item.x,item.y);ctx.fillText(item.text,item.x,item.y); }
+    ctx.restore();
+}
+function renderCarEditor(highlight=true) {
+    ctxLarge.clearRect(0,0,1000,400);ctxLarge.drawImage(annotationBaseCanvas,0,0);
+    paintCarAnnotations(ctxLarge,workingAnnotations);
+    if(highlight && selectedAnnotation>=0) {
+        const item=workingAnnotations[selectedAnnotation];ctxLarge.save();ctxLarge.font='24px Prompt';
+        ctxLarge.strokeStyle='#2563eb';ctxLarge.lineWidth=1;ctxLarge.setLineDash([4,3]);
+        ctxLarge.strokeRect(item.x-3,item.y-26,ctxLarge.measureText(item.text).width+6,32);ctxLarge.restore();
     }
+}
+function refreshAnnotationList() {
+    const list=document.getElementById('carAnnotationList');list.replaceChildren(new Option('เลือกข้อความเพื่อย้าย/แก้ไข',''));
+    workingAnnotations.forEach((item,index)=>list.add(new Option(item.text,String(index))));
+    list.value=selectedAnnotation<0?'':String(selectedAnnotation);
+}
+function setAnnotationTool() { currentTool='T';selectedAnnotation=-1;refreshAnnotationList(); }
+function selectCarAnnotation(value) {
+    selectedAnnotation=value===''?-1:Number(value);currentTool='MOVE';
+    document.getElementById('carAnnotationText').value=workingAnnotations[selectedAnnotation]?.text||'';renderCarEditor();
+}
+function editCarAnnotation() {
+    const item=workingAnnotations[selectedAnnotation], text=document.getElementById('carAnnotationText').value.trim();
+    if(item && text) {item.text=text.slice(0,200);renderCarEditor();refreshAnnotationList();}
+}
+function deleteCarAnnotation() {
+    if(selectedAnnotation<0)return; workingAnnotations.splice(selectedAnnotation,1);selectedAnnotation=-1;renderCarEditor();refreshAnnotationList();
+}
+async function drawImageOnCanvas(ctx,src) {
+    await new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>{ctx.drawImage(image,0,0,1000,400);resolve();};image.onerror=()=>reject(new Error('โหลดรูปรถไม่สำเร็จ'));image.src=src;});
+}
+async function restoreCarDiagram(session) {
+    if(!canvasSmall)return;
+    const buffer=document.createElement('canvas');buffer.width=1000;buffer.height=400;
+    if(carBaseImage)await drawImageOnCanvas(buffer.getContext('2d'),carBaseImage);
+    if(session!==inspectionSession)return;
+    paintCarAnnotations(buffer.getContext('2d'),carAnnotations);
+    ctxSmall.clearRect(0,0,1000,400);ctxSmall.drawImage(buffer,0,0);
 }
 
 function setDrawTool(tool) {
-    currentTool = tool;
+    currentTool = tool; selectedAnnotation = -1;
     const btnO = document.getElementById('tool_O');
     const btnX = document.getElementById('tool_X');
     
@@ -326,7 +428,8 @@ function stampMark(e) {
 
 function clearCanvas() {
     if(confirm("ลบเครื่องหมายแผลทั้งหมดใช่หรือไม่?")) {
-        ctxLarge.clearRect(0, 0, canvasLarge.width, canvasLarge.height);
+        annotationBaseCanvas.getContext('2d').clearRect(0,0,1000,400);
+        workingAnnotations=[];selectedAnnotation=-1;renderCarEditor();refreshAnnotationList();
     }
 }
 
@@ -368,8 +471,10 @@ function printInspection() {
 // Store stable form keys in the existing JSON checklist column; no database migration is needed.
 function inspectionControls() {
     const controls = [...document.querySelectorAll('#inspection_print_area input, #inspection_print_area textarea')];
-    controls.forEach((el, index) => {
-        if (!el.dataset.inspectionKey) el.dataset.inspectionKey = el.id || 'control_' + index;
+    let legacyIndex = 0;
+    controls.forEach(el => {
+        if (!el.dataset.inspectionKey) el.dataset.inspectionKey = el.id || 'control_' + legacyIndex;
+        if (!el.hasAttribute('data-inspection-new')) legacyIndex++;
     });
     return controls;
 }
@@ -398,6 +503,8 @@ async function saveInspectionForm() {
         repair_checklist: {
             version: 1,
             company_code: document.getElementById('ins_company_select').value,
+            car_annotations: carAnnotations,
+            car_base_image: carBaseImage,
             form_fields: formFields
         },
         car_diagram_image: canvasSmall?.toDataURL('image/png') || '',
@@ -434,6 +541,10 @@ async function loadExistingInspectionData(jobId, session = inspectionSession) {
         const data = result.data;
         const checklist = typeof data.repair_checklist === 'string' ? JSON.parse(data.repair_checklist) : data.repair_checklist;
         const fields = checklist?.form_fields;
+        carAnnotations = Array.isArray(checklist?.car_annotations) ? checklist.car_annotations : [];
+        carBaseImage = checklist?.car_base_image || data.car_diagram_image || '';
+        await restoreCarDiagram(session);
+        if (session !== inspectionSession) return;
         if (fields) {
             inspectionControls().forEach(el => {
                 const value = fields[el.dataset.inspectionKey];
@@ -454,7 +565,7 @@ async function loadExistingInspectionData(jobId, session = inspectionSession) {
         setFieldValue('ins_mileage', data.current_mileage ?? '');
         setFieldValue('ins_extra_notes', data.notes ?? '');
         setFieldValue('sign_cust_name_display', document.getElementById('ins_cust_name').value);
-        if (data.car_diagram_image && canvasSmall) {
+        if (!carBaseImage && data.car_diagram_image && canvasSmall) {
             await new Promise((resolve, reject) => {
                 const img = new Image();
                 img.onload = () => {
