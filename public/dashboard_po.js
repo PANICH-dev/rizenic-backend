@@ -1,3 +1,51 @@
+let activePOFilters = {};
+let currentPOFilterKey = '';
+
+function getDashboardPOGroups() {
+    const jobs = getSafeJobsData();
+    const byId = new Map(jobs.map(j => [String(j.id), j]));
+    const byPlate = new Map();
+    jobs.forEach(j => {
+        const plate = String(j.car_plate || '').trim();
+        if (!byPlate.has(plate)) byPlate.set(plate, j);
+    });
+    const groups = {};
+    const parts = Array.isArray(filteredPartOrders) ? filteredPartOrders : [];
+    parts.forEach(o => {
+        if (o.order_status === 'ยกเลิก') return;
+        const jobId = String(o.job_id || o.report_id || '');
+        const plate = String(o.car_plate || '').trim();
+        const job = jobId ? byId.get(jobId) : byPlate.get(plate);
+        if (!job || !(job.job_status || '').includes('สั่งอะไหล่')) return;
+        const key = JSON.stringify([job.branch_name || '', String(job.car_plate || plate || job.id).trim()]);
+        if (!groups[key]) groups[key] = {
+            plate: String(job.car_plate || plate || 'ไม่ระบุ'),
+            vin: String(job.vin_no || o.vin_no || '').trim(),
+            saName: job.sa_owner || 'ไม่ระบุ', jobId: job.id,
+            isParked: job.is_parked || 'ไม่ระบุ', items: []
+        };
+        groups[key].items.push(o);
+    });
+    return groups;
+}
+
+function getDashboardPOStatus(group) {
+    const waiting = group.items.some(i => {
+        const status = i.order_status || '';
+        return status.includes('รอ') || status.includes('สั่ง') || status.includes('Back Order');
+    });
+    return waiting ? 'รออะไหล่' : 'ครบแล้ว';
+}
+
+function matchesDashboardPOFilters(group) {
+    const values = {
+        plate: group.plate, sa: group.saName,
+        status: getDashboardPOStatus(group),
+        parked: group.isParked === 'จอดซ่อม' ? 'จอดซ่อม' : 'ไม่จอดซ่อม'
+    };
+    return Object.entries(activePOFilters).every(([key, selected]) => selected.has(values[key]));
+}
+
 // ========================================================
 // 📦 RIZENIC - PO TRACKING SIMPLE CATEGORY FILTER
 // ========================================================
@@ -42,7 +90,7 @@ function updatePOSAFilterDropdown(saList) {
     
     let options = `<option value="ALL">👤 SA (ทั้งหมด)</option>`;
     sortedSAs.forEach(sa => {
-        options += `<option value="${sa}" ${sa === currentVal ? 'selected' : ''}>${sa}</option>`;
+        options += `<option value="${escapeDashboardHtml(sa)}" ${sa === currentVal ? 'selected' : ''}>${escapeDashboardHtml(sa)}</option>`;
     });
     
     saSelect.innerHTML = options;
@@ -55,82 +103,25 @@ function renderPartsTracking() {
     const tbody = document.getElementById('parts_tracking_body');
     if (!tbody) return;
 
-    // ดึงข้อมูลรายการสั่งอะไหล่และข้อมูลรถทั้งหมด
-    const sourceParts = (typeof allPartOrders !== 'undefined' && Array.isArray(allPartOrders) && allPartOrders.length > 0)
-        ? allPartOrders
-        : (window.allPartOrders || []);
-        
-    const safeJobs = (typeof allJobs !== 'undefined' && Array.isArray(allJobs)) ? allJobs : (window.allJobs || []);
-    
-    // 🎯 กรองข้อมูล: ดึงเฉพาะรถที่มีสถานะ 'สั่งอะไหล่' เท่านั้น
-    const pendingParts = sourceParts.filter(o => {
-        if (o.order_status === 'ยกเลิก') return false;
-        
-        const plate = o.car_plate ? o.car_plate.trim() : '';
-        const jobIdStr = String(o.job_id || o.report_id || '');
-        
-        let matchedJob = null;
-        if (jobIdStr && jobIdStr !== 'undefined' && jobIdStr !== 'null') {
-            matchedJob = safeJobs.find(j => String(j.id) === jobIdStr);
-        } else if (plate) {
-            matchedJob = safeJobs.find(j => j.car_plate && j.car_plate.trim() === plate);
-        }
-        
-        // ถ้ารถคันนี้ไม่อยู่ในสถานะ "สั่งอะไหล่" ให้ข้ามไป ไม่แสดงในตารางนี้
-        if (!matchedJob || !(matchedJob.job_status || '').includes('สั่งอะไหล่')) {
-            return false; 
-        }
-        
-        return true;
-    });
-
-    if (pendingParts.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400 font-bold bg-slate-50"><i class="fa-solid fa-box-open text-3xl mb-3 block opacity-50"></i>ไม่มีรถที่ค้างอยู่ในสถานะ "สั่งอะไหล่" 🎉</td></tr>`;
-        
-        const elReady = document.getElementById('dash_po_ready');
-        const elWaiting = document.getElementById('dash_po_waiting');
-        if (elReady) elReady.innerText = `0`;
-        if (elWaiting) elWaiting.innerText = `0`;
-        return;
-    }
-
-    const groupedParts = {};
-    const allSAsInPO = new Set();
-
-    pendingParts.forEach(o => {
-        const plate = o.car_plate ? o.car_plate.trim() : 'ไม่ระบุ';
-        if (!groupedParts[plate]) {
-            const jobIdStr = String(o.job_id || o.report_id || '');
-            let jobMatch = null;
-            if (jobIdStr && jobIdStr !== 'undefined' && jobIdStr !== 'null') jobMatch = safeJobs.find(j => String(j.id) === jobIdStr);
-            else if (plate) jobMatch = safeJobs.find(j => j.car_plate === plate);
-            
-            const sa = jobMatch ? (jobMatch.sa_owner || 'ไม่ระบุ') : 'ไม่ระบุ';
-            
-            groupedParts[plate] = {
-                saName: sa,
-                jobId: jobMatch ? jobMatch.id : '', // เก็บ Job ID ไว้ใช้กับปุ่มเปิดบิล
-                items: []
-            };
-            if(sa !== 'ไม่ระบุ') allSAsInPO.add(sa);
-        }
-        groupedParts[plate].items.push(o);
-    });
+    const groupedParts = getDashboardPOGroups();
+    const allSAsInPO = new Set(Object.values(groupedParts).map(group => group.saName));
 
     // อัปเดต Dropdown SA
     updatePOSAFilterDropdown(Array.from(allSAsInPO));
 
     const selectedFilter = document.getElementById('po_category_filter')?.value || 'ALL';
     const selectedSA = document.getElementById('po_sa_filter')?.value || 'ALL';
-    const sortedPlates = Object.keys(groupedParts).sort();
+    const sortedPlates = Object.keys(groupedParts).sort((a, b) => groupedParts[a].plate.localeCompare(groupedParts[b].plate));
 
     let html = '';
     let visibleCount = 0;
     let readyCount = 0;
     let waitingCount = 0;
 
-    sortedPlates.forEach((plate, index) => {
-        const group = groupedParts[plate];
+    sortedPlates.forEach((key, index) => {
+        const group = groupedParts[key];
+        const plate = group.plate;
+        if (!matchesDashboardPOFilters(group)) return;
         const rowId = `part_group_${index}`;
 
         // 🌟 กรองตาม SA ที่เลือก
@@ -162,8 +153,8 @@ function renderPartsTracking() {
         html += `
             <tr class="po-row-main hover:bg-blue-50/80 transition-colors border-b border-slate-200 cursor-pointer font-medium" onclick="togglePartAccordion('${rowId}')">
                 <td class="text-center px-3 py-3"><i id="icon_${rowId}" class="fa-solid fa-chevron-right text-slate-400 transition-transform duration-200"></i></td>
-                <td class="font-black text-[#00320D] px-4 py-3"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded text-sm shadow-inner font-mono">${plate}</span></td>
-                <td class="text-xs font-bold text-slate-600 px-4 py-3"><i class="fa-solid fa-user-tie text-blue-400 mr-1.5"></i>${group.saName}</td>
+                <td class="font-black text-[#00320D] px-4 py-3"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded text-sm shadow-inner font-mono">${escapeDashboardHtml(plate)}</span><div class="mt-2 text-[10px] font-mono font-normal text-slate-500 whitespace-nowrap" title="VIN ${escapeDashboardHtml(group.vin || '-')}">VIN ${escapeDashboardHtml(group.vin || '-')}</div></td>
+                <td class="text-xs font-bold text-slate-600 px-4 py-3"><i class="fa-solid fa-user-tie text-blue-400 mr-1.5"></i>${escapeDashboardHtml(group.saName)}</td>
                 <td class="text-center px-4 py-3"><span class="text-blue-700 font-black bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 text-xs shadow-sm">${group.items.length} รายการ</span></td>
                 <td class="px-4 py-3 align-middle"><span class="inline-flex items-center px-3 py-1 rounded-md border text-xs font-black shadow-sm ${badgeClass}">${badgeText}</span></td>
                 <td class="text-center px-4 py-3" onclick="event.stopPropagation()">
@@ -185,13 +176,13 @@ function renderPartsTracking() {
 
             return `
                 <tr class="hover:bg-slate-50 border-b border-slate-100 text-xs">
-                    <td class="px-3 py-2 text-center font-mono font-bold text-purple-700 bg-purple-50/50">${item.epc_no || '-'}</td>
-                    <td class="px-3 py-2 font-mono font-bold text-blue-700">${item.part_no || '-'}</td>
-                    <td class="px-3 py-2 font-bold text-slate-700 max-w-[220px] truncate" title="${item.part_name || '-'}">${item.part_name || '-'}</td>
+                    <td class="px-3 py-2 text-center font-mono font-bold text-purple-700 bg-purple-50/50">${escapeDashboardHtml(item.epc_no || '-')}</td>
+                    <td class="px-3 py-2 font-mono font-bold text-blue-700">${escapeDashboardHtml(item.part_no || '-')}</td>
+                    <td class="px-3 py-2 font-bold text-slate-700 max-w-[220px] truncate" title="${escapeDashboardHtml(item.part_name || '-')}">${escapeDashboardHtml(item.part_name || '-')}</td>
                     <td class="px-3 py-2 text-center font-black text-amber-700">${item.qty_ordered || 1}</td>
                     <td class="px-3 py-2 text-center font-mono text-slate-600 font-bold">${item.order_date ? item.order_date.split('T')[0] : '-'}</td>
                     <td class="px-3 py-2 text-center font-mono text-emerald-700 font-bold">${item.est_arrival_date ? item.est_arrival_date.split('T')[0] : '-'}</td>
-                    <td class="px-3 py-2 text-center"><span class="px-2 py-0.5 rounded text-[10px] border font-bold ${subBadge}">${st}</span></td>
+                    <td class="px-3 py-2 text-center"><span class="px-2 py-0.5 rounded text-[10px] border font-bold ${subBadge}">${escapeDashboardHtml(st)}</span></td>
                 </tr>
             `;
         }).join('');
@@ -201,7 +192,7 @@ function renderPartsTracking() {
                 <td colspan="6" class="p-3">
                     <div class="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-inner">
                         <div class="bg-slate-200/80 px-3 py-1.5 text-[11px] font-bold text-slate-700 border-b border-slate-300 flex justify-between items-center">
-                            <span><i class="fa-solid fa-list-check text-blue-600 mr-1.5"></i>ตารางตรวจสอบสั่งอะไหล่: ${plate}</span>
+                            <span><i class="fa-solid fa-list-check text-blue-600 mr-1.5"></i>ตารางตรวจสอบสั่งอะไหล่: ${escapeDashboardHtml(plate)}</span>
                             <span class="text-slate-500 font-mono font-normal">รวม ${group.items.length} ชิ้น</span>
                         </div>
                         <table class="w-full text-left border-collapse">
@@ -235,6 +226,8 @@ function renderPartsTracking() {
     } else {
         tbody.innerHTML = html;
     }
+    const keyword = document.querySelector('input[onkeyup*="filterPOTable"]')?.value || '';
+    window.filterPOTable(keyword);
 }
 
 // 3. ฟังก์ชันเปิด-ปิดแถวย่อย (Accordion)
@@ -349,59 +342,14 @@ window.openPOExcelFilter = function(e, colKey, title) {
     if (searchInput) searchInput.value = '';
 
     const uniqueValues = new Set();
-    const sourceParts = (typeof allPartOrders !== 'undefined' && Array.isArray(allPartOrders) && allPartOrders.length > 0)
-        ? allPartOrders : (window.allPartOrders || []);
-    const safeJobs = (typeof allJobs !== 'undefined' && Array.isArray(allJobs)) ? allJobs : (window.allJobs || []);
-    
-    // 🎯 ดึงข้อมูลเฉพาะรถที่อยู่ในสถานะ "สั่งอะไหล่" มาให้เลือกใน Excel Filter (เพื่อให้สอดคล้องกับตาราง)
-    const pendingParts = sourceParts.filter(o => {
-        if (o.order_status === 'ยกเลิก') return false;
-        const plate = o.car_plate ? o.car_plate.trim() : '';
-        const jobIdStr = String(o.job_id || o.report_id || '');
-        let matchedJob = null;
-        if (jobIdStr && jobIdStr !== 'undefined' && jobIdStr !== 'null') matchedJob = safeJobs.find(j => String(j.id) === jobIdStr);
-        else if (plate) matchedJob = safeJobs.find(j => j.car_plate && j.car_plate.trim() === plate);
-        
-        if (!matchedJob || !(matchedJob.job_status || '').includes('สั่งอะไหล่')) return false; 
-        return true;
-    });
-
-    const groupedParts = {};
-    pendingParts.forEach(o => {
-        const plate = o.car_plate ? o.car_plate.trim() : 'ไม่ระบุ';
-        if (!groupedParts[plate]) {
-            const jobIdStr = String(o.job_id || o.report_id || '');
-            let jobMatch = null;
-            if (jobIdStr && jobIdStr !== 'undefined' && jobIdStr !== 'null') jobMatch = safeJobs.find(j => String(j.id) === jobIdStr);
-            else if (plate) jobMatch = safeJobs.find(j => j.car_plate === plate);
-            
-            groupedParts[plate] = { 
-                saName: jobMatch ? (jobMatch.sa_owner || 'ไม่ระบุ') : 'ไม่ระบุ', 
-                isParked: jobMatch ? (jobMatch.is_parked || 'ไม่ระบุ') : 'ไม่ระบุ', 
-                items: [] 
-            };
-        }
-        groupedParts[plate].items.push(o);
-    });
-
-    Object.keys(groupedParts).forEach(plate => {
-        const group = groupedParts[plate];
-        let worstStatus = 'มีของ/ครบ';
-        const statuses = group.items.map(i => i.order_status || '');
-        if (statuses.includes('รอสั่งซื้อ')) worstStatus = 'รอสั่งซื้อ';
-        else if (statuses.includes('ติด Back Order')) worstStatus = 'ติด Back Order';
-        else if (statuses.includes('รออะไหล่')) worstStatus = 'รออะไหล่';
-        else if (statuses.includes('รออัปเดต')) worstStatus = 'รออัปเดต';
-        else if (statuses.some(s => !s.includes('ครบ') && !s.includes('มีของ') && !s.includes('สต๊อค'))) {
-            worstStatus = statuses.find(s => !s.includes('ครบ') && !s.includes('มีของ') && !s.includes('สต๊อค')) || 'รออะไหล่';
-        } else if (statuses.some(s => s.includes('สต๊อค'))) {
-            worstStatus = 'มีสต๊อค';
-        }
-
-        if (colKey === 'plate') uniqueValues.add(plate);
-        else if (colKey === 'sa') uniqueValues.add(group.saName);
-        else if (colKey === 'status') uniqueValues.add(worstStatus);
-        else if (colKey === 'parked') uniqueValues.add(group.isParked === 'จอดซ่อม' ? 'จอดซ่อม' : 'ไม่จอดซ่อม');
+    const groupedParts = getDashboardPOGroups();
+    Object.values(groupedParts).forEach(group => {
+        const values = {
+            plate: group.plate, sa: group.saName,
+            status: getDashboardPOStatus(group),
+            parked: group.isParked === 'จอดซ่อม' ? 'จอดซ่อม' : 'ไม่จอดซ่อม'
+        };
+        if (values[colKey] !== undefined) uniqueValues.add(values[colKey]);
     });
 
     const listDiv = document.getElementById('po_ef_checkbox_list');
@@ -412,8 +360,8 @@ window.openPOExcelFilter = function(e, colKey, title) {
         const isChecked = activePOFilters[colKey] ? activePOFilters[colKey].has(val) : true;
         listDiv.innerHTML += `
             <label class="flex items-start gap-2 hover:bg-slate-100 p-1.5 rounded cursor-pointer po-ef-item transition">
-                <input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''} class="po-ef-check accent-[#00320D] mt-0.5 cursor-pointer w-4 h-4">
-                <span class="text-slate-700 font-medium truncate w-full text-sm" title="${val}">${val}</span>
+                <input type="checkbox" value="${escapeDashboardHtml(val)}" ${isChecked ? 'checked' : ''} class="po-ef-check accent-[#00320D] mt-0.5 cursor-pointer w-4 h-4">
+                <span class="text-slate-700 font-medium truncate w-full text-sm" title="${escapeDashboardHtml(val)}">${escapeDashboardHtml(val)}</span>
             </label>`;
     });
     
@@ -493,10 +441,3 @@ document.addEventListener('DOMContentLoaded', () => {
         searchBox.addEventListener('input', (e) => window.filterPOTable(e.target.value));
     }
 });
-
-// ✅ ผูกฟังก์ชันระดับ Window
-window.closePOExcelFilter = closePOExcelFilter;
-window.searchPOExcelFilter = searchPOExcelFilter;
-window.toggleAllPOExcelFilters = toggleAllPOExcelFilters;
-window.applyPOExcelFilter = applyPOExcelFilter;
-window.clearSpecificPOExcelFilter = clearSpecificPOExcelFilter;

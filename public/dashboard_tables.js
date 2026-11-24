@@ -10,11 +10,6 @@ function cleanDate(dStr) {
     return s;
 }
 
-function isTrue(val) {
-    if (val === null || val === undefined) return false;
-    const strVal = String(val).trim().toUpperCase();
-    return strVal === 'TRUE' || strVal === '1' || val === true || val === 1;
-}
 
 function getCellValue(cell) {
     if(!cell) return '';
@@ -29,7 +24,7 @@ window.goToEditJob = window.goToEditJob || function(id) {
 };
 
 function getSafeJobsData() {
-    if (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs) && filteredJobs.length > 0) return filteredJobs;
+    if (typeof filteredJobs !== 'undefined' && Array.isArray(filteredJobs)) return filteredJobs;
     if (typeof allJobs !== 'undefined' && Array.isArray(allJobs) && allJobs.length > 0) return allJobs;
     if (typeof originalRepairJobs !== 'undefined' && Array.isArray(originalRepairJobs) && originalRepairJobs.length > 0) return originalRepairJobs;
     return [];
@@ -109,7 +104,7 @@ function renderSASection() {
                     <p class="text-[10px] text-slate-500">จำนวน: <span class="text-amber-600 font-black">${saCounts[sa]}</span> คัน</p>
                 </div>
             </div>
-            <button onclick="openSAModal('${sa}')" class="px-3 py-1.5 bg-amber-100 text-amber-700 hover:bg-amber-500 hover:text-white rounded-lg text-xs font-bold transition shadow-sm border border-amber-200 whitespace-nowrap">
+            <button data-sa="${escapeDashboardHtml(sa)}" onclick="openSAModal(this.dataset.sa)" class="px-3 py-1.5 bg-amber-100 text-amber-700 hover:bg-amber-500 hover:text-white rounded-lg text-xs font-bold transition shadow-sm border border-amber-200 whitespace-nowrap">
                 <i class="fa-solid fa-list-ul"></i> ดูรายการ
             </button>
         </div>
@@ -130,22 +125,6 @@ function openSAModal(saName) {
     if(document.getElementById('jobListModal')) document.getElementById('jobListModal').classList.remove('hidden');
 }
 
-function computeHighestStationIFS(j) {
-    if(!j) return "รอรับรถ";
-    if(isTrue(j.station_ready)) return "13.รอส่งมอบ";
-    if(isTrue(j.station_pak)) return "12.พักซ่อม";
-    if(isTrue(j.station_film)) return "11.ฟิล์ม";
-    if(isTrue(j.station_kraj)) return "10.กระจก";
-    if(isTrue(j.station_mag)) return "09.ซ่อมแม็ก";
-    if(isTrue(j.station_qc)) return "08.เก็บงาน";
-    if(isTrue(j.station_kat)) return "06.ขัดสี";
-    if(isTrue(j.station_prak)) return "05.ประกอบ";
-    if(isTrue(j.station_pon)) return "04.พ่นสี";
-    if(isTrue(j.station_puan)) return "03.เตรียมพื้น";
-    if(isTrue(j.station_pou)) return "02.โป๊ว";
-    if(isTrue(j.station_kho)) return "01.เคาะ";
-    return "รอรับรถ";
-}
 
 function renderStationSection() {
     const stCounts = { "01.เคาะ":0, "02.โป๊ว":0, "03.เตรียมพื้น":0, "04.พ่นสี":0, "05.ประกอบ":0, "06.ขัดสี":0, "08.เก็บงาน":0, "09.ซ่อมแม็ก":0, "10.กระจก":0, "11.ฟิล์ม":0, "12.พักซ่อม":0, "13.รอส่งมอบ":0, "รอรับรถ":0 };
@@ -180,7 +159,8 @@ function sortTable(tableId, colIndex) {
     if(!table) return;
     const tbody = table.querySelector('tbody');
     if(!tbody) return;
-    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const rows = Array.from(tbody.children).filter(row => !row.classList.contains('po-row-sub'));
+    const detailRows = new Map(rows.map(row => [row, row.nextElementSibling?.classList.contains('po-row-sub') ? row.nextElementSibling : null]));
     if (rows.length <= 1) return;
 
     table.querySelectorAll('.fa-sort, .fa-sort-up, .fa-sort-down').forEach(icon => icon.className = "fa-solid fa-sort sort-icon");
@@ -199,7 +179,11 @@ function sortTable(tableId, colIndex) {
         if (!isNaN(numA) && !isNaN(numB)) return dir === 'asc' ? numA - numB : numB - numA;
         return dir === 'asc' ? valA.localeCompare(valB, 'th') : valB.localeCompare(valA, 'th');
     });
-    rows.forEach(row => tbody.appendChild(row));
+    rows.forEach(row => {
+        tbody.appendChild(row);
+        const detail = detailRows.get(row);
+        if (detail) tbody.appendChild(detail);
+    });
 }
 
 // ==========================================
@@ -240,9 +224,9 @@ function renderStationTable() {
         
         return `
             <tr class="cursor-pointer hover:bg-orange-50/50 transition-colors border-b border-slate-100" onclick="goToEditJob('${j.id}')">
-                <td class="px-4 py-3 font-black text-orange-700"><span class="bg-orange-50 px-2.5 py-1 rounded border border-orange-200 shadow-inner">${j.car_plate || '-'}${overdueWarning}</span></td>
-                <td class="px-4 py-3 text-xs font-bold text-slate-700">${j.car_brand || ''} ${j.car_model || ''}</td>
-                <td class="px-4 py-3 text-xs font-medium text-slate-600 truncate max-w-[150px]" title="${j.customer_name}">${j.customer_name || '-'}</td>
+                <td class="px-4 py-3 font-black text-orange-700"><span class="bg-orange-50 px-2.5 py-1 rounded border border-orange-200 shadow-inner">${escapeDashboardHtml(j.car_plate || '-')}${overdueWarning}</span></td>
+                <td class="px-4 py-3 text-xs font-bold text-slate-700">${escapeDashboardHtml(j.car_brand || '')} ${escapeDashboardHtml(j.car_model || '')}</td>
+                <td class="px-4 py-3 text-xs font-medium text-slate-600 truncate max-w-[150px]" title="${j.customer_name}">${escapeDashboardHtml(j.customer_name || '-')}</td>
                 <td class="px-4 py-3 text-xs font-bold text-slate-700"><span class="bg-slate-100 px-2 py-1 rounded shadow-sm border border-slate-200">${j.job_status || '-'}</span></td>
                 <td class="px-4 py-3 text-xs font-black text-orange-600 bg-orange-50/30"><i class="fa-solid fa-wrench"></i> ${station.replace(/[0-9.]/g, '')}</td>
                 <td class="px-4 py-3 font-mono text-xs text-blue-600 text-center font-bold">${target}</td>
@@ -285,9 +269,9 @@ function renderParkedCars() {
         return `
             <tr class="cursor-pointer hover:bg-amber-50/80 transition-colors border-b border-slate-100" onclick="goToEditJob('${j.id}')">
                 <td class="text-center px-4 py-3"><span class="px-3 py-1 rounded-lg border ${dayBadge}">${diffDays}</span></td>
-                <td class="font-black text-amber-700 px-4 py-3"><span class="bg-amber-50 px-2.5 py-1 rounded border border-amber-300 shadow-inner">${j.car_plate || '-'}</span></td>
-                <td class="font-bold text-slate-800 px-4 py-3 text-xs">${j.car_brand || ''} ${j.car_model || ''}</td>
-                <td class="truncate max-w-[150px] font-medium text-slate-700 px-4 py-3 text-xs" title="${j.customer_name}">${j.customer_name || '-'}</td>
+                <td class="font-black text-amber-700 px-4 py-3"><span class="bg-amber-50 px-2.5 py-1 rounded border border-amber-300 shadow-inner">${escapeDashboardHtml(j.car_plate || '-')}</span></td>
+                <td class="font-bold text-slate-800 px-4 py-3 text-xs">${escapeDashboardHtml(j.car_brand || '')} ${escapeDashboardHtml(j.car_model || '')}</td>
+                <td class="truncate max-w-[150px] font-medium text-slate-700 px-4 py-3 text-xs" title="${j.customer_name}">${escapeDashboardHtml(j.customer_name || '-')}</td>
                 <td class="font-bold text-orange-600 text-xs px-4 py-3"><i class="fa-solid fa-wrench"></i> ${computeHighestStationIFS(j).replace(/[0-9.]/g, '')}</td>
                 <td class="font-mono text-xs text-blue-600 text-center font-bold px-4 py-3">${j.target_finish_date ? cleanDate(j.target_finish_date) : '-'}</td>
                 <td class="font-mono text-xs text-emerald-600 text-center font-bold px-4 py-3">${j.repair_finish_date ? cleanDate(j.repair_finish_date) : '-'}</td>
@@ -306,6 +290,8 @@ function renderParkedCars() {
 // 🌟 เพิ่มตัวแปรเก็บค่าเดือน/ปี ปัจจุบันสำหรับปฏิทิน 🌟
 let calCurrentMonth = new Date().getMonth();
 let calCurrentYear = new Date().getFullYear();
+let calendarVisibleStart = '';
+let calendarVisibleEnd = '';
 
 // 🌟 เพิ่มฟังก์ชันเลื่อนเดือน/ปี 🌟
 window.changeCalendarMonth = function(step) {
@@ -339,22 +325,26 @@ window.renderCalendarBySelectedMonth = function() {
 
 // 🌟 ในส่วนของ renderCalendarByRange เดิม ให้เพิ่มโค้ดสลับชื่อเดือนตอนเริ่มฟังก์ชัน
 function renderCalendarByRange(startDate, endDate) {
-    moveCalendarUp(); // 🎯 ดันปฏิทินขึ้นด้านบนเสมอ!
+
     
     const grid = document.getElementById('calendar_grid'); 
     if(!grid) return;
     grid.innerHTML = '';
     if(!startDate || !endDate) return;
 
-    const start = new Date(startDate); const end = new Date(endDate);
+    const start = new Date(startDate + 'T00:00:00'); const end = new Date(endDate + 'T00:00:00');
     if(isNaN(start) || isNaN(end) || start > end) {
         grid.innerHTML = `<div class="col-span-7 text-center py-10 text-slate-400 font-bold bg-slate-50 rounded-xl">วันที่ไม่ถูกต้อง</div>`; return;
     }
+    calendarVisibleStart = startDate;
+    calendarVisibleEnd = endDate;
+    calCurrentMonth = start.getMonth();
+    calCurrentYear = start.getFullYear();
 
     // 🌟 เพิ่มโค้ดอัปเดตชื่อเดือนหากไม่ได้กดปุ่มเลื่อนเดือนแต่ถูกสั่งงานจากที่อื่น 🌟
     const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
     const titleEl = document.getElementById('calendar_month_title');
-    if (titleEl && titleEl.innerText === 'เดือนปัจจุบัน') {
+    if (titleEl) {
         titleEl.innerText = `${monthNames[start.getMonth()]} ${start.getFullYear()}`;
     }
 
@@ -391,15 +381,15 @@ function renderCalendarByRange(startDate, endDate) {
         if(d.arrJobs.length > 0 || d.tarJobs.length > 0 || d.delJobs.length > 0) {
             barBlock = `<div class="flex items-end justify-center gap-1.5 w-full h-[60px] mt-auto pb-1">`;
             
-            if(d.arrJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[20px]" onclick="openJobListModalCalendar('${d.dateStr}', 'arrived')" title="รถเข้าจอด: ${d.arrJobs.length}"><span class="text-[9px] font-black text-blue-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-blue-200">${d.arrJobs.length}</span><div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-blue-700/20" style="height: ${Math.max(20, (d.arrJobs.length/maxCount)*100)}%;"></div></div>`;
+            if(d.arrJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[20px]" onclick="event.stopPropagation(); openJobListModalCalendar('${d.dateStr}', 'arrived')" title="รถเข้าจอด: ${d.arrJobs.length}"><span class="text-[9px] font-black text-blue-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-blue-200">${d.arrJobs.length}</span><div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-blue-700/20" style="height: ${Math.max(20, (d.arrJobs.length/maxCount)*100)}%;"></div></div>`;
             
             const doneQty = d.tarJobs.filter(j => isJobDone(j.job_status)).length;
             const isAllDone = doneQty === d.tarJobs.length && d.tarJobs.length > 0;
             const pctDone = d.tarJobs.length > 0 ? (doneQty / d.tarJobs.length) * 100 : 0;
 
-            if(d.tarJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[28px]" onclick="openJobListModalCalendar('${d.dateStr}', 'target')" title="เป้าซ่อมเสร็จ: ${d.tarJobs.length} (เสร็จแล้ว ${doneQty})"><span class="text-[9px] font-black ${isAllDone ? 'text-emerald-700 bg-emerald-100 border-emerald-400' : 'text-amber-700 bg-amber-100 border-amber-400'} mb-0.5 z-10 bg-white/90 rounded-sm w-full h-4 flex items-center justify-center shadow-sm border">${doneQty}/${d.tarJobs.length}</span><div class="w-full bg-slate-200 rounded-sm shadow-inner relative overflow-hidden" style="height: ${Math.max(20, (d.tarJobs.length/maxCount)*100)}%;"><div class="absolute bottom-0 left-0 w-full bg-gradient-to-t ${isAllDone ? 'from-emerald-500 to-emerald-400' : 'from-amber-500 to-amber-300'} transition-all duration-500 ease-in-out" style="height: ${pctDone}%;"></div></div></div>`;
+            if(d.tarJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[28px]" onclick="event.stopPropagation(); openJobListModalCalendar('${d.dateStr}', 'target')" title="เป้าซ่อมเสร็จ: ${d.tarJobs.length} (เสร็จแล้ว ${doneQty})"><span class="text-[9px] font-black ${isAllDone ? 'text-emerald-700 bg-emerald-100 border-emerald-400' : 'text-amber-700 bg-amber-100 border-amber-400'} mb-0.5 z-10 bg-white/90 rounded-sm w-full h-4 flex items-center justify-center shadow-sm border">${doneQty}/${d.tarJobs.length}</span><div class="w-full bg-slate-200 rounded-sm shadow-inner relative overflow-hidden" style="height: ${Math.max(20, (d.tarJobs.length/maxCount)*100)}%;"><div class="absolute bottom-0 left-0 w-full bg-gradient-to-t ${isAllDone ? 'from-emerald-500 to-emerald-400' : 'from-amber-500 to-amber-300'} transition-all duration-500 ease-in-out" style="height: ${pctDone}%;"></div></div></div>`;
             
-            if(d.delJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[20px]" onclick="openJobListModalCalendar('${d.dateStr}', 'delivery')" title="นัดส่งมอบ: ${d.delJobs.length}"><span class="text-[9px] font-black text-emerald-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-emerald-200">${d.delJobs.length}</span><div class="w-full bg-gradient-to-t from-emerald-500 to-emerald-300 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-emerald-600/20" style="height: ${Math.max(20, (d.delJobs.length/maxCount)*100)}%;"></div></div>`;
+            if(d.delJobs.length > 0) barBlock += `<div class="flex flex-col items-center justify-end h-full group/bar cursor-pointer w-[20px]" onclick="event.stopPropagation(); openJobListModalCalendar('${d.dateStr}', 'delivery')" title="นัดส่งมอบ: ${d.delJobs.length}"><span class="text-[9px] font-black text-emerald-700 mb-0.5 z-10 bg-white/90 rounded-sm min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-emerald-200">${d.delJobs.length}</span><div class="w-full bg-gradient-to-t from-emerald-500 to-emerald-300 rounded-md transition-all group-hover/bar:brightness-110 shadow-sm border border-emerald-600/20" style="height: ${Math.max(20, (d.delJobs.length/maxCount)*100)}%;"></div></div>`;
             barBlock += `</div>`;
         } else {
             barBlock = `<div class="flex items-center justify-center h-[60px] w-full mt-auto"><span class="text-[10px] font-bold text-slate-300">ว่าง</span></div>`;
@@ -528,8 +518,6 @@ function renderJobTableInModalGroupedBySA(jobs) {
     });
 
     let finalHtml = '';
-    const safeOptionsData = typeof globalStatusOptionsHtml !== 'undefined' ? globalStatusOptionsHtml : '';
-
     Object.keys(groupedBySA).sort().forEach((sa, index) => {
         const groupId = `sa_group_${index}`;
         finalHtml += `
@@ -544,10 +532,9 @@ function renderJobTableInModalGroupedBySA(jobs) {
                     </thead><tbody class="text-sm divide-y divide-slate-100 bg-white">
         `;
         groupedBySA[sa].forEach(j => {
-            let safeStatus = j.job_status || '';
-            let safeOptions = safeOptionsData;
-            if(!safeOptions.includes(`value="${safeStatus}"`)) { safeOptions = `<option value="${safeStatus}">${safeStatus}</option>` + safeOptions; } 
-            safeOptions = safeOptions.replace(`value="${safeStatus}"`, `value="${safeStatus}" selected`); 
+            const safeStatus = j.job_status || '';
+            const names = [...new Set([safeStatus, ...allStatuses.map(status => status.status_name)])];
+            const safeOptions = names.map(name => '<option value="' + escapeDashboardHtml(name) + '"' + (name === safeStatus ? ' selected' : '') + '>' + escapeDashboardHtml(name) + '</option>').join('');
 
             const isDone = isJobDone(safeStatus);
             const statusBadge = isDone 
@@ -557,16 +544,26 @@ function renderJobTableInModalGroupedBySA(jobs) {
             finalHtml += `
                 <tr class="hover:bg-emerald-50/50 transition cursor-pointer" onclick="goToEditJob('${j.id}')">
                     <td class="px-4 py-3 font-bold text-[#00320D] align-top">
-                        <span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded font-mono text-xs shadow-inner whitespace-nowrap">${j.car_plate || '-'}</span>
+                        <span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded font-mono text-xs shadow-inner whitespace-nowrap">${escapeDashboardHtml(j.car_plate || '-')}</span>
                         <div class="mt-1">${statusBadge}</div>
                     </td>
-                    <td class="px-4 py-3 align-top"><div class="font-bold text-slate-800 text-[11px] leading-tight mb-1">${j.car_brand || ''} <span class="text-slate-500 font-medium">${j.car_model || ''}</span></div><div class="text-[11px] font-bold text-slate-700 truncate max-w-[150px]">${j.customer_name || '-'}</div></td>
-                    <td class="px-4 py-3 text-[11px] font-bold text-slate-700 align-top"><div class="text-blue-600 mb-0.5"><i class="fa-solid fa-layer-group text-blue-400 mr-1"></i> หลัก: ${j.main_part_name || '-'}</div><div class="text-amber-600 mb-1"><i class="fa-solid fa-puzzle-piece text-amber-400 mr-1"></i> รอง: ${j.sub_part_name || '-'}</div><div class="text-purple-600 pt-1 border-t border-slate-100"><i class="fa-solid fa-box text-purple-400 mr-1"></i> อะไหล่: <span class="bg-purple-50 px-1.5 py-0.5 rounded shadow-sm border border-purple-200">${j.part_status || '-'}</span></div></td>
-                    <td class="px-4 py-3 text-[10px] font-bold text-slate-700 align-top"><select onclick="event.stopPropagation()" onchange="if(typeof fastUpdateJob === 'function') fastUpdateJob('${j.id}', 'job_status', this.value)" class="bg-slate-50 border border-slate-300 rounded px-2 py-1 outline-none focus:border-amber-500 w-full cursor-pointer font-bold text-[#00320D]">${safeOptions}</select></td>
+                    <td class="px-4 py-3 align-top"><div class="font-bold text-slate-800 text-[11px] leading-tight mb-1">${escapeDashboardHtml(j.car_brand || '')} <span class="text-slate-500 font-medium">${escapeDashboardHtml(j.car_model || '')}</span></div><div class="text-[11px] font-bold text-slate-700 truncate max-w-[150px]">${escapeDashboardHtml(j.customer_name || '-')}</div></td>
+                    <td class="px-4 py-3 text-[11px] font-bold text-slate-700 align-top"><div class="text-blue-600 mb-0.5"><i class="fa-solid fa-layer-group text-blue-400 mr-1"></i> หลัก: ${escapeDashboardHtml(j.main_part_name || '-')}</div><div class="text-amber-600 mb-1"><i class="fa-solid fa-puzzle-piece text-amber-400 mr-1"></i> รอง: ${escapeDashboardHtml(j.sub_part_name || '-')}</div><div class="text-purple-600 pt-1 border-t border-slate-100"><i class="fa-solid fa-box text-purple-400 mr-1"></i> อะไหล่: <span class="bg-purple-50 px-1.5 py-0.5 rounded shadow-sm border border-purple-200">${escapeDashboardHtml(j.part_status || '-')}</span></div></td>
+                    <td class="px-4 py-3 text-[10px] font-bold text-slate-700 align-top"><select data-status-job="${j.id}" data-saved-status="${escapeDashboardHtml(safeStatus)}" onclick="event.stopPropagation()" onchange="if(typeof fastUpdateJob === 'function') fastUpdateJob('${j.id}', 'job_status', this.value)" class="bg-slate-50 border border-slate-300 rounded px-2 py-1 outline-none focus:border-amber-500 w-full cursor-pointer font-bold text-[#00320D]">${safeOptions}</select></td>
                     <td class="px-4 py-3 text-center align-top"><button onclick="event.stopPropagation(); goToEditJob('${j.id}')" class="bg-[#00320D] text-[#ffffff] px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full whitespace-nowrap"><i class="fa-solid fa-pen"></i> เปิด</button></td>
                 </tr>`;
         });
         finalHtml += `</tbody></table></div>`;
     });
     container.innerHTML = finalHtml;
+}
+function openJobListModalCalendar(dateStr, type) {
+    const fields = { arrived: 'arrived_date', target: 'target_finish_date', delivery: 'delivery_date' };
+    const labels = { arrived: 'รถเข้าจอด', target: 'เป้าซ่อมเสร็จ', delivery: 'นัดส่งมอบ' };
+    const field = fields[type];
+    if (!field) return;
+    const jobs = getSafeJobsData().filter(j => j[field] && cleanDate(j[field]) === dateStr);
+    document.getElementById('modal_status_name').textContent = labels[type] + ' ' + dateStr + ' (' + jobs.length + ' คัน)';
+    renderJobTableInModalGroupedBySA(jobs);
+    document.getElementById('jobListModal').classList.remove('hidden');
 }

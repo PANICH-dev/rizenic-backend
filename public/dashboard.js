@@ -64,7 +64,7 @@ function getLastDayOfMonth() {
 
 function isDateInRange(dateStr, start, end) {
     if(!dateStr || String(dateStr).trim() === '') return false;
-    const dStr = dateStr.split('T')[0];
+    const dStr = String(dateStr).split('T')[0];
     if(start && dStr < start) return false;
     if(end && dStr > end) return false;
     return true;
@@ -81,19 +81,20 @@ function logout() {
 }
 
 function computeHighestStationIFS(j) {
-    if(isTrue(j.station_ready)) return "12.รอส่งมอบ";
-    if(isTrue(j.station_pak)) return "11.พักซ่อม";
-    if(isTrue(j.station_film)) return "10.ฟิล์ม";
-    if(isTrue(j.station_kraj)) return "09.กระจก";
-    if(isTrue(j.station_mag)) return "08.แม็ก";
-    if(isTrue(j.station_qc)) return "07.QC";
+    if(!j) return "รอรับรถ";
+    if(isTrue(j.station_ready)) return "13.รอส่งมอบ";
+    if(isTrue(j.station_pak)) return "12.พักซ่อม";
+    if(isTrue(j.station_film)) return "11.ฟิล์ม";
+    if(isTrue(j.station_kraj)) return "10.กระจก";
+    if(isTrue(j.station_mag)) return "09.ซ่อมแม็ก";
+    if(isTrue(j.station_qc)) return "08.เก็บงาน";
     if(isTrue(j.station_kat)) return "06.ขัดสี";
     if(isTrue(j.station_prak)) return "05.ประกอบ";
     if(isTrue(j.station_pon)) return "04.พ่นสี";
     if(isTrue(j.station_puan)) return "03.เตรียมพื้น";
     if(isTrue(j.station_pou)) return "02.โป๊ว";
     if(isTrue(j.station_kho)) return "01.เคาะ";
-    return "ส่งจ๊อบ"; 
+    return "รอรับรถ";
 }
 
 // =====================================
@@ -131,6 +132,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if(document.getElementById('report_start_date')) document.getElementById('report_start_date').value = getFirstDayOfMonth();
     if(document.getElementById('report_end_date')) document.getElementById('report_end_date').value = getLastDayOfMonth();
 
+    const allowed = (sessionStorage.getItem('accessible_pages') || '').split(',');
+    if (!allowed.includes('dashboard') && !allowed.includes('admin')) return;
+    setupDashboardNavigation();
     setupBranchDropdown();
     fetchDashboardData();
 });
@@ -149,53 +153,87 @@ function setupBranchDropdown() {
     }
 }
 
-async function fetchDashboardData() {
-    try {
-        const resJobs = await fetch(`${API_BASE_URL}/api/reports`);
-        if (resJobs.ok) {
-            const rawJobs = await resJobs.json();
-            const jobsArray = Array.isArray(rawJobs) ? rawJobs : (rawJobs.data || []);
-            allJobs = jobsArray.map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
-        }
+let dashboardRequest = 0;
+let dashboardController;
+let dashboardLoadedAt = null;
+let dashboardLoading = false;
+let dashboardLoadFailed = false;
 
-        const resParts = await fetch(`${API_BASE_URL}/api/part-orders`).catch(() => null);
-        if (resParts && resParts.ok) { 
-            const rawParts = await resParts.json(); 
-            allPartOrders = Array.isArray(rawParts) ? rawParts : (rawParts.data || []);
-        }
-
-        const statRes = await fetch(`${API_BASE_URL}/api/statuses`).catch(() => null);
-        if (statRes && statRes.ok) { 
-            const rawStat = await statRes.json();
-            allStatuses = Array.isArray(rawStat) ? rawStat : (rawStat.data || []);
-            globalStatusOptionsHtml = allStatuses.map(s => `<option value="${s.status_name}">${s.status_name}</option>`).join('');
-        }
-
-        const rStr = String(userRole).toLowerCase();
-        if (rStr.includes('admin') || rStr.includes('แอดมิน') || rStr.includes('manager') || rStr.includes('ba')) {
-            const uniqueBranches = [...new Set(allJobs.map(j => j.branch_name).filter(b => b))];
-            const filterSelect = document.getElementById('branchFilter');
-            if (filterSelect) {
-                const savedVal = filterSelect.value;
-                filterSelect.innerHTML = `<option value="all">-- ทุกสาขา --</option>`;
-                uniqueBranches.forEach(b => filterSelect.innerHTML += `<option value="${b}">${b}</option>`);
-                if(savedVal && (savedVal === 'all' || uniqueBranches.includes(savedVal))) filterSelect.value = savedVal;
-            }
-        }
-    } catch (err) { 
-        console.error("โหลดข้อมูลแดชบอร์ดพัง:", err); 
-    } finally {
-        applyFilters(); 
-    }
+function setDashboardStatus(message, state = 'loading') {
+    const el = document.getElementById('dashboard_load_status');
+    if (el) { el.textContent = message; el.dataset.state = state; }
 }
+
+async function fetchDashboardData() {
+    if (dashboardSavingJobs.size) {
+        setDashboardStatus('กำลังบันทึกสถานะ กรุณารอสักครู่');
+        return false;
+    }
+    const request = ++dashboardRequest;
+    dashboardController?.abort();
+    dashboardController = new AbortController();
+    const signal = dashboardController.signal;
+    dashboardLoading = true;
+    setDashboardStatus('กำลังอัปเดตข้อมูล…');
+    const names = ['ใบงาน', 'อะไหล่', 'สถานะ', 'โควต้า'];
+    const urls = ['reports', 'part-orders', 'statuses', 'quotas'];
+    const results = await Promise.allSettled(urls.map(async name => {
+        const res = await fetch(API_BASE_URL + '/api/' + name, { signal, cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const body = await res.json();
+        const rows = Array.isArray(body) ? body : body.data;
+        if (!Array.isArray(rows)) throw new Error('รูปแบบข้อมูลไม่ถูกต้อง');
+        return rows;
+    }));
+    if (request !== dashboardRequest) return;
+    dashboardLoading = false;
+    const failed = results.flatMap((result, index) => result.status === 'rejected' ? [names[index]] : []);
+    // Commit a complete snapshot so financial and parts totals never mix refreshes.
+    if (failed.length) {
+        dashboardLoadFailed = true;
+        const previous = dashboardLoadedAt ? ' แสดงข้อมูลสำเร็จครั้งล่าสุด ' + dashboardLoadedAt.toLocaleTimeString('th-TH') : ' ยังไม่มีข้อมูลที่ยืนยันครบ';
+        setDashboardStatus('โหลดไม่สำเร็จ: ' + failed.join(', ') + previous, 'error');
+        return false;
+    }
+    allJobs = results[0].value.map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
+    dashboardLoadFailed = false;
+    allPartOrders = results[1].value;
+    allStatuses = results[2].value;
+    allQuotas = results[3].value;
+    globalStatusOptionsHtml = allStatuses.map(s => '<option value="' + escapeDashboardHtml(s.status_name) + '">' + escapeDashboardHtml(s.status_name) + '</option>').join('');
+    const select = document.getElementById('branchFilter');
+    if (select && !select.disabled) {
+        const selected = select.value;
+        const branches = [...new Set(allJobs.map(j => j.branch_name).filter(Boolean))].sort();
+        select.replaceChildren(new Option('-- ทุกสาขา --', 'all'), ...branches.map(b => new Option(b, b)));
+        if (selected && (selected === 'all' || branches.includes(selected))) select.value = selected;
+    }
+    dashboardLoadedAt = new Date();
+    setDashboardStatus('อัปเดตล่าสุด ' + dashboardLoadedAt.toLocaleTimeString('th-TH'), 'ready');
+    applyFilters();
+    return true;
+}
+
+let dashboardSelectedBranch;
+let dashboardDateRange = '';
 
 function applyFilters() {
     const filterSelect = document.getElementById('branchFilter');
     const selectedBranch = filterSelect ? filterSelect.value : 'all';
     
+    if (dashboardSelectedBranch !== selectedBranch) {
+        closeModal('jobListModal');
+        if (typeof closePOExcelFilter === 'function') closePOExcelFilter();
+        dashboardSelectedBranch = selectedBranch;
+    }
     const startDate = document.getElementById('dash_start_date')?.value || getFirstDayOfMonth();
     const endDate = document.getElementById('dash_end_date')?.value || getLastDayOfMonth();
     
+    if (startDate > endDate) {
+        setDashboardStatus('กรุณาเลือกวันที่เริ่มต้นก่อนวันที่สิ้นสุด', 'error');
+        return;
+    }
+    if (dashboardLoadedAt && !dashboardLoading && !dashboardLoadFailed) setDashboardStatus('อัปเดตล่าสุด ' + dashboardLoadedAt.toLocaleTimeString('th-TH'), 'ready');
     const chartBranchLabel = document.getElementById('chartBranchLabel');
     if (chartBranchLabel) {
         chartBranchLabel.innerText = selectedBranch === 'all' ? 'ทุกสาขา' : selectedBranch;
@@ -215,19 +253,50 @@ function applyFilters() {
 
     if(typeof renderKPIs === 'function') renderKPIs(startDate, endDate);
     if(typeof renderDailyReport === 'function') renderDailyReport(); 
-    if(typeof renderDailyLineChart === 'function') renderDailyLineChart(startDate, endDate); 
-    if(typeof renderStatusChart === 'function') renderStatusChart();
-    if(typeof renderInsuranceChart === 'function') renderInsuranceChart();
-    if(typeof renderDamageChart === 'function') renderDamageChart(startDate, endDate);   
-    if(typeof renderPaymentChart === 'function') renderPaymentChart(startDate, endDate);   
-    if(typeof renderPartsStatusChart === 'function') renderPartsStatusChart();                 
-    if(typeof renderMechanicChart === 'function') renderMechanicChart();                    
-    if(typeof renderFinanceChart === 'function') renderFinanceChart(startDate, endDate);
+    const charts = [
+        ['dailyLineChart', () => renderDailyLineChart(startDate, endDate)],
+        ['statusChart', () => renderStatusChart()],
+        ['insuranceChart', () => renderInsuranceChart()],
+        ['damageChart', () => renderDamageChart(startDate, endDate)],
+        ['paymentChart', () => renderPaymentChart(startDate, endDate)],
+        ['partsStatusChart', () => renderPartsStatusChart()],
+        ['mechanicChart', () => renderMechanicChart()],
+        ['financeChart', () => renderFinanceChart(startDate, endDate)]
+    ];
+    charts.forEach(([id, render]) => {
+        const canvas = document.getElementById(id);
+        let notice = document.getElementById(id + '_notice');
+        if (!notice && canvas) {
+            notice = document.createElement('p');
+            notice.id = id + '_notice';
+            notice.className = 'chart-notice';
+            notice.setAttribute('role', 'status');
+            canvas.parentElement.append(notice);
+        }
+        try {
+            if (typeof Chart === 'undefined') throw new Error('Chart library unavailable');
+            render();
+            if (notice) notice.textContent = '';
+            if (canvas) canvas.hidden = false;
+        } catch (error) {
+            if (canvas) canvas.hidden = true;
+            if (notice) notice.textContent = 'แสดงกราฟไม่สำเร็จ กรุณารีเฟรช ตารางข้อมูลยังใช้งานได้';
+            console.error('Dashboard chart failed:', id, error);
+        }
+    });
     
     if(typeof renderSASection === 'function') renderSASection();
     if(typeof renderStationTable === 'function') renderStationTable(); 
     if(typeof renderParkedCars === 'function') renderParkedCars();
-    if(typeof renderCalendarByRange === 'function') renderCalendarByRange(startDate, endDate);
+    if (typeof renderCalendarByRange === 'function') {
+        const range = startDate + '|' + endDate;
+        if (range !== dashboardDateRange) {
+            dashboardDateRange = range;
+            renderCalendarByRange(startDate, endDate);
+        } else {
+            renderCalendarByRange(calendarVisibleStart || startDate, calendarVisibleEnd || endDate);
+        }
+    }
 }
 
 // 🎯 กล่อง ERP: เรียงลำดับตามที่กำหนด (01 - 23)
@@ -282,7 +351,7 @@ function renderERPStatuses(jobs) {
         }
 
         return `
-        <div onclick="openStatusModal('${st}')" class="${bgClass} border shadow-sm rounded-lg p-3 flex flex-col justify-between hover:shadow-md transition cursor-pointer transform hover:-translate-y-1">
+        <div data-status="${escapeDashboardHtml(st)}" onclick="openERPStatusModal(encodeURIComponent(this.dataset.status))" class="${bgClass} border shadow-sm rounded-lg p-3 flex flex-col justify-between hover:shadow-md transition cursor-pointer transform hover:-translate-y-1">
             <span class="text-[10px] sm:text-xs font-bold text-slate-600 truncate mb-2" title="${st}">${cleanStatus}</span>
             <div class="flex justify-between items-end">
                 <i class="fa-solid fa-car-side ${iconClass} text-lg"></i>
@@ -296,8 +365,8 @@ function renderStationSummary(jobs) {
     const repairingJobs = jobs.filter(job => (job.job_status || '').includes('กำลังซ่อม'));
     const stationCounts = {
         '01.เคาะ': 0, '02.โป๊ว': 0, '03.เตรียมพื้น': 0, '04.พ่นสี': 0, 
-        '05.ประกอบ': 0, '06.ขัดสี': 0, '07.QC': 0, '08.แม็ก': 0, 
-        '09.กระจก': 0, '10.ฟิล์ม': 0, '11.พักซ่อม': 0, '12.รอส่งมอบ': 0
+        '05.ประกอบ': 0, '06.ขัดสี': 0, '08.เก็บงาน': 0, '09.ซ่อมแม็ก': 0,
+        '10.กระจก': 0, '11.ฟิล์ม': 0, '12.พักซ่อม': 0, '13.รอส่งมอบ': 0
     };
 
     repairingJobs.forEach(job => {
@@ -306,7 +375,8 @@ function renderStationSummary(jobs) {
     });
 
     for (const [station, count] of Object.entries(stationCounts)) {
-        const prefix = station.substring(0, 2); 
+        const stationIds = { '08.เก็บงาน': '07', '09.ซ่อมแม็ก': '08', '10.กระจก': '09', '11.ฟิล์ม': '10', '12.พักซ่อม': '11', '13.รอส่งมอบ': '12' };
+        const prefix = stationIds[station] || station.substring(0, 2);
         const el = document.getElementById(`stat_${prefix}`);
         if(el) {
             el.innerText = count;
@@ -316,47 +386,6 @@ function renderStationSummary(jobs) {
     }
 }
 
-function renderPartsTracking(partOrders) {
-    const carStatusMap = {};
-
-    partOrders.forEach(po => {
-        const st = po.order_status || '';
-        if (st === 'ยกเลิก') return;
-
-        const plate = (po.car_plate || 'ไม่ระบุ').trim();
-        if (!carStatusMap[plate]) {
-            carStatusMap[plate] = { statuses: [] };
-        }
-        carStatusMap[plate].statuses.push(st);
-    });
-
-    let readyCarsCount = 0;   
-    let waitingCarsCount = 0; 
-
-    Object.values(carStatusMap).forEach(car => {
-        const isWaiting = car.statuses.some(st => st.includes('รอ') || st.includes('สั่ง') || st.includes('Back Order'));
-        
-        if (isWaiting) {
-            waitingCarsCount++; 
-        } else if (car.statuses.length > 0) {
-            readyCarsCount++; 
-        }
-    });
-
-    const elReady = document.getElementById('dash_po_ready');
-    const elWaiting = document.getElementById('dash_po_waiting');
-
-    if(elReady) elReady.innerText = `${readyCarsCount} คัน`;
-    if(elWaiting) {
-        elWaiting.innerText = `${waitingCarsCount} คัน`;
-        if(waitingCarsCount > 0) {
-            elWaiting.classList.add('text-rose-600', 'animate-pulse');
-        } else {
-            elWaiting.classList.remove('text-rose-600', 'animate-pulse');
-            elWaiting.classList.add('text-amber-600');
-        }
-    }
-}
 // =====================================
 // 📱 LINE MESSAGING API REPORT SYSTEM (ยิงผ่าน Backend API 100%)
 // =====================================
@@ -371,6 +400,7 @@ async function sendReportToLine(branchName) {
     }
 
     try {
+        if (renderDailyReport() === false) return;
         const start = document.getElementById('report_start_date')?.value || getFirstDayOfMonth();
         const end = document.getElementById('report_end_date')?.value || getLastDayOfMonth();
         
@@ -385,7 +415,15 @@ async function sendReportToLine(branchName) {
         // 📝 2. ดึงข้อมูล 3 หมวดหมู่หลัก (กรองโชว์เฉพาะรายการที่ > 0)
         if (window.currentReportDef) {
             msg += `👥 จำแนกประเภทลูกค้า\n`;
-            window.currentReportDef.customers.forEach(item => {
+            const types = [...new Set(branchJobs.filter(j => isDateInRange(j.contact_date, start, end)).map(j => (j.customer_type || 'ไม่ระบุ').trim()))].sort();
+            const customerItems = [
+                ...window.currentReportDef.customers.slice(0, 2),
+                ...types.map(type => ({
+                    icon: '🏷️', label: type,
+                    filter: j => (j.customer_type || 'ไม่ระบุ').trim() === type && isDateInRange(j.contact_date, start, end)
+                }))
+            ];
+            customerItems.forEach(item => {
                 const count = branchJobs.filter(item.filter).length;
                 if(count > 0) msg += `${item.icon} ${item.label}: ${count}\n`;
             });
@@ -436,60 +474,63 @@ async function sendReportToLine(branchName) {
 }
 
 // 🎯 ภาพรวมสถิติ (KPIs) - คำนวณนับยอดรถเข้าจอดจำนวนเต็ม (อ้างอิง arrived_date)
-function renderKPIs(startDate, endDate) {
-    let contactedCount = 0;
-    let parkedCount = 0;
-    let deliveredCount = 0;
-    let billedCount = 0;
 
-    let totalLabor = 0;
-    let totalParts = 0;
-    let totalOutsource = 0;
+function escapeDashboardHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+}
 
-    filteredJobs.forEach(j => {
-        const st = j.job_status || '';
-        if (st.includes('ยกเลิก')) return; // ข้ามใบงานที่ยกเลิก
-
-        // 1. รถเข้ามาที่ศูนย์ (ติดต่อ/นัดหมาย)
-        const contactDate = j.contact_date || j.appointment_date;
-        if (contactDate && isDateInRange(contactDate, startDate, endDate)) {
-            contactedCount++;
-        }
-
-        // 2. รถที่เข้ามาจอด (Parked Total) - นับจำนวนเต็มรวมทุกคันที่มี arrived_date ในช่วงเวลา
-        const arrivedDate = j.arrived_date || j.appointment_date;
-        if (arrivedDate && isDateInRange(arrivedDate, startDate, endDate)) {
-            parkedCount++;
-        }
-
-        // 3. ยอดส่งมอบ (Delivered)
-        const deliveryDate = j.delivery_date || j.actual_finish_date;
-        if (deliveryDate && isDateInRange(deliveryDate, startDate, endDate)) {
-            deliveredCount++;
-        }
-
-        // 4. ยอดปิดบิล (Billed)
-        const billingDate = j.billing_date || j.insurance_pay_date;
-        if (billingDate && isDateInRange(billingDate, startDate, endDate)) {
-            billedCount++;
-        }
-
-        // 💰 รวมยอดการเงินของรถที่เข้าจอดในงวดนี้
-        if (arrivedDate && isDateInRange(arrivedDate, startDate, endDate)) {
-            totalLabor += parseFloat(j.cost_labor) || 0;
-            totalParts += parseFloat(j.cost_part) || 0;
-            totalOutsource += parseFloat(j.cost_external) || 0;
+function setupDashboardNavigation() {
+    document.addEventListener('keydown', event => {
+        const target = event.target.closest('[role="button"][onclick]');
+        if (target && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); target.click(); }
+        if (event.key === 'Escape') {
+            closeModal('jobListModal');
+            if (typeof closePOExcelFilter === 'function') closePOExcelFilter();
         }
     });
+    const modal = document.getElementById('jobListModal');
+    modal?.addEventListener('click', event => { if (event.target === modal) closeModal('jobListModal'); });
+}
 
-    // แสดงผลตัวเลขจำนวนเต็มเข้าการ์ด KPIs
-    if (document.getElementById('stat_contacted')) document.getElementById('stat_contacted').innerText = contactedCount.toLocaleString();
-    if (document.getElementById('stat_parked')) document.getElementById('stat_parked').innerText = parkedCount.toLocaleString();
-    if (document.getElementById('stat_delivered')) document.getElementById('stat_delivered').innerText = deliveredCount.toLocaleString();
-    if (document.getElementById('stat_billed')) document.getElementById('stat_billed').innerText = billedCount.toLocaleString();
+function openERPStatusModal(encodedStatus) {
+    const status = decodeURIComponent(encodedStatus);
+    document.getElementById('modal_status_name').textContent = 'รายการ: ' + status;
+    renderJobTableInModalGroupedBySA(filteredJobs.filter(j => (j.job_status || 'ไม่ระบุสถานะ') === status));
+    document.getElementById('jobListModal').classList.remove('hidden');
+}
 
-    // แสดงผลสรุปยอดการเงิน
-    if (document.getElementById('sum_labor')) document.getElementById('sum_labor').innerText = totalLabor.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    if (document.getElementById('sum_parts')) document.getElementById('sum_parts').innerText = totalParts.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    if (document.getElementById('sum_outsource')) document.getElementById('sum_outsource').innerText = totalOutsource.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const dashboardSavingJobs = new Set();
+async function fastUpdateJob(id, field, value) {
+    if (field !== 'job_status' || dashboardSavingJobs.has(String(id))) return;
+    const select = document.querySelector('[data-status-job="' + id + '"]');
+    if (dashboardLoading) {
+        if (select) select.value = select.dataset.savedStatus;
+        setDashboardStatus('กำลังอัปเดตข้อมูล กรุณารอก่อนเปลี่ยนสถานะ');
+        return;
+    }
+    dashboardSavingJobs.add(String(id));
+    if (select) select.disabled = true;
+    try {
+        const res = await fetch(API_BASE_URL + '/api/report/' + encodeURIComponent(id) + '/fast-date', {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ field, value })
+        });
+        const result = await res.json();
+        if (!res.ok || result.success === false) throw new Error(result.error || 'บันทึกไม่สำเร็จ');
+        const job = allJobs.find(j => String(j.id) === String(id));
+        if (job) {
+            job.job_status = value;
+            if (result.department_routing !== undefined) job.department_routing = result.department_routing;
+        }
+        applyFilters();
+        if (select) select.dataset.savedStatus = value;
+        setDashboardStatus('บันทึกสถานะแล้ว', 'ready');
+    } catch (error) {
+        if (select) select.value = select.dataset.savedStatus;
+        setDashboardStatus('บันทึกสถานะไม่สำเร็จ กรุณาลองใหม่', 'error');
+        alert('บันทึกสถานะไม่สำเร็จ: ' + error.message);
+    } finally {
+        dashboardSavingJobs.delete(String(id));
+        if (select) select.disabled = false;
+    }
 }

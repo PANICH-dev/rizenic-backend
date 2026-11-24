@@ -59,7 +59,11 @@ function renderKPIs(start, end) {
 function renderDailyReport() {
     const start = document.getElementById('report_start_date')?.value || getFirstDayOfMonth();
     const end = document.getElementById('report_end_date')?.value || getLastDayOfMonth();
-    const todayDate = new Date().toISOString().split('T')[0]; 
+    if (start > end) {
+        alert('กรุณาเลือกวันที่เริ่มต้นรายงานก่อนวันที่สิ้นสุด');
+        return false;
+    }
+    const todayDate = localDashboardDate(new Date());
 
     const activeContacts = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end));
     const uniqueCustomerTypes = [...new Set(activeContacts.map(j => (j.customer_type || 'ไม่ระบุ').trim()))].sort();
@@ -250,11 +254,12 @@ function openStatusModal(statusName) {
     if(document.getElementById('modal_status_name')) document.getElementById('modal_status_name').innerText = `รายการ: ${statusName}`;
     const jobsToShow = filteredJobs.filter(job => {
         const st = (job.job_status || "").trim();
-        const isMatch = (st.includes(statusName)) && !st.includes('ปิดงานแล้ว');
+        const prefix = statusName.substring(0, 2);
+        const isMatch = /^\d{2}/.test(prefix) ? st.startsWith(prefix) : st === statusName;
 
         if (isMatch) {
-            if (statusName.includes('วางบิล') || statusName.includes('ชำระเงินสด') || statusName.includes('ออกบิลแล้ว')) {
-                return isDateInRange(job.billing_date, start, end);
+            if (statusName.includes('วางบิล') || statusName.includes('ชำระเงินสด') || statusName.includes('ออกบิลแล้ว') || statusName.includes('ส่งมอบ')) {
+                return isDateInRange(job.billing_date || job.delivery_date || job.repair_finish_date, start, end);
             }
             return true;
         }
@@ -308,25 +313,36 @@ function renderDailyLineChart(start, end) {
     const canvas = document.getElementById('dailyLineChart');
     if (!canvas || !start || !end) return;
     
-    const startDate = new Date(start);
-    const endDate = new Date(end);
+    const startDate = new Date(start + 'T00:00:00');
+    const endDate = new Date(end + 'T00:00:00');
     
+    if ((endDate - startDate) / 86400000 > 366) {
+        throw new Error('Daily chart range exceeds 366 days');
+    }
     const labels = [];
     const fullDates = [];
     const dataArrived = [];
     const dataTarget = [];
     const dataDelivered = [];
+    const counts = { arrived_date: new Map(), target_finish_date: new Map(), delivery_date: new Map() };
+    filteredJobs.forEach(job => {
+        Object.entries(counts).forEach(([field, dates]) => {
+            if (!job[field]) return;
+            const date = String(job[field]).split('T')[0];
+            dates.set(date, (dates.get(date) || 0) + 1);
+        });
+    });
 
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-        const dateStr = d.toISOString().split('T')[0];
+        const dateStr = localDashboardDate(d);
         const dayLabel = `${d.getDate()}/${d.getMonth()+1}`;
         
         labels.push(dayLabel);
         fullDates.push(dateStr);
 
-        dataArrived.push(filteredJobs.filter(j => j.arrived_date && j.arrived_date.split('T')[0] === dateStr).length);
-        dataTarget.push(filteredJobs.filter(j => j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr).length);
-        dataDelivered.push(filteredJobs.filter(j => j.delivery_date && j.delivery_date.split('T')[0] === dateStr).length);
+        dataArrived.push(counts.arrived_date.get(dateStr) || 0);
+        dataTarget.push(counts.target_finish_date.get(dateStr) || 0);
+        dataDelivered.push(counts.delivery_date.get(dateStr) || 0);
     }
 
     if (dailyLineChartInstance) dailyLineChartInstance.destroy();
@@ -701,4 +717,26 @@ function openMechanicModal(stationName) {
 
     if(typeof renderJobTableInModalGroupedBySA === 'function') renderJobTableInModalGroupedBySA(jobsToShow);
     if(document.getElementById('jobListModal')) document.getElementById('jobListModal').classList.remove('hidden');
+}
+function localDashboardDate(date) {
+    return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+}
+
+// These are the existing KPI predicates, shared with the cards' detail lists.
+function openFilteredModal(type) {
+    const start = document.getElementById('dash_start_date').value;
+    const end = document.getElementById('dash_end_date').value;
+    const deliveredStatuses = ['12.ส่งมอบ', '13.วางบิลประกัน', '14.ชำระเงินสด', '15.วางบิล Tesla', '16.วางบิล EV ME', '17.รอออกบิล', '19.ออกบิลแล้ว'];
+    const filters = {
+        contacted: j => isDateInRange(j.contact_date, start, end),
+        parked: j => !(j.job_status || '').includes('ยกเลิก') && isDateInRange(j.arrived_date || j.appointment_date, start, end),
+        billed: j => isDateInRange(j.billing_date, start, end),
+        delivered: j => isDateInRange(j.delivery_date, start, end) && deliveredStatuses.some(s => (j.job_status || '').includes(s))
+    };
+    if (!filters[type]) return;
+    const labels = { contacted: 'รถติดต่อ', parked: 'รถเข้าจอด', billed: 'ปิดบิล', delivered: 'ส่งมอบ' };
+    const jobs = filteredJobs.filter(filters[type]);
+    document.getElementById('modal_status_name').textContent = labels[type] + ' (' + jobs.length + ' คัน) · ' + start + ' ถึง ' + end;
+    renderJobTableInModalGroupedBySA(jobs);
+    document.getElementById('jobListModal').classList.remove('hidden');
 }
