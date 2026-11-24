@@ -1,3 +1,6 @@
+let deliveryObjects=[];
+let deliverySelected=-1;
+let deliveryBaseCanvas;
 let deliveryJobId = '';
 let deliveryLoading = false;
 let deliverySaving = false;
@@ -9,7 +12,7 @@ const DELIVERY_TRUNK = ['ยางอะไหล่','แม่แรง','ช�
 function deliveryFields() { return [...document.querySelectorAll('#deliveryPrintArea [data-delivery]')]; }
 async function loadDeliveryTemplate() {
  if(document.getElementById('deliveryInspectionModal'))return;
- const res=await fetch('delivery_inspection.html?v=20261124.6',{cache:'no-store'});
+ const res=await fetch('delivery_inspection.html?v=20261124.7',{cache:'no-store'});
  if(!res.ok)throw Error('โหลดแบบฟอร์มไม่สำเร็จ');
  document.body.insertAdjacentHTML('beforeend',await res.text());
  const parts=document.getElementById('deliveryParts');
@@ -27,21 +30,30 @@ async function loadDeliveryTemplate() {
  document.querySelectorAll('#deliveryPrintArea input[type="date"]').forEach(input=>{
   const text=document.createElement('span');text.className='delivery-date-print';input.after(text);
  });
- const canvas=document.getElementById('deliveryCanvas');canvas.style.touchAction='none';canvas.onpointerdown=event=>{
-  event.preventDefault();const rect=canvas.getBoundingClientRect(),x=(event.clientX-rect.left)*canvas.width/rect.width,y=(event.clientY-rect.top)*canvas.height/rect.height;
-  const ctx=canvas.getContext('2d');ctx.strokeStyle='#b91c1c';ctx.lineWidth=4;ctx.beginPath();
+ const canvas=document.getElementById('deliveryCanvas');canvas.style.touchAction='none';
+ deliveryBaseCanvas=document.createElement('canvas');deliveryBaseCanvas.width=canvas.width;deliveryBaseCanvas.height=canvas.height;
+ let dragging=false,offset={x:0,y:0};
+ const point=event=>{const r=canvas.getBoundingClientRect();return{x:(event.clientX-r.left)*canvas.width/r.width,y:(event.clientY-r.top)*canvas.height/r.height};};
+ canvas.onpointerdown=event=>{
+  if(deliveryLoading||deliverySaving)return;
+  event.preventDefault();canvas.setPointerCapture(event.pointerId);const p=point(event),ctx=canvas.getContext('2d');
   const tool=document.getElementById('deliveryMarkTool').value;
-  if(tool==='T') {
-   const text=document.getElementById('deliveryMarkText').value.trim();
-   if(!text){document.getElementById('deliveryMarkText').focus();return;}
-   ctx.save();ctx.font='24px Prompt, sans-serif';ctx.strokeStyle='white';ctx.lineWidth=4;ctx.lineJoin='round';ctx.fillStyle='#b91c1c';
-   const textX=Math.max(0,Math.min(x,Math.max(0,canvas.width-ctx.measureText(text).width)));
-   const textY=Math.max(24,Math.min(y,canvas.height-3));
-   ctx.strokeText(text,textX,textY);ctx.fillText(text,textX,textY);ctx.restore();return;
-  }
-  if(tool==='O')ctx.arc(x,y,15,0,Math.PI*2);
-  else {ctx.moveTo(x-12,y-12);ctx.lineTo(x+12,y+12);ctx.moveTo(x+12,y-12);ctx.lineTo(x-12,y+12);}ctx.stroke();
+  const size=Math.max(12,Math.min(160,Number(document.getElementById('deliveryObjectSize').value)||48));
+  if(tool==='ERASE'){deliveryBaseCanvas.getContext('2d').clearRect(p.x-size/2,p.y-size/2,size,size);renderDeliveryObjects();return;}
+  const hit=DiagramObjects.hit(ctx,deliveryObjects,p.x,p.y);
+  if(hit>=0){selectDeliveryObject(String(hit));const item=deliveryObjects[hit];offset={x:p.x-item.x,y:p.y-item.y};dragging=true;return;}
+  if(tool==='MOVE'){deliverySelected=-1;refreshDeliveryObjectList();renderDeliveryObjects();return;}
+  const text=document.getElementById('deliveryMarkText').value.trim();
+  if(tool==='T'&&!text){document.getElementById('deliveryMarkText').focus();return;}
+  deliveryObjects.push({type:tool,text,x:p.x,y:p.y,size});deliverySelected=deliveryObjects.length-1;
+  refreshDeliveryObjectList();renderDeliveryObjects();
  };
+ canvas.onpointermove=event=>{
+  if(!dragging||deliverySelected<0)return;const p=point(event),item=deliveryObjects[deliverySelected];
+  item.x=Math.max(0,Math.min(canvas.width,p.x-offset.x));item.y=Math.max(12,Math.min(canvas.height-3,p.y-offset.y));renderDeliveryObjects();
+ };
+ canvas.onpointerup=canvas.onpointercancel=()=>{dragging=false;};
+
 }
 async function openDeliveryInspection() {
  if(deliverySaving || deliveryLoading)return;
@@ -54,6 +66,7 @@ async function openDeliveryInspection() {
   if(!response.ok)throw Error('โหลดใบงานไม่สำเร็จ');const job=await response.json();
   if(seq!==deliverySequence)return;
   deliveryJobId=jobId;
+  document.getElementById('deliveryMarkTool').value='O';document.getElementById('deliveryObjectSize').value='48';document.getElementById('deliveryMarkText').value='';
   deliveryFields().forEach(el=>{if(el.type==='checkbox')el.checked=false;else el.value='';});clearDeliveryDiagram();
   const value=id=>document.getElementById(id)?.value;
   const pipeline=selector=>[...document.querySelectorAll(selector)].map(el=>el.value.trim()).filter(Boolean).join(', ');
@@ -69,30 +82,54 @@ async function openDeliveryInspection() {
   if(saved.status!==404){
    if(!saved.ok)throw Error('โหลดใบตรวจส่งมอบเดิมไม่สำเร็จ');const data=(await saved.json()).form_data;
    if(data?.fields)deliveryFields().forEach(el=>{const val=data.fields[el.dataset.delivery];if(val===undefined)return;if(el.type==='checkbox')el.checked=val===true;else el.value=val;});
-   if(data?.diagram)await restoreDeliveryDiagram(data.diagram,seq);
+   deliveryObjects=Array.isArray(data?.diagram_objects)?data.diagram_objects:[];
+   if(data?.base_diagram||data?.diagram)await restoreDeliveryDiagram(data.base_diagram||data.diagram,seq);
+   if(seq!==deliverySequence)return;
+   refreshDeliveryObjectList();renderDeliveryObjects();
   }
   deliveryStatus('พร้อมใช้งาน');
  }catch(error){deliveryLoadFailed=true;deliveryStatus(error.message);alert(error.message+' กรุณาลองเปิดใหม่ก่อนบันทึก');}
  finally{deliveryLoading=false;}
 }
 function deliveryStatus(text){const el=document.getElementById('deliveryStatus');if(el)el.textContent=text;}
-function clearDeliveryDiagram(){const canvas=document.getElementById('deliveryCanvas');canvas?.getContext('2d').clearRect(0,0,canvas.width,canvas.height);}
+function refreshDeliveryObjectList(){
+ const list=document.getElementById('deliveryObjectList');list.replaceChildren(new Option('เลือกรายการ',''));
+ deliveryObjects.forEach((item,index)=>list.add(new Option(DiagramObjects.label(item,index),String(index))));list.value=deliverySelected<0?'':String(deliverySelected);
+}
+function renderDeliveryObjects(highlight=true){
+ const canvas=document.getElementById('deliveryCanvas'),ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);
+ if(deliveryBaseCanvas)ctx.drawImage(deliveryBaseCanvas,0,0);DiagramObjects.paint(ctx,deliveryObjects,highlight?deliverySelected:-1);
+}
+function selectDeliveryObject(value){
+ deliverySelected=value===''?-1:Number(value);const item=deliveryObjects[deliverySelected];
+ if(item){document.getElementById('deliveryMarkTool').value='MOVE';document.getElementById('deliveryObjectSize').value=DiagramObjects.size(item);document.getElementById('deliveryMarkText').value=item.text||'';}
+ renderDeliveryObjects();
+}
+function resizeDeliveryObject(value){if(deliverySelected<0)return;deliveryObjects[deliverySelected].size=Math.max(12,Math.min(160,Number(value)||48));renderDeliveryObjects();}
+function editDeliveryObjectText(){const item=deliveryObjects[deliverySelected],text=document.getElementById('deliveryMarkText').value.trim();if(item&&item.type==='T'&&text){item.text=text;renderDeliveryObjects();refreshDeliveryObjectList();}}
+function deleteDeliveryObject(){if(deliverySelected<0)return;deliveryObjects.splice(deliverySelected,1);deliverySelected=-1;renderDeliveryObjects();refreshDeliveryObjectList();}
+function clearDeliveryDiagram(){
+ const canvas=document.getElementById('deliveryCanvas');deliveryObjects=[];deliverySelected=-1;
+ deliveryBaseCanvas?.getContext('2d').clearRect(0,0,canvas.width,canvas.height);if(canvas){renderDeliveryObjects();refreshDeliveryObjectList();}
+}
 async function restoreDeliveryDiagram(src,seq){
- await new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>{if(seq===deliverySequence){const c=document.getElementById('deliveryCanvas');c.getContext('2d').drawImage(image,0,0,c.width,c.height);}resolve();};image.onerror=()=>reject(Error('โหลดรอยแก้ไขไม่สำเร็จ'));image.src=src;});
+ await new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>{if(seq===deliverySequence){deliveryBaseCanvas.getContext('2d').drawImage(image,0,0,deliveryBaseCanvas.width,deliveryBaseCanvas.height);}resolve();};image.onerror=()=>reject(Error('โหลดรอยแก้ไขไม่สำเร็จ'));image.src=src;});
 }
 async function saveDeliveryInspection(){
  if(deliveryLoading||deliverySaving||deliveryLoadFailed||!deliveryJobId)return;
  deliverySaving=true;const button=document.getElementById('deliverySave');button.disabled=true;deliveryStatus('กำลังบันทึก...');
  try{
   const fields={};deliveryFields().forEach(el=>fields[el.dataset.delivery]=el.type==='checkbox'?el.checked:el.value);
-  const res=await fetch(API_BASE_URL+'/api/delivery-inspection/'+encodeURIComponent(deliveryJobId),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({form_data:{version:1,fields,diagram:document.getElementById('deliveryCanvas').toDataURL('image/png')}})});
+  renderDeliveryObjects(false);
+  const res=await fetch(API_BASE_URL+'/api/delivery-inspection/'+encodeURIComponent(deliveryJobId),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({form_data:{version:2,fields,diagram_objects:deliveryObjects,base_diagram:deliveryBaseCanvas.toDataURL('image/png'),diagram:document.getElementById('deliveryCanvas').toDataURL('image/png')}})});
   if(!res.ok)throw Error('บันทึกไม่สำเร็จ');deliveryStatus('บันทึกแล้ว');
- }catch(error){deliveryStatus(error.message);alert(error.message);}finally{deliverySaving=false;button.disabled=false;}
+ }catch(error){deliveryStatus(error.message);alert(error.message);}finally{deliverySaving=false;button.disabled=false;renderDeliveryObjects();}
 }
 function closeDeliveryInspection(){if(deliverySaving)return;deliverySequence++;document.getElementById('deliveryInspectionModal').hidden=true;document.body.classList.remove('printing-delivery');}
 function printDeliveryInspection(){document.body.classList.add('printing-delivery');window.addEventListener('afterprint',()=>document.body.classList.remove('printing-delivery'),{once:true});window.print();}
 
 window.addEventListener('beforeprint',()=>{
+ if(document.getElementById('deliveryCanvas'))renderDeliveryObjects(false);
  document.querySelectorAll('#deliveryPrintArea input[type="date"]').forEach(input=>{
   if(input.nextElementSibling?.classList.contains('delivery-date-print'))input.nextElementSibling.textContent=input.value?input.value.split('-').reverse().join('/'):'....... / ....... / ........';
  });

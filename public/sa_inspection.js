@@ -43,7 +43,7 @@ const COMPANY_MASTERS = {
 async function loadInspectionTemplate() {
     if (!document.getElementById('inspectionModal')) {
         try {
-            const res = await fetch('inspection.html?v=20261124.6', { cache: 'no-store' });
+            const res = await fetch('inspection.html?v=20261124.7', { cache: 'no-store' });
             const html = await res.text();
             document.body.insertAdjacentHTML('beforeend', html);
             renderPartsTable();
@@ -297,21 +297,22 @@ async function openCarDrawModal() {
     canvasLarge.onpointerdown = event => {
         event.preventDefault(); canvasLarge.setPointerCapture(event.pointerId);
         const p = carPoint(event);
-        if (currentTool === 'T') {
-            const text = document.getElementById('carAnnotationText').value.trim();
-            if (!text) return;
-            workingAnnotations.push({text: text.slice(0, 200), x:p.x, y:p.y});
-            selectedAnnotation = workingAnnotations.length - 1; currentTool = 'MOVE';
-            renderCarEditor(); refreshAnnotationList(); return;
+        if(currentTool==='ERASE') {
+            const size=Number(document.getElementById('carAnnotationSize').value)||48;
+            annotationBaseCanvas.getContext('2d').clearRect(p.x-size/2,p.y-size/2,size,size);renderCarEditor();return;
         }
-        if (currentTool === 'MOVE' && selectedAnnotation >= 0) {
+        const hit=DiagramObjects.hit(ctxLarge,workingAnnotations,p.x,p.y);
+        if(hit>=0 || (currentTool==='MOVE' && selectedAnnotation>=0)) {
+            if(hit>=0)selectCarAnnotation(String(hit));
             const item=workingAnnotations[selectedAnnotation];
-            annotationDragOffset={x:p.x-item.x,y:p.y-item.y}; draggingAnnotation=true; return;
+            annotationDragOffset={x:p.x-item.x,y:p.y-item.y};draggingAnnotation=true;return;
         }
-        ctxLarge.clearRect(0,0,1000,400); ctxLarge.drawImage(annotationBaseCanvas,0,0);
-        stampMark(event);
-        const base=annotationBaseCanvas.getContext('2d'); base.clearRect(0,0,1000,400); base.drawImage(canvasLarge,0,0);
-        renderCarEditor();
+        if(currentTool==='MOVE')return;
+        const text=document.getElementById('carAnnotationText').value.trim();
+        if(currentTool==='T'&&!text){document.getElementById('carAnnotationText').focus();return;}
+        workingAnnotations.push({type:currentTool,text:text.slice(0,200),x:p.x,y:p.y,size:Number(document.getElementById('carAnnotationSize').value)||48});
+        selectedAnnotation=workingAnnotations.length-1;if(currentTool==='T')currentTool='MOVE';
+        renderCarEditor();refreshAnnotationList();
     };
     canvasLarge.onpointermove = event => {
         if (!draggingAnnotation || selectedAnnotation < 0) return;
@@ -336,30 +337,25 @@ function carPoint(event) {
     const rect=canvasLarge.getBoundingClientRect();
     return {x:(event.clientX-rect.left)*1000/rect.width,y:(event.clientY-rect.top)*400/rect.height};
 }
-function paintCarAnnotations(ctx, items) {
-    ctx.save(); ctx.font="24px Prompt, sans-serif"; ctx.fillStyle='#b91c1c';
-    ctx.lineWidth=4; ctx.strokeStyle='white'; ctx.lineJoin='round';
-    for(const item of items) { ctx.strokeText(item.text,item.x,item.y);ctx.fillText(item.text,item.x,item.y); }
-    ctx.restore();
-}
+function paintCarAnnotations(ctx,items) { DiagramObjects.paint(ctx,items); }
 function renderCarEditor(highlight=true) {
     ctxLarge.clearRect(0,0,1000,400);ctxLarge.drawImage(annotationBaseCanvas,0,0);
-    paintCarAnnotations(ctxLarge,workingAnnotations);
-    if(highlight && selectedAnnotation>=0) {
-        const item=workingAnnotations[selectedAnnotation];ctxLarge.save();ctxLarge.font='24px Prompt';
-        ctxLarge.strokeStyle='#2563eb';ctxLarge.lineWidth=1;ctxLarge.setLineDash([4,3]);
-        ctxLarge.strokeRect(item.x-3,item.y-26,ctxLarge.measureText(item.text).width+6,32);ctxLarge.restore();
-    }
+    DiagramObjects.paint(ctxLarge,workingAnnotations,highlight?selectedAnnotation:-1);
+}
+function resizeCarAnnotation(value) {
+    const size=Math.max(12,Math.min(160,Number(value)||48));
+    if(selectedAnnotation>=0){workingAnnotations[selectedAnnotation].size=size;renderCarEditor();}
 }
 function refreshAnnotationList() {
-    const list=document.getElementById('carAnnotationList');list.replaceChildren(new Option('เลือกข้อความเพื่อย้าย/แก้ไข',''));
-    workingAnnotations.forEach((item,index)=>list.add(new Option(item.text,String(index))));
+    const list=document.getElementById('carAnnotationList');list.replaceChildren(new Option('เลือกรายการเพื่อย้าย/แก้ไข',''));
+    workingAnnotations.forEach((item,index)=>list.add(new Option(DiagramObjects.label(item,index),String(index))));
     list.value=selectedAnnotation<0?'':String(selectedAnnotation);
 }
 function setAnnotationTool() { currentTool='T';selectedAnnotation=-1;refreshAnnotationList(); }
 function selectCarAnnotation(value) {
     selectedAnnotation=value===''?-1:Number(value);currentTool='MOVE';
-    document.getElementById('carAnnotationText').value=workingAnnotations[selectedAnnotation]?.text||'';renderCarEditor();
+    document.getElementById('carAnnotationText').value=workingAnnotations[selectedAnnotation]?.text||'';
+    if(workingAnnotations[selectedAnnotation])document.getElementById('carAnnotationSize').value=DiagramObjects.size(workingAnnotations[selectedAnnotation]);renderCarEditor();
 }
 function editCarAnnotation() {
     const item=workingAnnotations[selectedAnnotation], text=document.getElementById('carAnnotationText').value.trim();
