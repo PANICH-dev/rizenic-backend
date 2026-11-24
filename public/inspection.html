@@ -54,7 +54,9 @@
     .insp-table-compact th { background: white; font-weight: 600; height: 3mm; }
     .cb-box-sm { box-sizing: border-box; width: 10px; height: 10px; margin: 0; accent-color: #1b2f1c; cursor: pointer; flex-shrink: 0; }
     #inspection_print_area .cb-box-sm { appearance: none; border: 1px solid #333; border-radius: 0; background: white; }
-    #inspection_print_area .cb-box-sm:checked { background: #1b2f1c; box-shadow: inset 0 0 0 2px white; }
+    #inspection_print_area .cb-box-sm { position: relative; }
+    #inspection_print_area .cb-box-sm:checked { background: white; box-shadow: none; }
+    #inspection_print_area .cb-box-sm:checked::after { content: '✓'; position: absolute; inset: -3px; display: grid; place-items: center; color: #173b18; font: bold 13px/1 sans-serif; }
     #inspection_print_area .font-bold, #inspection_print_area .font-black { font-weight: 400 !important; }
     #inspection_print_area .inspection-title, #inspection_print_area .sec-title-sm,
     #inspection_print_area th, #inspection_print_area legend { font-weight: 600 !important; }
@@ -236,14 +238,16 @@
                         <!-- ⚡ เกจแบตเตอรี่ EV & ลักษณะงาน -->
                         <div class="flex px-1.5 py-1.5 border-b border-slate-400">
                             <div class="w-[38%] flex flex-col items-center justify-center border-r border-slate-300 pr-2">
-                                <div class="inspection-energy-blank">
+                                <div class="inspection-energy-blank" style="gap:1mm;align-items:center">
                                     <span>ระดับพลังงานแบตเตอรี่</span>
-                                    <span>................................ %</span>
-                                    <div hidden>
-                                        <input type="hidden" id="ins_fuel_level" value="50">
-                                        <input type="hidden" id="ins_battery_percent" value="50">
-                                        <span id="fuel_txt">50</span>
-                                    </div>
+                                    <svg viewBox="0 0 110 49" style="width:90px;height:40px" aria-label="ระดับแบตเตอรี่">
+                                        <rect x="7" y="3" width="89" height="25" rx="4" fill="white" stroke="#173b18" stroke-width="2"/>
+                                        <rect x="96" y="10" width="6" height="11" rx="2" fill="#173b18"/>
+                                        <rect id="ins_battery_fill" x="11" y="7" width="0" height="17" rx="2" fill="#173b18"/>
+                                        <text x="55" y="44" text-anchor="middle" font-size="12" fill="#173b18"><tspan id="fuel_txt">........</tspan>%</text>
+                                    </svg>
+                                    <input type="hidden" id="ins_fuel_level" value="">
+                                    <label class="no-print">ปรับค่า <input type="number" id="ins_battery_percent" min="0" max="100" value="" aria-label="เปอร์เซ็นต์แบตเตอรี่" oninput="updateFuelGauge(this.value)" style="width:45px;border:1px solid #999;text-align:center"> %</label>
                                 </div>
                                 <div class="flex items-center gap-1 w-full text-[8.5px] font-bold mt-1.5">
                                     <span>เลขไมล์</span><input type="text" id="ins_mileage" class="form-input-line flex-1 text-center font-mono text-[8px]"><span>กม.</span>

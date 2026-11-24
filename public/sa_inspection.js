@@ -36,7 +36,7 @@ const COMPANY_MASTERS = {
 async function loadInspectionTemplate() {
     if (!document.getElementById('inspectionModal')) {
         try {
-            const res = await fetch('inspection.html?v=20261124.3', { cache: 'no-store' });
+            const res = await fetch('inspection.html?v=20261124.4', { cache: 'no-store' });
             const html = await res.text();
             document.body.insertAdjacentHTML('beforeend', html);
             renderPartsTable();
@@ -114,7 +114,7 @@ async function openInspectionModal() {
         if (el.type === 'checkbox' || el.type === 'radio') el.checked = el.defaultChecked;
         else el.value = el.defaultValue;
     });
-    updateFuelGauge(50);
+    updateFuelGauge('');
 
     // 🎯 หยอดข้อมูลลงช่องแบบรองรับ <input> สม่ำเสมอ
     setFieldValue('ins_car_plate', carPlate);
@@ -352,11 +352,12 @@ function applyZoom() {
 
 function updateFuelGauge(val) {
     const numeric = Number(val);
-    const level = Math.round(Math.max(0, Math.min(100, Number.isFinite(numeric) ? numeric : 50)));
+    const blank = val == null || String(val).trim() === '' || !Number.isFinite(numeric);
+    const level = blank ? '' : Math.round(Math.max(0, Math.min(100, numeric)));
     setFieldValue('ins_fuel_level', level);
     setFieldValue('ins_battery_percent', level);
     const text = document.getElementById('fuel_txt');
-    if (text) text.textContent = level;
+    if (text) text.textContent = level === '' ? '........' : level;
     document.getElementById('ins_battery_fill')?.setAttribute('width', String(level * 0.81));
 }
 
@@ -449,7 +450,7 @@ async function loadExistingInspectionData(jobId, session = inspectionSession) {
         for (const [name, value] of [['ins_job_type', data.job_type], ['ins_job_cat', data.job_category]]) {
             if (value) document.getElementsByName(name).forEach(el => { el.checked = el.value === value; });
         }
-        updateFuelGauge(data.fuel_level ?? 50);
+        updateFuelGauge(fields && Object.prototype.hasOwnProperty.call(fields, 'ins_fuel_level') ? fields.ins_fuel_level : (data.fuel_level ?? ''));
         setFieldValue('ins_mileage', data.current_mileage ?? '');
         setFieldValue('ins_extra_notes', data.notes ?? '');
         setFieldValue('sign_cust_name_display', document.getElementById('ins_cust_name').value);
