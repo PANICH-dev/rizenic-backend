@@ -43,7 +43,7 @@ const REPORT_SQL = `WITH jobs AS (
  UNION ALL SELECT COALESCE(NULLIF(btrim(sa_owner),''),'ไม่ระบุ SA'),'completed','',repair_finish_date::date,target_finish_date::date FROM jobs
  UNION ALL SELECT COALESCE(NULLIF(btrim(delivery_checkin_sa),''),NULLIF(btrim(sa_owner),''),'ไม่ระบุ SA'),'delivery','',(delivery_checkin_at AT TIME ZONE 'Asia/Bangkok')::date,NULL::date FROM jobs
 )
-SELECT sa,kind,source,COUNT(*) FILTER(WHERE event_day=$1::date)::int today,COUNT(*)::int month,
+SELECT sa,kind,source,COUNT(*) FILTER(WHERE event_day=$1::date)::int today,COUNT(*)::int AS month,
  COUNT(*) FILTER(WHERE kind='completed' AND event_day<=target_day)::int on_time,
  COUNT(*) FILTER(WHERE kind='completed' AND event_day>target_day)::int late,
  COUNT(*) FILTER(WHERE kind='completed' AND target_day IS NULL)::int unknown_target
