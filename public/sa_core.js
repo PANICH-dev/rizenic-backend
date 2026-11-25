@@ -328,6 +328,12 @@ window.addPipelineRow = function(claim = '', qt = '', so = '', bl = '') {
                 <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-black mb-3 border-2 border-indigo-300 group-hover:scale-110 transition-transform">1</div>
                 <label class="label-text text-indigo-800 text-[10px]">เลขที่ เคลม/รับแจ้ง</label>
                 <input type="text" class="pipe-claim w-full mt-1 text-center font-mono font-black text-indigo-700 border-b-2 border-indigo-200 focus:border-indigo-500 outline-none bg-transparent py-1 uppercase" placeholder="ระบุเลขที่..." value="${claim}">
+                <div data-checkin-group class="mt-3 w-full flex flex-col gap-1">
+                    <label class="text-xs text-indigo-800">วันที่เสนอประกันจริง</label>
+                    <input type="date" class="insurance-event-date minimal-input" aria-label="วันที่เสนอประกันจริง">
+                    <button type="button" data-kind="insurance" class="checkin-action rounded-lg bg-indigo-700 text-white text-xs px-2 py-2 disabled:opacity-50" onclick="SAActivity.checkin('insurance',this)">ยืนยันเสนอประกัน</button>
+                    <span class="checkin-status text-[10px] text-slate-500"></span>
+                </div>
             </div>
 
             <i class="fa-solid fa-chevron-right text-slate-300 md:self-center hidden md:block text-xl"></i>
@@ -363,6 +369,7 @@ window.addPipelineRow = function(claim = '', qt = '', so = '', bl = '') {
     `;
     container.appendChild(div);
     updatePipelineNumbers();
+    window.SAActivity?.paint();
 };
 
 function updatePipelineNumbers() {
@@ -520,6 +527,8 @@ async function checkCrossPageEditMode() {
         setDateVal('target_finish_date', job.target_finish_date);
         setDateVal('repair_finish_date', job.repair_finish_date);
         setDateVal('delivery_date', job.delivery_date);
+        document.getElementById('service_visit_no').value=job.service_visit_no||'';
+        window.SAActivity?.setJob(job);
 
         if (job.car_plate && typeof loadPartsTrackingTable === 'function') {
             loadPartsTrackingTable(job.car_plate.trim(), job.id || idToEdit);
@@ -583,6 +592,7 @@ function cancelEditMode() {
 
     // 🌟 เคลียร์ฟิลด์ E-Claim Details
     const resetVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+    resetVal('service_visit_no','');window.SAActivity?.setJob(null);
     resetVal('car_color', ''); resetVal('model_year', '');
     resetVal('eclaim_province', ''); resetVal('eclaim_car_type', ''); resetVal('eclaim_year', '');
     resetVal('eclaim_trim', ''); resetVal('eclaim_engine_no', ''); resetVal('eclaim_car_color', '');
@@ -714,6 +724,8 @@ async function submitSaForm(event) {
     formData.customer_type = document.getElementById('customer_type')?.value || ''; 
     formData.car_brand = document.getElementById('car_brand')?.value || '';
     formData.car_model = document.getElementById('car_model')?.value || ''; 
+    formData.service_visit_no=document.getElementById('service_visit_no')?.value.trim()||'';
+    formData.customer_source=document.getElementById('customer_source')?.value||'';
     formData.vin_no = document.getElementById('vin_no')?.value || '';
     formData.car_color = document.getElementById('car_color')?.value.trim() || '';
     formData.model_year = document.getElementById('model_year')?.value.trim() || '';

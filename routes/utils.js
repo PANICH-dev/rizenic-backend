@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const https = require('https');
+const {getSAReport,validDay,bangkokDay}=require('../services/sa_activity');
 
 router.post('/sync-dynamic', async (req, res) => {
     const { tableName, primaryKey, data } = req.body;
@@ -60,6 +61,15 @@ router.post('/send-line-notify', async (req, res) => {
   try {
     const { branch, message } = req.body;
     if (!message) return res.status(400).json({ error: "ไม่มีข้อความให้ส่ง" });
+    if(typeof message!=='string')return res.status(400).json({error:'รูปแบบข้อความไม่ถูกต้อง'});
+    const messages=[message];
+    if(req.body.include_sa_report===true){
+      const date=req.body.report_date||bangkokDay();
+      if(!validDay(date)||!['Navamin','Rangsit'].includes(branch))return res.status(400).json({error:'วันที่หรือสาขารายงาน SA ไม่ถูกต้อง'});
+      const report=await getSAReport(pool,date,branch);messages.push(report.message);
+    }
+    if(messages.some(text=>text.length>5000))return res.status(400).json({error:'ข้อความยาวเกิน 5,000 ตัวอักษร กรุณาลดช่วงรายงาน'});
+    if(process.env.VERCEL_ENV==='preview')return res.status(409).json({error:'เวอร์ชันทดสอบดูตัวอย่างข้อความได้ แต่ยังไม่ส่งเข้ากลุ่ม LINE จริง'});
     let targetToken = "", targetGroup = ""; 
     if (branch === 'Rangsit' || branch === 'สาขารังสิต') {
         targetToken = "uWGDH1BPHvILvBn7Hyeimv20W8ITfbUpGV2jfy1ujMUjvFxceSEtpM50S9vAcJmy05ybn6g/wHspfuTbfUuAI5UCB2RkifntfIeOT9EOo09FfQel63guAJgMs8zhAbbP0dq8fMENKirsWXoFzYMaXgdB04t89/1O/w1cDnyilFU=";
@@ -69,7 +79,7 @@ router.post('/send-line-notify', async (req, res) => {
         targetGroup = "C61a43306f4630b569fe423165db923f8";
     } else { return res.status(400).json({ error: `ไม่พบสาขา: ${branch}` }); }
 
-    const postData = JSON.stringify({ to: targetGroup, messages: [{ type: "text", text: message }] });
+    const postData = JSON.stringify({ to: targetGroup, messages: messages.map(text=>({type:"text",text})) });
     const options = { hostname: 'api.line.me', path: '/v2/bot/message/push', method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${targetToken}`, 'Content-Length': Buffer.byteLength(postData) } };
     const request = https.request(options, (response) => {
       let data = '';

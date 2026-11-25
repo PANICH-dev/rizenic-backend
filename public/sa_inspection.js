@@ -43,7 +43,7 @@ const COMPANY_MASTERS = {
 async function loadInspectionTemplate() {
     if (!document.getElementById('inspectionModal')) {
         try {
-            const res = await fetch('inspection.html?v=20261124.7', { cache: 'no-store' });
+            const res = await fetch('inspection.html?v=20261125.1', { cache: 'no-store' });
             const html = await res.text();
             document.body.insertAdjacentHTML('beforeend', html);
             renderPartsTable();

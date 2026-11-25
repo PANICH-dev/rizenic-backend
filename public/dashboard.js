@@ -2,18 +2,18 @@
 // 1. GLOBAL VARIABLES & CORE SETUP
 // =====================================
 const API_BASE_URL = window.location.origin;
-let allJobs = []; 
-let filteredJobs = []; 
+let allJobs = [];
+let filteredJobs = [];
 let allPartOrders = [];
 let filteredPartOrders = [];
 let allStatuses = [];
-let allQuotas = []; 
-let globalStatusOptionsHtml = ''; 
+let allQuotas = [];
+let globalStatusOptionsHtml = '';
 
 let statusChartInstance = null;
 let insuranceChartInstance = null;
 let financeChartInstance = null;
-let paymentChartInstance = null; 
+let paymentChartInstance = null;
 let dailyLineChartInstance = null;
 let damageChartInstance = null;
 let partsStatusChartInstance = null;
@@ -23,9 +23,9 @@ let userRole = '';
 let userBranch = '';
 
 const activeProcessStatuses = [
-    '01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ', 
-    '04.รอลูกค้าอนุมัติ', '05.อนุมัติแล้ว', '06.สั่งอะไหล่', 
-    '07.รอนัดหมายเข้าซ่อม', '08.นัดหมายแล้วรอเข้าซ่อม', '09.จอดรอเข้าซ่อม', 
+    '01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ',
+    '04.รอลูกค้าอนุมัติ', '05.อนุมัติแล้ว', '06.สั่งอะไหล่',
+    '07.รอนัดหมายเข้าซ่อม', '08.นัดหมายแล้วรอเข้าซ่อม', '09.จอดรอเข้าซ่อม',
     '10.กำลังซ่อม', '11.รถซ่อมเสร็จรอส่งมอบ'
 ];
 
@@ -70,14 +70,14 @@ function isDateInRange(dateStr, start, end) {
     return true;
 }
 
-function closeModal(modalId) { 
+function closeModal(modalId) {
     const el = document.getElementById(modalId);
-    if(el) el.classList.add('hidden'); 
+    if(el) el.classList.add('hidden');
 }
 
-function logout() { 
-    sessionStorage.clear(); 
-    window.location.href = 'index.html'; 
+function logout() {
+    sessionStorage.clear();
+    window.location.href = 'index.html';
 }
 
 function computeHighestStationIFS(j) {
@@ -104,13 +104,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if(sessionStorage.getItem('isLoggedIn') !== 'true') {
         window.location.href = 'index.html'; return;
     }
-    
+
     userRole = sessionStorage.getItem('emp_role') || '';
     userBranch = sessionStorage.getItem('branch_name') || sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
 
     const rStr = String(userRole).toLowerCase();
     const navAdmin = document.getElementById('nav_admin');
-    
+
     if (navAdmin) {
         if (rStr.includes('admin') || rStr.includes('แอดมิน') || rStr.includes('manager') || rStr.includes('ba')) {
             navAdmin.classList.remove('hidden');
@@ -121,12 +121,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if(document.getElementById('display_emp_name')) document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name') || 'ไม่ระบุชื่อ';
     if(document.getElementById('display_branch')) document.getElementById('display_branch').innerText = userBranch;
-    
+
     const today = new Date();
     if(document.getElementById('current_date_display')) {
         document.getElementById('current_date_display').innerText = today.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
     }
-    
+
     if(document.getElementById('dash_start_date')) document.getElementById('dash_start_date').value = getFirstDayOfMonth();
     if(document.getElementById('dash_end_date')) document.getElementById('dash_end_date').value = getLastDayOfMonth();
     if(document.getElementById('report_start_date')) document.getElementById('report_start_date').value = getFirstDayOfMonth();
@@ -142,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupBranchDropdown() {
     const filterSelect = document.getElementById('branchFilter');
     if (!filterSelect) return;
-    
+
     const rStr = String(userRole).toLowerCase();
     if (rStr.includes('admin') || rStr.includes('แอดมิน') || rStr.includes('manager') || rStr.includes('ba')) {
         filterSelect.innerHTML = `<option value="all">-- ทุกสาขา --</option>`;
@@ -220,7 +220,7 @@ let dashboardDateRange = '';
 function applyFilters() {
     const filterSelect = document.getElementById('branchFilter');
     const selectedBranch = filterSelect ? filterSelect.value : 'all';
-    
+
     if (dashboardSelectedBranch !== selectedBranch) {
         closeModal('jobListModal');
         if (typeof closePOExcelFilter === 'function') closePOExcelFilter();
@@ -228,7 +228,7 @@ function applyFilters() {
     }
     const startDate = document.getElementById('dash_start_date')?.value || getFirstDayOfMonth();
     const endDate = document.getElementById('dash_end_date')?.value || getLastDayOfMonth();
-    
+
     if (startDate > endDate) {
         setDashboardStatus('กรุณาเลือกวันที่เริ่มต้นก่อนวันที่สิ้นสุด', 'error');
         return;
@@ -252,7 +252,7 @@ function applyFilters() {
     if(typeof renderPartsTracking === 'function') renderPartsTracking(filteredPartOrders);
 
     if(typeof renderKPIs === 'function') renderKPIs(startDate, endDate);
-    if(typeof renderDailyReport === 'function') renderDailyReport(); 
+    if(typeof renderDailyReport === 'function') renderDailyReport();
     const charts = [
         ['dailyLineChart', () => renderDailyLineChart(startDate, endDate)],
         ['statusChart', () => renderStatusChart()],
@@ -284,9 +284,9 @@ function applyFilters() {
             console.error('Dashboard chart failed:', id, error);
         }
     });
-    
+
     if(typeof renderSASection === 'function') renderSASection();
-    if(typeof renderStationTable === 'function') renderStationTable(); 
+    if(typeof renderStationTable === 'function') renderStationTable();
     if(typeof renderParkedCars === 'function') renderParkedCars();
     if (typeof renderCalendarByRange === 'function') {
         const range = startDate + '|' + endDate;
@@ -312,8 +312,8 @@ function renderERPStatuses(jobs) {
 
     // 🌟 ลำดับที่นายต้องการแบบเป๊ะๆ 🌟
     const exactOrder = [
-        "01", "02", "03", "04", "05", "06", "07", "08", "09", "23", 
-        "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", 
+        "01", "02", "03", "04", "05", "06", "07", "08", "09", "23",
+        "10", "11", "12", "13", "14", "15", "16", "17", "18", "19",
         "20", "21", "22"
     ];
 
@@ -333,19 +333,19 @@ function renderERPStatuses(jobs) {
 
     grid.innerHTML = sortedStatuses.map(([st, count]) => {
         const cleanStatus = st.replace(/^[0-9.]+\s*/, '');
-        
+
         let bgClass = "bg-white border-slate-200";
         let textClass = "text-blue-700";
         let iconClass = "text-slate-300";
         let pulse = "";
 
         if (count >= 10) {
-            bgClass = "bg-rose-50 border-rose-300"; 
+            bgClass = "bg-rose-50 border-rose-300";
             textClass = "text-rose-700";
             iconClass = "text-rose-500";
             pulse = "animate-pulse";
         } else if (count >= 5) {
-            bgClass = "bg-orange-50 border-orange-300"; 
+            bgClass = "bg-orange-50 border-orange-300";
             textClass = "text-orange-700";
             iconClass = "text-orange-500";
         }
@@ -364,7 +364,7 @@ function renderERPStatuses(jobs) {
 function renderStationSummary(jobs) {
     const repairingJobs = jobs.filter(job => (job.job_status || '').includes('กำลังซ่อม'));
     const stationCounts = {
-        '01.เคาะ': 0, '02.โป๊ว': 0, '03.เตรียมพื้น': 0, '04.พ่นสี': 0, 
+        '01.เคาะ': 0, '02.โป๊ว': 0, '03.เตรียมพื้น': 0, '04.พ่นสี': 0,
         '05.ประกอบ': 0, '06.ขัดสี': 0, '08.เก็บงาน': 0, '09.ซ่อมแม็ก': 0,
         '10.กระจก': 0, '11.ฟิล์ม': 0, '12.พักซ่อม': 0, '13.รอส่งมอบ': 0
     };
@@ -393,7 +393,7 @@ async function sendReportToLine(branchName) {
     const btnId = `btnSendLine_${branchName}`;
     const btn = document.getElementById(btnId);
     const originalHtml = btn ? btn.innerHTML : '';
-    
+
     if(btn) {
         btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin text-base"></i> กำลังส่ง...';
         btn.disabled = true;
@@ -403,7 +403,7 @@ async function sendReportToLine(branchName) {
         if (renderDailyReport() === false) return;
         const start = document.getElementById('report_start_date')?.value || getFirstDayOfMonth();
         const end = document.getElementById('report_end_date')?.value || getLastDayOfMonth();
-        
+
         // 🎯 ดึงข้อมูลเฉพาะสาขาที่กดส่ง
         const branchJobs = allJobs.filter(j => isSameBranch(j.branch_name, branchName));
 
@@ -449,9 +449,11 @@ async function sendReportToLine(branchName) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ 
-                branch: branchName, 
-                message: msg.trim() 
+            body: JSON.stringify({
+                branch: branchName,
+                message: msg.trim(),
+                include_sa_report: true,
+                report_date: document.getElementById('sa_report_date')?.value || new Date(Date.now()+7*3600000).toISOString().slice(0,10)
             })
         });
 
