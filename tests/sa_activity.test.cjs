@@ -1,10 +1,17 @@
 const test=require('node:test'),assert=require('node:assert/strict'),express=require('express');
 const {validDay,bangkokDay,buildVehicleReport,formatSAReport,REPORT_SQL}=require('../services/sa_activity');
 let schemaFailure=false;
-const jobs=new Map([['123',{id:123,sa_owner:'SA เอ'}],['124',{id:124,sa_owner:''}]]),sources=[{id:1,name:'ออนไลน์',is_active:true}];
+const cancellation=[];
+const jobs=new Map([['125',{id:125,sa_owner:'SA เอ'}],['123',{id:123,sa_owner:'SA เอ'}],['124',{id:124,sa_owner:''}]]),sources=[{id:1,name:'ออนไลน์',is_active:true}];
 const dbPath=require.resolve('../config/db');
 const pool={async query(sql,params=[]){
  if(schemaFailure)throw Object.assign(Error('missing'),{code:'42703'});
+ if(sql.includes('checkin_cancel_history=')){
+  const prefix=sql.match(/(insurance_checkin|arrival_checkin|delivery_checkin)_at=NULL/)[1],job=jobs.get(String(params[3]));
+  if(!job||job[prefix+'_at']!==params[4])return{rows:[]};
+  cancellation.push({previous_at:job[prefix+'_at'],previous_sa:job[prefix+'_sa'],previous_by:job[prefix+'_by'],actor:params[1],reason:params[2]});
+  job[prefix+'_at']=null;job[prefix+'_sa']=null;job[prefix+'_by']=null;if(prefix==='insurance_checkin')job.insurance_checkin_recorded_at=null;return{rows:[{...job}]};
+ }
  if(sql.startsWith('UPDATE rizenicreport SET')){
   assert(sql.includes('_at IS NULL'));const prefix=sql.match(/SET (\w+)_at=/)[1],job=jobs.get(String(params[2]));
   if(!job||job[prefix+'_at']||!job.sa_owner)return{rows:[]};
@@ -50,3 +57,19 @@ test('Report uses vehicle data, source counts and hides empty staff',async()=>{
  assert.equal((await fetch(base+'/sa-performance?date=bad&branch=all')).status,400);
 });
 test('Missing migration returns actionable error without exposing database details',async()=>{schemaFailure=true;const response=await fetch(base+'/customer-sources');assert.equal(response.status,500);assert((await response.json()).error.includes('20261125_sa_activity.sql'));schemaFailure=false;});
+
+test('Insurance defaults to server time without requiring manual date selection',async()=>{
+ const before=Date.now(),response=await post('/report/125/checkin/insurance',{actor:'ผู้กดอัตโนมัติ'});assert.equal(response.status,200);const when=new Date(jobs.get('125').insurance_checkin_at).getTime();assert(when>=before&&when<=Date.now());
+});
+test('Cancel stores original data, clears active event, allows recheck and rejects stale cancellation',async()=>{
+ const expected=jobs.get('125').insurance_checkin_at;let response=await post('/report/125/checkin/insurance/cancel',{actor:'ผู้กดยกเลิก',reason:'กดผิดคัน',expected_at:expected});assert.equal(response.status,200);assert.equal(jobs.get('125').insurance_checkin_at,null);assert.equal(cancellation.at(-1).previous_at,expected);assert.equal(cancellation.at(-1).previous_sa,'SA เอ');assert.equal(cancellation.at(-1).reason,'กดผิดคัน');
+ await new Promise(resolve=>setTimeout(resolve,5));response=await post('/report/125/checkin/insurance',{actor:'ผู้กดใหม่'});assert.equal(response.status,200);
+ const current=jobs.get('125').insurance_checkin_at;response=await post('/report/125/checkin/insurance/cancel',{actor:'ผู้กดยกเลิก',reason:'หน้าจอเก่า',expected_at:expected});assert.equal(response.status,409);assert.equal(jobs.get('125').insurance_checkin_at,current);
+ assert.equal((await post('/report/125/checkin/insurance/cancel',{actor:'A',reason:'',expected_at:current})).status,400);
+});
+test('Arrival/delivery cancellation does not clear booking dates',async()=>{
+ for(const type of ['arrival','delivery']){const job=jobs.get('123');job.arrived_date='2026-12-01';job.delivery_date='2026-12-15';const response=await post('/report/123/checkin/'+type+'/cancel',{actor:'ผู้กดยกเลิก',reason:'กดผิด',expected_at:job[type+'_checkin_at']});assert.equal(response.status,200);assert.equal(job.arrived_date,'2026-12-01');assert.equal(job.delivery_date,'2026-12-15');}
+});
+test('Cancellation without its history migration fails safely',async()=>{
+ schemaFailure=true;const current=jobs.get('125').insurance_checkin_at;const response=await post('/report/125/checkin/insurance/cancel',{actor:'A',reason:'กดผิด',expected_at:current});assert.equal(response.status,500);assert((await response.json()).error.includes('20261125_checkin_cancel.sql'));assert.equal(jobs.get('125').insurance_checkin_at,current);schemaFailure=false;
+});

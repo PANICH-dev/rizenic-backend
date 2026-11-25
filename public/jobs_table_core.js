@@ -14,24 +14,24 @@ let userRowHighlights = {}; // 🌟 เก็บข้อมูลไฮไล�
 let allCustomerTypes = [];
 let allInsurances = [];
 let allEmployees = [];
-let allCarModels = []; 
+let allCarModels = [];
 
 let globalStatusOptionsHtml = '';
-let globalStatuses = []; 
+let globalStatuses = [];
 
 let userRole = '';
 let userBranch = '';
 
-let activeFilters = {}; 
+let activeFilters = {};
 let currentFilterKey = -1;
-let draggedColIdx = null; 
+let draggedColIdx = null;
 let searchTimeout = null;
 
 let activeJobIdForParts = null;
-let activeFieldForParts = null; 
+let activeFieldForParts = null;
 let selectedPartsSet = new Set();
-let isBulkModalMode = false; 
-let activeBulkRowId = null; 
+let isBulkModalMode = false;
+let activeBulkRowId = null;
 
 // 🌟 Calendar Scope Variables 🌟
 let currentSchedMonth = new Date().getMonth();
@@ -45,8 +45,8 @@ let currentTargetBulkRowId = null;
 
 // 🌟 Configurations 🌟
 const excludedStatuses = [
-    '13.วางบิลประกัน', '14.ชำระเงินสด', '15.วางบิล Tesla', 
-    '16.วางบิล EV ME', '17.รอออกบิล', '18.ลูกค้ายกเลิก', 
+    '13.วางบิลประกัน', '14.ชำระเงินสด', '15.วางบิล Tesla',
+    '16.วางบิล EV ME', '17.รอออกบิล', '18.ลูกค้ายกเลิก',
     '19.ออกบิลแล้ว', '20.จอดซ่อม TC', '21.พักซ่อม'
 ];
 
@@ -92,7 +92,7 @@ let columnsDef = [
 ];
 
 const defaultVisibleKeys = [
-    'action', 'contact_date', 'arrived_date', 'car_plate', 'car_brand', 'car_model', 
+    'action', 'contact_date', 'arrived_date', 'car_plate', 'car_brand', 'car_model',
     'customer_name', 'damage_level', 'target_finish_date', 'repair_finish_date', 'delivery_date', 'job_status', 'calculated_station', 'sa_owner'
 ];
 
@@ -102,9 +102,9 @@ let hiddenCols = new Set(columnsDef.filter(c => !defaultVisibleKeys.includes(c.k
 // 🛠️ Utility Functions
 // ==========================================
 
-function isTrue(val) { 
+function isTrue(val) {
     if (val === null || val === undefined) return false;
-    const strVal = String(val).trim().toUpperCase(); return strVal === "TRUE" || strVal === "1" || val === true || val === 1; 
+    const strVal = String(val).trim().toUpperCase(); return strVal === "TRUE" || strVal === "1" || val === true || val === 1;
 }
 
 function computeHighestStationIFS(j) {
@@ -112,7 +112,7 @@ function computeHighestStationIFS(j) {
     if(isTrue(j.station_kraj)) return "09.กระจก"; if(isTrue(j.station_mag)) return "08.แม็ก"; if(isTrue(j.station_qc)) return "07.QC";
     if(isTrue(j.station_kat)) return "06.ขัดสี"; if(isTrue(j.station_prak)) return "05.ประกอบ"; if(isTrue(j.station_pon)) return "04.พ่นสี";
     if(isTrue(j.station_puan)) return "03.เตรียมพื้น"; if(isTrue(j.station_pou)) return "02.โป๊ว"; if(isTrue(j.station_kho)) return "01.เคาะ";
-    return "ส่งจ๊อบ"; 
+    return "ส่งจ๊อบ";
 }
 
 function getSAsForCurrentBranch() {
@@ -154,7 +154,7 @@ function getCellValue(cell) {
 document.addEventListener('DOMContentLoaded', async () => {
     if(sessionStorage.getItem('isLoggedIn') !== 'true') { window.location.href = 'index.html'; return; }
     userRole = sessionStorage.getItem('emp_role'); userBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
-    
+
     document.getElementById('display_emp_name').innerText = sessionStorage.getItem('emp_name');
     document.getElementById('display_branch').innerText = userBranch;
 
@@ -203,17 +203,17 @@ async function loadUserColumnPreferences() {
 
 
 async function saveUserPreferences() {
-    const empName = sessionStorage.getItem('emp_name'); 
+    const empName = sessionStorage.getItem('emp_name');
     if (!empName) return;
     try {
-        await fetch(`${API_BASE_URL}/api/user-preferences`, { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({ 
-                emp_name: empName, 
+        await fetch(`${API_BASE_URL}/api/user-preferences`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                emp_name: empName,
                 hidden_columns: { hidden: Array.from(hiddenCols), order: columnsDef.map(c => c.key) },
                 row_highlights: userRowHighlights // 🌟 ส่งข้อมูลไฮไลท์สีไปบันทึกด้วย
-            }) 
+            })
         });
     } catch (err) {
         console.error('Save preferences error:', err);
@@ -272,7 +272,7 @@ async function loadJobsData() {
             let tempJobs = (['BA','Manager','Admin','แอดมิน'].includes(userRole)) ? data : data.filter(d => d.branch_name === userBranch);
             allJobsData = tempJobs.map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
         }
-        
+
         const dlBrands = document.getElementById('dl_car_brands');
         if(dlBrands) {
             const uniqueBrands = [...new Set(allCarModels.map(c => c.car_brand).filter(Boolean))].sort();
@@ -285,10 +285,10 @@ async function loadJobsData() {
             dlModels.innerHTML = uniqueModels.map(m => `<option value="${m}">`).join('');
         }
 
-        if(typeof initColumns === 'function') initColumns(); 
-        if(typeof buildBranchDropdown === 'function') buildBranchDropdown(); 
-        if(typeof buildSADropdown === 'function') buildSADropdown(); 
-        if(typeof applyFilters === 'function') applyFilters(); 
+        if(typeof initColumns === 'function') initColumns();
+        if(typeof buildBranchDropdown === 'function') buildBranchDropdown();
+        if(typeof buildSADropdown === 'function') buildSADropdown();
+        if(typeof applyFilters === 'function') applyFilters();
     } catch (error) {
         console.error("Load Data Error:", error);
         document.getElementById('jobs_table_body').innerHTML = `<tr><td colspan="40" class="text-center py-20 text-red-600 font-bold bg-white"><i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i><br>เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>`;
@@ -318,7 +318,7 @@ async function fastUpdateStationDropdown(id, selectedLevel) {
     const job = allJobsData.find(j => String(j.id) === String(id));
     if (!job) return;
     const selectedIdx = stationLevels.indexOf(selectedLevel);
-    
+
     const payload = {
         station_kho: selectedIdx >= 1, station_pou: selectedIdx >= 2, station_puan: selectedIdx >= 3,
         station_pon: selectedIdx >= 4, station_prak: selectedIdx >= 5, station_kat: selectedIdx >= 6,
@@ -362,7 +362,7 @@ async function fastUpdateJob(jobId, field, value, silent = false) {
     if (field === 'job_status') {
         const parkedStatuses = ['09.จอดรอเข้าซ่อม', '10.กำลังซ่อม', '11.รถซ่อมเสร็จรอส่งมอบ', '12.ส่งมอบ', '23.รื้อตรวจสอบความเสียหาย'];
         const requiresArrivedDate = parkedStatuses.some(st => formattedValue.includes(st) || formattedValue === st);
-        
+
         if (requiresArrivedDate && (!job.arrived_date || String(job.arrived_date).trim() === '')) {
             alert(`❌ ไม่สามารถเปลี่ยนสถานะเป็น "${formattedValue}" ได้\nกรุณาระบุ "วันที่รถเข้าจอดอู่" ในคอลัมน์ให้เรียบร้อยก่อนครับ!`);
             if(!silent && typeof applyFilters === 'function') applyFilters(); // รีเฟรชตารางกลับค่าเดิม
@@ -370,24 +370,7 @@ async function fastUpdateJob(jobId, field, value, silent = false) {
         }
     }
 
-    // ตรวจสอบโควต้ากรณีแก้ช่องวันที่
-    if (formattedValue && (field === 'arrived_date' || field === 'target_finish_date' || field === 'delivery_date')) {
-        const reqCount = { 
-            main: parseInt(job.main_part_qty) || 0, 
-            sub: parseInt(job.sub_part_qty) || 0 
-        };
-        
-        if (!silent) showToast('กำลังตรวจสอบโควต้า...', 'info');
-        if(typeof checkQuotaForInlineEdit === 'function') {
-            const quotaCheck = await checkQuotaForInlineEdit(jobId, job.branch_name, formattedValue, field, reqCount);
-            if (quotaCheck !== true) {
-                alert('❌ ไม่สามารถอัปเดตได้:\n\n' + quotaCheck);
-                if(typeof applyFilters === 'function') applyFilters(); 
-                return;
-            }
-        }
-    }
-
+    // The save endpoint checks quota atomically; do not block an unchanged booking with a stale client snapshot.
     try {
         const res = await fetch(`${API_BASE_URL}/api/report/${jobId}/fast-date`, {
             method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ field: field, value: formattedValue })
@@ -396,7 +379,7 @@ async function fastUpdateJob(jobId, field, value, silent = false) {
         if (res.ok) {
             const jobIndex = allJobsData.findIndex(j => String(j.id) === String(jobId));
             if (jobIndex > -1) allJobsData[jobIndex][field] = formattedValue;
-            
+
             if(!silent) showToast('บันทึกข้อมูลเรียบร้อย!');
             if(field === 'job_status') await autoMapRouting(jobId, value);
             if(!silent && typeof applyFilters === 'function') applyFilters();
@@ -405,16 +388,16 @@ async function fastUpdateJob(jobId, field, value, silent = false) {
             throw new Error(errData.error || 'บันทึกไม่สำเร็จ');
         }
     } catch (err) {
-        if(!silent) showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error'); 
+        if(!silent) {showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error');if(typeof applyFilters==='function')applyFilters();}
     }
 }
 async function deleteJobRow(jobId, carPlate) {
     if (!confirm(`🚨 ยืนยันการลบใบงานรถทะเบียน [ ${carPlate} ] ?\n(ข้อมูลจะถูกลบออกจากฐานข้อมูลถาวร)`)) return;
-    
+
     try {
         const res = await fetch(`${API_BASE_URL}/api/report/${jobId}`, { method: 'DELETE' });
-        
-        if (res.ok) { 
+
+        if (res.ok) {
             allJobsData = allJobsData.filter(j => String(j.id) !== String(jobId));
             const rowToRemove = document.getElementById(`row_${jobId}`);
             if (rowToRemove) rowToRemove.remove();
@@ -423,9 +406,9 @@ async function deleteJobRow(jobId, carPlate) {
             showToast(`✅ ลบรายการทะเบียน ${carPlate} สำเร็จ`);
         } else {
             const errData = await res.json();
-            showToast('ไม่สามารถลบได้: ' + (errData.error || 'Unknown Error'), 'error'); 
+            showToast('ไม่สามารถลบได้: ' + (errData.error || 'Unknown Error'), 'error');
         }
-    } catch (e) { 
-        showToast('❌ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์', 'error'); 
+    } catch (e) {
+        showToast('❌ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์', 'error');
     }
 }

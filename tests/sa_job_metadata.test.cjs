@@ -1,6 +1,9 @@
-const assert=require('assert'),express=require('express'),test=require('node:test');const dbPath=require.resolve('../config/db');const calls=[];
-require.cache[dbPath]={id:dbPath,filename:dbPath,loaded:true,exports:{query:async(sql,params=[])=>{calls.push({sql,params});const placeholders=[...sql.matchAll(/\$(\d+)/g)].map(m=>+m[1]);if(placeholders.length)assert.equal(Math.max(...placeholders),params.length);
-if(sql.startsWith('SELECT id FROM customer_sources'))return{rows:params[0]==='ออนไลน์'?[{id:1}]:[]};if(sql.startsWith('SELECT customer_source'))return{rows:[{customer_source:'แหล่งเดิมที่ปิดแล้ว'}]};return{rows:[{id:123}],rowCount:1};}}};
+const assert=require('assert'),express=require('express'),test=require('node:test');
+const {quotaPool}=require('./helpers/quota_pool.cjs');const dbPath=require.resolve('../config/db');
+const pool=quotaPool([{id:123,branch_name:'สำนักงานใหญ่',customer_source:'แหล่งเดิมที่ปิดแล้ว',main_part_qty:0,sub_part_qty:0}]);const calls=pool.calls;
+const query=pool.query.bind(pool);pool.query=async(sql,params=[])=>sql.startsWith('SELECT id FROM customer_sources')?{rows:params[0]==='ออนไลน์'?[{id:1}]:[]}:query(sql,params);
+const connect=pool.connect;pool.connect=async()=>{const client=await connect();const execute=client.query;client.query=async(sql,params=[])=>{const placeholders=[...sql.matchAll(/\$(\d+)/g)].map(m=>+m[1]);if(placeholders.length)assert.equal(Math.max(...placeholders),params.length);return execute(sql,params);};return client;};
+require.cache[dbPath]={id:dbPath,filename:dbPath,loaded:true,exports:pool};
 const app=express();app.use(express.json());app.use('/api',require('../routes/jobs'));let server,base;
 test.before(async()=>{server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));base='http://127.0.0.1:'+server.address().port;});test.after(()=>server.close());
 const save=(path,method,data)=>fetch(base+path,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});

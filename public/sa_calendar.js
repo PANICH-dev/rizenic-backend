@@ -2,6 +2,7 @@ let currentSchedMonth = new Date().getMonth();
 let currentSchedYear = new Date().getFullYear();
 let allSchedJobs = [];
 let allSchedQuotas = [];
+let currentSchedExistingJob=null;
 let currentTargetField = 'all'; 
 
 async function openScheduleCalendar(field) {
@@ -30,14 +31,17 @@ async function openScheduleCalendar(field) {
         const editId = editIdEl ? editIdEl.value : '';
 
         const [resJobs, resQuotas] = await Promise.all([
-            fetch(`${API_BASE_URL}/api/reports`),
+            fetch(`${API_BASE_URL}/api/reports?fields=quota&branch=${encodeURIComponent(b)}`),
             fetch(`${API_BASE_URL}/api/quotas`)
         ]);
         
+        if(!resJobs.ok||!resQuotas.ok)throw Error('โหลดโควต้าไม่สำเร็จ');
         const rawJobs = await resJobs.json();
+        currentSchedExistingJob=Array.isArray(rawJobs)?rawJobs.find(j=>String(j.id)===String(editId))||null:null;
         allSchedJobs = Array.isArray(rawJobs) ? rawJobs.filter(j => j.branch_name === b && String(j.id) !== String(editId)) : [];
         
         const rawQuotas = await resQuotas.json();
+        if(!Array.isArray(rawJobs)||!Array.isArray(rawQuotas))throw Error('ข้อมูลโควต้าไม่ถูกต้อง');
         allSchedQuotas = Array.isArray(rawQuotas) ? rawQuotas.filter(q => q.branch_name === b) : [];
         
         renderSchedCalendar();
@@ -54,6 +58,22 @@ function changeSchedMonth(direction) {
     if (currentSchedMonth > 11) { currentSchedMonth = 0; currentSchedYear++; }
     if (currentSchedMonth < 0) { currentSchedMonth = 11; currentSchedYear--; }
     renderSchedCalendar();
+}
+
+function calendarQuotaAvailability(date,used,limits){
+ const previous=currentSchedExistingJob;
+ const oldDay=field=>previous?.[field]?String(previous[field]).slice(0,10):'';
+ const ownArrival=oldDay('arrived_date')===date,ownTarget=oldDay('target_finish_date')===date,ownDelivery=oldDay('delivery_date')===date;
+ const selected=typeof selectedBodyParts==='undefined'?null:selectedBodyParts;
+ const count=kind=>Array.isArray(selected?.[kind])?selected[kind].filter(p=>!String(p).includes('ไม่ชิ้นงาน')).length:Number(previous?.[kind==='main'?'main_part_qty':'sub_part_qty'])||0;
+ const main=count('main'),sub=count('sub');
+ return{
+  isArriveFull:!ownArrival&&limits.maxArrived>0&&used.a+1>limits.maxArrived,
+  isTargetCarFull:!ownTarget&&limits.maxTarget>0&&used.t+1>limits.maxTarget,
+  isTargetMainFull:main>0&&(!ownTarget||main>(Number(previous?.main_part_qty)||0))&&limits.maxMain>0&&used.m+main>limits.maxMain,
+  isTargetSubFull:sub>0&&(!ownTarget||sub>(Number(previous?.sub_part_qty)||0))&&limits.maxSub>0&&used.s+sub>limits.maxSub,
+  isDeliveryFull:!ownDelivery&&limits.maxDelivery>0&&used.d+1>limits.maxDelivery
+ };
 }
 
 function renderSchedCalendar() {
@@ -75,7 +95,7 @@ function renderSchedCalendar() {
 
     allSchedQuotas.forEach(q => {
         if(q.quota_type === 'special' && q.quota_date) {
-            specialQuotasMap[q.quota_date.split('T')[0]] = q;
+            if(!specialQuotasMap[q.quota_date.split('T')[0]])specialQuotasMap[q.quota_date.split('T')[0]] = q;
         }
     });
 
@@ -129,12 +149,9 @@ function renderSchedCalendar() {
         const maxMain = getQVal(specialQuota, ['quota_main_parts']);
         const maxSub = getQVal(specialQuota, ['quota_sub_parts']);
 
-        const isArriveFull = maxArrived > 0 && arrCount >= maxArrived;
-        const isTargetCarFull = maxTarget > 0 && tarCount >= maxTarget;
-        const isTargetMainFull = maxMain > 0 && mainPartsSum >= maxMain;
-        const isTargetSubFull = maxSub > 0 && subPartsSum >= maxSub;
-        const isTargetOverallFull = isTargetCarFull || isTargetMainFull || isTargetSubFull;
-        const isDeliveryFull = maxDelivery > 0 && delCount >= maxDelivery;
+        const availability=calendarQuotaAvailability(dateStr,dData,{maxArrived,maxTarget,maxDelivery,maxMain,maxSub});
+        const {isArriveFull,isTargetCarFull,isTargetMainFull,isTargetSubFull,isDeliveryFull}=availability;
+        const isTargetOverallFull=isTargetCarFull||isTargetMainFull||isTargetSubFull;
         const allFull = isArriveFull && isTargetOverallFull && isDeliveryFull;
 
         let quotaHTML = `<div class="mt-auto w-full pt-1 flex flex-col gap-1.5">`;
@@ -313,73 +330,12 @@ function closeModal(modalId) {
     if (modal) modal.classList.add('hidden'); 
 }
 
-async function checkQuotaBeforeSubmit(branch, arrivedDate, targetDate, deliveryDate, reqMain, reqSub) {
-    try {
-        const [resJobs, resQuotas] = await Promise.all([
-            fetch(`${API_BASE_URL}/api/reports`),
-            fetch(`${API_BASE_URL}/api/quotas`)
-        ]);
-        const allJobs = await resJobs.json();
-        const allQuotas = await resQuotas.json();
-        const branchQuotas = allQuotas.filter(q => q.branch_name === branch);
-        const defaultQuota = branchQuotas.find(q => q.quota_type === 'default');
-        const editIdEl = document.getElementById('sa_report_id');
-        const editId = editIdEl ? editIdEl.value : '';
-
-        const getQ = (d) => {
-            const sq = branchQuotas.find(q => q.quota_type === 'special' && q.quota_date && q.quota_date.split('T')[0] === d);
-            const getVal = (fArr) => {
-                for (let f of fArr) {
-                    if (sq && sq[f] !== undefined && sq[f] !== null && sq[f] !== '') return parseInt(sq[f]) || 0;
-                    if (defaultQuota && defaultQuota[f] !== undefined && defaultQuota[f] !== null && defaultQuota[f] !== '') return parseInt(defaultQuota[f]) || 0;
-                }
-                return 0;
-            };
-
-            return {
-                maxArrived: getVal(['quota_arrived', 'quota_cars']),
-                maxTarget: getVal(['quota_target', 'quota_cars']),
-                maxDelivery: getVal(['quota_delivery', 'quota_cars']),
-                maxMain: getVal(['quota_main_parts']),
-                maxSub: getVal(['quota_sub_parts'])
-            };
-        };
-
-        if (arrivedDate) {
-            const q = getQ(arrivedDate);
-            if (q.maxArrived > 0) {
-                const count = allJobs.filter(j => j.branch_name === branch && j.arrived_date && j.arrived_date.split('T')[0] === arrivedDate && String(j.id) !== String(editId)).length;
-                if (count >= q.maxArrived) return `โควต้ารถเข้าจอด (คัน) ในวันที่ ${formatToThaiDate(arrivedDate)} เต็มแล้ว!`;
-            }
-        }
-
-        if (targetDate) {
-            const q = getQ(targetDate);
-            const jobsInDay = allJobs.filter(j => j.branch_name === branch && j.target_finish_date && j.target_finish_date.split('T')[0] === targetDate && String(j.id) !== String(editId));
-            
-            if (q.maxTarget > 0 && jobsInDay.length >= q.maxTarget) {
-                return `โควต้าเป้าหมายซ่อมเสร็จ (คัน) ในวันที่ ${formatToThaiDate(targetDate)} เต็มแล้ว!`;
-            }
-            
-            let usedMain = 0; let usedSub = 0;
-            jobsInDay.forEach(j => { usedMain += parseInt(j.main_part_qty)||0; usedSub += parseInt(j.sub_part_qty)||0; });
-            
-            if (q.maxMain > 0 && (usedMain + reqMain) > q.maxMain) return `กำลังผลิตชิ้นส่วนหลักวันที่ ${formatToThaiDate(targetDate)} เต็มแล้ว!`;
-            if (q.maxSub > 0 && (usedSub + reqSub) > q.maxSub) return `กำลังผลิตชิ้นส่วนรองวันที่ ${formatToThaiDate(targetDate)} เต็มแล้ว!`;
-        }
-
-        if (deliveryDate) {
-            const q = getQ(deliveryDate);
-            if (q.maxDelivery > 0) {
-                const count = allJobs.filter(j => j.branch_name === branch && j.delivery_date && j.delivery_date.split('T')[0] === deliveryDate && String(j.id) !== String(editId)).length;
-                if (count >= q.maxDelivery) return `โควต้าคิวส่งมอบรถในวันที่ ${formatToThaiDate(deliveryDate)} เต็มแล้ว!`;
-            }
-        }
-        
-        return true;
-    } catch(e) {
-        return true; 
-    }
+async function checkQuotaBeforeSubmit(branch,arrivedDate,targetDate,deliveryDate,reqMain,reqSub){
+ try{
+  const response=await fetch(API_BASE_URL+'/api/quota-check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:document.getElementById('sa_report_id')?.value||null,branch_name:branch,arrived_date:arrivedDate||null,target_finish_date:targetDate||null,delivery_date:deliveryDate||null,main_part_qty:reqMain,sub_part_qty:reqSub})});
+  const result=await response.json();if(!response.ok)return result.error||'ตรวจโควต้าไม่สำเร็จ กรุณาลองใหม่';
+  return result.success===true?true:'ตรวจโควต้าไม่สำเร็จ กรุณาลองใหม่';
+ }catch(error){return 'ไม่สามารถเชื่อมต่อเพื่อตรวจโควต้า กรุณาลองใหม่ก่อนบันทึก';}
 }
 
 let dateInputTimer = null;

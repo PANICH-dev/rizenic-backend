@@ -523,8 +523,8 @@ async function fastUpdateField(id, field, value) {
                 if(isDate || field === 'job_status' || field === 'department_routing') updateKPIs(); 
                 runTableFilters(); 
             }
-        } else throw new Error();
-    } catch(e) { showToast('อัปเดตไม่สำเร็จ', 'error'); }
+        } else {const error=await res.json().catch(()=>({}));throw new Error(error.error||'อัปเดตไม่สำเร็จ');}
+    } catch(e) { showToast(e.message||'อัปเดตไม่สำเร็จ', 'error');runTableFilters(); }
 }
 
 async function fastUpdateStationDropdown(id, selectedLevel) {

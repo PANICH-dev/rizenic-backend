@@ -25,9 +25,9 @@ router.post('/report/:id/checkin/:type',async(req,res)=>{
  const prefix=Object.hasOwn(EVENTS,req.params.type)?EVENTS[req.params.type]:null;
  const actor=typeof req.body.actor==='string'?req.body.actor.trim():'';
  if(!prefix||!/^[1-9]\d*$/.test(req.params.id)||!actor||actor.length>150)return res.status(400).json({error:'ข้อมูลเช็กอินหรือผู้บันทึกไม่ถูกต้อง'});
- const insurance=req.params.type==='insurance';
- if(insurance&&(!validDay(req.body.date)||req.body.date>bangkokDay()))return res.status(400).json({error:'เลือกวันที่เสนอประกันจริง และต้องไม่เกินวันนี้'});
- const date=insurance?req.body.date+'T00:00:00+07:00':new Date().toISOString();
+ const insurance=req.params.type==='insurance',now=new Date(),selectedDate=req.body.date||bangkokDay(now);
+ if(insurance&&(!validDay(selectedDate)||selectedDate>bangkokDay(now)))return res.status(400).json({error:'เลือกวันที่เสนอประกันจริง และต้องไม่เกินวันนี้'});
+ const date=insurance&&selectedDate!==bangkokDay(now)?selectedDate+'T00:00:00+07:00':now.toISOString();
  const columns=`id,${prefix}_at,${prefix}_sa,${prefix}_by${insurance?',insurance_checkin_recorded_at':''}`;
  try{
   // Only the first request can change a check-in. The SA comes from the saved job, never the request body.
@@ -40,6 +40,26 @@ router.post('/report/:id/checkin/:type',async(req,res)=>{
   res.json({success:true,already_checked_in:true,data:existing.rows[0]});
  }catch(error){failure(res,error);}
 });
+router.post('/report/:id/checkin/:type/cancel',async(req,res)=>{
+ const prefix=Object.hasOwn(EVENTS,req.params.type)?EVENTS[req.params.type]:null;
+ const actor=typeof req.body.actor==='string'?req.body.actor.trim():'',reason=typeof req.body.reason==='string'?req.body.reason.trim():'';
+ const expected=req.body.expected_at;
+ if(!prefix||!/^[1-9]\d*$/.test(req.params.id)||!actor||actor.length>150||!reason||reason.length>500||typeof expected!=='string'||!Number.isFinite(new Date(expected).getTime()))return res.status(400).json({error:'กรุณาระบุเหตุผลและข้อมูลเช็กอินที่ต้องการยกเลิก'});
+ const insurance=req.params.type==='insurance';
+ try{
+  // Snapshot history and clear the active event atomically. A stale page cannot cancel a newer confirmation.
+  const result=await pool.query(`UPDATE rizenicreport SET
+   checkin_cancel_history=COALESCE(checkin_cancel_history,'[]'::jsonb)||jsonb_build_array(jsonb_build_object(
+    'type',$1::text,'previous_at',${prefix}_at,'previous_sa',${prefix}_sa,'previous_by',${prefix}_by,
+    'previous_recorded_at',${insurance?'insurance_checkin_recorded_at':prefix+'_at'},'cancelled_at',CURRENT_TIMESTAMP,'cancelled_by',$2::text,'reason',$3::text)),
+   ${prefix}_at=NULL,${prefix}_sa=NULL,${prefix}_by=NULL${insurance?',insurance_checkin_recorded_at=NULL':''}
+   WHERE id=$4 AND ${prefix}_at=$5::timestamptz
+   RETURNING id,${prefix}_at,${prefix}_sa,${prefix}_by${insurance?',insurance_checkin_recorded_at':''}`,[req.params.type,actor,reason,req.params.id,expected]);
+  if(!result.rows.length)return res.status(409).json({error:'เช็กอินถูกเปลี่ยนหรือยกเลิกไปแล้ว กรุณาเปิดใบงานใหม่'});
+  res.json({success:true,data:result.rows[0]});
+ }catch(error){if(schemaError(error))return res.status(500).json({error:'กรุณารัน SQL 20261125_checkin_cancel.sql ก่อนใช้ปุ่มยกเลิกเช็กอิน'});failure(res,error);}
+});
+
 router.get('/sa-performance',async(req,res)=>{
  const date=req.query.date||bangkokDay(),branch=req.query.branch;
  if(!validDay(date)||!['Navamin','Rangsit'].includes(branch))return res.status(400).json({error:'วันที่หรือสาขาไม่ถูกต้อง'});

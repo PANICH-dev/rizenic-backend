@@ -1,0 +1,15 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('fs'),vm=require('vm');
+function calendarContext(fetch){const context={API_BASE_URL:'',fetch,selectedBodyParts:{main:['a','b','c','d','e'],sub:['x','y']},document:{querySelectorAll:()=>[],getElementById:()=>({value:'1'})}};vm.createContext(context);vm.runInContext(fs.readFileSync('public/sa_calendar.js','utf8'),context);vm.runInContext("currentSchedExistingJob={id:1,arrived_date:'2026-11-30',target_finish_date:'2026-11-30',delivery_date:'2026-11-30',main_part_qty:5,sub_part_qty:2}",context);return context;}
+test('Calendar keeps the original date selectable when full, but blocks added parts or a new date',()=>{
+ const context=calendarContext();let result=vm.runInContext("calendarQuotaAvailability('2026-11-30',{a:10,t:10,d:10,m:50,s:50},{maxArrived:1,maxTarget:1,maxDelivery:1,maxMain:5,maxSub:2})",context);assert(Object.values(result).every(value=>value===false));
+ context.selectedBodyParts.main.push('extra');result=vm.runInContext("calendarQuotaAvailability('2026-11-30',{a:10,t:10,d:10,m:50,s:50},{maxArrived:1,maxTarget:1,maxDelivery:1,maxMain:5,maxSub:2})",context);assert.equal(result.isTargetMainFull,true);assert.equal(result.isTargetCarFull,false);
+ result=vm.runInContext("calendarQuotaAvailability('2026-12-01',{a:1,t:1,d:1,m:5,s:2},{maxArrived:1,maxTarget:1,maxDelivery:1,maxMain:5,maxSub:2})",context);assert(Object.values(result).every(Boolean));
+});
+test('Quota precheck uses backend validation and fails closed on errors or malformed responses',async()=>{
+ let body;let context=calendarContext(async(url,options)=>{assert.equal(url,'/api/quota-check');body=JSON.parse(options.body);return{ok:true,json:async()=>({success:true})};});assert.equal(await vm.runInContext("checkQuotaBeforeSubmit('Navamin','2026-11-30','2026-12-01','',5,2)",context),true);assert.equal(body.id,'1');assert.equal(body.target_finish_date,'2026-12-01');
+ for(const fetch of [async()=>{throw Error('offline');},async()=>({ok:false,json:async()=>({error:'คิวเต็ม'})}),async()=>({ok:true,json:async()=>[]})]){context=calendarContext(fetch);const value=await vm.runInContext("checkQuotaBeforeSubmit('Navamin','2026-11-30','','',0,0)",context);assert.notEqual(value,true);assert.equal(typeof value,'string');}
+});
+test('Rejected board edits show the quota reason and restore the old value',async()=>{
+ const source=fs.readFileSync('public/repair_board.js','utf8'),a=source.indexOf('async function fastUpdateField'),b=source.indexOf('async function fastUpdateStationDropdown',a);let resets=0,message='';const cache=[{id:1,target_finish_date:'2026-11-30'}];const context={API_BASE_URL:'',getTodayString:()=> '2026-11-25',originalRepairJobs:cache,fetch:async()=>({ok:false,json:async()=>({error:'โควต้าเต็ม ไม่เปลี่ยนวันเดิม'})}),showToast:text=>{message=text;},runTableFilters:()=>{resets++;}};
+ vm.createContext(context);vm.runInContext(source.slice(a,b),context);await vm.runInContext("fastUpdateField(1,'target_finish_date','2026-12-01')",context);assert.equal(cache[0].target_finish_date,'2026-11-30');assert.equal(resets,1);assert.match(message,/โควต้าเต็ม/);
+});

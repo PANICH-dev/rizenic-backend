@@ -2,35 +2,47 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const https = require('https');
+const {lockQuota,loadBooking,validateQuota,booking}=require('../services/quota');
 const {getSAReport,validDay,bangkokDay}=require('../services/sa_activity');
 
 router.post('/sync-dynamic', async (req, res) => {
     const { tableName, primaryKey, data } = req.body;
     if (!tableName || !data || !Array.isArray(data) || data.length === 0) return res.status(400).json({ error: "ข้อมูล Payload ไม่ถูกต้องครับนาย" });
+    if(!/^(public\.)?[a-z_][a-z0-9_]*$/i.test(tableName)||primaryKey&&!/^[a-z_][a-z0-9_]*$/i.test(primaryKey))return res.status(400).json({error:'ชื่อตารางหรือคีย์ไม่ถูกต้อง'});
+    const targetTable=tableName.toLowerCase().replace(/^public\./,'');
+    if(data.some(row=>!row||typeof row!=='object'||Array.isArray(row)||Object.keys(row).some(key=>!/^[a-z_][a-z0-9_]*$/i.test(key))))return res.status(400).json({error:'ชื่อคอลัมน์ไม่ถูกต้อง'});
     const client = await pool.connect();
     try {
-        await client.query('BEGIN'); 
-        for (const row of data) {
+        await client.query('BEGIN');
+        if(['rizenicreport','rizenic_quotas'].includes(targetTable))await lockQuota(client);
+        for (const original of data) {
+            const row={...original};
+            if(targetTable==='rizenicreport'){
+                let previous=null;
+                if(primaryKey&&row[primaryKey]!=null){const match=await client.query(`SELECT id FROM rizenicreport WHERE "${primaryKey.toLowerCase()}"=$1 LIMIT 1`,[row[primaryKey]]);if(match.rows.length)previous=await loadBooking(client,match.rows[0].id);}
+                const next=booking({...previous,...row});await validateQuota(client,previous,next,previous?.id||null);
+                for(const field of ['branch_name','arrived_date','target_finish_date','delivery_date','main_part_qty','sub_part_qty'])if(Object.hasOwn(row,field)||!previous)row[field]=next[field];
+            }
             const rowKeys = Object.keys(row);
             if (rowKeys.length === 0) continue;
-            const colsStr = rowKeys.join(', ');
+            const colsStr = rowKeys.map(key=>'"'+key.toLowerCase()+'"').join(', ');
             const valuePlaceholders = rowKeys.map((_, idx) => `$${idx + 1}`).join(', ');
             const values = rowKeys.map(k => row[k]);
-            let sql = `INSERT INTO ${tableName} (${colsStr}) VALUES (${valuePlaceholders})`;
+            let sql = `INSERT INTO public."${targetTable}" (${colsStr}) VALUES (${valuePlaceholders})`;
             if (primaryKey) {
                 const updateCols = rowKeys.filter(col => col !== primaryKey && col !== 'id' && col !== 'part_id');
                 if (updateCols.length > 0) {
-                    const updateStr = updateCols.map(col => `${col} = EXCLUDED.${col}`).join(', ');
-                    sql += ` ON CONFLICT (${primaryKey}) DO UPDATE SET ${updateStr}`;
-                } else { sql += ` ON CONFLICT (${primaryKey}) DO NOTHING`; }
+                    const updateStr = updateCols.map(col => `"${col.toLowerCase()}" = EXCLUDED."${col.toLowerCase()}"`).join(', ');
+                    sql += ` ON CONFLICT ("${primaryKey.toLowerCase()}") DO UPDATE SET ${updateStr}`;
+                } else { sql += ` ON CONFLICT ("${primaryKey.toLowerCase()}") DO NOTHING`; }
             }
             await client.query(sql, values);
         }
-        await client.query('COMMIT'); 
+        await client.query('COMMIT');
         res.json({ success: true, message: `อัปโหลดเข้าตาราง ${tableName} สำเร็จ ${data.length} รายการ!` });
     } catch (err) {
-        await client.query('ROLLBACK'); 
-        res.status(500).json({ error: err.message });
+        await client.query('ROLLBACK');
+        res.status(err.status||500).json({ error: err.message });
     } finally { client.release(); }
 });
 
@@ -70,7 +82,7 @@ router.post('/send-line-notify', async (req, res) => {
     }
     if(messages.some(text=>text.length>5000))return res.status(400).json({error:'ข้อความยาวเกิน 5,000 ตัวอักษร กรุณาลดช่วงรายงาน'});
     if(process.env.VERCEL_ENV==='preview')return res.status(409).json({error:'เวอร์ชันทดสอบดูตัวอย่างข้อความได้ แต่ยังไม่ส่งเข้ากลุ่ม LINE จริง'});
-    let targetToken = "", targetGroup = ""; 
+    let targetToken = "", targetGroup = "";
     if (branch === 'Rangsit' || branch === 'สาขารังสิต') {
         targetToken = "uWGDH1BPHvILvBn7Hyeimv20W8ITfbUpGV2jfy1ujMUjvFxceSEtpM50S9vAcJmy05ybn6g/wHspfuTbfUuAI5UCB2RkifntfIeOT9EOo09FfQel63guAJgMs8zhAbbP0dq8fMENKirsWXoFzYMaXgdB04t89/1O/w1cDnyilFU=";
         targetGroup = "C762221d8214dd72b5469f74879c19bec";
