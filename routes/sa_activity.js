@@ -22,7 +22,7 @@ router.put('/customer-sources/:id',async(req,res)=>{
  catch(error){if(error.code==='23505')return res.status(409).json({error:'มีแหล่งที่มาชื่อนี้แล้ว'});failure(res,error);}
 });
 router.post('/report/:id/checkin/:type',async(req,res)=>{
- const prefix=EVENTS[req.params.type];
+ const prefix=Object.hasOwn(EVENTS,req.params.type)?EVENTS[req.params.type]:null;
  const actor=typeof req.body.actor==='string'?req.body.actor.trim():'';
  if(!prefix||!/^[1-9]\d*$/.test(req.params.id)||!actor||actor.length>150)return res.status(400).json({error:'ข้อมูลเช็กอินหรือผู้บันทึกไม่ถูกต้อง'});
  const insurance=req.params.type==='insurance';

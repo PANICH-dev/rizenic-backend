@@ -35,6 +35,7 @@ test('Arrival/delivery store real time, require saved SA, validate requests and 
  assert.equal((await post('/report/999/checkin/arrival',{actor:'A'})).status,404);
  assert.equal((await post('/report/123/checkin/insurance',{actor:'A',date:'2999-01-01'})).status,400);
  assert.equal((await post('/report/123/checkin/bad',{actor:'A'})).status,400);
+ assert.equal((await post('/report/123/checkin/toString',{actor:'A'})).status,400);
  assert.equal((await post('/report/123/checkin/arrival',{})).status,400);
 });
 test('Sources can be created, duplicate rejected, renamed/deactivated without deleting',async()=>{
