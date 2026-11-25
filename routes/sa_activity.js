@@ -4,7 +4,7 @@ const {validDay,bangkokDay,getSAReport}=require('../services/sa_activity');
 const router=express.Router();
 const EVENTS={insurance:'insurance_checkin',arrival:'arrival_checkin',delivery:'delivery_checkin'};
 const schemaError=error=>['42703','42P01'].includes(error.code);
-function failure(res,error){return res.status(500).json({error:schemaError(error)?'กรุณารัน SQL 20261125_sa_activity.sql ก่อนใช้ระบบผลงาน SA':'ไม่สามารถดำเนินการได้ กรุณาลองใหม่'});}
+function failure(res,error){return res.status(500).json({error:schemaError(error)?'กรุณารัน SQL 20261125_sa_activity.sql ก่อนใช้ระบบผลงาน SA':'ไม่สามารถดำเนินการได้ กรุณาลองใหม่',error_code:error.code||'UNKNOWN'});}
 router.get('/customer-sources',async(req,res)=>{
  try{res.json((await pool.query('SELECT id,name,is_active FROM customer_sources ORDER BY name')).rows);}catch(error){failure(res,error);}
 });
