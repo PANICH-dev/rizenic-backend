@@ -1,5 +1,6 @@
 const METRICS=['received','insurance','arrival','completed','delivery'];
 const DELIVERED=new Set(['12.ส่งมอบ','12.ส่งมอบแล้ว','13.วางบิลประกัน','14.ชำระเงินสด','15.วางบิล Tesla','16.วางบิล EV ME','17.รอออกบิล','19.ออกบิลแล้ว']);
+const ARRIVED=new Set(['09.จอดรอเข้าซ่อม','10.กำลังซ่อม','11.รถซ่อมเสร็จรอส่งมอบ',...DELIVERED]);
 function validDay(value){if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;const d=new Date(value+'T00:00:00Z');return Number.isFinite(d.getTime())&&d.toISOString().slice(0,10)===value;}
 function bangkokDay(now=new Date()){return new Date(now.getTime()+7*3600000).toISOString().slice(0,10);}
 function dateOnly(value){if(!value)return null;const day=value instanceof Date?value.toISOString().slice(0,10):String(value).slice(0,10);return validDay(day)?day:null;}
@@ -23,7 +24,7 @@ function groupVehicleVisits(jobs){
  }
  return [...visits.values()];
 }
-function personHasData(p){return p.pending>0||p.insurance.today>0||METRICS.filter(k=>k!=='insurance').some(k=>p[k].today>0||p[k].month>0)||p.on_time>0||p.late>0||p.unknown_target>0||p.overdue>0;}
+function personHasData(p){return p.pending>0||p.insurance.today>0||['received','arrival','delivery'].some(k=>p[k].today>0||p[k].month>0)||p.overdue>0;}
 function buildVehicleReport(jobs,date,branch){
  const monthStart=date.slice(0,7)+'-01',people=new Map(),pending=[];
  const person=name=>{name=String(name||'').trim()||'ไม่ระบุ SA';if(!people.has(name))people.set(name,{sa:name,...Object.fromEntries(METRICS.map(key=>[key,{today:0,month:0}])),pending:0,on_time:0,late:0,unknown_target:0,overdue:0,sources:[]});return people.get(name);};
@@ -49,7 +50,7 @@ function buildVehicleReport(jobs,date,branch){
     pending.push({sa,plate:representative.car_plate||'',vin:representative.vin_no||'',service_visit_no:representative.service_visit_no||'',claims:[...new Set(group.flatMap(j=>String(j.claim_no||'').split(',').map(x=>x.trim()).filter(Boolean)))].join(', '),job_ids:group.map(j=>j.id),total_jobs:group.length,confirmed_jobs:confirmed.length});
    }
   }
-  const parked=group.filter(job=>String(job.is_parked||'').trim()==='จอดซ่อม'&&dateOnly(job.arrived_date)).sort((a,b)=>dateOnly(a.arrived_date).localeCompare(dateOnly(b.arrived_date))||Number(a.id)-Number(b.id));
+  const parked=group.filter(job=>ARRIVED.has(String(job.job_status||'').trim())&&dateOnly(job.arrived_date)).sort((a,b)=>dateOnly(a.arrived_date).localeCompare(dateOnly(b.arrived_date))||Number(a.id)-Number(b.id));
   if(parked.length)add(owner(parked[0]),'arrival',dateOnly(parked[0].arrived_date));
   const delivered=group.filter(job=>DELIVERED.has(String(job.job_status||'').trim())&&dateOnly(job.delivery_date)).sort((a,b)=>dateOnly(a.delivery_date).localeCompare(dateOnly(b.delivery_date))||Number(a.id)-Number(b.id));
   if(delivered.length)add(owner(delivered[0]),'delivery',dateOnly(delivered[0].delivery_date));
@@ -58,21 +59,28 @@ function buildVehicleReport(jobs,date,branch){
  return {...report,message:formatSAReport(report)};
 }
 function formatSAReport(report){
- const lines=['📊 ผลงาน SA — '+(report.branch==='Navamin'?'นวมินทร์':'รังสิต'),'วันที่ '+report.date,'ยอดค้าง: สถานะปัจจุบันทั้งหมด | ตัวเลขคู่: วันนี้ / สะสมเดือน',''];
+ const lines=['📊 ผลงาน SA — '+(report.branch==='Navamin'?'นวมินทร์':'รังสิต'),'ประจำวันที่ '+report.date,'ตัวเลข: วันนี้ / สะสมเดือนถึงวันที่รายงาน','ยอดรอเสนอค้าง: ทั้งหมด ณ ปัจจุบัน',''];
  const visible=report.people.filter(personHasData);if(!visible.length)lines.push('ไม่มีผลงานหรือรายการค้าง');
- const labels={received:'รับลูกค้า (ใบงาน)',arrival:'รถเข้าจอด',completed:'ซ่อมเสร็จ (ใบงาน)',delivery:'ส่งมอบรถ'};
- for(const p of visible){lines.push('👤 '+p.sa);if(p.pending)lines.push('รอเสนอประกันค้าง: '+p.pending+' คัน');if(p.insurance.today)lines.push('เสนอวันนี้: '+p.insurance.today+' คัน');
-  for(const key of Object.keys(labels))if(p[key].today||p[key].month)lines.push(labels[key]+': '+p[key].today+' / '+p[key].month);
-  for(const source of p.sources)if(source.today||source.month)lines.push('  '+source.name+': '+source.today+' / '+source.month);
-  const quality=[];if(p.on_time)quality.push('ตรงกำหนด '+p.on_time);if(p.late)quality.push('ล่าช้า '+p.late);if(p.unknown_target)quality.push('ไม่มีกำหนด '+p.unknown_target);if(quality.length)lines.push('งานซ่อมเดือนนี้: '+quality.join(' | '));
-  if(p.overdue)lines.push('เกินกำหนดและยังไม่เสร็จ: '+p.overdue);lines.push('');
+ for(const p of visible){
+  lines.push('👤 '+p.sa);
+  if(p.pending)lines.push('รอเสนอประกันค้างทั้งหมด: '+p.pending+' คัน');
+  if(p.insurance.today)lines.push('เสนอวันนี้: '+p.insurance.today+' คัน');
+  if(p.received.today||p.received.month){
+   lines.push('รับลูกค้า (ใบงาน): '+p.received.today+' / '+p.received.month);
+   const sources=[...p.sources].sort((a,b)=>(a.name==='ไม่ระบุ')-(b.name==='ไม่ระบุ')||a.name.localeCompare(b.name,'th'));
+   for(const source of sources)if(source.today||source.month)lines.push('  '+(source.name==='ไม่ระบุ'?'ไม่ระบุแหล่งที่มา':source.name)+': '+source.today+' / '+source.month);
+  }
+  if(p.arrival.today||p.arrival.month)lines.push('รถเข้าจอด: '+p.arrival.today+' / '+p.arrival.month+' คัน');
+  if(p.delivery.today||p.delivery.month)lines.push('ส่งมอบรถ: '+p.delivery.today+' / '+p.delivery.month+' คัน');
+  if(p.overdue)lines.push('ค้างเกินกำหนดซ่อม: '+p.overdue+' ใบงาน');
+  lines.push('');
  }
  return lines.join('\n').trim();
 }
 // Narrow server-side projection: no photos, checklist JSON or customer contact details.
 const REPORT_SQL=`WITH jobs AS (
- SELECT id,sa_owner,car_plate,vin_no,service_visit_no,claim_no,customer_source,contact_date::date::text AS contact_date,arrived_date::date::text AS arrived_date,is_parked,insurance_checkin_at,insurance_checkin_recorded_at,insurance_checkin_sa,repair_finish_date::date::text AS repair_finish_date,target_finish_date::date::text AS target_finish_date,delivery_date::date::text AS delivery_date,job_status
+ SELECT id,sa_owner,car_plate,vin_no,service_visit_no,claim_no,customer_source,contact_date::date::text AS contact_date,arrived_date::date::text AS arrived_date,insurance_checkin_at,insurance_checkin_recorded_at,insurance_checkin_sa,repair_finish_date::date::text AS repair_finish_date,target_finish_date::date::text AS target_finish_date,delivery_date::date::text AS delivery_date,job_status
  FROM rizenicreport WHERE CASE WHEN branch_name ~* '(รังสิต|rangsit|คลองหลวง)' THEN 'Rangsit' WHEN branch_name ~* '(นวมินทร์|navamin|nawamin)' THEN 'Navamin' ELSE branch_name END=$2
 ) SELECT * FROM jobs WHERE $1::date IS NOT NULL`;
 async function getSAReport(pool,date,branch){const result=await pool.query(REPORT_SQL,[date,branch]);return buildVehicleReport(result.rows,date,branch);}
-module.exports={validDay,bangkokDay,buildVehicleReport,groupVehicleVisits,formatSAReport,getSAReport,REPORT_SQL,DELIVERED};
+module.exports={validDay,bangkokDay,buildVehicleReport,groupVehicleVisits,formatSAReport,getSAReport,REPORT_SQL,DELIVERED,ARRIVED};
