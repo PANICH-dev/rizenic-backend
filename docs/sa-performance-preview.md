@@ -1,27 +1,27 @@
-# SA performance preview
+# SA performance and vehicle counting
 
-Run `migrations/20261125_sa_activity.sql` in the Neon database used by the Preview deployment before testing. It is safe to rerun the migration if the check-in columns were already added. It does not backfill check-ins from appointment dates.
+## Counting rules
 
-## Job form
+- Insurance work is grouped by vehicle **and service visit**, never by vehicle across its entire lifetime. A valid VIN is preferred; a unique VIN/plate mapping links a Job missing its VIN. Missing/ambiguous identities are not guessed.
+- Service Visit # is the primary visit key. Jobs without it can join a visit when their arrival date maps to exactly one Service Visit for that vehicle. Otherwise the exact arrival date, contact date, or Job ID is used conservatively.
+- Every non-cancelled main Job in the group must have an insurance confirmation before that vehicle counts once. The completion day is the latest actual submission date. Credit goes to the SA of the last recorded confirmation (Job ID breaks ties). Multiple document sets inside one main Job still belong to that one Job confirmation.
+- Pending insurance work is a current, all-time backlog: a group containing status `02.รอเสนอประกัน` and not fully confirmed counts once. If different SAs own pending Jobs, the owner of the earliest pending Job receives the one backlog count. The dashboard lists the vehicle, claim numbers, Job IDs and confirmation progress.
+- Parking uses `is_parked = จอดซ่อม` and `arrived_date`, not the check-in timestamp. Delivery uses `delivery_date` with status 12, 13, 14, 15, 16, 17 or 19. Each grouped vehicle visit counts once, using the earliest qualifying date and that Job's current owner.
+- Customer receipts and repair completions remain **Job counts**, clearly labelled. They use the current job owner and contact/repair completion dates. Repair target comparison and open overdue work remain available.
+- Daily/month-to-date counts use Asia/Bangkok. Pending work is current even when a historical report date is selected. Zero lines are omitted; `0 / nonzero` monthly rows remain. People with no displayed counts are omitted. The insurance message displays pending cars and cars submitted on the selected day.
 
-- Section 1 adds Service Visit # (text) and the customer source dropdown.
-- Customer sources are managed in Admin. Disabling or renaming a source does not rewrite historical job labels.
-- Insurance submission date is next to the claim number. Select the actual date, then confirm once. The database separately records the confirmation time.
-- Arrival and delivery confirmations use server time. Planned dates remain unchanged.
-- All three confirmations freeze the saved job's SA owner and store the logged-in employee name supplied by the existing portal as the recorder. A changed SA must be saved before confirmation.
-- Once confirmed, buttons are locked. Repeated API requests return the existing confirmation rather than overwriting it. This version does not provide correction/cancellation of confirmations.
+## Confirmations and documents
 
-## Dashboard and LINE
+The check-in buttons still store first confirmation time, saved SA and logged-in recorder name. A repeated request does not overwrite a confirmation. Insurance actual submission date and recording time remain separate. Planned arrival and delivery dates are unchanged by check-in.
 
-- SA report date defaults to today's date in Asia/Bangkok.
-- Counts show the selected day and month-to-date, ending on that date. Receiving customers counts jobs by contact date, not distinct people. Missing historical confirmations are not guessed.
-- Check-in counts use the frozen SA name. Contact and repair-completion counts use the current job owner because historical ownership is not available for those fields.
-- Repair completion uses repair_finish_date compared to target_finish_date. Missing targets are shown separately, not counted as on-time. Cancelled/closed/delivered jobs are excluded from open overdue work.
-- Preview the exact SA message in the dashboard. Production sends the original report and the SA summary together as two text messages in the existing LINE push request.
-- Vercel Preview does not send real LINE messages. Database changes made through Preview still use the Neon database configured for that deployment.
+Claim numbers from all document sets are combined and deduplicated into both the intake inspection and pre-delivery document. Saved document fields persist them; reopening refreshes them from the current Job form. Service Visit # remains a separate Tesla reference.
 
-## Validation
+No additional database migration is needed for the vehicle-counting update. The original `migrations/20261125_sa_activity.sql` is still required for the SA feature.
 
-`node --test tests/sa_activity.test.cjs tests/sa_job_metadata.test.cjs tests/sa_line_report.test.cjs`
+## LINE and validation
 
-The tests mock database and LINE transport. No real customer records or LINE groups are modified.
+Production sends the original RIZENIC report and the SA message together. Preview blocks real LINE sends and uses the database configured in Vercel.
+
+`node --test tests/sa_activity.test.cjs tests/sa_vehicle_report.test.cjs tests/sa_job_metadata.test.cjs tests/sa_line_report.test.cjs`
+
+Tests mock database/LINE transport and cover grouping, partial confirmations, separate visits, attribution, status/month counting, zero suppression, metadata persistence and message batching. They never change real customer records or send to real LINE groups.

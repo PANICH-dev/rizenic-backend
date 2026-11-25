@@ -12,7 +12,7 @@ const DELIVERY_TRUNK = ['ยางอะไหล่','แม่แรง','ช�
 function deliveryFields() { return [...document.querySelectorAll('#deliveryPrintArea [data-delivery]')]; }
 async function loadDeliveryTemplate() {
  if(document.getElementById('deliveryInspectionModal'))return;
- const res=await fetch('delivery_inspection.html?v=20261124.7',{cache:'no-store'});
+ const res=await fetch('delivery_inspection.html?v=20261125.2',{cache:'no-store'});
  if(!res.ok)throw Error('โหลดแบบฟอร์มไม่สำเร็จ');
  document.body.insertAdjacentHTML('beforeend',await res.text());
  const parts=document.getElementById('deliveryParts');
@@ -70,7 +70,7 @@ async function openDeliveryInspection() {
   deliveryFields().forEach(el=>{if(el.type==='checkbox')el.checked=false;else el.value='';});clearDeliveryDiagram();
   const value=id=>document.getElementById(id)?.value;
   const pipeline=selector=>[...document.querySelectorAll(selector)].map(el=>el.value.trim()).filter(Boolean).join(', ');
-  const fields={car_plate:value('car_plate')??job.car_plate,car_brand:value('car_brand')??job.car_brand,car_model:value('car_model')??job.car_model,vin_no:value('vin_no')??job.vin_no,car_color:value('car_color')??job.car_color,model_year:value('model_year')??job.model_year,delivery_date:(value('delivery_date')??job.delivery_date??'').slice(0,10),reference_no:[pipeline('.pipe-qt')||job.qt_no,pipeline('.pipe-so')||job.so_no].filter(Boolean).join(' / '),sa_name:job.sa_owner||''};
+  const fields={claim_no:window.JobDocumentData?.claims(job)||'',car_plate:value('car_plate')??job.car_plate,car_brand:value('car_brand')??job.car_brand,car_model:value('car_model')??job.car_model,vin_no:value('vin_no')??job.vin_no,car_color:value('car_color')??job.car_color,model_year:value('model_year')??job.model_year,delivery_date:(value('delivery_date')??job.delivery_date??'').slice(0,10),reference_no:[pipeline('.pipe-qt')||job.qt_no,pipeline('.pipe-so')||job.so_no].filter(Boolean).join(' / '),sa_name:job.sa_owner||''};
   deliveryFields().forEach(el=>{if(fields[el.dataset.delivery]!==undefined)el.value=fields[el.dataset.delivery]??'';});
   const branch=job.branch_name||sessionStorage.getItem('emp_branch')||'';
   const company=COMPANY_MASTERS[/รังสิต|rangsit|คลองหลวง/i.test(branch)?'raisen_rangsit':'raisen_navamin'];
@@ -87,6 +87,7 @@ async function openDeliveryInspection() {
    if(seq!==deliverySequence)return;
    refreshDeliveryObjectList();renderDeliveryObjects();
   }
+  document.querySelector('[data-delivery=claim_no]').value=window.JobDocumentData?.claims(job)||'';
   deliveryStatus('พร้อมใช้งาน');
  }catch(error){deliveryLoadFailed=true;deliveryStatus(error.message);alert(error.message+' กรุณาลองเปิดใหม่ก่อนบันทึก');}
  finally{deliveryLoading=false;}

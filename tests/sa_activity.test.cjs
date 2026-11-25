@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict'),express=require('express');
-const {validDay,bangkokDay,reportFromRows,formatSAReport,REPORT_SQL}=require('../services/sa_activity');
+const {validDay,bangkokDay,buildVehicleReport,formatSAReport,REPORT_SQL}=require('../services/sa_activity');
 let schemaFailure=false;
 const jobs=new Map([['123',{id:123,sa_owner:'SA เอ'}],['124',{id:124,sa_owner:''}]]),sources=[{id:1,name:'ออนไลน์',is_active:true}];
 const dbPath=require.resolve('../config/db');
@@ -14,7 +14,7 @@ const pool={async query(sql,params=[]){
  if(sql.startsWith('SELECT id,name'))return{rows:sources.map(x=>({...x}))};
  if(sql.startsWith('INSERT INTO customer_sources')){if(sources.some(x=>x.name===params[0]))throw Object.assign(Error('duplicate'),{code:'23505'});const row={id:sources.length+1,name:params[0],is_active:true};sources.push(row);return{rows:[row]};}
  if(sql.startsWith('UPDATE customer_sources')){const row=sources.find(x=>String(x.id)===params[2]);if(!row)return{rows:[]};Object.assign(row,{name:params[0],is_active:params[1]});return{rows:[row]};}
- if(sql.startsWith('WITH jobs')){assert.deepEqual(params,['2026-11-25','Navamin']);return{rows:[{sa:'SA เอ',kind:'insurance',today:1,month:3}]};}
+ if(sql.startsWith('WITH jobs')){assert.deepEqual(params,['2026-11-25','Navamin']);return{rows:[{id:1,sa_owner:'SA เอ',insurance_checkin_sa:'SA เอ',insurance_checkin_at:'2026-11-25T00:00:00+07:00'}]};}
  throw Error('Unexpected query: '+sql.slice(0,60));
 }};
 require.cache[dbPath]={id:dbPath,filename:dbPath,loaded:true,exports:pool};
@@ -23,7 +23,7 @@ let server,base;
 test.before(async()=>{server=app.listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));base='http://127.0.0.1:'+server.address().port+'/api';});
 test.after(()=>server.close());
 const post=(path,data,method='POST')=>fetch(base+path,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
-test('Thai business dates and invalid calendar dates',()=>{assert(validDay('2024-02-29'));assert(!validDay('2026-02-29'));assert(!validDay('2026-13-01'));assert.equal(bangkokDay(new Date('2026-11-24T17:01:00Z')),'2026-11-25');assert(REPORT_SQL.includes("AT TIME ZONE 'Asia/Bangkok'"));assert(REPORT_SQL.includes('insurance_checkin_sa'));assert(REPORT_SQL.includes('date_trunc'));});
+test('Thai business dates and invalid calendar dates',()=>{assert(validDay('2024-02-29'));assert(!validDay('2026-02-29'));assert(!validDay('2026-13-01'));assert.equal(bangkokDay(new Date('2026-11-24T17:01:00Z')),'2026-11-25');});
 test('First insurance checkin wins, SA from saved job, duplicate requests do not change date or actor',async()=>{
  const values=await Promise.all([post('/report/123/checkin/insurance',{actor:'ผู้กด A',date:'2026-11-24',sa_owner:'ห้ามเชื่อข้อมูลนี้'}),post('/report/123/checkin/insurance',{actor:'ผู้กด B',date:'2026-11-23'})]);
  const results=await Promise.all(values.map(x=>x.json()));assert.equal(results.filter(x=>x.already_checked_in===false).length,1);assert.equal(results.filter(x=>x.already_checked_in===true).length,1);assert.equal(jobs.get('123').insurance_checkin_sa,'SA เอ');assert(jobs.get('123').insurance_checkin_at.endsWith('+07:00'));
@@ -43,10 +43,10 @@ test('Sources can be created, duplicate rejected, renamed/deactivated without de
  const update=await post('/customer-sources/2',{name:'หน้าร้านใหม่',is_active:false},'PUT');assert.equal(update.status,200);assert.equal(sources[1].is_active,false);
  const response=await fetch(base+'/customer-sources');assert.equal((await response.json()).length,2);
 });
-test('Report groups SA, day/month and source counts; handles zero activity staff',async()=>{
- const report=reportFromRows([{sa:'เอ',kind:'received',source:'ออนไลน์',today:2,month:8},{sa:'เอ',kind:'received',source:'หน้าร้าน',today:1,month:3},{sa:'เอ',kind:'completed',today:1,month:5,on_time:3,late:1,unknown_target:1},{sa:'เอ',kind:'overdue',month:2},{sa:'บี',kind:'seed'}],'2026-11-25','Navamin');
- assert.deepEqual(report.people.find(x=>x.sa==='เอ').received,{today:3,month:11});assert.equal(report.people.find(x=>x.sa==='เอ').overdue,2);assert.equal(report.people.find(x=>x.sa==='บี').delivery.month,0);assert(formatSAReport(report).includes('ออนไลน์: 2 / 8'));
- const response=await fetch(base+'/sa-performance?date=2026-11-25&branch=Navamin');assert.equal(response.status,200);assert((await response.json()).message.includes('เสนอประกัน: 1 / 3'));
+test('Report uses vehicle data, source counts and hides empty staff',async()=>{
+ const report=buildVehicleReport([{id:1,sa_owner:'เอ',car_plate:'A',contact_date:'2026-11-25',customer_source:'ออนไลน์',repair_finish_date:'2026-11-25',target_finish_date:'2026-11-25'},{id:2,sa_owner:'เอ',car_plate:'B',contact_date:'2026-11-01',customer_source:'หน้าร้าน'},{id:3,sa_owner:'ไม่มีผลงาน'}],'2026-11-25','Navamin');
+ assert.deepEqual(report.people.find(x=>x.sa==='เอ').received,{today:1,month:2});assert.equal(report.people.find(x=>x.sa==='เอ').on_time,1);assert(!report.people.some(x=>x.sa==='ไม่มีผลงาน'));assert(formatSAReport(report).includes('ออนไลน์: 1 / 1'));
+ const response=await fetch(base+'/sa-performance?date=2026-11-25&branch=Navamin');assert.equal(response.status,200);assert((await response.json()).message.includes('เสนอวันนี้: 1 คัน'));
  assert.equal((await fetch(base+'/sa-performance?date=bad&branch=all')).status,400);
 });
 test('Missing migration returns actionable error without exposing database details',async()=>{schemaFailure=true;const response=await fetch(base+'/customer-sources');assert.equal(response.status,500);assert((await response.json()).error.includes('20261125_sa_activity.sql'));schemaFailure=false;});

@@ -109,7 +109,7 @@ async function openInspectionModal() {
     }
 
     const paymentType = document.getElementById('payment_type')?.value || '';
-    const claimNo = document.getElementById('eclaim_claim_no')?.value || document.getElementById('claim_no')?.value || '';
+    const claimNo = window.JobDocumentData?.claims() || '';
     const damageLevel = document.getElementById('damage_level')?.value || ''; 
     
     if (!carPlate) {
@@ -141,7 +141,7 @@ async function openInspectionModal() {
     setFieldValue('sign_cust_name_display', custName);
 
     setFieldValue('ins_insurance', paymentType);
-    setFieldValue('ins_claim_no', claimNo);
+    setFieldValue('ins_claim_no', window.JobDocumentData?.claims(job) ?? claimNo);
 
     if (damageLevel) {
         let jobTypeVal = 'L'; 
@@ -177,6 +177,7 @@ async function openInspectionModal() {
             // Job source fields take precedence over old saved print-form snapshots.
             setFieldValue('ins_arr_date', (arrivedDate || job?.arrived_date || '').split('T')[0]);
             setFieldValue('ins_so_no', salesOrderNo || job?.so_no || '');
+            setFieldValue('ins_claim_no', window.JobDocumentData?.claims(job) ?? claimNo);
         }
     } finally {
         if (session === inspectionSession) inspectionLoading = false;

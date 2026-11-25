@@ -13,7 +13,7 @@
  function paint(){
   document.querySelectorAll('.checkin-action').forEach(button=>{
    const kind=button.dataset.kind,prefix=PREFIX[kind],checked=job?.[prefix+'_at'];
-   button.disabled=busy||!!checked||!job?.id;button.textContent=checked?'✓ เช็กอินแล้ว':LABEL[kind];
+   button.disabled=busy||!!checked||!job?.id;button.textContent=checked?'✓ เช็กอินแล้ว':kind==='insurance'&&job?.id?'ยืนยันเสนอประกัน Job #'+job.id:LABEL[kind];
    const container=button.closest('[data-checkin-group]');const status=container?.querySelector('.checkin-status');
    if(status)status.textContent=checked?new Date(checked).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',...(kind==='insurance'?{}:{timeStyle:'short'})})+' | SA '+(job[prefix+'_sa']||'')+' | ผู้บันทึก '+(job[prefix+'_by']||''):job?.id?'ยังไม่เช็กอิน':'บันทึกใบงานก่อนเช็กอิน';
   });
