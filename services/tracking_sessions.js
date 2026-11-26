@@ -1,0 +1,5 @@
+const crypto=require('crypto');
+const hash=value=>crypto.createHash('sha256').update(value).digest('hex');
+async function createEmployeeSession(pool,employee){if(employee.is_active!==true)return null;const token=crypto.randomBytes(32).toString('base64url');await pool.query("INSERT INTO public.tracking_employee_sessions(token_hash,employee_id,expires_at) VALUES($1,$2,CURRENT_TIMESTAMP+INTERVAL '8 hours')",[hash(token),String(employee.employee_id)]);return token;}
+async function authenticateEmployee(pool,header){const token=typeof header==='string'?header.match(/^Bearer ([A-Za-z0-9_-]{43})$/i)?.[1]:null;if(!token)return null;const result=await pool.query('SELECT e.employee_id::text AS employee_id,e.employee_name,e.employee_role,e.branch_name FROM public.tracking_employee_sessions s JOIN public.rizenicemployeemaster e ON e.employee_id::text=s.employee_id WHERE s.token_hash=$1 AND s.expires_at>CURRENT_TIMESTAMP AND e.is_active=true',[hash(token)]);return result.rows[0]||null;}
+module.exports={hash,createEmployeeSession,authenticateEmployee};

@@ -180,6 +180,7 @@
                             <button type="button" onclick="openInspectionModal()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center gap-1.5 border border-blue-500">
                                 <i class="fa-solid fa-print text-amber-300"></i> ปริ้นใบตรวจสภาพรถ
                             </button>
+                            <button type="button" id="create_tracking_link" class="px-3 py-1.5 bg-[#00320D] text-white font-bold text-xs rounded-xl">สร้างลิงก์ติดตาม 24 ชม.</button>
                             <button type="button" onclick="openDeliveryInspection()" class="px-3 py-1.5 bg-emerald-700 text-white font-bold text-xs rounded-xl">พิมพ์ใบตรวจสอบก่อนส่งมอบ</button>
                         </div>
                     </div>
@@ -834,6 +835,7 @@
                 if (res.ok && data.success) {
                     // 🟢 เมื่อล็อกอินผ่านในฐานะ "พาสเนอร์"
                     if (data.user_type === 'partner' || data.partner) {
+                        sessionStorage.removeItem('employee_session');
                         const p = data.partner;
                         sessionStorage.setItem('isLoggedIn', 'true');
                         sessionStorage.setItem('is_partner', 'true');
@@ -849,6 +851,7 @@
                     // 🟢 เมื่อล็อกอินผ่านในฐานะ "พนักงานปกติ"
                     if (data.employee) {
                         const e = data.employee;
+            if(data.employee_session)sessionStorage.setItem('employee_session',data.employee_session);else sessionStorage.removeItem('employee_session');
                         sessionStorage.setItem('isLoggedIn', 'true');
                         sessionStorage.setItem('is_partner', 'false');
                         sessionStorage.setItem('emp_name', e.employee_name || '');
@@ -893,8 +896,10 @@
         }
     </script>
     <!-- 🌟 บังคับล้างแคชด้วยการอัปเดตเลขเวอร์ชันเป็น ?v=21.0 🌟 -->
+<dialog id="tracking_link_dialog" style="max-width:560px;width:calc(100% - 32px);border:1px solid #dce5d9;border-radius:18px;padding:28px;color:#203125;box-shadow:0 24px 80px #00320d22"><div style="display:flex;justify-content:space-between;align-items:center;gap:20px"><h2 style="font-size:18px;font-weight:700;color:#00320d">ลิงก์ติดตามงานซ่อม · 24 ชั่วโมง</h2><button id="tracking_link_close" type="button" aria-label="ปิด" style="padding:8px">✕</button></div><p style="font-size:12px;color:#69766c;margin:14px 0">ลิงก์แสดงข้อมูลที่บันทึกแล้ว เฉพาะรอบบริการที่แชร์ และเปิดได้จนถึงเวลาหมดอายุ</p><p id="tracking_link_loading" style="font-size:13px">กำลังสร้างลิงก์…</p><p id="tracking_link_error" role="alert" style="font-size:13px;color:#963b29"></p><div id="tracking_link_result" hidden><label for="tracking_link_url" style="font-size:12px">ลิงก์สำหรับส่งให้ลูกค้า</label><input id="tracking_link_url" readonly style="width:100%;border:1px solid #dce5d9;border-radius:8px;padding:12px;font-size:12px;margin:8px 0"><p id="tracking_link_expiry" style="font-size:12px;color:#536b49"></p><button id="tracking_link_copy" type="button" style="background:#00320d;color:white;border-radius:9px;padding:10px 18px;margin-top:14px;font-size:13px">คัดลอกลิงก์</button><p id="tracking_link_copy_status" role="status" style="font-size:12px;margin-top:10px"></p></div></dialog>
+    <script src="tracking_links.js?v=20261126.1"></script>
     <script src="sa_assignment.js?v=20261126.4"></script>
-    <script src="sa_core.js?v=20261126.1"></script>
+    <script src="sa_core.js?v=20261126.5"></script>
     <script src="sa_activity.js?v=20261126.4"></script>
     <script src="sa_eclaim.js?v=20261124.7"></script>
     <script src="sa_parts.js?v=21.0"></script>

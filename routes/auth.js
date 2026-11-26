@@ -1,3 +1,4 @@
+const {createEmployeeSession}=require('../services/tracking_sessions');
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
@@ -7,7 +8,8 @@ router.post('/login', async (req, res) => {
     const { username, password } = req.body;
     const empResult = await pool.query('SELECT * FROM rizenicemployeemaster WHERE username = $1 AND password = $2', [username, password]);
     if (empResult.rows.length > 0) {
-      return res.json({ success: true, user_type: 'employee', employee: empResult.rows[0] });
+      let employeeSession=null;try{employeeSession=await createEmployeeSession(pool,empResult.rows[0]);}catch(error){console.warn('Tracking session unavailable:',error.code||'unexpected');}
+      return res.json({ success: true, user_type: 'employee', employee: empResult.rows[0], employee_session:employeeSession });
     }
     const partnerResult = await pool.query('SELECT * FROM rizenic_partners WHERE username = $1 AND password = $2', [username, password]);
     if (partnerResult.rows.length > 0) {

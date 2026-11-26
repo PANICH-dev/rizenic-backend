@@ -126,6 +126,7 @@ async function handleLogin(e) {
 
         if (data.success) {
             const emp = data.employee || {};
+            if(data.employee_session)sessionStorage.setItem('employee_session',data.employee_session);else sessionStorage.removeItem('employee_session');
             sessionStorage.setItem('isLoggedIn', 'true'); 
             sessionStorage.setItem('emp_name', emp.employee_name || userEl.value);
             sessionStorage.setItem('emp_role', emp.employee_role || 'SA'); 

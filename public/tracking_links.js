@@ -1,0 +1,11 @@
+(() => {
+ let busy=false;
+ const $=id=>document.getElementById(id);
+ async function createLink(){if(busy)return;const id=$('sa_report_id')?.value;if(!/^[1-9]\d*$/.test(id||'')){alert('กรุณาบันทึกหรือเปิดใบงานก่อนสร้างลิงก์ติดตาม');return;}const token=sessionStorage.getItem('employee_session');if(!token){alert('กรุณาออกจากระบบแล้วเข้าสู่ระบบพนักงานใหม่ เพื่อสร้างลิงก์ติดตาม');return;}
+ const dialog=$('tracking_link_dialog');dialog.showModal();$('tracking_link_result').hidden=true;$('tracking_link_error').textContent='';$('tracking_link_copy_status').textContent='';$('tracking_link_loading').hidden=false;busy=true;$('create_tracking_link').disabled=true;
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);
+ try{const response=await fetch('/api/report/'+encodeURIComponent(id)+'/tracking-links',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:'{}',signal:controller.signal});const data=await response.json();if(!response.ok)throw Error(data.error||'สร้างลิงก์ไม่สำเร็จ');const url=new URL(data.path,location.origin);if(url.origin!==location.origin||url.pathname!=='/tracking.html')throw Error('ลิงก์ที่ได้รับไม่ถูกต้อง');$('tracking_link_url').value=url.href;$('tracking_link_expiry').textContent='ใช้ได้ถึง '+new Date(data.expiresAt).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'medium',timeStyle:'short'});$('tracking_link_result').hidden=false;
+ }catch(error){$('tracking_link_error').textContent=error.name==='AbortError'?'สร้างลิงก์ใช้เวลานาน กรุณาลองใหม่':error.message;}finally{clearTimeout(timeout);busy=false;$('tracking_link_loading').hidden=true;$('create_tracking_link').disabled=false;}}
+ async function copy(){const input=$('tracking_link_url');try{await navigator.clipboard.writeText(input.value);$('tracking_link_copy_status').textContent='คัดลอกแล้ว พร้อมส่งให้ลูกค้า';}catch{input.focus();input.select();$('tracking_link_copy_status').textContent='เลือกลิงก์แล้ว กรุณาคัดลอกเพื่อส่งให้ลูกค้า';}}
+ $('create_tracking_link')?.addEventListener('click',createLink);$('tracking_link_copy')?.addEventListener('click',copy);$('tracking_link_close')?.addEventListener('click',()=>$('tracking_link_dialog').close());
+})();
