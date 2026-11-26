@@ -179,7 +179,7 @@ function updateHeaderSummaryBadges(jobs) {
     if (document.getElementById('badge_wait_bill')) document.getElementById('badge_wait_bill').innerText = waitBillCount;
     if (document.getElementById('badge_billed')) document.getElementById('badge_billed').innerText = billedCount;
     if (document.getElementById('badge_main_parts')) document.getElementById('badge_main_parts').innerText = mainP;
-    if (document.getElementById('badge_sub_parts')) document.getElementById('badge_sub_parts').innerText = subP;
+    if (document.getElementById('badge_sub_parts')) document.getElementById('badge_sub_parts').innerText = subP;applySAZeroVisibility(document.querySelector('header'));
 }
 
 function globalSearchCar() {
@@ -251,14 +251,14 @@ function updateSAFilterModalList(saStats) {
         const pendingCount = saStats[sa].pending;
         const waitBillCount = saStats[sa].waitBill;
         
-        const info = `(ค้าง ${pendingCount}, รอออกบิล ${waitBillCount})`;
+        const info = '('+[pendingCount?'ค้าง '+pendingCount:'',waitBillCount?'รอออกบิล '+waitBillCount:'',saStats[sa].billed?'ปิดบิล '+saStats[sa].billed:'',saStats[sa].sharedCount?'งานร่วม '+saStats[sa].sharedCount:''].filter(Boolean).join(', ')+')';
         const activeClass = (pendingCount > 0 || waitBillCount > 0) ? 'text-amber-600 font-bold' : 'text-slate-400 font-normal';
 
         html += `
             <label class="flex items-start gap-2 hover:bg-slate-100 p-1.5 rounded cursor-pointer sa-ef-item transition">
                 <input type="checkbox" value="${sa}" ${isChecked ? 'checked' : ''} class="sa-ef-check accent-[#00320D] mt-0.5 cursor-pointer w-4 h-4">
                 <span class="text-slate-700 font-medium truncate w-full text-sm" title="${JobTeam.text(sa)}">
-                    ${sa} <span class="text-[10px] ${activeClass}">${info}</span>
+                    ${JobTeam.text(sa)} <span class="text-[10px] ${activeClass}">${info}</span>
                 </span>
             </label>
         `;
@@ -311,6 +311,9 @@ function applySAFilter() {
 // =====================================
 // View 1: SA Cards List
 // =====================================
+function saHasVisibleMetrics(stats){return ['pending','waitBill','billed','totalOverdue','sumLabor','sumParts','sumOutsource','mainParts','subParts','sharedCount'].some(key=>Number.isFinite(Number(stats[key]))&&Number(stats[key])!==0);}
+function saPartsLabel(main,sub){return [Number(main)!==0?'หลัก '+main:'',Number(sub)!==0?'รอง '+sub:''].filter(Boolean).join(' · ');}
+function applySAZeroVisibility(root=document){if(!root)return;root.querySelectorAll('[data-sa-values],[data-sa-ids]').forEach(el=>{const values=el.dataset.saIds?el.dataset.saIds.split('|').map(id=>document.getElementById(id)?.textContent.replace(/,/g,'')||0):el.dataset.saValues.split('|');el.style.display=values.some(v=>Number.isFinite(Number(v))&&Number(v)!==0)?'':'none';});}
 function renderSAList() {
     // โหลดปุ่มกรองเข้าระบบ
     injectSAFilterUI();
@@ -375,32 +378,24 @@ function renderSAList() {
         }
     });
 
-    // 🎯 ถ้า User ยังไม่ได้กดปรับการเลือกเอง ระบบจะตั้งค่าเริ่มต้นให้
-    // (เลือกเฉพาะคนที่มีงานค้าง หรือรถรอออกบิล หรือปิดบิลในเดือนนั้น คนไหน 0 ล้วน จะถูกติ๊กออก ไม่เลือกถูก)
-    if (!isSAFilterUserModified) {
-        globalActiveSAFilters.clear();
-        Object.keys(saStats).forEach(sa => {
-            if (saStats[sa].pending > 0 || saStats[sa].waitBill > 0 || saStats[sa].billed > 0) {
-                globalActiveSAFilters.add(sa);
-            }
-        });
-    }
-
-    for(const job of allJobsData)for(const name of JobTeam.names(job))if(!saStats[name])saStats[name]={pending:0,waitBill:0,billed:0,ovApp:0,ovTgt:0,ovDel:0,totalOverdue:0,sumLabor:0,sumParts:0,sumOutsource:0,mainParts:0,subParts:0};
-    if(!isSAFilterUserModified)globalActiveSAFilters=new Set(Object.keys(saStats));
+    const mainCounts=new Map(),sharedCounts=new Map();
+    for(const job of allJobsData){const owner=JobTeam.primary(job);mainCounts.set(owner,(mainCounts.get(owner)||0)+1);for(const name of new Set(JobTeam.names(job))){sharedCounts.set(name,(sharedCounts.get(name)||0)+1);if(!saStats[name])saStats[name]={pending:0,waitBill:0,billed:0,ovApp:0,ovTgt:0,ovDel:0,totalOverdue:0,sumLabor:0,sumParts:0,sumOutsource:0,mainParts:0,subParts:0};}}
+    for(const name of Object.keys(saStats)){saStats[name].mainCount=mainCounts.get(name)||0;saStats[name].sharedCount=sharedCounts.get(name)||0;}
+    const visibleStats=Object.fromEntries(Object.entries(saStats).filter(([,stats])=>saHasVisibleMetrics(stats)));
+    if(!isSAFilterUserModified)globalActiveSAFilters=new Set(Object.keys(visibleStats));
     // วาดรายการ Checkbox ใน Modal
-    updateSAFilterModalList(saStats);
+    updateSAFilterModalList(visibleStats);
 
     // กรองการ์ด SA บนหน้าจอตามรายชื่อที่ถูกเลือก (Check)
-    const sortedSAs = Object.keys(saStats)
+    const sortedSAs = Object.keys(visibleStats)
         .filter(sa => globalActiveSAFilters.has(sa))
         .sort((a, b) => saStats[b].pending - saStats[a].pending);
         
     const formatMoney = (val) => Number(val).toLocaleString('th-TH', {minimumFractionDigits: 0, maximumFractionDigits: 2});
 
     let html = `
-    <div class="col-span-full bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-2 flex flex-col md:flex-row gap-6">
-        <div class="flex-1 flex flex-col justify-center bg-amber-50 border border-amber-200 rounded-xl p-4">
+    <div data-sa-values="${totalWaitBill}|${totalBilled}|${totalMain}|${totalSub}|${totalLabor}|${totalParts}|${totalOutsource}" class="col-span-full bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-2 flex flex-col md:flex-row gap-6">
+        <div data-sa-values="${totalWaitBill}" class="flex-1 flex flex-col justify-center bg-amber-50 border border-amber-200 rounded-xl p-4">
             <div class="flex justify-between items-center">
                 <div class="flex items-center gap-3">
                     <i class="fa-solid fa-file-invoice text-3xl text-amber-400"></i>
@@ -413,7 +408,7 @@ function renderSAList() {
             </div>
         </div>
         
-        <div class="flex-[2.5] bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex flex-col justify-center">
+        <div data-sa-values="${totalBilled}|${totalMain}|${totalSub}|${totalLabor}|${totalParts}|${totalOutsource}" class="flex-[2.5] bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex flex-col justify-center">
             <div class="flex justify-between items-center mb-3">
                 <div class="flex items-center gap-3">
                     <i class="fa-solid fa-file-invoice-dollar text-3xl text-emerald-400"></i>
@@ -425,19 +420,19 @@ function renderSAList() {
                 <span class="text-4xl font-black text-emerald-600">${totalBilled}</span>
             </div>
             <div class="grid grid-cols-4 gap-2 text-center border-t border-emerald-200/60 pt-3">
-                <div>
+                <div data-sa-values="${totalMain}|${totalSub}">
                     <p class="text-[11px] text-emerald-700 font-bold mb-0.5">ชิ้น(หลัก/รอง)</p>
-                    <p class="text-base font-black text-slate-700"><span class="text-blue-600">${totalMain}</span> / <span class="text-amber-600">${totalSub}</span></p>
+                    <p class="text-base font-black text-slate-700"><span class="text-blue-600">${saPartsLabel(totalMain,totalSub)}</span></p>
                 </div>
-                <div class="border-l border-emerald-200/60">
+                <div data-sa-values="${totalLabor}" class="border-l border-emerald-200/60">
                     <p class="text-[11px] text-emerald-700 font-bold mb-0.5">ค่าแรง</p>
                     <p class="text-base font-black text-emerald-700">${formatMoney(totalLabor)}</p>
                 </div>
-                <div class="border-l border-emerald-200/60">
+                <div data-sa-values="${totalParts}" class="border-l border-emerald-200/60">
                     <p class="text-[11px] text-emerald-700 font-bold mb-0.5">ค่าอะไหล่</p>
                     <p class="text-base font-black text-purple-600">${formatMoney(totalParts)}</p>
                 </div>
-                <div class="border-l border-emerald-200/60">
+                <div data-sa-values="${totalOutsource}" class="border-l border-emerald-200/60">
                     <p class="text-[11px] text-emerald-700 font-bold mb-0.5">งานนอก</p>
                     <p class="text-base font-black text-orange-600">${formatMoney(totalOutsource)}</p>
                 </div>
@@ -447,39 +442,39 @@ function renderSAList() {
     `;
 
     if(sortedSAs.length === 0) { 
-        container.innerHTML = html + `<div class="col-span-full text-center py-10 text-slate-400 font-bold bg-white rounded-xl border border-slate-200">ยังไม่มีงานค้างเลย 🎉</div>`; 
-        return; 
+        container.innerHTML = html + `<div class="col-span-full text-center py-10 text-slate-400 font-bold bg-white rounded-xl border border-slate-200">ไม่พบ SA ที่มีงานค้าง งานร่วม หรือยอดในเดือนที่เลือก</div>`;
+        applySAZeroVisibility(container);return;
     }
 
     html += sortedSAs.map(sa => {
         const stats = saStats[sa];
         return `
-        <div onclick="openSADetail(${JobTeam.text(JSON.stringify(sa))})" class="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between cursor-pointer hover:border-amber-500 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden group">
+        <div data-sa-card="${JobTeam.text(sa)}" onclick="openSADetail(${JobTeam.text(JSON.stringify(sa))})" class="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between cursor-pointer hover:border-amber-500 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden group">
             <div class="absolute -right-4 -bottom-4 text-slate-100 text-6xl opacity-30 rotate-12 transition-transform group-hover:scale-110"><i class="fa-solid fa-user-tie"></i></div>
             
             <div class="flex items-center gap-4 mb-3 relative z-10">
                 <div class="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-xl font-black shadow-md shrink-0"><i class="fa-solid fa-user-tie"></i></div>
                 <div class="truncate w-full">
                     <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Service Advisor</p>
-                    <h3 class="text-base font-black text-[#00320D] leading-tight truncate w-full" title="${sa}">${JobTeam.text(sa)}</h3><p class="text-xs text-blue-700">งานหลักสะสม ${allJobsData.filter(j=>JobTeam.primary(j)===sa).length} · งานร่วมสะสม ${allJobsData.filter(j=>JobTeam.names(j).includes(sa)).length}</p>
+                    <h3 class="text-base font-black text-[#00320D] leading-tight truncate w-full" title="${JobTeam.text(sa)}">${JobTeam.text(sa)}</h3><p class="text-xs text-blue-700"><span data-sa-values="${stats.mainCount}">งานหลักสะสม ${stats.mainCount}</span><span data-sa-values="${stats.sharedCount}"> งานร่วมสะสม ${stats.sharedCount}</span></p>
                 </div>
             </div>
             
             <div class="flex flex-col gap-1.5 relative z-10">
-                <div class="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100 flex justify-between items-center mb-1">
+                <div data-sa-values="${stats.pending}" class="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100 flex justify-between items-center mb-1">
                     <span class="text-[11px] font-bold text-slate-600">งานค้างในระบบ</span>
                     <div class="text-right"><span class="text-lg font-black text-blue-600 leading-none">${stats.pending}</span> <span class="text-[10px] text-slate-500 font-bold">คัน</span></div>
                 </div>
 
                 <div class="flex items-center justify-between gap-1 mt-1 mb-2 text-[9px] font-bold">
-                    <span class="bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded border border-amber-300 shadow-sm flex-1 text-center truncate" title="ยอดสะสมรถรอออกบิล (ไม่สนใจเดือน)">
+                    <span data-sa-values="${stats.waitBill}" class="bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded border border-amber-300 shadow-sm flex-1 text-center truncate" title="ยอดสะสมรถรอออกบิล (ไม่สนใจเดือน)">
                         📄 รอออกบิล: <span class="font-black text-amber-600 text-[10px]">${stats.waitBill}</span>
                     </span>
-                    <span class="bg-emerald-500/10 text-emerald-600 px-1.5 py-0.5 rounded border border-emerald-300 shadow-sm flex-1 text-center truncate" title="ปิดบิลแล้วประจำเดือน">
+                    <span data-sa-values="${stats.billed}" class="bg-emerald-500/10 text-emerald-600 px-1.5 py-0.5 rounded border border-emerald-300 shadow-sm flex-1 text-center truncate" title="ปิดบิลแล้วประจำเดือน">
                         ✅ ปิดบิล: <span class="font-black text-emerald-600 text-[10px]">${stats.billed}</span>
                     </span>
-                    <span class="bg-blue-500/10 text-blue-600 px-1.5 py-0.5 rounded border border-blue-300 shadow-sm flex-[1.2] text-center truncate" title="ชิ้นส่วนอะไหล่ (หลัก / รอง)">
-                        📦 อะไหล่: <span class="font-black text-blue-600 text-[10px]">${stats.mainParts}</span><span class="text-slate-400 mx-0.5 font-medium">/</span><span class="font-black text-amber-500 text-[10px]">${stats.subParts}</span>
+                    <span data-sa-values="${stats.mainParts}|${stats.subParts}" class="bg-blue-500/10 text-blue-600 px-1.5 py-0.5 rounded border border-blue-300 shadow-sm flex-[1.2] text-center truncate" title="ชิ้นส่วนอะไหล่ (หลัก / รอง)">
+                        📦 อะไหล่: <span class="font-black text-blue-600 text-[10px]">${saPartsLabel(stats.mainParts,stats.subParts)}</span>
                     </span>
                 </div>
 
@@ -489,7 +484,7 @@ function renderSAList() {
         </div>`;
     }).join('');
 
-    container.innerHTML = html;
+    container.innerHTML = html;applySAZeroVisibility(container);
 }
 
 function backToSAList() {
@@ -549,7 +544,7 @@ function calculateSAOverdues(jobs) {
     });
 
     const setBtn = (id, count, color) => {
-        const btn = document.getElementById(id);
+        const btn = document.getElementById(id);btn.style.display=count===0?'none':'';
         document.getElementById(id.replace('btn_', '') + '_count').innerText = count;
         if(count > 0) btn.className = `px-2.5 py-1 bg-${color}-100 border-2 border-${color}-500 rounded-lg text-xs font-bold text-${color}-700 transition flex items-center gap-1 shadow-md animate-pulse`;
         else btn.className = `px-2.5 py-1 bg-white border border-${color}-300 hover:bg-${color}-100 rounded-lg text-xs font-bold text-${color}-700 transition flex items-center gap-1 shadow-sm`;
@@ -666,7 +661,7 @@ function updateBilledCount(jobs) {
     document.getElementById('sum_sub_parts').innerText = sumSub;
     document.getElementById('sum_labor').innerText = formatMoney(sumLabor);
     document.getElementById('sum_parts').innerText = formatMoney(sumParts);
-    document.getElementById('sum_outsource').innerText = formatMoney(sumOutsource);
+    document.getElementById('sum_outsource').innerText = formatMoney(sumOutsource);applySAZeroVisibility(document.getElementById('sa_detail_view'));
 }
 
 function renderSAStatuses(jobs) {

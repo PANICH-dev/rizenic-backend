@@ -38,7 +38,8 @@
   const id=document.getElementById('sa_report_id')?.value;
   if(!id||String(job?.id)!==String(id)){alert('กรุณาบันทึกใบงานก่อนเช็กอิน');return;}
   const owner=document.getElementById('sa_owner_input')?.value.trim();
-  if(!owner||owner!==String(job.sa_owner||'').trim()){alert('กรุณาบันทึกการเปลี่ยน SA ก่อนเช็กอิน');return;}
+  const unchanged=window.SAAssignment?.matchesSavedPrimary?window.SAAssignment.matchesSavedPrimary(job):!!owner&&owner===String(job.sa_owner||'').trim();
+  if(!unchanged){alert('กรุณาบันทึกการเปลี่ยน SA ก่อนเช็กอิน');return;}
   const actor=sessionStorage.getItem('emp_name');if(!actor){alert('กรุณาเข้าสู่ระบบก่อนเช็กอิน');return;}
   const date=button.closest('[data-checkin-group]')?.querySelector('.insurance-event-date')?.value;
   if(kind==='insurance'&&(!date||date>today())){alert('เลือกวันที่เสนอประกันจริง โดยต้องไม่เกินวันนี้');return;}
