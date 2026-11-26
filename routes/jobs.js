@@ -158,10 +158,10 @@ router.put('/report/:id',async(req,res)=>{
 
 router.put('/report/:id/station',async(req,res)=>{
  try{
- const allowed=['station_kho','station_pou','station_puan','station_pon','station_prak','station_kat','station_qc','station_mag','station_kraj','station_film','station_pak','station_ready','repair_notes','repair_finish_date','job_status','department_routing','target_finish_date','delivery_date'];
- const patch={};for(const key of allowed)if(Object.hasOwn(req.body,key)){let value=req.body[key];if(key.startsWith('station_')){if(typeof value!=='boolean')throw quotaError('ค่าสถานีต้องเป็น true หรือ false');}else if(value!==null&&typeof value!=='string')throw quotaError('รูปแบบข้อมูลไม่ถูกต้อง');patch[key]=value===''?null:value;}
+ const allowed=['station_kho','station_pou','station_puan','station_pon','station_prak','station_kat','station_qc','station_mag','station_kraj','station_film','station_pak','station_ready','repair_notes','repair_finish_date','job_status','department_routing','target_finish_date','delivery_date','main_part_name','sub_part_name','main_part_qty','sub_part_qty'];
+ const patch={};for(const key of allowed)if(Object.hasOwn(req.body,key)){let value=req.body[key];if(key.startsWith('station_')){if(typeof value!=='boolean')throw quotaError('ค่าสถานีต้องเป็น true หรือ false');}else if(['main_part_qty','sub_part_qty'].includes(key)){if(!Number.isSafeInteger(value)||value<0)throw quotaError('จำนวนชิ้นงานต้องเป็นจำนวนเต็มตั้งแต่ 0 ขึ้นไป');}else if(value!==null&&typeof value!=='string')throw quotaError('รูปแบบข้อมูลไม่ถูกต้อง');patch[key]=value===''?null:value;}
  if(!Object.keys(patch).length)throw quotaError('ไม่มีข้อมูลที่อนุญาตให้อัปเดต');
- await withBooking(pool,req.params.id,previous=>({...previous,...Object.fromEntries(['target_finish_date','delivery_date'].filter(k=>Object.hasOwn(patch,k)).map(k=>[k,patch[k]]))}),(client,next)=>{
+ await withBooking(pool,req.params.id,previous=>({...previous,...Object.fromEntries(['target_finish_date','delivery_date','main_part_qty','sub_part_qty'].filter(k=>Object.hasOwn(patch,k)).map(k=>[k,patch[k]]))}),(client,next)=>{
  for(const key of ['target_finish_date','delivery_date'])if(Object.hasOwn(patch,key))patch[key]=next[key];
  const keys=Object.keys(patch),values=keys.map(k=>patch[k]);values.push(req.params.id);
  return client.query('UPDATE rizenicreport SET '+keys.map((k,i)=>k+'=$'+(i+1)).join(',')+' WHERE id=$'+values.length,values);

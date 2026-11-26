@@ -1003,16 +1003,16 @@ async function submitRepairStation() {
     const targetDateInput = document.getElementById('m_target_date').value;
     const deliveryDateInput = document.getElementById('m_delivery_date').value;
     
+    const existingJob = originalRepairJobs.find(j => String(j.id) === String(id));
+    if (!existingJob) { showToast('ไม่พบใบงาน กรุณาโหลดรายการใหม่', 'error'); return; }
+    const savedRepairDate = String(existingJob.repair_finish_date || '').slice(0, 10);
     const today = getTodayString();
-    if (repairDateInput && repairDateInput < today) {
+    if (repairDateInput && repairDateInput !== savedRepairDate && repairDateInput < today) {
         alert('❌ ไม่สามารถใส่วันที่เสร็จจริงย้อนหลังได้ครับ!');
         return;
     }
 
-    const existingJob = originalRepairJobs.find(j => String(j.id) === String(id)) || {};
-
     const fullPayload = {
-        ...existingJob,
         station_kho: document.getElementById('chk_kho').checked,
         station_pou: document.getElementById('chk_pou').checked,
         station_puan: document.getElementById('chk_puan').checked,
@@ -1046,13 +1046,14 @@ async function submitRepairStation() {
         const oldHtml = btnSubmit ? btnSubmit.innerHTML : '';
         if(btnSubmit) { btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...'; btnSubmit.disabled = true; }
 
-        const res = await fetch(`${API_BASE_URL}/api/report/${id}`, {
+        const res = await fetch(`${API_BASE_URL}/api/report/${id}/station`, {
             method: 'PUT', 
             headers: {'Content-Type': 'application/json'}, 
             body: JSON.stringify(fullPayload)
         });
         
-        if (!res.ok) throw new Error('บันทึกข้อมูลหลักไม่สำเร็จ');
+        const result = await res.json().catch(() => null);
+        if (!res.ok || result?.success !== true) throw new Error(result?.error || 'บันทึกสถานีช่างไม่สำเร็จ กรุณาลองใหม่');
 
         const job = originalRepairJobs.find(j => String(j.id) === String(id));
         if(job) {
