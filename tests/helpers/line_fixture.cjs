@@ -1,0 +1,36 @@
+function fixture(){
+ const reports=[{id:1,car_plate:'NAV123',car_brand:'Tesla',car_model:'Y',vin_no:'VIN-NAV',branch_name:'นวมินทร์',customer_name:'ลูกค้า A',sa_owner:'Game',service_visit_no:'SV1',job_status:'10.กำลังซ่อม'},{id:2,car_plate:'NAV123',vin_no:'VIN-NAV',branch_name:'นวมินทร์',sa_owner:'Game',service_visit_no:'SV1',job_status:'10.กำลังซ่อม'},{id:3,car_plate:'RANG123',vin_no:'VIN-RANG',branch_name:'รังสิต',sa_owner:'Full',service_visit_no:'SV2',job_status:'10.กำลังซ่อม'}];
+ const contacts=new Map([['1',{id:'1',branch:'navamin',line_user_id:'U'+'1'.repeat(32),display_name:'ลูกค้า NAV',is_active:true,followed_at:new Date().toISOString()}],['2',{id:'2',branch:'navamin',line_user_id:'U'+'2'.repeat(32),display_name:'ลูกค้า NAV 2',is_active:true,followed_at:new Date().toISOString()}],['3',{id:'3',branch:'rangsit',line_user_id:'U'+'3'.repeat(32),display_name:'ลูกค้า RANG',is_active:true,followed_at:new Date().toISOString()}]]),bindings=new Map(),deliveries=new Map(),links=new Map(),settings=new Map(),calls=[];let nextLink=1;const employees=new Map();const clone=map=>new Map([...map].map(([k,v])=>[k,structuredClone(v)]));
+ async function query(sql,args=[]){calls.push({sql,args});const rows=value=>({rows:value.map(v=>structuredClone(v))});
+ if(sql.includes('FROM public.tracking_employee_sessions'))return rows(employees.has(args[0])?[employees.get(args[0])]:[]);
+ if(sql.startsWith('SELECT * FROM public.line_branch_settings'))return rows(settings.has(args[0])?[settings.get(args[0])]:[]);
+ if(sql.startsWith('SELECT branch,enabled,send_enabled'))return rows([...settings.values()].map(s=>({branch:s.branch,enabled:s.enabled,send_enabled:s.send_enabled,bot_user_id:s.bot_user_id,bot_display_name:s.bot_display_name,bot_basic_id:s.bot_basic_id,has_token:!!s.access_token_enc,has_secret:!!s.channel_secret_enc})));
+ if(sql.startsWith('SELECT enabled,send_enabled'))return rows(settings.has(args[0])?[settings.get(args[0])]:[]);
+ if(sql.startsWith('INSERT INTO public.line_branch_settings')){settings.set(args[0],{branch:args[0],access_token_enc:args[1],channel_secret_enc:args[2],enabled:args[3],send_enabled:args[4],bot_user_id:args[5],bot_display_name:args[6],bot_basic_id:args[7]});return rows([]);}
+ if(sql.startsWith('UPDATE public.line_branch_settings SET enabled=false')){Object.assign(settings.get(args[0]),{enabled:false,send_enabled:false});return rows([]);}
+ if(sql.includes('FROM public.rizenicreport WHERE id=$1'))return rows(reports.filter(j=>String(j.id)===String(args[0])));
+ if(sql.includes('FROM public.rizenicreport WHERE branch_name IS NOT DISTINCT'))return rows(reports.filter(j=>j.branch_name===args[0]&&j.vin_no===args[1]));
+ if(sql.startsWith('SELECT id FROM public.rizenicreport'))return rows(reports.filter(j=>args[0].map(String).includes(String(j.id))));
+ if(sql.startsWith('SELECT b.report_id'))return rows([...bindings.values()].filter(b=>args[0].map(String).includes(String(b.report_id))).map(b=>({...b,...{display_name:contacts.get(String(b.contact_id)).display_name,is_active:contacts.get(String(b.contact_id)).is_active,branch:contacts.get(String(b.contact_id)).branch}})));
+ if(sql.startsWith('SELECT c.id,c.display_name'))return rows([...contacts.values()].filter(c=>c.branch===args[0]&&c.is_active&&(args[1]||![...bindings.values()].some(b=>String(b.contact_id)===String(c.id))||args[2].includes(String(c.id)))).map(c=>({...c,linked:[...bindings.values()].some(b=>String(b.contact_id)===String(c.id))})));
+ if(sql.startsWith('SELECT id,branch,line_user_id'))return rows(contacts.has(String(args[0]))?[contacts.get(String(args[0]))]:[]);
+ if(sql.startsWith('SELECT is_active FROM public.line_customers'))return rows(contacts.has(String(args[0]))?[contacts.get(String(args[0]))]:[]);
+ if(sql.startsWith('INSERT INTO public.line_customer_bindings')){for(const id of args[0])bindings.set(String(id),{report_id:String(id),branch:args[1],contact_id:String(args[2]),bound_by:args[3]});return rows([]);}
+ if(sql.startsWith('DELETE FROM public.line_customer_bindings')){for(const id of args[0])bindings.delete(String(id));return rows([]);}
+ if(sql.startsWith('SELECT request_id,status,sent_at'))return rows([...deliveries.values()].filter(d=>args[0].map(String).includes(String(d.report_id))).sort((a,b)=>b.created_at.localeCompare(a.created_at)).slice(0,1));
+ if(sql.startsWith('SELECT request_id FROM public.line_tracking_deliveries')){const list=[...deliveries.values()].filter(d=>args[0].map(String).includes(String(d.report_id)));if(sql.includes('contact_id<>'))return rows(list.filter(d=>d.contact_id!==String(args[1])&&d.status==='sending'&&d.locked_until>Date.now()).slice(0,1));if(sql.includes("status IN ('pending','sending','unknown')"))return rows(list.filter(d=>d.contact_id===String(args[1])&&['pending','sending','unknown'].includes(d.status)).slice(0,1));return rows(list.filter(d=>d.contact_id===String(args[1])&&d.status==='accepted'&&Date.parse(d.sent_at)>Date.now()-60000).slice(0,1));}
+ if(sql.startsWith('SELECT *,locked_until'))return rows(deliveries.has(args[0])?[{...deliveries.get(args[0]),locked:deliveries.get(args[0]).locked_until>Date.now()}]:[]);
+ if(sql.startsWith('INSERT INTO public.line_tracking_deliveries')){const d={request_id:args[0],report_id:args[1],branch:args[2],contact_id:String(args[3]),tracking_link_id:args[4],created_by:args[5],payload_enc:args[6],status:'pending',created_at:new Date().toISOString(),attempts:0};deliveries.set(args[0],d);return rows([d]);}
+ if(sql.startsWith("UPDATE public.line_tracking_deliveries SET status='sending'")){const d=deliveries.get(args[0]);d.status='sending';d.attempts++;d.locked_until=Date.now()+30000;return rows([]);}
+ if(sql.startsWith("UPDATE public.line_tracking_deliveries SET status='accepted'")){Object.assign(deliveries.get(args[0]),{status:'accepted',sent_at:new Date().toISOString(),locked_until:null,line_request_id:args[1]});return rows([]);}
+ if(sql.startsWith('UPDATE public.line_tracking_deliveries SET status=$2')){Object.assign(deliveries.get(args[0]),{status:args[1],locked_until:null,error_code:args[2]});return rows([]);}
+ if(sql.startsWith('INSERT INTO public.customer_tracking_links')){const row={id:nextLink++,token_hash:args[0],job_ids:args[2],expires_at:new Date(Date.now()+86400000).toISOString(),expired:false};links.set(String(row.id),row);return rows([row]);}
+ if(sql.startsWith('SELECT id,job_ids,expires_at'))return rows([...links.values()].filter(l=>l.token_hash===args[0]));
+ if(sql.startsWith('SELECT expires_at'))return rows(links.has(String(args[0]))?[links.get(String(args[0]))]:[]);
+ if(sql.includes('FROM public.rizenicemployeemaster WHERE employee_id::text=ANY'))return rows([{employee_id:'1',employee_name:'Game'}]);
+ if(['BEGIN','COMMIT','ROLLBACK'].includes(sql))return rows([]);
+ throw Error('Unexpected LINE fixture SQL: '+sql.slice(0,100));
+ }
+ const pool={query,async connect(){let saved;return{async query(sql,args){if(sql==='BEGIN')saved={bindings:clone(bindings),deliveries:clone(deliveries),links:clone(links)};if(sql==='ROLLBACK'&&saved){for(const [map,snapshot]of [[bindings,saved.bindings],[deliveries,saved.deliveries],[links,saved.links]]){map.clear();for(const [k,v]of snapshot)map.set(k,v);}}return query(sql,args);},release(){}};}};
+ return{pool,reports,contacts,bindings,deliveries,links,settings,calls,employees};
+}module.exports={fixture};

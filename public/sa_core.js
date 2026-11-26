@@ -126,6 +126,7 @@ async function handleLogin(e) {
 
         if (data.success) {
             const emp = data.employee || {};
+            sessionStorage.setItem('employee_id',String(emp.employee_id||''));sessionStorage.setItem('emp_username',userEl.value);sessionStorage.setItem('employee_session_error',data.tracking_session_error||'');
             if(data.employee_session)sessionStorage.setItem('employee_session',data.employee_session);else sessionStorage.removeItem('employee_session');
             sessionStorage.setItem('isLoggedIn', 'true'); 
             sessionStorage.setItem('emp_name', emp.employee_name || userEl.value);
@@ -522,7 +523,7 @@ async function checkCrossPageEditMode() {
         setDateVal('repair_finish_date', job.repair_finish_date);
         setDateVal('delivery_date', job.delivery_date);
         document.getElementById('service_visit_no').value=job.service_visit_no||'';
-        window.SAActivity?.setJob(job);
+        window.SAActivity?.setJob(job);window.TrackingTools?.setJob(job);
 
         if (job.car_plate && typeof loadPartsTrackingTable === 'function') {
             loadPartsTrackingTable(job.car_plate.trim(), job.id || idToEdit);
@@ -586,7 +587,7 @@ function cancelEditMode() {
 
     // 🌟 เคลียร์ฟิลด์ E-Claim Details
     const resetVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
-    resetVal('service_visit_no','');window.SAActivity?.setJob(null);
+    resetVal('service_visit_no','');window.SAActivity?.setJob(null);window.TrackingTools?.setJob(null);
     resetVal('car_color', ''); resetVal('model_year', '');
     resetVal('eclaim_province', ''); resetVal('eclaim_car_type', ''); resetVal('eclaim_year', '');
     resetVal('eclaim_trim', ''); resetVal('eclaim_engine_no', ''); resetVal('eclaim_car_color', '');
@@ -765,6 +766,7 @@ async function submitSaForm(event) {
 
         const resJson = await response.json();
         const savedJobId = editId || resJson?.insertedId || resJson?.id || null;
+        if(savedJobId){document.getElementById('sa_report_id').value=savedJobId;window.TrackingTools?.setJob({...formData,id:savedJobId});}
 
         // 🌟 1. บันทึกข้อมูล E-Claim Details (ข้อมูลรายละเอียดรถและประกัน) 🌟
         if (savedJobId) {
