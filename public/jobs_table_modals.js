@@ -95,8 +95,7 @@ async function confirmPartsSelection() {
         if(inputQty) inputQty.value = partsCount;
     } else {
         const qtyField = activeFieldForParts === 'main_part_name' ? 'main_part_qty' : 'sub_part_qty';
-        await fastUpdateJob(activeJobIdForParts, activeFieldForParts, joinedPartsStr, true);
-        await fastUpdateJob(activeJobIdForParts, qtyField, partsCount, false);
+        try{await JobTeam.request(API_BASE_URL+'/api/report/'+activeJobIdForParts+'/parts',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({field:activeFieldForParts,name:joinedPartsStr,quantity:partsCount})});const job=allJobsData.find(j=>String(j.id)===String(activeJobIdForParts));if(job){job[activeFieldForParts]=joinedPartsStr;job[qtyField]=partsCount;}applyFilters();showToast('บันทึกชิ้นงานเรียบร้อย');}catch(error){showToast(error.message,'error');return;}
     }
     
     closePartsSelectModal();
@@ -107,7 +106,7 @@ async function confirmPartsSelection() {
 // ------------------------------------------
 function openBulkModal() {
     // 🌟 ดักไม่เอา Action และ สถานีที่คำนวณอัตโนมัติ
-    const pdiCols = columnsDef.filter(c => c.key !== 'action' && c.key !== 'calculated_station'); 
+    const pdiCols = columnsDef.filter(c => c.key !== 'action' && c.key !== 'calculated_station' && c.key !== 'sa_collaborators');
     
     let thHtml = '<th class="w-10 min-w-[40px] text-center bg-[#00320D] text-white border-b border-[#1e3a1e] sticky left-0 z-20">#</th>';
     pdiCols.forEach(c => {
@@ -158,7 +157,7 @@ function addBulkRow(rowData = null) {
         branchOptions = `<option value="${userBranch}" selected>${userBranch}</option>`;
     }
 
-    columnsDef.filter(c => c.key !== 'action' && c.key !== 'calculated_station').forEach(c => {
+    columnsDef.filter(c => c.key !== 'action' && c.key !== 'calculated_station' && c.key !== 'sa_collaborators').forEach(c => {
         const val = rowData ? (rowData[c.title] || '') : '';
         
         if (c.key.includes('date')) {
@@ -229,7 +228,7 @@ function addBulkRow(rowData = null) {
 
 function downloadExcelTemplate() {
     let row = {}; 
-    columnsDef.filter(c => c.key !== 'action' && c.key !== 'calculated_station').forEach(c => { row[c.title] = ''; });
+    columnsDef.filter(c => c.key !== 'action' && c.key !== 'calculated_station' && c.key !== 'sa_collaborators').forEach(c => { row[c.title] = ''; });
     row['ทะเบียนรถ'] = 'กข 1234'; 
     row['ยี่ห้อรถ'] = 'Tesla'; 
     row['รุ่นรถ'] = 'Model 3'; 
@@ -277,7 +276,7 @@ function copyDown(fieldKey) {
 async function saveBulkData() {
     const rows = document.querySelectorAll('.bulk-row'); 
     let promises = []; 
-    const pdiCols = columnsDef.filter(c => c.key !== 'action' && c.key !== 'calculated_station');
+    const pdiCols = columnsDef.filter(c => c.key !== 'action' && c.key !== 'calculated_station' && c.key !== 'sa_collaborators');
     
     const btn = document.getElementById('btn_save_bulk'); 
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังตรวจสอบข้อมูล...'; 
@@ -285,11 +284,11 @@ async function saveBulkData() {
     
     try {
         const [resJobs, resQuotas] = await Promise.all([
-            fetch(`${API_BASE_URL}/api/reports`),
-            fetch(`${API_BASE_URL}/api/quotas`)
+            JobTeam.request(`${API_BASE_URL}/api/reports?fields=table`),
+            JobTeam.request(`${API_BASE_URL}/api/quotas`)
         ]);
-        const allJobs = await resJobs.json();
-        const allQuotas = await resQuotas.json();
+        const allJobs = resJobs;
+        const allQuotas = resQuotas;
 
         let hasError = false;
 
@@ -298,6 +297,7 @@ async function saveBulkData() {
             const plateInput = row.querySelector('.bulk-input-car_plate'); 
             if(!plateInput || !plateInput.value.trim()) return; 
             
+            if(row.dataset.saved==='true')return;
             let payload = {};
             pdiCols.forEach(c => { 
                 const inp = row.querySelector(`.bulk-input-${c.key}`); 
@@ -348,7 +348,7 @@ async function saveBulkData() {
                 }
             }
 
-            promises.push(fetch(`${API_BASE_URL}/api/report`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }));
+            promises.push({row,payload});
         });
         
         if (hasError) {
@@ -363,7 +363,9 @@ async function saveBulkData() {
         }
         
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึกข้อมูล...';
-        await Promise.all(promises); 
+        const outcomes=await Promise.allSettled(promises.map(async item=>{await JobTeam.request(API_BASE_URL+'/api/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(item.payload)});item.row.dataset.saved='true';item.row.style.opacity='0.5';}));
+        const failures=outcomes.flatMap((r,i)=>r.status==='rejected'?[promises[i].payload.car_plate+': '+r.reason.message]:[]);
+        if(failures.length){alert('บันทึกสำเร็จ '+(outcomes.length-failures.length)+' / '+outcomes.length+' รายการ\n'+failures.join('\n'));if(typeof loadJobsData==='function')await loadJobsData();return;}
         alert(`🎉 นำเข้าสำเร็จ ${promises.length} คัน!`); 
         closeBulkModal(); 
         
@@ -413,14 +415,14 @@ async function _openScheduleCalendar(field, jobId) {
         const b = userBranch || 'สำนักงานใหญ่';
 
         const [resJobs, resQuotas] = await Promise.all([
-            fetch(`${API_BASE_URL}/api/reports`),
-            fetch(`${API_BASE_URL}/api/quotas`)
+            JobTeam.request(`${API_BASE_URL}/api/reports?fields=table`),
+            JobTeam.request(`${API_BASE_URL}/api/quotas`)
         ]);
         
-        const rawJobs = await resJobs.json();
+        const rawJobs = resJobs;
         allSchedJobs = Array.isArray(rawJobs) ? rawJobs.filter(j => j.branch_name === b && String(j.id) !== String(jobId)) : [];
         
-        const rawQuotas = await resQuotas.json();
+        const rawQuotas = resQuotas;
         allSchedQuotas = Array.isArray(rawQuotas) ? rawQuotas.filter(q => q.branch_name === b) : [];
         
         renderSchedCalendar();

@@ -52,7 +52,7 @@ router.put('/quotas/:id', async (req, res) => { try { const d = req.body; await 
 router.delete('/quotas/:id', async (req, res) => { try { await quotaTransaction(pool,client=>client.query('DELETE FROM rizenic_quotas WHERE id = $1', [req.params.id])); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 
 const BOARD_FIELDS = [
-  'id', 'branch_name', 'department_routing', 'job_status', 'sa_owner',
+  'id', 'branch_name', 'department_routing', 'job_status', 'sa_owner', 'sa_owner_employee_id', 'sa_collaborator_employee_ids',
   'customer_name', 'phone_number', 'car_plate', 'car_brand', 'car_model', 'vin_no',
   'damage_level', 'arrived_date', 'contact_date', 'target_finish_date',
   'repair_finish_date', 'delivery_date', 'repair_notes',
@@ -60,6 +60,8 @@ const BOARD_FIELDS = [
   'station_qc', 'station_kat', 'station_prak', 'station_pon', 'station_puan',
   'station_pou', 'station_kho'
 ].join(', ');
+
+const TABLE_FIELDS=Array.from(new Set((BOARD_FIELDS+',customer_type,payment_type,main_part_name,main_part_qty,sub_part_name,sub_part_qty,cost_labor,cost_part,cost_external,notes,qt_no,so_no,bl_no,ivn_no,billing_date,epc_no,part_status,order_part_date,est_part_date,ordered_part_names,is_parked,car_color,appointment_date').split(',').map(s=>s.trim()))).join(',');
 
 router.post('/quota-check',async(req,res)=>{
  try{const {id,...proposed}=req.body;
@@ -113,7 +115,8 @@ router.get('/reports', async (req, res) => {
     }
     const columns = fields === 'board' ? BOARD_FIELDS : fields === 'quota' ? 'id,branch_name,arrived_date,target_finish_date,delivery_date,main_part_qty,sub_part_qty' : '*';
     const result = await pool.query(`SELECT ${columns} FROM rizenicreport ${conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : ''} ORDER BY id DESC`, params);
-    res.json(result.rows);
+    const tableKeys=(TABLE_FIELDS+',part_received_all_date,labor_total,part_total,outsource_total,actual_finish_date,model_year,service_visit_no,claim_no,customer_source').split(',').map(k=>k.trim());
+    res.json(fields==='table'?result.rows.map(row=>Object.fromEntries(tableKeys.filter(k=>Object.hasOwn(row,k)).map(k=>[k,row[k]]))):result.rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -154,9 +157,24 @@ router.put('/report/:id',async(req,res)=>{
 });
 
 router.put('/report/:id/station',async(req,res)=>{
- try{const d=req.body;await withBooking(pool,req.params.id,previous=>({...previous,target_finish_date:d.target_finish_date||null,delivery_date:d.delivery_date||null}),(client,next)=>{d.target_finish_date=next.target_finish_date;d.delivery_date=next.delivery_date;return client.query(`UPDATE rizenicreport SET station_kho=$1, station_pou=$2, station_puan=$3, station_pon=$4, station_prak=$5, station_kat=$6, station_qc=$7, station_mag=$8, station_kraj=$9, station_film=$10, station_pak=$11, station_ready=$12, repair_notes=$13, repair_finish_date=$14, job_status=$15, department_routing=$16, target_finish_date=$17, delivery_date=$18 WHERE id=$19;`, [d.station_kho || false, d.station_pou || false, d.station_puan || false, d.station_pon || false, d.station_prak || false, d.station_kat || false, d.station_qc || false, d.station_mag || false, d.station_kraj || false, d.station_film || false, d.station_pak || false, d.station_ready || false, d.repair_notes || null, d.repair_finish_date || null, d.job_status || null, d.department_routing || 'ซ่อม', d.target_finish_date || null, d.delivery_date || null, req.params.id]);});res.json({success:true});}
- catch(error){res.status(error.status||500).json({error:error.message});}
+ try{
+ const allowed=['station_kho','station_pou','station_puan','station_pon','station_prak','station_kat','station_qc','station_mag','station_kraj','station_film','station_pak','station_ready','repair_notes','repair_finish_date','job_status','department_routing','target_finish_date','delivery_date'];
+ const patch={};for(const key of allowed)if(Object.hasOwn(req.body,key)){let value=req.body[key];if(key.startsWith('station_')){if(typeof value!=='boolean')throw quotaError('ค่าสถานีต้องเป็น true หรือ false');}else if(value!==null&&typeof value!=='string')throw quotaError('รูปแบบข้อมูลไม่ถูกต้อง');patch[key]=value===''?null:value;}
+ if(!Object.keys(patch).length)throw quotaError('ไม่มีข้อมูลที่อนุญาตให้อัปเดต');
+ await withBooking(pool,req.params.id,previous=>({...previous,...Object.fromEntries(['target_finish_date','delivery_date'].filter(k=>Object.hasOwn(patch,k)).map(k=>[k,patch[k]]))}),(client,next)=>{
+ for(const key of ['target_finish_date','delivery_date'])if(Object.hasOwn(patch,key))patch[key]=next[key];
+ const keys=Object.keys(patch),values=keys.map(k=>patch[k]);values.push(req.params.id);
+ return client.query('UPDATE rizenicreport SET '+keys.map((k,i)=>k+'=$'+(i+1)).join(',')+' WHERE id=$'+values.length,values);
+ });res.json({success:true});
+ }catch(error){res.status(error.status||500).json({error:error.message});}
 });
+
+router.put('/report/:id/parts',async(req,res)=>{try{
+ const {field,name,quantity}=req.body;
+ if(!['main_part_name','sub_part_name'].includes(field)||typeof name!=='string'||name.length>250||!Number.isSafeInteger(quantity)||quantity<0)throw quotaError('ข้อมูลชิ้นงานไม่ถูกต้อง');
+ const qtyField=field==='main_part_name'?'main_part_qty':'sub_part_qty';
+ await withBooking(pool,req.params.id,previous=>({...previous,[qtyField]:quantity}),client=>client.query('UPDATE rizenicreport SET '+field+'=$1,'+qtyField+'=$2 WHERE id=$3',[name||null,quantity,req.params.id]));res.json({success:true});
+ }catch(error){res.status(error.status||500).json({error:error.message});}});
 
 router.put('/report/:id/fast-date', async (req, res) => {
   try {

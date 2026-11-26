@@ -226,7 +226,7 @@ function applyFilters() {
     const activeData = getActiveJobsData();
     
     const filteredData = activeData.filter(job => {
-        if (searchTxt) { const matchStr = Object.values(job).join(' ').toLowerCase(); if(!matchStr.includes(searchTxt)) return false; }
+        if (searchTxt) { const matchStr = [...Object.values(job),job.sa_collaborators].join(' ').toLowerCase(); if(!matchStr.includes(searchTxt)) return false; }
         if (saSelectedTxt && job.sa_owner !== saSelectedTxt) return false;
         if (branchSelectedTxt && branchSelectedTxt !== 'ALL' && job.branch_name !== branchSelectedTxt) return false;
         
@@ -366,7 +366,7 @@ function renderTable(data) {
                         <button onclick="event.stopPropagation(); goToEditJob('${job.id}')" class="bg-blue-600 hover:bg-blue-700 text-white p-1 rounded transition flex items-center justify-center w-6 h-6 shadow-sm" title="อัปเดต/แก้ไข">
                             <i class="fa-solid fa-pen-to-square text-[11px]"></i>
                         </button>
-                        <button onclick="event.stopPropagation(); deleteJobRow('${job.id}', '${job.car_plate || '-'}')" class="bg-red-500 hover:bg-red-600 text-white p-1 rounded transition flex items-center justify-center w-6 h-6 shadow-sm" title="ลบใบงาน">
+                        <button onclick="event.stopPropagation(); deleteJobRow('${job.id}', '${JobTeam.text(job.car_plate || '-')}')" class="bg-red-500 hover:bg-red-600 text-white p-1 rounded transition flex items-center justify-center w-6 h-6 shadow-sm" title="ลบใบงาน">
                             <i class="fa-solid fa-trash-can text-[11px]"></i>
                         </button>
                     </div>`; 
@@ -375,14 +375,14 @@ function renderTable(data) {
                 case 'car_plate': 
                     const isUrgent = job.damage_level === 'หนัก';
                     const alertIcon = isUrgent ? '<i class="fa-solid fa-circle-exclamation text-red-500 mr-1"></i>' : '';
-                    cellData = `<div class="px-2 py-1 text-center font-bold text-blue-800">${alertIcon}${job.car_plate || '-'}</div>`; 
+                    cellData = `<div class="px-2 py-1 text-center font-bold text-blue-800">${alertIcon}${JobTeam.text(job.car_plate || '-')}</div>`;
                     break;
                     
                 case 'car_brand':
-                    cellData = `<div class="px-2 py-1 text-left font-bold text-slate-800">${job.car_brand || '-'}</div>`; break;
+                    cellData = `<div class="px-2 py-1 text-left font-bold text-slate-800">${JobTeam.text(job.car_brand || '-')}</div>`; break;
                 
                 case 'car_model':
-                    cellData = `<div class="px-2 py-1 text-left font-medium text-slate-600">${job.car_model || '-'}</div>`; break;
+                    cellData = `<div class="px-2 py-1 text-left font-medium text-slate-600">${JobTeam.text(job.car_model || '-')}</div>`; break;
 
                 case 'main_part_name':
                     cellData = `<div onclick="event.stopPropagation(); openMultiPartsModal('${job.id}', 'main_part_name', '${(job.main_part_name||'').replace(/'/g, "\\'")}')" class="w-full h-full text-left cursor-pointer group">
@@ -452,22 +452,14 @@ function renderTable(data) {
                     else { 
                         carParts.forEach(p => { 
                             let isC = (p.order_status||'').includes('ครบ') || (p.order_status||'').includes('มีของ'); 
-                            partsHTML += `<span class="text-[10px] font-bold ${isC ? 'text-emerald-600' : ((p.order_status||'').includes('รอ') ? 'text-red-500' : 'text-amber-500')} leading-tight" title="${p.part_name}">• ${p.part_name} [${p.order_status||'รอสั่ง'}]</span>`; 
+                            partsHTML += `<span class="text-[10px] font-bold ${isC ? 'text-emerald-600' : ((p.order_status||'').includes('รอ') ? 'text-red-500' : 'text-amber-500')} leading-tight" title="${JobTeam.text(p.part_name)}">• ${JobTeam.text(p.part_name)} [${p.order_status||'รอสั่ง'}]</span>`;
                         }); 
                     }
                     cellData = partsHTML + '</div>'; break;
                 
-                case 'sa_owner': 
-                    let saOptsHtml = '<option value="">- ระบุ SA -</option>';
-                    if (branchSAs.length > 0) {
-                        saOptsHtml += branchSAs.map(sa => `<option value="${sa}" ${job.sa_owner === sa ? 'selected' : ''}>${sa}</option>`).join('');
-                        if(job.sa_owner && !branchSAs.includes(job.sa_owner)) {
-                            saOptsHtml += `<option value="${job.sa_owner}" selected>${job.sa_owner}</option>`;
-                        }
-                    } else {
-                        saOptsHtml += `<option value="${job.sa_owner||''}" selected>${job.sa_owner||''}</option>`;
-                    }
-                    cellData = `<select onclick="event.stopPropagation()" onchange="fastUpdateJob('${job.id}', 'sa_owner', this.value)" class="inline-edit-select text-slate-700 font-bold">${saOptsHtml}</select>`;
+                case 'sa_owner':
+                case 'sa_collaborators':
+                    cellData = '<button type="button" class="text-left px-2 text-blue-700" onclick="event.stopPropagation();goToEditJob('+Number(job.id)+')">'+JobTeam.text(job[col.key]||'—')+'</button>';
                     break;
 
                 default: cellData = `<div class="px-3 py-2 truncate" title="${job[col.key]}">${job[col.key] || '-'}</div>`; break;

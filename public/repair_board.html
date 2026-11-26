@@ -105,9 +105,11 @@
   </div>
 </div>
 
+<script src="job_team.js?v=20261126.2"></script>
 <script>
 const API_BASE_URL = window.location.origin;
 let hiddenStations = new Set();
+let latestBoardData={},employeesLoaded=false;
 let oldData = null; 
 let voiceEnabled = true;
 
@@ -186,7 +188,7 @@ function checkForChanges(newData) {
   }
   let oldMap = {};
   for (let station in oldData) {
-    oldData[station].forEach(item => { oldMap[item.plate] = station; });
+    oldData[station].forEach(item => { oldMap[item.id] = station; });
   }
   for (let station in newData) {
     newData[station].forEach(item => {
@@ -212,19 +214,20 @@ function showModal(html) {
 function hideModal() { document.getElementById('modal').style.display = 'none'; }
 function closeModal(e){ if(e.target.id === 'modal') hideModal(); }
 
+function JobTeamTrue(value){return value===true||value===1||value==='1'||value==='TRUE'||value==='true';}
 function computeHighestStationIFS(j) {
-    if(j.station_ready) return "12. รอส่งมอบ";
-    if(j.station_pak) return "11. พักซ่อม";
-    if(j.station_film) return "10. ฟิล์ม";
-    if(j.station_kraj) return "09. กระจก";
-    if(j.station_mag) return "08. ซ่อมแม็ก";
-    if(j.station_qc) return "07. เก็บงาน";
-    if(j.station_kat) return "06. ขัดสี";
-    if(j.station_prak) return "05. ประกอบ";
-    if(j.station_pon) return "04. พ่นสี";
-    if(j.station_puan) return "03. เตรียมพื้น";
-    if(j.station_pou) return "02. โป๊ว";
-    if(j.station_kho) return "01. เคาะ";
+    if(JobTeamTrue(j.station_ready)) return "12. รอส่งมอบ";
+    if(JobTeamTrue(j.station_pak)) return "11. พักซ่อม";
+    if(JobTeamTrue(j.station_film)) return "10. ฟิล์ม";
+    if(JobTeamTrue(j.station_kraj)) return "09. กระจก";
+    if(JobTeamTrue(j.station_mag)) return "08. ซ่อมแม็ก";
+    if(JobTeamTrue(j.station_qc)) return "07. เก็บงาน";
+    if(JobTeamTrue(j.station_kat)) return "06. ขัดสี";
+    if(JobTeamTrue(j.station_prak)) return "05. ประกอบ";
+    if(JobTeamTrue(j.station_pon)) return "04. พ่นสี";
+    if(JobTeamTrue(j.station_puan)) return "03. เตรียมพื้น";
+    if(JobTeamTrue(j.station_pou)) return "02. โป๊ว";
+    if(JobTeamTrue(j.station_kho)) return "01. เคาะ";
     return "ยังไม่ระบุสถานี";
 }
 
@@ -244,6 +247,7 @@ async function loadData() {
     if (branch.toLowerCase() !== 'all') query.set('branch', branch);
 
     try {
+        if(!employeesLoaded){JobTeam.setEmployees(await JobTeam.request(API_BASE_URL+'/api/sa-employees'));employeesLoaded=true;}
         const started = boardDebug ? performance.now() : 0;
         const res = await fetch(API_BASE_URL + '/api/reports?' + query, { signal: request.controller.signal });
         if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -265,6 +269,7 @@ async function loadData() {
             return loadData();
         }
 
+        if(!Array.isArray(repairJobs))throw Error('ข้อมูลบอร์ดไม่ถูกต้อง');
         // จัดกลุ่มตามสถานี
         const groupedData = {};
         stationOrder.forEach(st => groupedData[st] = []);
@@ -273,6 +278,7 @@ async function loadData() {
             const station = computeHighestStationIFS(job);
             if(groupedData[station]) {
                 groupedData[station].push({
+                    id:job.id,primary:JobTeam.primary(job),collaborators:JobTeam.names(job).join(', '),
                     plate: job.car_plate || 'ไม่มีป้าย',
                     vin: job.vin_no || '-', // 👈 เพิ่มบรรทัดนี้เพื่อเก็บค่า VIN
                     car: `${job.car_brand} ${job.car_model || ''}`,
@@ -285,10 +291,11 @@ async function loadData() {
             }
         });
 
-        render(groupedData);
+        latestBoardData=groupedData;render(latestBoardData);
+        let status=document.getElementById('board_status');if(!status){status=document.createElement('div');status.id='board_status';document.querySelector('header').append(status);}status.textContent='อัปเดตล่าสุด '+new Date().toLocaleTimeString('th-TH',{timeZone:'Asia/Bangkok'});
 
     } catch (e) {
-        if (e.name !== 'AbortError') console.error('ดึงข้อมูลกระดานล้มเหลว', e);
+        if (e.name !== 'AbortError'){console.error('ดึงข้อมูลกระดานล้มเหลว', e);let status=document.getElementById('board_status');if(!status){status=document.createElement('div');status.id='board_status';document.querySelector('header').append(status);}status.textContent='โหลดไม่สำเร็จ — ข้อมูลบนบอร์ดอาจยังเป็นข้อมูลเดิม';}
     } finally {
         if (boardRequest === request) boardRequest = undefined;
     }
@@ -314,7 +321,7 @@ function render(groupedData) {
         btn.textContent = station;
         btn.onclick = () => {
           hiddenStations.has(station) ? hiddenStations.delete(station) : hiddenStations.add(station);
-          render(groupedData); 
+          btn.classList.toggle('off',hiddenStations.has(station));render(latestBoardData);
         };
         toggleBar.appendChild(btn);
       });
@@ -336,19 +343,19 @@ function render(groupedData) {
     } else {
         items.forEach(item => {
          const detailHTML = `
-            <div><i class="fa-solid fa-car-side w-5 text-slate-400"></i> ${item.car}</div>
-            <div class="mt-1 font-mono text-[12px] text-emerald-400"><i class="fa-solid fa-barcode w-5 text-slate-400"></i> ${item.vin}</div>
-            <div class="mt-1"><i class="fa-solid fa-tag w-5 text-slate-400"></i> ${item.status}</div>
+            <div><i class="fa-solid fa-car-side w-5 text-slate-400"></i> ${JobTeam.text(item.car)}</div>
+            <div class="mt-1 font-mono text-[12px] text-emerald-400"><i class="fa-solid fa-barcode w-5 text-slate-400"></i> ${JobTeam.text(item.vin)}</div>
+            <div class="mt-1"><i class="fa-solid fa-tag w-5 text-slate-400"></i> ${JobTeam.text(item.status)}</div>
             <div class="finish-date"><i class="fa-regular fa-calendar-check text-blue-400"></i> เป้าเสร็จ: ${item.target}</div>
           `;
 
           const cardHTML = `
             <div class="card" onclick="showModal(this.innerHTML)">
-              <div class="plate-big">${item.plate}</div>
+              <div class="plate-big">${JobTeam.text(item.plate)}</div>
               ${getDamageHTML(item.damage)}
-              <div class="detail-list">${detailHTML}</div>
+              <div class="detail-list">${detailHTML}<div>หลัก: ${JobTeam.text(item.primary)}</div><div>ร่วม: ${JobTeam.text(item.collaborators||"—")}</div></div>
               <div class="card-worker">
-                <span>📝 ${item.notes.substring(0, 15)}${item.notes.length > 15 ? '...' : ''}</span>
+                <span>📝 ${JobTeam.text(item.notes.substring(0, 15))}${item.notes.length > 15 ? '...' : ''}</span>
               </div>
             </div>`;
           html += cardHTML;

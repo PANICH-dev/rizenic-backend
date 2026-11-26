@@ -42,7 +42,8 @@ const stationsTimeline = [
 let columnsDef = [
     { idx: 0, key: 'action', title: 'Action', w: 90, filter: false },
     { idx: 1, key: 'car_plate', title: 'ทะเบียน', w: 130, filter: true },
-    { idx: 14, key: 'sa_owner', title: 'SA', w: 120, filter: true },
+    { idx: 14, key: 'sa_owner', title: 'SA หลัก', w: 120, filter: true },
+    { idx: 40, key: 'sa_collaborators', title: 'ผู้รับผิดชอบร่วม', w: 170, filter: true },
     { idx: 2, key: 'car_brand', title: 'ยี่ห้อ/รุ่น', w: 180, filter: true },
     { idx: 37, key: 'car_color', title: 'สีรถ', w: 110, filter: true },
     { idx: 16, key: 'vin_no', title: 'เลขตัวถัง/เครื่อง', w: 180, filter: true },
@@ -75,7 +76,7 @@ function showToast(msg, type='success') {
     const toast = document.getElementById('toastMsg');
     if(!toast) return;
     toast.className = `fixed bottom-5 right-5 font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 z-[200] flex items-center gap-2 border border-white/20 ${type === 'error' ? 'bg-red-600 text-white' : (type === 'info' ? 'bg-blue-600 text-white' : 'bg-[#00320D] text-white')}`;
-    document.getElementById('toastContent').innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-circle-xmark text-white' : (type === 'info' ? 'fa-circle-info text-white' : 'fa-circle-check text-amber-400')} text-xl"></i> ${msg}`;
+    document.getElementById('toastContent').innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-circle-xmark text-white' : (type === 'info' ? 'fa-circle-info text-white' : 'fa-circle-check text-amber-400')} text-xl"></i> ${JobTeam.text(msg)}`;
     toast.classList.remove('translate-y-20', 'opacity-0');
     setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 2500);
 }
@@ -178,9 +179,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (branchSelectEl) {
         try {
-            const empRes = await fetch(`${API_BASE_URL}/api/employees`);
+            const empRes = await fetch(`${API_BASE_URL}/api/sa-employees`);
             if (empRes.ok) {
-                const employees = await empRes.json();
+                const employees = await empRes.json();JobTeam.setEmployees(employees);
                 const masterBranches = [...new Set(employees.map(e => e.branch_name).filter(Boolean))].sort();
                 
                 let optionsHtml = isManager ? `<option value="ALL">🏢 รวมทุกสาขา (ภาพรวม)</option>` : '';
@@ -425,7 +426,7 @@ function runTableFilters() {
                     if (key === 'arrived_date' && !rawVal) rawVal = job.appointment_date;
                     val = rawVal ? String(rawVal).split('T')[0] : ''; 
                 } 
-                else if (key === 'car_brand') { val = `${job.car_brand || ''} ${job.car_model || ''}`.trim(); } 
+                else if (key === 'car_brand') { val = `${JobTeam.text(job.car_brand || '')} ${JobTeam.text(job.car_model || '')}`.trim(); }
                 else if (key === 'main_part_qty') { val = String(Number(job.main_part_qty) || (job.main_part_name ? job.main_part_name.split(',').filter(Boolean).length : 0)); }
                 else if (key === 'sub_part_qty') { val = String(Number(job.sub_part_qty) || (job.sub_part_name ? job.sub_part_name.split(',').filter(Boolean).length : 0)); }
                 else { val = String(job[key] || '').trim(); }
@@ -480,7 +481,7 @@ async function fetchJobList() {
         const nocache = `?_t=${new Date().getTime()}`;
         
         const [resReports, resQuotas, resParts, resBodyParts] = await Promise.all([
-            safeFetch(`${API_BASE_URL}/api/reports${nocache}`), 
+            JobTeam.request(`${API_BASE_URL}/api/reports${nocache}&fields=table`),
             safeFetch(`${API_BASE_URL}/api/quotas${nocache}`), 
             safeFetch(`${API_BASE_URL}/api/part-orders${nocache}`),
             safeFetch(`${API_BASE_URL}/api/body-parts${nocache}`)
@@ -492,7 +493,7 @@ async function fetchJobList() {
 
         const rawReports = Array.isArray(resReports) ? resReports : (resReports.data || []);
 
-        originalRepairJobs = rawReports.filter(j => {
+        originalRepairJobs = rawReports.map(j=>JobTeam.decorate(j)).filter(j => {
             const st = j.job_status || '';
             const isNotCancelled = !st.includes('ยกเลิก');
             const isNotDelivered = !st.includes('ส่งมอบแล้ว') && st !== '12.ส่งมอบ';
@@ -502,7 +503,7 @@ async function fetchJobList() {
         updateKPIs();
         if(typeof renderCalendar === 'function') renderCalendar(); 
         runTableFilters();
-    } catch (err) { console.error("โหลดข้อมูลพัง:", err); }
+    } catch (err) { console.error("โหลดข้อมูลพัง:", err);showToast("โหลดใบงานไม่สำเร็จ กรุณาลองใหม่","error");runTableFilters(); }
 }
 
 async function fastUpdateField(id, field, value) {
@@ -533,14 +534,10 @@ async function fastUpdateStationDropdown(id, selectedLevel) {
     const selectedIdx = stationLevels.indexOf(selectedLevel);
     
     const payload = {
-        ...job, 
         station_kho: selectedIdx >= 1, station_pou: selectedIdx >= 2, station_puan: selectedIdx >= 3,
         station_pon: selectedIdx >= 4, station_prak: selectedIdx >= 5, station_kat: selectedIdx >= 6,
         station_qc: selectedIdx >= 7, station_mag: selectedIdx >= 8, station_kraj: selectedIdx >= 9,
-        station_film: selectedIdx >= 10, station_pak: selectedIdx >= 11, station_ready: selectedIdx >= 12,
-        target_finish_date: job.target_finish_date || null, repair_finish_date: job.repair_finish_date || null,
-        delivery_date: job.delivery_date || null, job_status: job.job_status,
-        department_routing: job.department_routing, repair_notes: job.repair_notes
+        station_film: selectedIdx >= 10, station_pak: selectedIdx >= 11, station_ready: selectedIdx >= 12
     };
     
     delete payload.calculated_station; 
@@ -556,7 +553,7 @@ async function fastUpdateStationDropdown(id, selectedLevel) {
             updateKPIs(); 
             runTableFilters();
         } else throw new Error();
-    } catch(e) { showToast('อัปเดตไม่สำเร็จ', 'error'); }
+    } catch(e) { showToast('อัปเดตไม่สำเร็จ', 'error');runTableFilters(); }
 }
 
 function renderAllTags(partsStr, bgClass, textClass, borderClass) {
@@ -598,16 +595,18 @@ function renderRepairListTable(data) {
                     cellData = `<div class="text-center px-1 py-1.5"><button onclick="openModal('${j.id}')" class="action-btn group"><i class="fa-solid fa-pen"></i><span class="action-btn-text hidden">อัปเดต</span></button></div>`; 
                     break;
                 case 'car_plate': 
-                    cellData = `<div class="font-mono text-base font-black px-3 py-2 truncate ${isOverdue ? 'text-rose-600' : 'text-[#00320D]'}">${isOverdue ? '<i class="fa-solid fa-circle-exclamation mr-1 animate-pulse"></i>' : ''}${j.car_plate || '-'}</div>`; 
+                    cellData = `<div class="font-mono text-base font-black px-3 py-2 truncate ${isOverdue ? 'text-rose-600' : 'text-[#00320D]'}">${isOverdue ? '<i class="fa-solid fa-circle-exclamation mr-1 animate-pulse"></i>' : ''}${JobTeam.text(j.car_plate || '-')}</div>`;
                     break;
                 case 'vin_no': 
-                    cellData = `<div class="font-mono text-sm font-bold text-emerald-600 px-3 py-2 truncate" title="${j.vin_no || ''}">${j.vin_no || '-'}</div>`; 
+                    cellData = `<div class="font-mono text-sm font-bold text-emerald-600 px-3 py-2 truncate" title="${JobTeam.text(j.vin_no || '')}">${JobTeam.text(j.vin_no || '-')}</div>`;
                     break;
+                case 'sa_collaborators':
+                    cellData='<span class="px-2">'+JobTeam.text(JobTeam.names(j).join(', ')||'—')+'</span>';break;
                 case 'sa_owner': 
-                    cellData = `<div class="px-3 py-2 font-bold text-slate-700 text-sm truncate" title="${j.sa_owner || ''}"><i class="fa-solid fa-user-tie text-amber-500 mr-1"></i> ${j.sa_owner || '-'}</div>`; 
+                    cellData = `<div class="px-3 py-2 font-bold text-slate-700 text-sm truncate" title="${JobTeam.text(j.sa_owner || '')}"><i class="fa-solid fa-user-tie text-amber-500 mr-1"></i> ${JobTeam.text(j.sa_owner || '-')}</div>`;
                     break;
                 case 'car_brand': 
-                    cellData = `<div class="font-bold text-[#00320D] truncate text-[14px] px-3 py-2" title="${j.car_brand || ''} ${j.car_model || ''}">${j.car_brand || '-'} <span class="text-slate-400 font-medium">${j.car_model || ''}</span></div>`; 
+                    cellData = `<div class="font-bold text-[#00320D] truncate text-[14px] px-3 py-2" title="${JobTeam.text(j.car_brand || '')} ${JobTeam.text(j.car_model || '')}">${JobTeam.text(j.car_brand || '-')} <span class="text-slate-400 font-medium">${JobTeam.text(j.car_model || '')}</span></div>`;
                     break;
                 case 'car_color': 
                     cellData = `<div class="px-2 py-1.5 w-full"><input type="text" value="${j.car_color || ''}" placeholder="-" onchange="fastUpdateField('${j.id}', 'car_color', this.value)" class="inline-edit-input text-left w-full text-base font-bold"></div>`; 
@@ -660,7 +659,7 @@ function renderRepairListTable(data) {
                     cellData = `<div class="px-2 py-1.5"><select onchange="fastUpdateField('${j.id}', 'department_routing', this.value)" class="inline-edit-select text-indigo-700 font-bold bg-indigo-50 border-indigo-200 hover:bg-indigo-100 text-sm">${routingHtml}</select></div>`; 
                     break;
                 case 'repair_notes': 
-                    cellData = `<div class="px-2 py-1.5 w-full"><input type="text" value="${j.repair_notes || ''}" placeholder="-" onchange="fastUpdateField('${j.id}', 'repair_notes', this.value)" class="inline-edit-input text-left w-full text-base"></div>`;
+                    cellData = `<div class="px-2 py-1.5 w-full"><input type="text" value="${JobTeam.text(j.repair_notes || '')}" placeholder="-" onchange="fastUpdateField('${j.id}', 'repair_notes', this.value)" class="inline-edit-input text-left w-full text-base"></div>`;
                     break;
             }
             rowHtml += `<td>${cellData}</td>`;
@@ -695,7 +694,7 @@ function openExcelFilter(e, colIndex, title) {
             if (key === 'arrived_date' && !rawVal) rawVal = job.appointment_date;
             val = rawVal ? String(rawVal).split('T')[0] : ''; 
         } 
-        else if (key === 'car_brand') { val = `${job.car_brand || ''} ${job.car_model || ''}`.trim(); } 
+        else if (key === 'car_brand') { val = `${JobTeam.text(job.car_brand || '')} ${JobTeam.text(job.car_model || '')}`.trim(); }
         else if (key === 'main_part_qty') { val = String(Number(job.main_part_qty) || (job.main_part_name ? job.main_part_name.split(',').filter(Boolean).length : 0)); }
         else if (key === 'sub_part_qty') { val = String(Number(job.sub_part_qty) || (job.sub_part_name ? job.sub_part_name.split(',').filter(Boolean).length : 0)); }
         else { val = String(job[key] || '').trim(); }
@@ -884,9 +883,9 @@ async function openModal(jobId) {
 
         document.getElementById('m_job_id').value = job.id;
         document.getElementById('m_plate').innerText = job.car_plate || '-';
-        document.getElementById('m_car').innerText = `${job.car_brand} ${job.car_model || ''}`;
+        document.getElementById('m_car').innerText = `${JobTeam.text(job.car_brand)} ${JobTeam.text(job.car_model || '')}`;
         document.getElementById('m_sa_owner').innerText = job.sa_owner || 'ไม่ระบุ';
-        document.getElementById('m_vin').innerHTML = job.vin_no ? `<i class="fa-solid fa-barcode mr-1"></i> ${job.vin_no}` : '';
+        document.getElementById('m_vin').innerHTML = job.vin_no ? `<i class="fa-solid fa-barcode mr-1"></i> ${JobTeam.text(job.vin_no)}` : '';
         
         const qtListDiv = document.getElementById('m_qt_list'); qtListDiv.innerHTML = '';
         const soListDiv = document.getElementById('m_so_list'); soListDiv.innerHTML = '';
@@ -942,10 +941,10 @@ async function openModal(jobId) {
 
                     html += `
                         <tr class="hover:bg-slate-50 transition-colors">
-                            <td class="px-2 py-2 border-r border-slate-200 font-mono text-center text-slate-500">${p.epc_no || '-'}</td>
+                            <td class="px-2 py-2 border-r border-slate-200 font-mono text-center text-slate-500">${JobTeam.text(p.epc_no || '-')}</td>
                             <td class="px-2 py-2 border-r border-slate-200 font-mono text-blue-700 font-bold text-center">${p.part_no || '-'}</td>
                             <td class="px-2 py-2 border-r border-slate-200 text-center font-black text-amber-600 bg-amber-50/30">${p.qty_ordered || 1}</td>
-                            <td class="px-2 py-2 border-r border-slate-200 font-bold text-slate-700">${p.part_name || '-'}</td>
+                            <td class="px-2 py-2 border-r border-slate-200 font-bold text-slate-700">${JobTeam.text(p.part_name || '-')}</td>
                             <td class="px-2 py-2 border-r border-slate-200 font-mono text-slate-500 text-center">${p.part_main_no || '-'}</td>
                             <td class="px-2 py-2 border-r border-slate-200 font-mono text-center text-slate-500">${qtVal || '-'}</td>
                             <td class="px-2 py-2 border-r border-slate-200 font-mono text-center text-slate-500">${soVal || '-'}</td>

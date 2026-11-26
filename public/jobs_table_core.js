@@ -88,12 +88,13 @@ let columnsDef = [
     { idx: 32, key: 'qt_no', title: 'เลขที่ใบเสนอราคา', width: 130 },
     { idx: 33, key: 'so_no', title: 'เลขที่ใบสั่งซ่อม', width: 120 },
     { idx: 34, key: 'ivn_no', title: 'เลข IVN.', width: 115 },
-    { idx: 35, key: 'sa_owner', title: 'SA ที่รับผิดชอบ', width: 115 }
+    { idx: 35, key: 'sa_owner', title: 'SA หลัก', width: 130 },
+    { idx: 39, key: 'sa_collaborators', title: 'ผู้รับผิดชอบร่วม', width: 180 }
 ];
 
 const defaultVisibleKeys = [
     'action', 'contact_date', 'arrived_date', 'car_plate', 'car_brand', 'car_model',
-    'customer_name', 'damage_level', 'target_finish_date', 'repair_finish_date', 'delivery_date', 'job_status', 'calculated_station', 'sa_owner'
+    'customer_name', 'damage_level', 'target_finish_date', 'repair_finish_date', 'delivery_date', 'job_status', 'calculated_station', 'sa_owner', 'sa_collaborators'
 ];
 
 let hiddenCols = new Set(columnsDef.filter(c => !defaultVisibleKeys.includes(c.key)).map(c => c.idx));
@@ -118,7 +119,8 @@ function computeHighestStationIFS(j) {
 function getSAsForCurrentBranch() {
     if (!allEmployees || allEmployees.length === 0) return [];
     return [...new Set(allEmployees.filter(e => {
-        const isSameBranch = e.branch_name === userBranch;
+        const selected=document.getElementById('branch_filter_select')?.value||userBranch;
+        const isSameBranch = selected==='ALL'||e.branch_name === selected;
         const role = (e.employee_role || '').toUpperCase();
         const isSA = role === 'SA' || role.includes('SERVICE ADVISOR') || role.includes('SERVICE');
         return isSameBranch && isSA;
@@ -135,7 +137,7 @@ function formatToThaiDate(isoStr) {
 function showToast(msg, type='success') {
     const toast = document.getElementById('toastMsg');
     toast.className = `fixed bottom-5 right-5 font-bold px-5 py-2.5 rounded shadow-2xl transform transition-all duration-300 z-[200] flex items-center gap-2 border border-white/20 ${type === 'error' ? 'bg-red-600' : (type === 'info' ? 'bg-blue-600' : 'bg-emerald-600')} text-white text-xs`;
-    document.getElementById('toastContent').innerHTML = `<i class="fa-solid ${type==='error'?'fa-circle-xmark':(type==='info'?'fa-info-circle':'fa-circle-check')} text-base"></i> ${msg}`;
+    document.getElementById('toastContent').innerHTML = `<i class="fa-solid ${type==='error'?'fa-circle-xmark':(type==='info'?'fa-info-circle':'fa-circle-check')} text-base"></i> ${JobTeam.text(msg)}`;
     toast.classList.remove('translate-y-20', 'opacity-0');
     setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 3000);
 }
@@ -236,10 +238,10 @@ async function loadJobsData() {
             fetch(`${API_BASE_URL}/api/statuses`).then(res => res.json()),
             fetch(`${API_BASE_URL}/api/part-orders?active_only=true`).then(res => res.json()),
             fetch(`${API_BASE_URL}/api/body-parts`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/api/reports`).then(res => res.json()),
+            JobTeam.request(`${API_BASE_URL}/api/reports?fields=table${['BA','Manager','Admin','แอดมิน'].includes(userRole)?'':'&branch='+encodeURIComponent(userBranch)}`),
             fetch(`${API_BASE_URL}/api/customer-types`).then(res => res.json()),
             fetch(`${API_BASE_URL}/api/insurances`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/api/employees`).then(res => res.json()),
+            JobTeam.request(`${API_BASE_URL}/api/sa-employees`),
             fetch(`${API_BASE_URL}/api/car-models`).then(res => res.json())
         ]);
 
@@ -263,14 +265,16 @@ async function loadJobsData() {
         if (results[6].status === 'fulfilled') {
             allEmployees = Array.isArray(results[6].value) ? results[6].value : (results[6].value.data || []);
         }
+        JobTeam.setEmployees(allEmployees);
         if (results[7].status === 'fulfilled') {
             allCarModels = Array.isArray(results[7].value) ? results[7].value : (results[7].value.data || []);
         }
 
+        if(results[3].status==='rejected')throw results[3].reason;
         if (results[3].status === 'fulfilled') {
             const data = Array.isArray(results[3].value) ? results[3].value : (results[3].value.data || []);
             let tempJobs = (['BA','Manager','Admin','แอดมิน'].includes(userRole)) ? data : data.filter(d => d.branch_name === userBranch);
-            allJobsData = tempJobs.map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
+            allJobsData = tempJobs.map(j => ({ ...JobTeam.decorate(j), calculated_station: computeHighestStationIFS(j) }));
         }
 
         const dlBrands = document.getElementById('dl_car_brands');
@@ -336,7 +340,7 @@ async function fastUpdateStationDropdown(id, selectedLevel) {
             job.calculated_station = computeHighestStationIFS(job);
             if(typeof applyFilters === 'function') applyFilters();
         } else throw new Error();
-    } catch(e) { showToast('อัปเดตไม่สำเร็จ', 'error'); }
+    } catch(e) { showToast('อัปเดตไม่สำเร็จ', 'error');applyFilters(); }
 }
 
 async function fastUpdateJob(jobId, field, value, silent = false) {

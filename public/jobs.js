@@ -7,7 +7,10 @@ let allMasterPartsCache = [];
 let globalStatusOptionsHtml = '';
 let userRole = '';
 let userBranch = '';
-let currentViewSA = ''; 
+let currentViewSA = '';
+let currentSARole='main';
+function jobsForSA(name){return allJobsData.filter(j=>JobTeam.matches(j,name,currentSARole));}
+function changeSARole(role){currentSARole=role;openSADetail(currentViewSA);}
 let selectedBranchFilter = 'ALL';
 
 let currentKeyDeskJobId = null;
@@ -53,7 +56,7 @@ function showToast(msg, type='success') {
     const toast = document.getElementById('toastMsg');
     const icon = type === 'error' ? 'fa-circle-xmark' : (type === 'info' ? 'fa-circle-info' : 'fa-circle-check');
     toast.className = `fixed bottom-5 right-5 font-bold px-6 py-3 rounded-xl shadow-2xl transform transition-all duration-300 z-[200] flex items-center gap-2 border border-white/20 ${type === 'error' ? 'bg-red-600' : 'bg-emerald-600'} text-white`;
-    document.getElementById('toastContent').innerHTML = `<i class="fa-solid ${icon} text-xl"></i> ${msg}`;
+    document.getElementById('toastContent').innerHTML = `<i class="fa-solid ${icon} text-xl"></i> ${JobTeam.text(msg)}`;
     toast.classList.remove('translate-y-20', 'opacity-0');
     setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 2500);
 }
@@ -82,8 +85,8 @@ async function loadJobsData() {
         const results = await Promise.allSettled([
             fetch(`${API_BASE_URL}/api/statuses`).then(res => res.json()),
             fetch(`${API_BASE_URL}/api/part-orders`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/api/reports`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/api/employees`).then(res => res.json()),
+            JobTeam.request(`${API_BASE_URL}/api/reports?fields=table${['BA','Manager','Admin','แอดมิน'].includes(userRole)?'':'&branch='+encodeURIComponent(userBranch)}`),
+            JobTeam.request(`${API_BASE_URL}/api/sa-employees`),
             fetch(`${API_BASE_URL}/api/part-statuses`).then(res => res.json()),
             fetch(`${API_BASE_URL}/api/parts?branch=${encodeURIComponent(userBranch)}`).then(res => res.json())
         ]);
@@ -97,6 +100,7 @@ async function loadJobsData() {
         }
         if (results[3].status === 'fulfilled') {
             const employees = Array.isArray(results[3].value) ? results[3].value : (results[3].value.data || []);
+            JobTeam.setEmployees(employees);
             let masterBranches = [...new Set(employees.map(e => e.branch_name).filter(Boolean))].sort();
             const branchSelect = document.getElementById('branch_filter');
             const isManager = ['BA','Manager','Admin','แอดมิน'].includes(userRole);
@@ -117,8 +121,10 @@ async function loadJobsData() {
             allMasterPartsCache = Array.isArray(results[5].value) ? results[5].value : (results[5].value.data || []);
         }
 
+        if(results[2].status==='rejected')throw results[2].reason;
         if (results[2].status === 'fulfilled') {
             masterJobsData = Array.isArray(results[2].value) ? results[2].value : (results[2].value.data || []);
+            masterJobsData=masterJobsData.map(j=>JobTeam.decorate(j));
             filterDataByBranch();
         }
     } catch (error) { 
@@ -251,7 +257,7 @@ function updateSAFilterModalList(saStats) {
         html += `
             <label class="flex items-start gap-2 hover:bg-slate-100 p-1.5 rounded cursor-pointer sa-ef-item transition">
                 <input type="checkbox" value="${sa}" ${isChecked ? 'checked' : ''} class="sa-ef-check accent-[#00320D] mt-0.5 cursor-pointer w-4 h-4">
-                <span class="text-slate-700 font-medium truncate w-full text-sm" title="${sa}">
+                <span class="text-slate-700 font-medium truncate w-full text-sm" title="${JobTeam.text(sa)}">
                     ${sa} <span class="text-[10px] ${activeClass}">${info}</span>
                 </span>
             </label>
@@ -313,8 +319,8 @@ function renderSAList() {
     const saStats = {}; 
     const fMonth = document.getElementById('sa_cal_month')?.value || String(new Date().getMonth() + 1).padStart(2, '0');
     const fYear = document.getElementById('sa_cal_year')?.value || String(new Date().getFullYear());
-    const todayStr = new Date().toISOString().split('T')[0];
-    const arrivedPrefixes = ['09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21'];
+    const todayStr = JobTeam.today();
+    const arrivedPrefixes = ['09','10','11','12','13','14','15','16','17','19'];
     const pendingStatuses = ['01.ติดต่อสอบถาม', '02.รอเสนอประกัน', '03.รอประกันอนุมัติ', '04.รอลูกค้าอนุมัติ', '05.อนุมัติแล้ว', '06.สั่งอะไหล่', '07.รอนัดหมายเข้าซ่อม', '08.นัดหมายแล้วรอเข้าซ่อม', '09.จอดรอเข้าซ่อม', '10.กำลังซ่อม', '11.รถซ่อมเสร็จรอส่งมอบ', '12.ส่งมอบ','21.พักซ่อม'];
 
     let totalWaitBill = 0, totalBilled = 0, totalMain = 0, totalSub = 0, totalLabor = 0, totalParts = 0, totalOutsource = 0;
@@ -358,14 +364,14 @@ function renderSAList() {
         const isProcess = activeProcessStatuses.some(s => st.includes(s) || st.startsWith(s.substring(0, 2)));
         if (isProcess) {
             const appVal = getValidDateStr(job.arrived_date);
-            const hasArrived = arrivedPrefixes.some(p => st.startsWith(p)) || job.is_parked === 'จอดซ่อม';
+            const hasArrived = JobTeam.arrived(job);
             if (appVal && appVal <= todayStr && !hasArrived) { saStats[sa].ovApp++; saStats[sa].totalOverdue++; }
             
             const tgtVal = getValidDateStr(job.target_finish_date);
             if (tgtVal && tgtVal < todayStr && !getValidDateStr(job.repair_finish_date)) { saStats[sa].ovTgt++; saStats[sa].totalOverdue++; }
             
             const delVal = getValidDateStr(job.delivery_date);
-            if (delVal && delVal < todayStr && !st.includes('ส่งมอบ')) { saStats[sa].ovDel++; saStats[sa].totalOverdue++; }
+            if (delVal && delVal < todayStr && !JobTeam.delivered(job)) { saStats[sa].ovDel++; saStats[sa].totalOverdue++; }
         }
     });
 
@@ -380,6 +386,8 @@ function renderSAList() {
         });
     }
 
+    for(const job of allJobsData)for(const name of JobTeam.names(job))if(!saStats[name])saStats[name]={pending:0,waitBill:0,billed:0,ovApp:0,ovTgt:0,ovDel:0,totalOverdue:0,sumLabor:0,sumParts:0,sumOutsource:0,mainParts:0,subParts:0};
+    if(!isSAFilterUserModified)globalActiveSAFilters=new Set(Object.keys(saStats));
     // วาดรายการ Checkbox ใน Modal
     updateSAFilterModalList(saStats);
 
@@ -446,14 +454,14 @@ function renderSAList() {
     html += sortedSAs.map(sa => {
         const stats = saStats[sa];
         return `
-        <div onclick="openSADetail('${sa}')" class="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between cursor-pointer hover:border-amber-500 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden group">
+        <div onclick="openSADetail(${JobTeam.text(JSON.stringify(sa))})" class="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between cursor-pointer hover:border-amber-500 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden group">
             <div class="absolute -right-4 -bottom-4 text-slate-100 text-6xl opacity-30 rotate-12 transition-transform group-hover:scale-110"><i class="fa-solid fa-user-tie"></i></div>
             
             <div class="flex items-center gap-4 mb-3 relative z-10">
                 <div class="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-xl font-black shadow-md shrink-0"><i class="fa-solid fa-user-tie"></i></div>
                 <div class="truncate w-full">
                     <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Service Advisor</p>
-                    <h3 class="text-base font-black text-[#00320D] leading-tight truncate w-full" title="${sa}">${sa}</h3>
+                    <h3 class="text-base font-black text-[#00320D] leading-tight truncate w-full" title="${sa}">${JobTeam.text(sa)}</h3><p class="text-xs text-blue-700">งานหลัก ${allJobsData.filter(j=>JobTeam.primary(j)===sa).length} · งานร่วม ${allJobsData.filter(j=>JobTeam.names(j).includes(sa)).length}</p>
                 </div>
             </div>
             
@@ -484,7 +492,8 @@ function renderSAList() {
     container.innerHTML = html;
 }
 
-function backToSAList() { 
+function backToSAList() {
+    currentSARole='main';
     currentViewSA = ''; 
     document.getElementById('sa_detail_view').classList.add('hidden'); 
     document.getElementById('sa_list_view').classList.remove('hidden'); 
@@ -499,7 +508,9 @@ function openSADetail(saName) {
     document.getElementById('sa_detail_view').classList.remove('hidden'); 
     document.getElementById('current_sa_name').innerText = saName;
 
-    const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === saName);
+    let roles=document.getElementById('sa_role_picker');if(!roles){roles=document.createElement('div');roles.id='sa_role_picker';roles.className='flex gap-4 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-800 font-bold';document.getElementById('sa_detail_view')?.prepend(roles);}
+    roles.innerHTML='<button type="button" onclick="changeSARole(\'main\')">งานหลัก</button><button type="button" onclick="changeSARole(\'shared\')">งานร่วม</button><span>'+ (currentSARole==='main'?'กำลังดูงานหลัก':'กำลังดูงานร่วม (ไม่รวมยอดหลัก)')+'</span>';
+    const saJobs = jobsForSA(saName);
     
     refreshSADashboardFilter(); 
     renderSAParkedCars(saJobs); 
@@ -509,29 +520,29 @@ function openSADetail(saName) {
 // ---- Overdue ----
 function refreshSADashboardFilter() {
     if(!currentViewSA) return;
-    const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
+    const saJobs = jobsForSA(currentViewSA);
     calculateSAOverdues(saJobs);
     renderSACalendar(saJobs);
     renderSAStatuses(saJobs); 
 }
 
 function calculateSAOverdues(jobs) {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = JobTeam.today();
     let ovApp = 0, ovTgt = 0, ovDel = 0;
-    const arrivedPrefixes = ['09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21'];
+    const arrivedPrefixes = ['09','10','11','12','13','14','15','16','17','19'];
 
     jobs.forEach(j => {
         const st = j.job_status || '';
         if (activeProcessStatuses.some(status => st.includes(status) || st.startsWith(status.substring(0, 2)))) {
             const appVal = getValidDateStr(j.arrived_date);
-            const hasArrived = arrivedPrefixes.some(p => st.startsWith(p)) || j.is_parked === 'จอดซ่อม';
+            const hasArrived = JobTeam.arrived(j);
             if (appVal && appVal <= todayStr && !hasArrived) ovApp++;
 
             const tgtVal = getValidDateStr(j.target_finish_date);
             if (tgtVal && tgtVal < todayStr && !getValidDateStr(j.repair_finish_date)) ovTgt++;
 
             const delVal = getValidDateStr(j.delivery_date);
-            if (delVal && delVal < todayStr && !st.includes('ส่งมอบ')) ovDel++;
+            if (delVal && delVal < todayStr && !JobTeam.delivered(j)) ovDel++;
         }
     });
 
@@ -548,9 +559,9 @@ function calculateSAOverdues(jobs) {
 }
 
 function openSAOverdueModal(type) {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
-    const arrivedPrefixes = ['09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21'];
+    const todayStr = JobTeam.today();
+    const saJobs = jobsForSA(currentViewSA);
+    const arrivedPrefixes = ['09','10','11','12','13','14','15','16','17','19'];
 
     const jobsToShow = saJobs.filter(j => {
         const st = j.job_status || '';
@@ -558,14 +569,14 @@ function openSAOverdueModal(type) {
 
         if (type === 'appointment') {
             const appVal = getValidDateStr(j.arrived_date);
-            const hasArrived = arrivedPrefixes.some(p => st.startsWith(p)) || j.is_parked === 'จอดซ่อม';
+            const hasArrived = JobTeam.arrived(j);
             return appVal && appVal <= todayStr && !hasArrived;
         } else if (type === 'target') {
             const tgtVal = getValidDateStr(j.target_finish_date);
             return tgtVal && tgtVal < todayStr && !getValidDateStr(j.repair_finish_date);
         } else if (type === 'delivery') {
             const delVal = getValidDateStr(j.delivery_date);
-            return delVal && delVal < todayStr && !st.includes('ส่งมอบ');
+            return delVal && delVal < todayStr && !JobTeam.delivered(j);
         }
     });
 
@@ -585,7 +596,7 @@ function renderSACalendar(jobs) {
     const firstDay = new Date(y, m, 1).getDay(); 
     const totalDays = new Date(y, m + 1, 0).getDate();
     for(let i = 0; i < firstDay; i++) { grid.innerHTML += `<div class="bg-slate-50/50 rounded-xl border border-transparent"></div>`; }
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = JobTeam.today();
 
     for(let day = 1; day <= totalDays; day++) {
         const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
@@ -606,7 +617,7 @@ function renderSACalendar(jobs) {
 }
 
 function openSAJobListModalCalendar(dateStr, type) {
-    const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
+    const saJobs = jobsForSA(currentViewSA);
     let typeLabel = ""; let jobsToShow = [];
     if(type === 'arrived') { typeLabel = "รถเข้าจอด"; jobsToShow = saJobs.filter(j => getValidDateStr(j.arrived_date) === dateStr); }
     else if(type === 'target') { typeLabel = "เป้าซ่อมเสร็จ"; jobsToShow = saJobs.filter(j => getValidDateStr(j.target_finish_date) === dateStr); }
@@ -673,7 +684,7 @@ function renderSAStatuses(jobs) {
 }
 
 function openSAFilteredModal(statusType) {
-    const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
+    const saJobs = jobsForSA(currentViewSA);
     const fMonth = document.getElementById('sa_cal_month').value;
     const fYear = document.getElementById('sa_cal_year').value;
     let jobsToShow = []; let vType = 'general';
@@ -702,7 +713,7 @@ function openSAFilteredModal(statusType) {
 // ---- Parked Cars ----
 function renderSAParkedCars(jobs) {
     const tbody = document.getElementById('sa_parked_body'); 
-    const parkedCars = jobs.filter(j => j.is_parked === 'จอดซ่อม' && !(j.job_status||'').includes('ปิดงาน')); 
+    const parkedCars = jobs.filter(j => /^(09|10|11)\./.test(j.job_status||''));
 
     if(parkedCars.length === 0) { 
         tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400 font-bold bg-white">ไม่มีรถจอดซ่อมในศูนย์</td></tr>`; 
@@ -711,9 +722,9 @@ function renderSAParkedCars(jobs) {
 
     tbody.innerHTML = parkedCars.map(j => `
         <tr class="hover:bg-amber-50/50 transition-colors">
-            <td class="font-black text-amber-600 text-center px-2 py-2">${j.car_plate || '-'}</td>
-            <td class="font-bold text-slate-800 text-[11px] px-2">${j.car_brand} ${j.car_model || ''}</td>
-            <td class="truncate max-w-[120px] font-medium text-xs px-2" title="${j.customer_name}">${j.customer_name || '-'}</td>
+            <td class="font-black text-amber-600 text-center px-2 py-2">${JobTeam.text(j.car_plate || '-')}</td>
+            <td class="font-bold text-slate-800 text-[11px] px-2">${JobTeam.text(j.car_brand)} ${JobTeam.text(j.car_model || '')}</td>
+            <td class="truncate max-w-[120px] font-medium text-xs px-2" title="${JobTeam.text(j.customer_name)}">${JobTeam.text(j.customer_name || '-')}</td>
             <td class="font-bold text-xs px-2"><span class="bg-slate-100 border border-slate-200 px-2 py-1 rounded shadow-sm">${j.job_status || '-'}</span></td>
             <td class="font-bold text-orange-600 text-xs px-2"><i class="fa-solid fa-wrench"></i> ${j.department_routing || 'รอระบุ'}</td>
             <td class="text-[10px] text-blue-700 font-bold leading-tight px-2 py-1">
@@ -858,11 +869,11 @@ function renderSAPOTracking(saJobs) {
                 <td class="text-center px-3 py-3 font-black text-amber-800"><span class="bg-amber-100 border border-amber-300 rounded px-2 py-1 shadow-sm whitespace-nowrap">${plateVal}</span></td>
                 <td class="text-center px-2 py-3">${parkedBadge}</td>
                 <td class="text-center font-bold text-slate-700 px-3 py-3 font-mono">${arrDate}</td>
-                <td class="text-center font-bold text-slate-700 px-3 py-3 truncate max-w-[140px]" title="${job.car_model || '-'}">${job.car_model || '-'}</td>
-                <td class="text-center font-bold text-slate-600 px-3 py-3 font-mono text-[11px] truncate max-w-[140px]" title="${job.vin_no || '-'}">${job.vin_no || '-'}</td>
-                <td class="px-4 py-3"><div class="font-bold text-slate-800 text-xs truncate max-w-[150px]" title="${job.customer_name || '-'}">${job.customer_name || '-'}</div></td>
-                <td class="text-center font-mono font-bold text-slate-600 px-3 py-3 text-[11px]">${job.qt_no || '-'}</td>
-                <td class="text-center font-mono font-bold text-slate-600 px-3 py-3 text-[11px]">${job.so_no || '-'}</td>
+                <td class="text-center font-bold text-slate-700 px-3 py-3 truncate max-w-[140px]" title="${JobTeam.text(job.car_model || '-')}">${JobTeam.text(job.car_model || '-')}</td>
+                <td class="text-center font-bold text-slate-600 px-3 py-3 font-mono text-[11px] truncate max-w-[140px]" title="${JobTeam.text(job.vin_no || '-')}">${JobTeam.text(job.vin_no || '-')}</td>
+                <td class="px-4 py-3"><div class="font-bold text-slate-800 text-xs truncate max-w-[150px]" title="${JobTeam.text(job.customer_name || '-')}">${JobTeam.text(job.customer_name || '-')}</div></td>
+                <td class="text-center font-mono font-bold text-slate-600 px-3 py-3 text-[11px]">${JobTeam.text(job.qt_no || '-')}</td>
+                <td class="text-center font-mono font-bold text-slate-600 px-3 py-3 text-[11px]">${JobTeam.text(job.so_no || '-')}</td>
                 <td class="px-4 py-3 align-middle"><span class="inline-flex items-center px-3 py-1 rounded-md border text-[11px] font-black shadow-sm ${mainBadgeClass} whitespace-nowrap">${worstStatus}</span> <span class="text-[10px] text-slate-500 font-bold ml-2">(${jobPOs.length} ชิ้น)</span> <i id="icon_${rowId}" class="fa-solid fa-chevron-right text-slate-400 transition-transform duration-200 ml-2"></i></td>
                 <td class="text-center px-3 py-3" onclick="event.stopPropagation()">
                     <button onclick="openSAKeyDeskModal('${job.id}')" class="bg-[#00320D] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full whitespace-nowrap"><i class="fa-solid fa-table-cells"></i> โต๊ะคีย์</button>
@@ -949,7 +960,7 @@ function openPOExcelFilter(e, colKey, title) {
         document.getElementById('po_ef_search').value = '';
 
         const uniqueValues = new Set();
-        const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
+        const saJobs = jobsForSA(currentViewSA);
         const relevantJobs = saJobs.filter(job => (job.job_status || '').includes('06.สั่งอะไหล่'));
 
         relevantJobs.forEach(job => {
@@ -1035,7 +1046,7 @@ function applyPOExcelFilter() {
     }
     
     closePOExcelFilter();
-    const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
+    const saJobs = jobsForSA(currentViewSA);
     renderSAPOTracking(saJobs);
 }
 
@@ -1044,7 +1055,7 @@ function clearSpecificPOExcelFilter() {
     const thIcon = document.querySelector(`#po_th_${currentPOFilterKey} .po-filter-icon`);
     if(thIcon) { thIcon.classList.remove('text-amber-400'); thIcon.classList.add('text-slate-400'); }
     closePOExcelFilter();
-    const saJobs = allJobsData.filter(j => (j.sa_owner || "ไม่ระบุ SA") === currentViewSA);
+    const saJobs = jobsForSA(currentViewSA);
     renderSAPOTracking(saJobs);
 }
 
@@ -1187,28 +1198,29 @@ async function saveSAKeyDesk() {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
     btn.disabled = true;
 
+    let completed=0;
     try {
         const toDelete = keyDeskRows.filter(r => r._delete && !r.is_new);
-        for(const row of toDelete) await fetch(`${API_BASE_URL}/api/part-orders/${row.order_id}`, { method: 'DELETE' });
+        for(const row of toDelete){await JobTeam.request(`${API_BASE_URL}/api/part-orders/${row.order_id}`, { method: 'DELETE' });keyDeskRows=keyDeskRows.filter(r=>r!==row);completed++;}
 
         const toSave = keyDeskRows.filter(r => !r._delete);
         for(const row of toSave) {
             if(!row.part_name && !row.part_no) continue; 
             const payload = { ...row };
-            const today = new Date().toISOString().split('T')[0];
+            const today = JobTeam.today();
             if(row.is_new) {
                 payload.order_date = payload.order_date || today;
                 payload.branch_name = userBranch;
-                await fetch(`${API_BASE_URL}/api/part-orders`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                const saved=await JobTeam.request(`${API_BASE_URL}/api/part-orders`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });if(!saved.data?.order_id)throw Error('ไม่ได้รับรหัสรายการใหม่');Object.assign(row,saved.data,{is_new:false});completed++;
             } else {
-                await fetch(`${API_BASE_URL}/api/part-orders/${row.order_id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                await JobTeam.request(`${API_BASE_URL}/api/part-orders/${row.order_id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });completed++;
             }
         }
         showToast('บันทึกข้อมูลสำเร็จ!', 'success');
         closeModal('saKeyDeskModal');
         await loadJobsData(); 
     } catch(e) {
-        showToast('เกิดข้อผิดพลาดในการบันทึก', 'error');
+        renderSAKeyDeskTable();showToast('บันทึกแล้ว '+completed+' รายการ ส่วนที่เหลือไม่สำเร็จ: '+e.message, 'error');
     } finally {
         btn.innerHTML = '<i class="fa-solid fa-save"></i> บันทึกข้อมูล';
         btn.disabled = false;
@@ -1239,8 +1251,8 @@ function renderJobTableInModal(jobs, viewType = 'general') {
 
         if (viewType === 'finance') {
             return `<tr class="hover:bg-emerald-50/50 transition cursor-pointer border-b border-slate-100" onclick="goToEditJob('${j.id}')">
-                <td class="px-4 py-3 font-bold text-[#00320D]"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded font-mono text-xs shadow-inner whitespace-nowrap">${j.car_plate || '-'}</span></td>
-                <td class="px-4 py-3 font-bold text-slate-800 text-[11px] leading-tight">${j.customer_name || '-'}<br><span class="text-slate-500 font-medium">${j.car_brand} ${j.car_model || ''}</span></td>
+                <td class="px-4 py-3 font-bold text-[#00320D]"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded font-mono text-xs shadow-inner whitespace-nowrap">${JobTeam.text(j.car_plate || '-')}</span></td>
+                <td class="px-4 py-3 font-bold text-slate-800 text-[11px] leading-tight">${JobTeam.text(j.customer_name || '-')}<br><span class="text-slate-500 font-medium">${JobTeam.text(j.car_brand)} ${JobTeam.text(j.car_model || '')}</span></td>
                 <td class="px-4 py-3 text-center text-xs font-bold text-slate-700"><span class="text-blue-600">${mainQty}</span> / <span class="text-amber-600">${subQty}</span></td>
                 <td class="px-4 py-3 text-right text-xs font-mono font-bold text-emerald-600">${formatMoney(j.cost_labor || j.labor_total || 0)}</td>
                 <td class="px-4 py-3 text-right text-xs font-mono font-bold text-purple-600">${formatMoney(j.cost_part || j.part_total || 0)}</td>
@@ -1249,8 +1261,8 @@ function renderJobTableInModal(jobs, viewType = 'general') {
             </tr>`;
         } else if (viewType === 'overdue') {
             return `<tr class="hover:bg-red-50 transition cursor-pointer border-b border-slate-100" onclick="goToEditJob('${j.id}')">
-                <td class="px-4 py-3 font-bold text-[#00320D]"><span class="bg-red-100 border border-red-300 text-red-700 px-2.5 py-1 rounded font-mono text-xs shadow-inner whitespace-nowrap">${j.car_plate || '-'}</span></td>
-                <td class="px-4 py-3 text-[11px] leading-tight"><div class="font-bold text-slate-700">${j.customer_name || '-'}</div><div class="text-amber-600 font-bold mt-0.5">${j.sa_owner || '-'}</div></td>
+                <td class="px-4 py-3 font-bold text-[#00320D]"><span class="bg-red-100 border border-red-300 text-red-700 px-2.5 py-1 rounded font-mono text-xs shadow-inner whitespace-nowrap">${JobTeam.text(j.car_plate || '-')}</span></td>
+                <td class="px-4 py-3 text-[11px] leading-tight"><div class="font-bold text-slate-700">${JobTeam.text(j.customer_name || '-')}</div><div class="text-amber-600 font-bold mt-0.5">${JobTeam.text(j.sa_owner || "-")}<br><span class="text-blue-600">ร่วม: ${JobTeam.text(j.sa_collaborators||"—")}</span></div></td>
                 <td class="px-4 py-3 text-xs font-mono font-bold text-blue-600">${formatDt(j.arrived_date)}</td>
                 <td class="px-4 py-3 text-xs font-mono font-bold text-amber-600">${formatDt(j.target_finish_date)}</td>
                 <td class="px-4 py-3 text-xs font-mono font-bold text-purple-600">${formatDt(j.delivery_date)}</td>
@@ -1263,7 +1275,7 @@ function renderJobTableInModal(jobs, viewType = 'general') {
             if(!safeOptions.includes(`value="${safeStatus}"`)) { safeOptions = `<option value="${safeStatus}">${safeStatus}</option>` + safeOptions; } 
             safeOptions = safeOptions.replace(`value="${safeStatus}"`, `value="${safeStatus}" selected`); 
 
-            return `<tr class="hover:bg-emerald-50/50 transition cursor-pointer border-b border-slate-100" onclick="goToEditJob('${j.id}')"><td class="px-4 py-3 font-bold text-[#00320D]"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded font-mono text-xs shadow-inner whitespace-nowrap">${j.car_plate || '-'}</span></td><td class="px-4 py-3 font-bold text-slate-800 text-[11px] leading-tight">${j.car_brand} <br><span class="text-slate-500 font-medium">${j.car_model || ''}</span></td><td class="px-4 py-3 text-[11px] leading-tight"><div class="font-bold text-slate-700 truncate max-w-[150px]" title="${j.customer_name}">${j.customer_name || '-'}</div><div class="text-[10px] text-amber-600 font-bold mt-0.5"><i class="fa-solid fa-user-tie"></i> ${j.sa_owner || '-'}</div></td><td class="px-4 py-3 text-xs font-bold ${damageColor}">${j.damage_level || '-'}</td><td class="px-4 py-3 text-[10px] font-bold text-slate-700"><select onclick="event.stopPropagation()" onchange="fastUpdateJob('${j.id}', 'job_status', this.value)" class="bg-slate-50 border border-slate-300 rounded px-2 py-1 outline-none focus:border-amber-500 w-full cursor-pointer font-bold text-[#00320D]">${safeOptions}</select></td><td class="px-4 py-3 text-center"><button onclick="event.stopPropagation(); goToEditJob('${j.id}')" class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full whitespace-nowrap"><i class="fa-solid fa-pen"></i> เปิด</button></td></tr>`;
+            return `<tr class="hover:bg-emerald-50/50 transition cursor-pointer border-b border-slate-100" onclick="goToEditJob('${j.id}')"><td class="px-4 py-3 font-bold text-[#00320D]"><span class="bg-slate-100 border border-slate-300 px-2.5 py-1 rounded font-mono text-xs shadow-inner whitespace-nowrap">${JobTeam.text(j.car_plate || '-')}</span></td><td class="px-4 py-3 font-bold text-slate-800 text-[11px] leading-tight">${JobTeam.text(j.car_brand)} <br><span class="text-slate-500 font-medium">${JobTeam.text(j.car_model || '')}</span></td><td class="px-4 py-3 text-[11px] leading-tight"><div class="font-bold text-slate-700 truncate max-w-[150px]" title="${JobTeam.text(j.customer_name)}">${JobTeam.text(j.customer_name || '-')}</div><div class="text-[10px] text-amber-600 font-bold mt-0.5"><i class="fa-solid fa-user-tie"></i> ${JobTeam.text(j.sa_owner || '-')}</div></td><td class="px-4 py-3 text-xs font-bold ${damageColor}">${j.damage_level || '-'}</td><td class="px-4 py-3 text-[10px] font-bold text-slate-700"><select onclick="event.stopPropagation()" onchange="fastUpdateJob('${j.id}', 'job_status', this.value)" class="bg-slate-50 border border-slate-300 rounded px-2 py-1 outline-none focus:border-amber-500 w-full cursor-pointer font-bold text-[#00320D]">${safeOptions}</select></td><td class="px-4 py-3 text-center"><button onclick="event.stopPropagation(); goToEditJob('${j.id}')" class="bg-[#00320D] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition shadow-md w-full whitespace-nowrap"><i class="fa-solid fa-pen"></i> เปิด</button></td></tr>`;
         }
     }).join('');
 }
