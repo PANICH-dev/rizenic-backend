@@ -40,7 +40,8 @@ let historyColsDef = [
     { idx: 23, key: 'department_routing', title: 'ส่งต่อแผนก', width: 120, filter: true },
     { idx: 25, key: 'qt_no', title: 'เลข QT', width: 120, filter: true },
     { idx: 26, key: 'so_no', title: 'เลข SO', width: 120, filter: true },
-    { idx: 27, key: 'sa_owner', title: 'SA ผู้รับผิดชอบ', width: 120, filter: true },
+    { idx: 27, key: 'sa_owner', title: 'SA หลัก', width: 120, filter: true },
+    { idx: 30, key: 'sa_collaborators', title: 'ผู้รับผิดชอบร่วม', width: 180, filter: true },
     { idx: 28, key: 'branch_name', title: 'สาขา', width: 120, filter: true },
     { idx: 29, key: 'notes', title: 'หมายเหตุ', width: 180, filter: true }
 ];
@@ -58,7 +59,7 @@ function showToast(msg, type='success') {
     const toast = document.getElementById('toastMsg');
     if(!toast) return;
     toast.className = `fixed bottom-5 right-5 font-bold px-5 py-2.5 rounded shadow-2xl transform transition-all duration-300 z-[200] flex items-center gap-2 border border-white/20 ${type === 'error' ? 'bg-red-600' : 'bg-emerald-600'} text-white text-xs`;
-    document.getElementById('toastContent').innerHTML = `<i class="fa-solid ${type==='error'?'fa-circle-xmark':'fa-circle-check'} text-base"></i> ${msg}`;
+    document.getElementById('toastContent').innerHTML = `<i class="fa-solid ${type==='error'?'fa-circle-xmark':'fa-circle-check'} text-base"></i> ${JobTeam.text(msg)}`;
     toast.classList.remove('translate-y-20', 'opacity-0');
     setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 2500);
 }
@@ -141,10 +142,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('display_branch').innerText = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
 
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = JobTeam.today();
     
-    const past30 = new Date();
-    past30.setDate(past30.getDate() - 30);
+    const past30 = new Date(Date.parse(todayStr+'T00:00:00Z')-30*86400000);
     const pastStr = past30.toISOString().split('T')[0];
 
     document.getElementById('start_date').value = pastStr;
@@ -268,9 +268,9 @@ function initResizableColumns() {
 
 async function loadBranchOptions() {
     try {
-        const res = await fetch(`${API_BASE_URL}/api/employees`);
+        const res = await fetch(`${API_BASE_URL}/api/sa-employees`);
         if (res.ok) {
-            const employees = await res.json();
+            const employees = await res.json();JobTeam.setEmployees(employees);
             const masterBranches = [...new Set(employees.map(e => e.branch_name).filter(Boolean))].sort();
             const branchSelect = document.getElementById('branch_filter');
             const userRole = sessionStorage.getItem('emp_role');
@@ -296,9 +296,9 @@ async function loadHistoryReportData() {
     tbody.innerHTML = `<tr><td colspan="40" class="text-center py-20 text-slate-400 font-bold bg-white"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 text-indigo-600 block"></i>กำลังดึงข้อมูลรายงานประวัติย้อนหลัง...</td></tr>`;
 
     try {
-        const res = await fetch(`${API_BASE_URL}/api/reports`);
-        const data = await res.json();
-        rawMasterData = Array.isArray(data) ? data : (data.data || []);
+        const branch=sessionStorage.getItem('emp_branch')||'สำนักงานใหญ่';const manager=['BA','Manager','Admin','แอดมิน'].includes(sessionStorage.getItem('emp_role'));
+        const [data,employees]=await Promise.all([JobTeam.request(API_BASE_URL+'/api/reports?fields=table'+(manager?'':'&branch='+encodeURIComponent(branch))),JobTeam.request(API_BASE_URL+'/api/sa-employees')]);
+        JobTeam.setEmployees(employees);rawMasterData=(Array.isArray(data)?data:(data.data||[])).map(j=>JobTeam.decorate(j));
 
         applyDateRangeFilter();
 
@@ -391,7 +391,7 @@ function openExcelFilter(e, colIndex, title) {
     
     [...uniqueValues].sort().forEach(val => {
         const isChecked = activeFilters[colIndex] ? activeFilters[colIndex].has(val) : true;
-        listDiv.innerHTML += `<label class="flex items-center gap-2 p-1.5 hover:bg-slate-100 rounded cursor-pointer ef-item transition"><input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''} class="ef-check accent-[#00320D] w-3.5 h-3.5 rounded"><span class="text-slate-700 text-xs font-medium w-full truncate" title="${val}">${val === '' ? '(ว่าง)' : val}</span></label>`;
+        listDiv.innerHTML += `<label class="flex items-center gap-2 p-1.5 hover:bg-slate-100 rounded cursor-pointer ef-item transition"><input type="checkbox" value="${JobTeam.text(val)}" ${isChecked ? 'checked' : ''} class="ef-check accent-[#00320D] w-3.5 h-3.5 rounded"><span class="text-slate-700 text-xs font-medium w-full truncate" title="${JobTeam.text(val)}">${val === '' ? '(ว่าง)' : val}</span></label>`;
     });
 
     document.getElementById('ef_select_all').checked = Array.from(document.querySelectorAll('.ef-check')).every(cb => cb.checked);
@@ -507,18 +507,19 @@ function renderHistoryTable(data) {
             if (col.key === 'action') {
                 cellHtml = `<div class="text-center"><button onclick="sessionStorage.setItem('edit_job_id', '${job.id}'); window.location.href='index.html';" class="bg-[#00320D] text-white px-2.5 py-0.5 rounded text-[10px] font-bold hover:bg-black transition shadow-xs"><i class="fa-solid fa-pen"></i> เปิด</button></div>`;
             } 
+            else if(col.key==='sa_owner'||col.key==='sa_collaborators'){cellHtml='<button type="button" class="text-left px-2 text-blue-700 whitespace-normal" onclick="sessionStorage.setItem(\'edit_job_id\',\''+Number(job.id)+'\');window.location.href=\'index.html\';">'+JobTeam.text(val||'—')+'</button>';}
             else if (col.key.includes('date')) {
                 const dateVal = val ? String(val).split('T')[0] : '';
-                cellHtml = `<input type="date" value="${dateVal}" onchange="fastUpdateHistoryJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input font-mono text-center text-slate-700 font-bold">`;
+                cellHtml = `<input type="date" value="${JobTeam.text(dateVal)}" onchange="fastUpdateHistoryJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input font-mono text-center text-slate-700 font-bold">`;
             } 
             else if (col.key === 'car_plate') {
-                cellHtml = `<input type="text" value="${val}" onchange="fastUpdateHistoryJob('${job.id}', 'car_plate', this.value)" class="inline-edit-input text-center font-black text-indigo-900 uppercase">`;
+                cellHtml = `<input type="text" value="${JobTeam.text(val)}" onchange="fastUpdateHistoryJob('${job.id}', 'car_plate', this.value)" class="inline-edit-input text-center font-black text-indigo-900 uppercase">`;
             } 
             else if (col.key === 'cost_labor' || col.key === 'cost_part' || col.key === 'cost_external') {
-                cellHtml = `<input type="number" value="${val}" onchange="fastUpdateHistoryJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input text-right font-mono font-bold">`;
+                cellHtml = `<input type="number" value="${JobTeam.text(val)}" onchange="fastUpdateHistoryJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input text-right font-mono font-bold">`;
             } 
             else {
-                cellHtml = `<input type="text" value="${val}" onchange="fastUpdateHistoryJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input text-slate-800" placeholder="-">`;
+                cellHtml = `<input type="text" value="${JobTeam.text(val)}" onchange="fastUpdateHistoryJob('${job.id}', '${col.key}', this.value)" class="inline-edit-input text-slate-800" placeholder="-">`;
             }
 
             trHtml += `<td class="p-0">${cellHtml}</td>`;

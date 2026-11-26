@@ -14,28 +14,14 @@ function renderKPIs(start, end) {
     const contacted = filteredJobs.filter(j => isDateInRange(j.contact_date, start, end)).length;
     
     // 2. รถที่เข้ามาจอด (นับรถทุกคันที่มีวันเข้าจอดอยู่ในช่วงเวลาที่เลือก หลักการเดียวกับส่งมอบ)
-    const parked = filteredJobs.filter(j => {
-        const st = j.job_status || '';
-        if (st.includes('ยกเลิก')) return false;
-        const targetDate = j.arrived_date || j.appointment_date;
-        return isDateInRange(targetDate, start, end);
-    }).length;
+    const parked=filteredJobs.filter(j=>JobTeam.arrived(j)&&isDateInRange(j.arrived_date,start,end)).length;
 
     // 3. ยอดปิดบิล
     const billedJobs = filteredJobs.filter(j => isDateInRange(j.billing_date, start, end));
     const billed = billedJobs.length;
 
     // 4. ยอดส่งมอบ
-    const deliveredStatuses = [
-        '12.ส่งมอบ', '13.วางบิลประกัน', '14.ชำระเงินสด', 
-        '15.วางบิล Tesla', '16.วางบิล EV ME', '17.รอออกบิล', '19.ออกบิลแล้ว'
-    ];
-    
-    const delivered = filteredJobs.filter(j => {
-        const st = j.job_status || '';
-        const hasStatus = deliveredStatuses.some(ds => st.includes(ds));
-        return isDateInRange(j.delivery_date, start, end) && hasStatus;
-    }).length;
+    const delivered=filteredJobs.filter(j=>JobTeam.delivered(j)&&isDateInRange(j.delivery_date,start,end)).length;
 
     if (document.getElementById('stat_contacted')) document.getElementById('stat_contacted').innerText = contacted;
     if (document.getElementById('stat_parked')) document.getElementById('stat_parked').innerText = parked;
@@ -81,9 +67,9 @@ function renderDailyReport() {
             ...dynamicCustomerTypes
         ],
         workStatus: [
-            { label: "รถเข้าจอด (ประจำวัน Today)", icon: "🔥", filter: j => j.arrived_date && j.arrived_date.split('T')[0] === todayDate },
+            { label: "รถเข้าจอด (ประจำวัน Today)", icon: "🔥", filter: j => JobTeam.arrived(j)&&j.arrived_date && j.arrived_date.split('T')[0] === todayDate },
             { label: "ซ่อมเสร็จ (ประจำวัน Today)", icon: "🔥", filter: j => j.repair_finish_date && j.repair_finish_date.split('T')[0] === todayDate },
-            { label: "ส่งมอบ (ประจำวัน Today)", icon: "🔥", filter: j => (j.job_status||'').includes('ส่งมอบ') && !(j.job_status||'').includes('ซ่อมเสร็จรอส่งมอบ') && j.delivery_date && j.delivery_date.split('T')[0] === todayDate },
+            { label: "ส่งมอบ (ประจำวัน Today)", icon: "🔥", filter: j => JobTeam.delivered(j) && j.delivery_date && j.delivery_date.split('T')[0] === todayDate },
             { label: "รอเสนอประกัน", icon: "⏳", filter: j => (j.job_status||'').includes('รอเสนอประกัน') },
             { label: "รอประกันอนุมัติ", icon: "📝", filter: j => (j.job_status||'').includes('รอประกันอนุมัติ') },
             { label: "รอลูกค้าอนุมัติ (เงินสด)", icon: "💵", filter: j => (j.job_status||'').includes('รอลูกค้าอนุมัติ') },
@@ -95,7 +81,7 @@ function renderDailyReport() {
             { label: "กำลังซ่อม", icon: "🔧", filter: j => (j.job_status||'').includes('กำลังซ่อม') },
             { label: "ซ่อมTC", icon: "🏷️", filter: j => (j.job_status||'').includes('ซ่อม TC') || (j.job_status||'').includes('ซ่อมTC') },
             { label: "รถซ่อมเสร็จรอส่งมอบ", icon: "🎁", filter: j => (j.job_status||'').includes('ซ่อมเสร็จรอส่งมอบ') },
-            { label: "ส่งมอบ", icon: "🏁", filter: j => j.job_status === '12.ส่งมอบแล้ว' || j.job_status === 'ส่งมอบแล้ว' },
+            { label: "ส่งมอบ", icon: "🏁", filter: j => JobTeam.delivered(j) },
             { label: "พักซ่อม", icon: "👥", filter: j => (j.job_status||'').includes('พักซ่อม') }
         ],
         finance: [
@@ -719,7 +705,7 @@ function openMechanicModal(stationName) {
     if(document.getElementById('jobListModal')) document.getElementById('jobListModal').classList.remove('hidden');
 }
 function localDashboardDate(date) {
-    return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+    return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'}).format(date);
 }
 
 // These are the existing KPI predicates, shared with the cards' detail lists.
@@ -729,9 +715,9 @@ function openFilteredModal(type) {
     const deliveredStatuses = ['12.ส่งมอบ', '13.วางบิลประกัน', '14.ชำระเงินสด', '15.วางบิล Tesla', '16.วางบิล EV ME', '17.รอออกบิล', '19.ออกบิลแล้ว'];
     const filters = {
         contacted: j => isDateInRange(j.contact_date, start, end),
-        parked: j => !(j.job_status || '').includes('ยกเลิก') && isDateInRange(j.arrived_date || j.appointment_date, start, end),
+        parked: j => JobTeam.arrived(j)&&isDateInRange(j.arrived_date,start,end),
         billed: j => isDateInRange(j.billing_date, start, end),
-        delivered: j => isDateInRange(j.delivery_date, start, end) && deliveredStatuses.some(s => (j.job_status || '').includes(s))
+        delivered: j => JobTeam.delivered(j)&&isDateInRange(j.delivery_date,start,end)
     };
     if (!filters[type]) return;
     const labels = { contacted: 'รถติดต่อ', parked: 'รถเข้าจอด', billed: 'ปิดบิล', delivered: 'ส่งมอบ' };

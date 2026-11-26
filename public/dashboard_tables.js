@@ -216,9 +216,9 @@ function renderStationTable() {
         const station = computeHighestStationIFS(j);
         
         let overdueWarning = '';
-        if (j.delivery_date && today > new Date(j.delivery_date).setHours(0,0,0,0)) {
+        if (JobTeam.overdue(j,'delivery')) {
             overdueWarning = `<i class="fa-solid fa-triangle-exclamation text-red-500 animate-pulse ml-1" title="เลยกำหนดส่งมอบ!"></i>`;
-        } else if (j.target_finish_date && today > new Date(j.target_finish_date).setHours(0,0,0,0)) {
+        } else if (JobTeam.overdue(j,'repair')) {
             overdueWarning = `<i class="fa-solid fa-clock text-amber-500 animate-pulse ml-1" title="เลยเป้าซ่อมเสร็จ!"></i>`;
         }
         
@@ -445,7 +445,7 @@ function renderCalendarByRange(startDate, endDate) {
         quotaHTML += `</div>`;
 
         const todayObj = new Date();
-        const todayStrLocal = `${todayObj.getFullYear()}-${String(todayObj.getMonth()+1).padStart(2,'0')}-${String(todayObj.getDate()).padStart(2,'0')}`;
+        const todayStrLocal = JobTeam.today();
         const isToday = d.dateStr === todayStrLocal;
         
         // 🌟 เช็กว่าเต็มโควต้าไหม 🌟

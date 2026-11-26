@@ -4,8 +4,9 @@
  const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  const arrived=j=>/^(09|10|11|12|13|14|15|16|17|19)\./.test(j.job_status||'');
  const delivered=j=>/^(12|13|14|15|16|17|19)\./.test(j.job_status||'');
+ const overdue=(j,type,asOf=today())=>{if(!/^(0[1-9]|10|11)\./.test(j.job_status||''))return false;const day=value=>value?String(value).slice(0,10):'';if(type==='arrival')return !!day(j.arrived_date)&&day(j.arrived_date)<=asOf&&!arrived(j);if(type==='repair')return !!day(j.target_finish_date)&&day(j.target_finish_date)<asOf&&!day(j.repair_finish_date);if(type==='delivery')return !!day(j.delivery_date)&&day(j.delivery_date)<asOf&&!delivered(j);return false;};
  const names=j=>(j.sa_collaborator_employee_ids||[]).map(id=>employees.find(e=>String(e.employee_id)===String(id))?.employee_name||('รหัส '+id));
  const primary=j=>employees.find(e=>String(e.employee_id)===String(j.sa_owner_employee_id))?.employee_name||j.sa_owner||'ไม่ระบุ SA';
  async function request(url,options){const response=await fetch(url,options);let data;try{data=await response.json();}catch{throw Error('เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง');}if(!response.ok||data?.success===false||data?.error)throw Error(data.error||'บันทึกไม่สำเร็จ');return data;}
- window.JobTeam={text,today,arrived,delivered,names,primary,request,setEmployees(value){employees=Array.isArray(value)?value:[];},decorate(job){return{...job,sa_owner:primary(job),sa_collaborators:names(job).join(', ')};},matches(job,name,mode='main'){return(mode!=='shared'&&primary(job)===name)||(mode!=='main'&&names(job).includes(name));}};
+ window.JobTeam={text,today,arrived,delivered,overdue,names,primary,request,setEmployees(value){employees=Array.isArray(value)?value:[];},decorate(job){return{...job,sa_owner:primary(job),sa_collaborators:names(job).join(', ')};},matches(job,name,mode='main'){return(mode!=='shared'&&primary(job)===name)||(mode!=='main'&&names(job).includes(name));}};
 })();

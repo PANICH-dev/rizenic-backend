@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('display_branch').innerText = userBranch;
     
     const today = new Date();
-    document.getElementById('sa_cal_month').value = String(today.getMonth() + 1).padStart(2, '0');
+    document.getElementById('sa_cal_month').value = JobTeam.today().slice(5,7);
 
     loadJobsData();
 });
@@ -144,7 +144,7 @@ function filterDataByBranch() {
     
     const yearSelect = document.getElementById('sa_cal_year');
     const years = new Set([new Date().getFullYear()]);
-    allJobsData.forEach(j => { if(j.arrived_date) { const y = new Date(j.arrived_date).getFullYear(); if(!isNaN(y)) years.add(y); } });
+    allJobsData.forEach(j=>{for(const field of ['arrived_date','contact_date','billing_date','delivery_date','target_finish_date']){const y=Number(String(j[field]||'').slice(0,4));if(y>=1900&&y<=2500)years.add(y);}});
     let savedYear = yearSelect.value || new Date().getFullYear().toString();
     yearSelect.innerHTML = '';
     [...years].sort((a,b)=>b-a).forEach(y => yearSelect.innerHTML += `<option value="${y}">${y}</option>`);
@@ -365,13 +365,13 @@ function renderSAList() {
         if (isProcess) {
             const appVal = getValidDateStr(job.arrived_date);
             const hasArrived = JobTeam.arrived(job);
-            if (appVal && appVal <= todayStr && !hasArrived) { saStats[sa].ovApp++; saStats[sa].totalOverdue++; }
+            if (JobTeam.overdue(job,'arrival',todayStr)) { saStats[sa].ovApp++; saStats[sa].totalOverdue++; }
             
             const tgtVal = getValidDateStr(job.target_finish_date);
-            if (tgtVal && tgtVal < todayStr && !getValidDateStr(job.repair_finish_date)) { saStats[sa].ovTgt++; saStats[sa].totalOverdue++; }
+            if (JobTeam.overdue(job,'repair',todayStr)) { saStats[sa].ovTgt++; saStats[sa].totalOverdue++; }
             
             const delVal = getValidDateStr(job.delivery_date);
-            if (delVal && delVal < todayStr && !JobTeam.delivered(job)) { saStats[sa].ovDel++; saStats[sa].totalOverdue++; }
+            if (JobTeam.overdue(job,'delivery',todayStr)) { saStats[sa].ovDel++; saStats[sa].totalOverdue++; }
         }
     });
 
@@ -461,7 +461,7 @@ function renderSAList() {
                 <div class="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-xl font-black shadow-md shrink-0"><i class="fa-solid fa-user-tie"></i></div>
                 <div class="truncate w-full">
                     <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Service Advisor</p>
-                    <h3 class="text-base font-black text-[#00320D] leading-tight truncate w-full" title="${sa}">${JobTeam.text(sa)}</h3><p class="text-xs text-blue-700">งานหลัก ${allJobsData.filter(j=>JobTeam.primary(j)===sa).length} · งานร่วม ${allJobsData.filter(j=>JobTeam.names(j).includes(sa)).length}</p>
+                    <h3 class="text-base font-black text-[#00320D] leading-tight truncate w-full" title="${sa}">${JobTeam.text(sa)}</h3><p class="text-xs text-blue-700">งานหลักสะสม ${allJobsData.filter(j=>JobTeam.primary(j)===sa).length} · งานร่วมสะสม ${allJobsData.filter(j=>JobTeam.names(j).includes(sa)).length}</p>
                 </div>
             </div>
             
@@ -518,6 +518,8 @@ function openSADetail(saName) {
 }
 
 // ---- Overdue ----
+function refreshSAReportPeriod(){updateHeaderSummaryBadges(allJobsData);if(currentViewSA)openSADetail(currentViewSA);else renderSAList();}
+
 function refreshSADashboardFilter() {
     if(!currentViewSA) return;
     const saJobs = jobsForSA(currentViewSA);
@@ -536,13 +538,13 @@ function calculateSAOverdues(jobs) {
         if (activeProcessStatuses.some(status => st.includes(status) || st.startsWith(status.substring(0, 2)))) {
             const appVal = getValidDateStr(j.arrived_date);
             const hasArrived = JobTeam.arrived(j);
-            if (appVal && appVal <= todayStr && !hasArrived) ovApp++;
+            if (JobTeam.overdue(j,'arrival',todayStr)) ovApp++;
 
             const tgtVal = getValidDateStr(j.target_finish_date);
-            if (tgtVal && tgtVal < todayStr && !getValidDateStr(j.repair_finish_date)) ovTgt++;
+            if (JobTeam.overdue(j,'repair',todayStr)) ovTgt++;
 
             const delVal = getValidDateStr(j.delivery_date);
-            if (delVal && delVal < todayStr && !JobTeam.delivered(j)) ovDel++;
+            if (JobTeam.overdue(j,'delivery',todayStr)) ovDel++;
         }
     });
 
@@ -570,13 +572,13 @@ function openSAOverdueModal(type) {
         if (type === 'appointment') {
             const appVal = getValidDateStr(j.arrived_date);
             const hasArrived = JobTeam.arrived(j);
-            return appVal && appVal <= todayStr && !hasArrived;
+            return JobTeam.overdue(j,'arrival',todayStr);
         } else if (type === 'target') {
             const tgtVal = getValidDateStr(j.target_finish_date);
-            return tgtVal && tgtVal < todayStr && !getValidDateStr(j.repair_finish_date);
+            return JobTeam.overdue(j,'repair',todayStr);
         } else if (type === 'delivery') {
             const delVal = getValidDateStr(j.delivery_date);
-            return delVal && delVal < todayStr && !JobTeam.delivered(j);
+            return JobTeam.overdue(j,'delivery',todayStr);
         }
     });
 

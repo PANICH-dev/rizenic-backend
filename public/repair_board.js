@@ -88,13 +88,7 @@ function getCellValue(cell) {
     return cell.innerText.trim();
 }
 
-function getTodayString() {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-}
+function getTodayString() { return JobTeam.today(); }
 
 async function safeFetch(url) {
     try {
@@ -496,7 +490,7 @@ async function fetchJobList() {
         originalRepairJobs = rawReports.map(j=>JobTeam.decorate(j)).filter(j => {
             const st = j.job_status || '';
             const isNotCancelled = !st.includes('ยกเลิก');
-            const isNotDelivered = !st.includes('ส่งมอบแล้ว') && st !== '12.ส่งมอบ';
+            const isNotDelivered = !JobTeam.delivered(j);
             return isNotCancelled && isNotDelivered;
         }).map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
 

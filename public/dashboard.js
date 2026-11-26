@@ -51,16 +51,8 @@ function isSameBranch(jobBranch, selectedBranch) {
     return false;
 }
 
-function getFirstDayOfMonth() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
-}
-
-function getLastDayOfMonth() {
-    const d = new Date();
-    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-    return `${end.getFullYear()}-${String(end.getMonth()+1).padStart(2,'0')}-${String(end.getDate()).padStart(2,'0')}`;
-}
+function getFirstDayOfMonth(){return JobTeam.today().slice(0,7)+'-01';}
+function getLastDayOfMonth(){const [year,month]=JobTeam.today().split('-').map(Number);return JobTeam.today().slice(0,7)+'-'+new Date(Date.UTC(year,month,0)).getUTCDate();}
 
 function isDateInRange(dateStr, start, end) {
     if(!dateStr || String(dateStr).trim() === '') return false;
