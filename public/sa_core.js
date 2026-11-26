@@ -179,7 +179,7 @@ async function enterApp() {
 async function loadInitialData() {
     try {
         const results = await Promise.allSettled([
-            fetch(`${API_BASE_URL}/api/employees`).then(r => r.json()),
+            fetch(`${API_BASE_URL}/api/sa-employees`).then(r => {if(!r.ok)throw new Error("โหลดรายชื่อ SA ไม่สำเร็จ");return r.json();}),
             fetch(`${API_BASE_URL}/api/statuses`).then(r => r.json()),
             fetch(`${API_BASE_URL}/api/customer-types`).then(r => r.json()),
             fetch(`${API_BASE_URL}/api/car-models`).then(r => r.json()),
@@ -190,14 +190,7 @@ async function loadInitialData() {
 
         if (results[0].status === 'fulfilled' && Array.isArray(results[0].value)) {
             const data = results[0].value;
-            const saList = document.getElementById('sa_list');
-            if (saList) {
-                saList.innerHTML = '';
-                const userBranch = sessionStorage.getItem('emp_branch') || 'สำนักงานใหญ่';
-                const branchSAs = data.filter(e => e && e.branch_name === userBranch && String(e.employee_role || '').toUpperCase().includes('SA'));
-                const uniqueSAs = [...new Set(branchSAs.map(e => e.employee_name).filter(Boolean))].sort();
-                uniqueSAs.forEach(name => { saList.innerHTML += `<option value="${name}">`; });
-            }
+            window.SAAssignment?.setEmployees(data);
         }
 
         if (results[1].status === 'fulfilled' && Array.isArray(results[1].value)) {
@@ -426,7 +419,7 @@ async function checkCrossPageEditMode() {
         const phoneInp = document.getElementById('phone_number');
         const carBrandInp = document.getElementById('car_brand');
 
-        if (saOwnerInp) saOwnerInp.value = job.sa_owner || sessionStorage.getItem('emp_name') || '';
+        window.SAAssignment?.setJob(job);
         if (custNameInp) custNameInp.value = job.customer_name || ''; 
         if (phoneInp) phoneInp.value = job.phone_number || '';
         if (carBrandInp) carBrandInp.value = job.car_brand || 'Tesla';
@@ -601,11 +594,12 @@ function cancelEditMode() {
     resetVal('eclaim_policy_no', ''); resetVal('eclaim_policy_type', ''); resetVal('eclaim_deductible', '0');
     if (deptRoute) deptRoute.value = 'รอดำเนินการ';
     if (parkStat) parkStat.value = 'ไม่จอดซ่อม';
-    if (saOwnerInp) saOwnerInp.value = sessionStorage.getItem('emp_name') || '';
+    window.SAAssignment?.setJob(null);
 }
 
 async function submitSaForm(event) {
-    event.preventDefault(); 
+    event.preventDefault();
+    let assignment;try{assignment=window.SAAssignment.payload();}catch(error){alert(error.message);return;}
 
     const jobStatusCheck = document.getElementById('job_status')?.value || '';
     const arrivedDateCheck = document.getElementById('arrived_date')?.value || '';
@@ -717,7 +711,7 @@ async function submitSaForm(event) {
         formData.job_order_no = null; formData.ivn_no = null;
     }
 
-    formData.sa_owner = document.getElementById('sa_owner_input')?.value?.trim() || ''; 
+    Object.assign(formData,assignment);
     formData.branch_name = branchName;
     formData.customer_name = document.getElementById('customer_name')?.value || ''; 
     formData.phone_number = document.getElementById('phone_number')?.value || '';

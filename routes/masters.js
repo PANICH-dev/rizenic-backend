@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 
+router.get('/sa-employees',async(req,res)=>{try{res.json((await pool.query('SELECT employee_id::text AS employee_id,employee_name,employee_role,branch_name,is_active FROM rizenicemployeemaster ORDER BY employee_name,employee_id')).rows);}catch(e){res.status(500).json({error:'โหลดรายชื่อ SA ไม่สำเร็จ'});}});
 // พนักงาน
 router.get('/employees', async (req, res) => { try { res.json((await pool.query('SELECT * FROM rizenicemployeemaster ORDER BY branch_name ASC, employee_code ASC')).rows); } catch (e) { res.status(500).json({ error: e.message }); } });
 router.post('/employees', async (req, res) => { try { const { employee_code, employee_name, employee_role, branch_name, username, password, accessible_pages } = req.body; const checkDup = await pool.query('SELECT username FROM rizenicemployeemaster WHERE username = $1', [username]); if (checkDup.rows.length > 0) return res.status(400).json({ error: 'Username ซ้ำ!' }); await pool.query('INSERT INTO rizenicemployeemaster (employee_code, employee_name, employee_role, branch_name, username, password, accessible_pages, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7, true)', [employee_code, employee_name, employee_role, branch_name, username, password, accessible_pages]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
