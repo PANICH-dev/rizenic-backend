@@ -238,7 +238,7 @@ async function loadJobsData() {
             fetch(`${API_BASE_URL}/api/statuses`).then(res => res.json()),
             fetch(`${API_BASE_URL}/api/part-orders?active_only=true`).then(res => res.json()),
             fetch(`${API_BASE_URL}/api/body-parts`).then(res => res.json()),
-            JobTeam.request(`${API_BASE_URL}/api/reports?fields=table${['BA','Manager','Admin','แอดมิน'].includes(userRole)?'':'&branch='+encodeURIComponent(userBranch)}`),
+            JobTeam.request(`${API_BASE_URL}/api/reports?fields=table&in_process=true${['BA','Manager','Admin','แอดมิน'].includes(userRole)?'':'&branch='+encodeURIComponent(userBranch)}`),
             fetch(`${API_BASE_URL}/api/customer-types`).then(res => res.json()),
             fetch(`${API_BASE_URL}/api/insurances`).then(res => res.json()),
             JobTeam.request(`${API_BASE_URL}/api/sa-employees`),

@@ -1,3 +1,4 @@
+const {tableColumns,inProcessCondition}=require('../services/job_table_query');
 const {resolveAssignment,saveAssignment}=require('../services/sa_assignment');
 const express = require('express');
 const router = express.Router();
@@ -92,7 +93,7 @@ router.get('/reports/search', async (req, res) => {
 
 router.get('/reports', async (req, res) => {
   try {
-    const { start, end, branch, department, active_only, fields, include_repair_statuses } = req.query;
+    const { start, end, branch, department, active_only, fields, include_repair_statuses, in_process } = req.query;
     let conditions = []; let params = [];
     if (branch && String(branch).toLowerCase() !== 'all') { params.push(branch); conditions.push(`branch_name = $${params.length}`); }
     if (start && end) {
@@ -113,9 +114,12 @@ router.get('/reports', async (req, res) => {
       params.push(['12.ส่งมอบ', '12.ส่งมอบแล้ว', '18.ลูกค้ายกเลิก', '22.ปิดงาน']);
       conditions.push('(job_status IS NULL OR job_status <> ALL($' + params.length + '))');
     }
-    const columns = fields === 'board' ? BOARD_FIELDS : fields === 'quota' ? 'id,branch_name,arrived_date,target_finish_date,delivery_date,main_part_qty,sub_part_qty' : '*';
-    const result = await pool.query(`SELECT ${columns} FROM rizenicreport ${conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : ''} ORDER BY id DESC`, params);
     const tableKeys=(TABLE_FIELDS+',part_received_all_date,labor_total,part_total,outsource_total,actual_finish_date,model_year,service_visit_no,claim_no,customer_source').split(',').map(k=>k.trim());
+    const projection=fields==='table'?await tableColumns(pool,tableKeys):null;
+    if(fields==='table'&&in_process==='true')conditions.push('('+inProcessCondition(params,projection.available.has('billing_date'))+')');
+    const columns = projection?projection.columns:fields === 'board' ? BOARD_FIELDS : fields === 'quota' ? 'id,branch_name,arrived_date,target_finish_date,delivery_date,main_part_qty,sub_part_qty' : '*';
+    const result = await pool.query(`SELECT ${columns} FROM rizenicreport ${conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : ''} ORDER BY id DESC`, params);
+
     res.json(fields==='table'?result.rows.map(row=>Object.fromEntries(tableKeys.filter(k=>Object.hasOwn(row,k)).map(k=>[k,row[k]]))):result.rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
