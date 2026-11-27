@@ -122,15 +122,17 @@ function autoFillPartRow(inputEl) {
 }
 
 // 4. โหลดตารางติดตามสถานะอะไหล่ PO Tracking (บล็อก 5)
+let partsTrackingRequest = 0;
 async function loadPartsTrackingTable(carPlate = '', jobId = '') {
+    const request = ++partsTrackingRequest;
     const tbody = document.getElementById('track_parts_body');
     if (!tbody) return;
 
     const cleanPlate = carPlate ? carPlate.trim().toUpperCase() : '';
-    const cleanJobId = jobId ? String(jobId) : '';
+    const cleanJobId = String(jobId || document.getElementById('sa_report_id')?.value || '').trim();
 
-    if (!cleanPlate && !cleanJobId) {
-        tbody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400 text-xs font-bold bg-white">กรุณาระบุทะเบียนรถเพื่อติดตามสถานะอะไหล่</td></tr>`;
+    if (!cleanJobId) {
+        tbody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400 text-xs font-bold bg-white">กรุณาบันทึกใบงานก่อนติดตามอะไหล่ของงานนี้</td></tr>`;
         return;
     }
 
@@ -140,19 +142,15 @@ async function loadPartsTrackingTable(carPlate = '', jobId = '') {
             if (res.ok) window.allPartOrders = await res.json();
         }
 
+        if (request !== partsTrackingRequest) return;
         const orders = (window.allPartOrders || []).filter(p => {
-            const pPlate = p.car_plate ? p.car_plate.trim().toUpperCase() : '';
-            const pJobId = p.job_id ? String(p.job_id) : '';
-            const pReportId = p.report_id ? String(p.report_id) : '';
-
-            const plateMatch = cleanPlate && pPlate === cleanPlate;
-            const idMatch = cleanJobId && (pJobId === cleanJobId || pReportId === cleanJobId);
-
-            return plateMatch || idMatch;
+            // A returning vehicle must not inherit parts from a previous visit.
+            const ownerId = String(p.job_id || p.report_id || '').trim();
+            return ownerId !== '' && ownerId === cleanJobId;
         });
 
         if (orders.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400 text-xs font-bold bg-white">ไม่พบรายการสั่งซื้ออะไหล่สำหรับรถคันนี้</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400 text-xs font-bold bg-white">ไม่พบรายการสั่งซื้ออะไหล่สำหรับใบงานนี้</td></tr>`;
             return;
         }
 
@@ -188,6 +186,7 @@ async function loadPartsTrackingTable(carPlate = '', jobId = '') {
         }).join('');
 
     } catch (e) {
+        if (request !== partsTrackingRequest) return;
         console.error("Error loading PO tracking table:", e);
         tbody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-red-500 text-xs font-bold bg-white">เกิดข้อผิดพลาดในการดึงข้อมูลอะไหล่</td></tr>`;
     }
