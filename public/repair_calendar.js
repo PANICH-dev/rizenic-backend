@@ -31,7 +31,7 @@ function renderCalendar() {
 
     for(let i = 0; i < firstDay; i++) { grid.innerHTML += `<div class="bg-slate-50/50"></div>`; }
 
-    const jobsForCalendar = originalRepairJobs.filter(j => selectedBranchFilter === 'ALL' || j.branch_name === selectedBranchFilter);
+    const jobsForCalendar = calendarRepairJobs.filter(j => selectedBranchFilter === 'ALL' || j.branch_name === selectedBranchFilter);
 
     let monthMaxQty = 1; 
     for(let day = 1; day <= totalDays; day++) {
@@ -47,10 +47,6 @@ function renderCalendar() {
         const maxInDay = Math.max(aQty, tQty, dQty);
         if (maxInDay > monthMaxQty) monthMaxQty = maxInDay;
     }
-
-    const branchQuota = allQuotas.find(q => q.branch_name === (selectedBranchFilter === 'ALL' ? currentBranch : selectedBranchFilter)) || { max_main_parts: 0, max_sub_parts: 0 };
-    const maxMain = branchQuota.max_main_parts || 0;
-    const maxSub = branchQuota.max_sub_parts || 0;
 
     for(let day = 1; day <= totalDays; day++) {
         const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
@@ -73,9 +69,10 @@ function renderCalendar() {
             sumSubDay += Number(j.sub_part_qty) || (j.sub_part_name ? j.sub_part_name.split(',').filter(Boolean).length : 0);
         });
 
-        const overdueJobsInDay = jobsForCalendar.filter(j => (j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr) && checkOverdue(j));
+        const overdueJobsInDay = jobsForCalendar.filter(j => (j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr) && !isCarRepairDone(j) && checkOverdue(j));
         const hasOverdue = overdueJobsInDay.length > 0;
         
+        const { main: maxMain, sub: maxSub } = calendarQuota(dateStr);
         const overMain = maxMain > 0 && sumMainDay > maxMain;
         const overSub = maxSub > 0 && sumSubDay > maxSub;
 
@@ -140,7 +137,7 @@ function renderCalendar() {
 }
 
 function openDayListForTarget(dateStr) {
-    const targetJobs = originalRepairJobs.filter(j => 
+    const targetJobs = calendarRepairJobs.filter(j =>
         (selectedBranchFilter === 'ALL' || j.branch_name === selectedBranchFilter) &&
         j.target_finish_date && j.target_finish_date.split('T')[0] === dateStr
     );
@@ -176,37 +173,41 @@ function openDayListForTarget(dateStr) {
     document.getElementById('dayListModal').classList.remove('hidden');
 }
 
-function filterBoardByDate(dateStr, type) {
-    switchTab('tab-board');
-    activeFilters = {}; 
-    activeKpiFilter = null;
-    isCalendarFilterActive = true; 
-    
-    let colIdx;
-    if (type === 'arrived') {
-        const col = columnsDef.find(c => c.key === 'arrived_date' || c.key === 'appointment_date');
-        if (col) colIdx = col.idx;
-    }
-    if (type === 'target') colIdx = columnsDef.find(c => c.key === 'target_finish_date').idx;
-    if (type === 'delivery') colIdx = columnsDef.find(c => c.key === 'delivery_date').idx;
-    
-    if (colIdx !== undefined) activeFilters[colIdx] = new Set([dateStr]);
-    
-    document.querySelectorAll('.filter-icon').forEach(icon => icon.classList.remove('active'));
-    const thIcon = document.getElementById(`th_${colIdx}`)?.querySelector('.filter-icon');
-    if (thIcon) thIcon.classList.add('active');
-    
-    runTableFilters();
+function calendarQuota(dateStr) {
+    if (selectedBranchFilter === 'ALL') return { main: 0, sub: 0 };
+    const rows = allQuotas.filter(q => q.branch_name === selectedBranchFilter)
+        .slice().sort((a,b) => Number(b.id) - Number(a.id));
+    const base = rows.find(q => q.quota_type === 'default');
+    const special = rows.find(q => q.quota_type === 'special' && String(q.quota_date || '').slice(0,10) === dateStr);
+    const limit = field => {
+        for (const row of [special, base]) {
+            if (row && row[field] !== undefined && row[field] !== null && row[field] !== '') return Number(row[field]) || 0;
+        }
+        return 0;
+    };
+    return { main: limit('quota_main_parts'), sub: limit('quota_sub_parts') };
 }
 
-function clickCalendarDate(dateString) {
-    switchTab('tab-board');
-    activeFilters = {}; 
-    activeKpiFilter = null;
-    isCalendarFilterActive = true; 
-    document.getElementById('global_search_input').value = formatThaiDate(dateString);
-    runTableFilters();
+function calendarDayJobs(dateStr, type) {
+    return calendarRepairJobs.filter(j => {
+        if (selectedBranchFilter !== 'ALL' && j.branch_name !== selectedBranchFilter) return false;
+        const dates = { arrived: j.arrived_date || j.appointment_date, target: j.target_finish_date, delivery: j.delivery_date };
+        return type ? String(dates[type] || '').slice(0,10) === dateStr
+            : Object.values(dates).some(d => String(d || '').slice(0,10) === dateStr);
+    });
 }
+
+function filterBoardByDate(dateStr, type) {
+    const jobs = calendarDayJobs(dateStr, type);
+    const labels = { arrived: 'รถเข้าจอด', delivery: 'นัดส่งมอบ' };
+    document.getElementById('dayListDateTitle').textContent = (labels[type] || 'รายการตามวันที่') + ' ' + formatThaiDate(dateStr) + ' (' + jobs.length + ' ใบงาน)';
+    document.getElementById('dayListContent').innerHTML = jobs.length
+        ? jobs.map(j => generateMiniCardHTML(j, type)).join('')
+        : '<div class="text-center py-10 text-slate-400">ไม่มีรายการ</div>';
+    document.getElementById('dayListModal').classList.remove('hidden');
+}
+
+function clickCalendarDate(dateString) { filterBoardByDate(dateString); }
 
 function generateMiniCardHTML(j, type) {
     const isOverdue = checkOverdue(j);
@@ -233,7 +234,7 @@ function generateMiniCardHTML(j, type) {
     } else { partsHTML = '<span class="text-slate-400 text-[11px] italic">- ไม่มีสั่งเบิก -</span>'; }
 
     let dateLabel = '';
-    if(type === 'arrived') dateLabel = `<span class="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded border border-blue-200 font-bold"><i class="fa-solid fa-car"></i> รถเข้าจอด (รอซ่อม)</span>`;
+    if(type === 'arrived') dateLabel = `<span class="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded border border-blue-200 font-bold"><i class="fa-solid fa-car"></i> รถเข้าจอด</span>`;
     else if(type === 'target') dateLabel = `<span class="bg-amber-100 text-amber-700 text-xs px-2 py-1 rounded border border-amber-200 font-bold"><i class="fa-solid fa-bullseye"></i> เป้าซ่อม</span>`;
     else if(type === 'target_done') dateLabel = `<span class="bg-emerald-100 text-emerald-700 text-xs px-2 py-1 rounded border border-emerald-200 font-bold"><i class="fa-solid fa-check-double"></i> ซ่อมเสร็จแล้ว</span>`;
     else if(type === 'delivery') dateLabel = `<span class="bg-indigo-100 text-indigo-700 text-xs px-2 py-1 rounded border border-indigo-200 font-bold"><i class="fa-solid fa-car-side"></i> นัดส่งมอบ</span>`;
@@ -257,7 +258,7 @@ function generateMiniCardHTML(j, type) {
             </div>
             <div class="flex justify-between items-center mt-1">
                 <div class="text-xs text-slate-600 font-bold">สถานีล่าสุด: <span class="text-amber-600 ml-1 text-sm">${station}</span></div>
-                <button onclick="closeDayListModal(); switchTab('tab-board'); document.getElementById('global_search_input').value='${j.car_plate}'; runTableFilters(); openModal('${j.id}');" class="px-4 py-1.5 bg-[#00320D] hover:bg-black text-white text-xs font-bold rounded-lg shadow-sm transition"><i class="fa-solid fa-sliders"></i> อัปเดต</button>
+                ${originalRepairJobs.some(active => String(active.id) === String(j.id)) ? `<button onclick="closeDayListModal(); switchTab('tab-board'); document.getElementById('global_search_input').value='${j.car_plate}'; runTableFilters(); openModal('${j.id}');" class="px-4 py-1.5 bg-[#00320D] hover:bg-black text-white text-xs font-bold rounded-lg shadow-sm transition"><i class="fa-solid fa-sliders"></i> อัปเดต</button>` : '<span class="text-xs text-slate-500">ประวัติใบงาน</span>'}
             </div>
         </div>
     `;

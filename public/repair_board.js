@@ -5,7 +5,8 @@
 Chart.register(ChartDataLabels);
 
 const API_BASE_URL = window.location.origin;
-let originalRepairJobs = []; 
+let originalRepairJobs = [];
+let calendarRepairJobs = [];
 let allQuotas = []; 
 let allPartOrders = []; 
 let allBodyPartsMaster = []; 
@@ -507,12 +508,10 @@ async function fetchJobList() {
 
         const rawReports = Array.isArray(resReports) ? resReports : (resReports.data || []);
 
-        originalRepairJobs = rawReports.map(j => JobTeam.decorate(j)).filter(j => {
-            const st = j.job_status || '';
-            const isNotCancelled = !st.includes('ยกเลิก');
-            const isNotDelivered = !JobTeam.delivered(j);
-            return isNotCancelled && isNotDelivered;
-        }).map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
+        calendarRepairJobs = rawReports.map(j => JobTeam.decorate(j))
+            .filter(j => !String(j.job_status || '').includes('ยกเลิก'))
+            .map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
+        originalRepairJobs = calendarRepairJobs.filter(j => !JobTeam.delivered(j));
 
         const validIds = new Set(originalRepairJobs.map(j => String(j.id)));
         selectedExportJobIds.forEach(id => { if (!validIds.has(id)) selectedExportJobIds.delete(id); });
