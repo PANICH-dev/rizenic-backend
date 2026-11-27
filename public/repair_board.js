@@ -19,6 +19,7 @@ let selectedBranchFilter = 'ALL';
 let activeFilters = {}; 
 let activeKpiFilter = null; 
 let draggedColIdx = null; 
+let selectedExportJobIds = new Set();
 
 let savedSortCol = null;
 let savedSortDir = 'asc';
@@ -40,6 +41,7 @@ const stationsTimeline = [
 ];
 
 let columnsDef = [
+    { idx: 99, key: 'select_export', title: 'เลือก', w: 55, filter: false },
     { idx: 0, key: 'action', title: 'Action', w: 90, filter: false },
     { idx: 1, key: 'car_plate', title: 'ทะเบียน', w: 130, filter: true },
     { idx: 14, key: 'sa_owner', title: 'SA หลัก', w: 120, filter: true },
@@ -106,7 +108,10 @@ async function loadUserColumnPreferences() {
         if (res.ok) {
             const data = await res.json();
             if (data.hidden_columns && typeof data.hidden_columns === 'object') {
-                if (data.hidden_columns.hidden) hiddenCols = new Set(data.hidden_columns.hidden);
+                if (data.hidden_columns.hidden) {
+                    hiddenCols = new Set(data.hidden_columns.hidden);
+                    hiddenCols.delete(99);
+                }
                 
                 if (data.hidden_columns.order && Array.isArray(data.hidden_columns.order)) {
                     const colMap = new Map(); 
@@ -124,6 +129,12 @@ async function loadUserColumnPreferences() {
                     
                     columnsDef.length = 0; 
                     columnsDef.push(...newCols);
+
+                    const selIdx = columnsDef.findIndex(c => c.key === 'select_export');
+                    if (selIdx > 0) {
+                        const [selCol] = columnsDef.splice(selIdx, 1);
+                        columnsDef.unshift(selCol);
+                    }
                 }
                 if (data.hidden_columns.sort) {
                     savedSortCol = data.hidden_columns.sort.col;
@@ -175,7 +186,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const empRes = await fetch(`${API_BASE_URL}/api/sa-employees`);
             if (empRes.ok) {
-                const employees = await empRes.json();JobTeam.setEmployees(employees);
+                const employees = await empRes.json(); JobTeam.setEmployees(employees);
                 const masterBranches = [...new Set(employees.map(e => e.branch_name).filter(Boolean))].sort();
                 
                 let optionsHtml = isManager ? `<option value="ALL">🏢 รวมทุกสาขา (ภาพรวม)</option>` : '';
@@ -231,6 +242,16 @@ function switchTab(tabId) {
 function buildTableHeaders() {
     const tr = document.getElementById('repair_head_row'); let html = '';
     columnsDef.forEach((col, renderIndex) => {
+        if (col.key === 'select_export') {
+            html += `
+                <th class="select-none text-center" data-render-idx="${renderIndex + 1}" id="th_${col.idx}" style="width: ${col.w}px; min-width: ${col.w}px;">
+                    <div class="flex justify-center items-center w-full h-full">
+                        <input type="checkbox" id="chk_select_all_export" onchange="toggleSelectAllExportJobs(this.checked)" class="w-4 h-4 cursor-pointer accent-amber-400" title="เลือก/ไม่เลือกทั้งหมดในหน้านี้">
+                    </div>
+                </th>`;
+            return;
+        }
+
         let filterIcon = col.filter ? `<i class="fa-solid fa-filter filter-icon" onclick="openExcelFilter(event, ${col.idx}, '${col.title}')"></i>` : '';
         let countBadge = col.showCount ? `<span id="hdr_cnt_${col.key}" class="text-[12px] text-amber-300 font-bold ml-1 bg-[#002209] px-2 py-0.5 rounded shadow-sm inline-block min-w-[20px] text-center">0</span>` : '';
         let sortIconClass = "fa-sort";
@@ -268,7 +289,9 @@ function handleDragEnd(e) { e.target.style.opacity = '1'; }
 
 function renderHideColumnMenu() {
     const menu = document.getElementById('hide_col_menu');
-    menu.innerHTML = columnsDef.map((col, idx) => `
+    menu.innerHTML = columnsDef
+        .filter(col => col.key !== 'select_export')
+        .map(col => `
         <label draggable="true" ondragstart="handleDragStart(event, ${col.idx})" ondragover="handleDragOver(event)" ondrop="handleDrop(event, ${col.idx})" ondragend="handleDragEnd(event)" class="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 rounded-lg cursor-grab transition border border-transparent hover:border-slate-200">
             <i class="fa-solid fa-grip-vertical text-slate-400"></i>
             <input type="checkbox" ${hiddenCols.has(col.idx) ? '' : 'checked'} onchange="toggleColumnVisibility(${col.idx}, this.checked)" class="accent-[#00320D] w-4 h-4 cursor-pointer">
@@ -360,7 +383,6 @@ function updateKPIs() {
         if (st.includes('จอดรอเข้าซ่อม') || st.includes('พักซ่อม')) {
             kpiData.arrived.push(j);
         }
-        // 🌟 แก้ไข: เพิ่มเงื่อนไขตรวจสอบรหัสสถานะ 11/12 จากฝั่ง ERP ร่วมด้วย
         else if (j.department_routing === 'ซ่อม' && (j.calculated_station === '12.รอส่งมอบ' || st.includes('11.รถซ่อมเสร็จรอส่งมอบ') || st.includes('12.รอส่งมอบ'))) {
             kpiData.done.push(j);
         } 
@@ -380,13 +402,11 @@ function updateKPIs() {
 }
 
 function runTableFilters() {
-    // 1. นำ Loader มาแสดงทันทีก่อนเริ่มประมวลผล เพื่อให้ UI ตอบสนองผู้ใช้ (ไม่ค้าง)
     const tbody = document.getElementById('repair_list_body');
     if (tbody) {
         tbody.innerHTML = `<tr><td colspan="${columnsDef.length}" class="text-center py-12 text-slate-400 font-mono text-sm"><i class="fa-solid fa-circle-notch fa-spin text-amber-500 text-2xl mb-2 block"></i> กำลังจัดเรียงข้อมูล...</td></tr>`;
     }
 
-    // 2. โยนการคำนวณที่หนักไปไว้ใน setTimeout เพื่อคืนพื้นที่ให้หน้าจอขยับได้
     setTimeout(() => {
         const searchTxt = (document.getElementById('global_search_input')?.value || '').toLowerCase();
         
@@ -430,7 +450,7 @@ function runTableFilters() {
         });
         
         renderRepairListTable(filteredData);
-    }, 15); // หน่วงเวลา 15ms ให้ Animation Loader ทำงานก่อน แล้วค่อยวาดตาราง
+    }, 15);
 }
 
 function filterBoardByKpi(type) {
@@ -487,17 +507,20 @@ async function fetchJobList() {
 
         const rawReports = Array.isArray(resReports) ? resReports : (resReports.data || []);
 
-        originalRepairJobs = rawReports.map(j=>JobTeam.decorate(j)).filter(j => {
+        originalRepairJobs = rawReports.map(j => JobTeam.decorate(j)).filter(j => {
             const st = j.job_status || '';
             const isNotCancelled = !st.includes('ยกเลิก');
             const isNotDelivered = !JobTeam.delivered(j);
             return isNotCancelled && isNotDelivered;
         }).map(j => ({ ...j, calculated_station: computeHighestStationIFS(j) }));
 
+        const validIds = new Set(originalRepairJobs.map(j => String(j.id)));
+        selectedExportJobIds.forEach(id => { if (!validIds.has(id)) selectedExportJobIds.delete(id); });
+
         updateKPIs();
         if(typeof renderCalendar === 'function') renderCalendar(); 
         runTableFilters();
-    } catch (err) { console.error("โหลดข้อมูลพัง:", err);showToast("โหลดใบงานไม่สำเร็จ กรุณาลองใหม่","error");runTableFilters(); }
+    } catch (err) { console.error("โหลดข้อมูลพัง:", err); showToast("โหลดใบงานไม่สำเร็จ กรุณาลองใหม่", "error"); runTableFilters(); }
 }
 
 async function fastUpdateField(id, field, value) {
@@ -518,8 +541,8 @@ async function fastUpdateField(id, field, value) {
                 if(isDate || field === 'job_status' || field === 'department_routing') updateKPIs(); 
                 runTableFilters(); 
             }
-        } else {const error=await res.json().catch(()=>({}));throw new Error(error.error||'อัปเดตไม่สำเร็จ');}
-    } catch(e) { showToast(e.message||'อัปเดตไม่สำเร็จ', 'error');runTableFilters(); }
+        } else { const error = await res.json().catch(() => ({})); throw new Error(error.error || 'อัปเดตไม่สำเร็จ'); }
+    } catch(e) { showToast(e.message || 'อัปเดตไม่สำเร็จ', 'error'); runTableFilters(); }
 }
 
 async function fastUpdateStationDropdown(id, selectedLevel) {
@@ -547,7 +570,7 @@ async function fastUpdateStationDropdown(id, selectedLevel) {
             updateKPIs(); 
             runTableFilters();
         } else throw new Error();
-    } catch(e) { showToast('อัปเดตไม่สำเร็จ', 'error');runTableFilters(); }
+    } catch(e) { showToast('อัปเดตไม่สำเร็จ', 'error'); runTableFilters(); }
 }
 
 function renderAllTags(partsStr, bgClass, textClass, borderClass) {
@@ -561,7 +584,13 @@ function renderAllTags(partsStr, bgClass, textClass, borderClass) {
 
 function renderRepairListTable(data) {
     const tbody = document.getElementById('repair_list_body');
-    if(!data || data.length === 0) { tbody.innerHTML = `<tr><td colspan="${columnsDef.length}" class="p-12 text-center text-slate-400 font-bold bg-white text-base">📭 ไม่พบข้อมูลรถที่ตรงตามเงื่อนไข</td></tr>`; return; }
+    if(!data || data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${columnsDef.length}" class="p-12 text-center text-slate-400 font-bold bg-white text-base">📭 ไม่พบข้อมูลรถที่ตรงตามเงื่อนไข</td></tr>`;
+        document.getElementById('table_row_count').innerText = 0;
+        syncSelectAllExportCheckbox();
+        updateSelectedExportCount();
+        return;
+    }
 
     let cArr = 0, cTar = 0, cRep = 0, cDel = 0, sumMain = 0, sumSub = 0;
     let allRowsHtml = '';
@@ -585,6 +614,9 @@ function renderRepairListTable(data) {
         columnsDef.forEach(col => {
             let cellData = ''; 
             switch(col.key) {
+                case 'select_export':
+                    cellData = `<div class="text-center px-1 py-2"><input type="checkbox" class="row-export-check w-4 h-4 cursor-pointer accent-[#00320D]" data-job-id="${j.id}" ${selectedExportJobIds.has(String(j.id)) ? 'checked' : ''} onchange="toggleSelectExportJob('${j.id}', this.checked)"></div>`;
+                    break;
                 case 'action': 
                     cellData = `<div class="text-center px-1 py-1.5"><button onclick="openModal('${j.id}')" class="action-btn group"><i class="fa-solid fa-pen"></i><span class="action-btn-text hidden">อัปเดต</span></button></div>`; 
                     break;
@@ -595,7 +627,8 @@ function renderRepairListTable(data) {
                     cellData = `<div class="font-mono text-sm font-bold text-emerald-600 px-3 py-2 truncate" title="${JobTeam.text(j.vin_no || '')}">${JobTeam.text(j.vin_no || '-')}</div>`;
                     break;
                 case 'sa_collaborators':
-                    cellData='<span class="px-2">'+JobTeam.text(JobTeam.names(j).join(', ')||'—')+'</span>';break;
+                    cellData = '<span class="px-2">' + JobTeam.text(JobTeam.names(j).join(', ') || '—') + '</span>';
+                    break;
                 case 'sa_owner': 
                     cellData = `<div class="px-3 py-2 font-bold text-slate-700 text-sm truncate" title="${JobTeam.text(j.sa_owner || '')}"><i class="fa-solid fa-user-tie text-amber-500 mr-1"></i> ${JobTeam.text(j.sa_owner || '-')}</div>`;
                     break;
@@ -674,6 +707,9 @@ function renderRepairListTable(data) {
     if(document.getElementById('hdr_cnt_sub_part_qty')) document.getElementById('hdr_cnt_sub_part_qty').innerText = sumSub;
 
     if(savedSortCol !== null) { sortTableDirectly(savedSortCol, savedSortDir); }
+
+    syncSelectAllExportCheckbox();
+    updateSelectedExportCount();
 }
 
 function openExcelFilter(e, colIndex, title) {
@@ -1073,4 +1109,87 @@ async function submitRepairStation() {
         const btnSubmit = document.querySelector('#stationModal button.bg-amber-400');
         if(btnSubmit) { btnSubmit.innerHTML = '<i class="fa-solid fa-check"></i> บันทึกข้อมูล'; btnSubmit.disabled = false; }
     }
+}
+
+// ==========================================
+// 📤 ระบบเลือกคันและส่งออก Excel (Selected Export)
+// ==========================================
+function toggleSelectExportJob(jobId, checked) {
+    const key = String(jobId);
+    if (checked) selectedExportJobIds.add(key);
+    else selectedExportJobIds.delete(key);
+    syncSelectAllExportCheckbox();
+    updateSelectedExportCount();
+}
+
+function toggleSelectAllExportJobs(checked) {
+    document.querySelectorAll('.row-export-check').forEach(cb => {
+        cb.checked = checked;
+        const key = String(cb.dataset.jobId);
+        if (checked) selectedExportJobIds.add(key);
+        else selectedExportJobIds.delete(key);
+    });
+    updateSelectedExportCount();
+}
+
+function syncSelectAllExportCheckbox() {
+    const allChk = document.getElementById('chk_select_all_export');
+    if (!allChk) return;
+    const rowChecks = Array.from(document.querySelectorAll('.row-export-check'));
+    allChk.checked = rowChecks.length > 0 && rowChecks.every(cb => cb.checked);
+}
+
+function clearSelectedExportJobs() {
+    selectedExportJobIds.clear();
+    document.querySelectorAll('.row-export-check').forEach(cb => { cb.checked = false; });
+    syncSelectAllExportCheckbox();
+    updateSelectedExportCount();
+}
+
+function updateSelectedExportCount() {
+    const el = document.getElementById('selected_export_count');
+    if (el) el.innerText = selectedExportJobIds.size;
+}
+
+function exportSelectedJobsToExcel() {
+    if (typeof XLSX === 'undefined') {
+        alert('❌ ไม่พบไลบรารี SheetJS (XLSX) กรุณาตรวจสอบการโหลดสคริปต์ใน repair.html');
+        return;
+    }
+
+    const pickedJobs = originalRepairJobs.filter(j => selectedExportJobIds.has(String(j.id)));
+    if (pickedJobs.length === 0) {
+        alert('⚠️ กรุณาติ๊กเลือกรถอย่างน้อย 1 คันก่อนส่งออกเป็น Excel ครับ');
+        return;
+    }
+
+    const exportData = pickedJobs.map((j, idx) => ({
+        'ลำดับ': idx + 1,
+        'ทะเบียนรถ': j.car_plate || '-',
+        'SA หลัก': j.sa_owner || '-',
+        'ผู้รับผิดชอบร่วม': (typeof JobTeam !== 'undefined' && JobTeam.names) ? (JobTeam.names(j).join(', ') || '-') : '-',
+        'ยี่ห้อ': j.car_brand || '-',
+        'รุ่น': j.car_model || '-',
+        'สีรถ': j.car_color || '-',
+        'เลขตัวถัง/เครื่อง': j.vin_no || '-',
+        'วันที่รถเข้า': formatThaiDate(j.arrived_date || j.appointment_date),
+        'เป้าเสร็จ': formatThaiDate(j.target_finish_date),
+        'เสร็จจริง': formatThaiDate(j.repair_finish_date),
+        'ส่งมอบ': formatThaiDate(j.delivery_date),
+        'ชิ้นหลัก': j.main_part_name || '-',
+        'จำนวน(หลัก)': Number(j.main_part_qty) || (j.main_part_name ? j.main_part_name.split(',').filter(Boolean).length : 0),
+        'ชิ้นรอง': j.sub_part_name || '-',
+        'จำนวน(รอง)': Number(j.sub_part_qty) || (j.sub_part_name ? j.sub_part_name.split(',').filter(Boolean).length : 0),
+        'ความคืบหน้าสถานี': j.calculated_station || '-',
+        'สเตตัส': j.job_status || '-',
+        'ส่งต่อแผนก': j.department_routing || '-',
+        'หมายเหตุ': j.repair_notes || '-'
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Selected_Repair_Jobs');
+    const fileName = `คิวรถซ่อม_เลือกส่งออก_${getTodayString()}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    showToast(`ส่งออก Excel จำนวน ${pickedJobs.length} คัน เรียบร้อยแล้ว!`, 'success');
 }

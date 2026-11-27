@@ -9,6 +9,8 @@
     <title>RIZENIC ERP - Job Tracking Board (Excel View)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- SheetJS สำหรับส่งออกไฟล์ Excel (.xlsx) ภาษาไทยไม่เพี้ยน -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;900&display=swap');
@@ -28,12 +30,19 @@
     html, body { width: 100%; height: 100%; margin: 0; }
     body { font-family: 'Noto Sans Thai', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; display: flex; flex-direction: column; }
     
-    header { padding: 16px 20px 10px; background: #1e293b; border-bottom: 1px solid var(--border); z-index: 10;}
-    h1 { text-align: center; font-size: 2rem; font-weight: 900; margin: 0 0 16px; color: var(--green-main); letter-spacing: 1px;}
+    header { padding: 16px 20px 10px; background: #1e293b; border-bottom: 1px solid var(--border); z-index: 10; position: relative; }
+    h1 { text-align: center; font-size: 2rem; font-weight: 900; margin: 0 0 14px; color: var(--green-main); letter-spacing: 1px;}
     
-    #topMenu { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px; }
+    #topMenu { display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
     .menu-btn { padding: 6px 16px; border-radius: 8px; border: 1px solid var(--border); background: #0f172a; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--muted); transition: all 0.2s;}
     .menu-btn.active { background: var(--green-main); color: #fff; border-color: var(--green-main); box-shadow: 0 0 10px rgba(245,158,11,0.3);}
+
+    /* ปุ่มเลือกและส่งออก Excel */
+    .excel-divider { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+    .excel-action-btn { padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border); background: #0f172a; font-weight: 700; font-size: 0.82rem; cursor: pointer; color: #cbd5e1; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+    .excel-action-btn:hover { border-color: #94a3b8; color: #fff; }
+    .excel-export-btn { padding: 6px 16px; border-radius: 8px; border: 1px solid #059669; background: #10b981; font-weight: 800; font-size: 0.85rem; cursor: pointer; color: #fff; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 0 12px rgba(16,185,129,0.25); }
+    .excel-export-btn:hover { background: #059669; }
     
     #toggleBar { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
     .toggle-btn { padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border); background: #1e293b; font-weight: 600; font-size: 0.75rem; cursor: pointer; color: #cbd5e1; transition: all 0.2s;}
@@ -50,8 +59,15 @@
     .station { flex: 0 0 320px; background: var(--station); backdrop-filter: blur(10px); border-radius: 16px; padding: 16px; min-height: 500px; border: 1px solid var(--border); box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
     .station h2 { font-size: 1.2rem; font-weight: 900; padding: 12px; margin-bottom: 16px; background: linear-gradient(135deg, var(--green-main), var(--green-dark)); color: white; border-radius: 10px; text-align: center; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); box-shadow: 0 4px 10px rgba(245,158,11,0.2);}
     
-    .card { background: var(--card); border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.2); cursor: pointer; transition: transform 0.2s; border-left: 4px solid var(--green-main);}
+    .card { background: var(--card); border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.2); cursor: pointer; transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s; border-left: 4px solid var(--green-main);}
     .card:hover { transform: translateY(-3px); border-color: var(--green-main); }
+    .card.selected { border-color: #10b981; border-left: 4px solid #10b981; box-shadow: 0 0 0 2px rgba(16,185,129,0.4), 0 4px 15px rgba(0,0,0,0.3); }
+
+    .card-select-bar { display: flex; align-items: center; justify-content: flex-end; margin-bottom: 8px; }
+    .card-select-label { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 700; color: #94a3b8; cursor: pointer; user-select: none; padding: 2px 6px; border-radius: 6px; transition: background 0.15s, color 0.15s; }
+    .card-select-label:hover { background: rgba(255,255,255,0.06); color: #e2e8f0; }
+    .card.selected .card-select-label { color: #34d399; }
+    .card-select-checkbox { width: 16px; height: 16px; accent-color: #10b981; cursor: pointer; }
     
     .plate-big { font-size: 1.6rem; font-weight: 900; color: #1e293b; background: var(--green-soft); padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 12px; font-family: monospace; letter-spacing: 1px;}
     .detail-list { font-size: 0.95rem; line-height: 1.6; font-weight: 500; color: #cbd5e1;}
@@ -64,11 +80,12 @@
     
     .card-worker { font-size: 0.85rem; font-weight: 600; color: var(--muted); margin-top: 12px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 8px;}
     
-    #voiceToggle { position: absolute; top: 20px; right: 20px; background: #1e293b; color: white; border: 1px solid #334155; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.85rem; display: flex; items-center; gap: 8px;}
+    #voiceToggle { position: absolute; top: 20px; right: 20px; background: #1e293b; color: white; border: 1px solid #334155; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.85rem; display: flex; align-items: center; gap: 8px;}
     #voiceToggle.on { color: #f59e0b; border-color: #f59e0b; }
 
     #modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; z-index: 999; }
     #modalContent { background: #1e293b; max-width: 500px; width: 90%; max-height: 90%; overflow: auto; border-radius: 16px; padding: 24px; position: relative; border: 1px solid #334155; box-shadow: 0 20px 50px rgba(0,0,0,0.5); color: white;}
+    #modalBody .card-select-bar { display: none; }
     #closeModal { position: absolute; top: 12px; right: 16px; font-size: 1.5rem; cursor: pointer; color: #94a3b8; transition: color 0.2s;}
     #closeModal:hover { color: #ef4444; }
 </style>
@@ -88,6 +105,18 @@
     <div class="menu-btn" onclick="setZoom(0.8,this)">80%</div>
     <div class="menu-btn" onclick="setZoom(0.6,this)">60%</div>
     <div class="menu-btn" onclick="setZoom(0.4,this)">40%</div>
+
+    <div class="excel-divider"></div>
+
+    <button type="button" class="excel-action-btn" onclick="selectAllVisibleCars()">
+      <i class="fa-solid fa-check-double text-amber-400"></i> เลือกทั้งหมด
+    </button>
+    <button type="button" class="excel-action-btn" onclick="clearSelectedCars()">
+      <i class="fa-solid fa-eraser text-slate-400"></i> ล้างที่เลือก
+    </button>
+    <button type="button" class="excel-export-btn" onclick="exportSelectedToExcel()">
+      <i class="fa-solid fa-file-excel"></i> ดาวน์โหลด Excel (<span id="selectedCount">0</span> คัน)
+    </button>
   </div>
   <div id="toggleBar"></div>
 </header>
@@ -109,7 +138,8 @@
 <script>
 const API_BASE_URL = window.location.origin;
 let hiddenStations = new Set();
-let latestBoardData={},employeesLoaded=false;
+let selectedJobIds = new Set();
+let latestBoardData = {}, employeesLoaded = false;
 let oldData = null; 
 let voiceEnabled = true;
 
@@ -231,6 +261,86 @@ function computeHighestStationIFS(j) {
     return "ยังไม่ระบุสถานี";
 }
 
+// ==========================================
+// 📤 ระบบเลือกคันและดาวน์โหลด Excel
+// ==========================================
+function updateSelectedCount() {
+    const el = document.getElementById('selectedCount');
+    if (el) el.textContent = selectedJobIds.size;
+}
+
+function toggleCarSelect(jobId, checkboxEl) {
+    const key = String(jobId);
+    const card = checkboxEl.closest('.card');
+    if (checkboxEl.checked) {
+        selectedJobIds.add(key);
+        if (card) card.classList.add('selected');
+    } else {
+        selectedJobIds.delete(key);
+        if (card) card.classList.remove('selected');
+    }
+    updateSelectedCount();
+}
+
+function selectAllVisibleCars() {
+    stationOrder.forEach(station => {
+        if (hiddenStations.has(station)) return;
+        const items = latestBoardData[station] || [];
+        items.forEach(item => selectedJobIds.add(String(item.id)));
+    });
+    render(latestBoardData);
+    updateSelectedCount();
+}
+
+function clearSelectedCars() {
+    selectedJobIds.clear();
+    render(latestBoardData);
+    updateSelectedCount();
+}
+
+function exportSelectedToExcel() {
+    if (typeof XLSX === 'undefined') {
+        alert('❌ ไม่พบไลบรารี SheetJS (XLSX) กรุณารีเฟรชหน้าเว็บแล้วลองใหม่ครับ');
+        return;
+    }
+
+    const selectedItems = [];
+    stationOrder.forEach(station => {
+        const items = latestBoardData[station] || [];
+        items.forEach(item => {
+            if (selectedJobIds.has(String(item.id))) {
+                selectedItems.push({ ...item, station });
+            }
+        });
+    });
+
+    if (selectedItems.length === 0) {
+        alert('⚠️ กรุณาติ๊กเลือกรถอย่างน้อย 1 คันก่อนกดดาวน์โหลด Excel ครับ');
+        return;
+    }
+
+    const rows = selectedItems.map((item, idx) => ({
+        'ลำดับ': idx + 1,
+        'สถานีปัจจุบัน': item.station,
+        'ทะเบียนรถ': item.plate || '-',
+        'ยี่ห้อ/รุ่น': item.car || '-',
+        'เลขตัวถัง (VIN)': item.vin || '-',
+        'ความเสียหาย': item.damage || '-',
+        'SA หลัก': item.primary || '-',
+        'ผู้รับผิดชอบร่วม': item.collaborators || '-',
+        'สถานะ': item.status || '-',
+        'เป้าซ่อมเสร็จ': item.target || '-',
+        'วันซ่อมเสร็จจริง': item.actual || '-',
+        'หมายเหตุ': item.notes || '-'
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Repair_Board');
+    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
+    XLSX.writeFile(wb, `กระดานคิวซ่อม_${todayStr}.xlsx`);
+}
+
 let boardRequest;
 const boardDebug = new URLSearchParams(location.search).get('debug') === '1';
 
@@ -274,13 +384,17 @@ async function loadData() {
         const groupedData = {};
         stationOrder.forEach(st => groupedData[st] = []);
 
+        const validIds = new Set();
         repairJobs.forEach(job => {
+            validIds.add(String(job.id));
             const station = computeHighestStationIFS(job);
             if(groupedData[station]) {
                 groupedData[station].push({
-                    id:job.id,primary:JobTeam.primary(job),collaborators:JobTeam.names(job).join(', '),
+                    id: job.id,
+                    primary: JobTeam.primary(job),
+                    collaborators: JobTeam.names(job).join(', '),
                     plate: job.car_plate || 'ไม่มีป้าย',
-                    vin: job.vin_no || '-', // 👈 เพิ่มบรรทัดนี้เพื่อเก็บค่า VIN
+                    vin: job.vin_no || '-',
                     car: `${job.car_brand} ${job.car_model || ''}`,
                     damage: job.damage_level || 'เบา',
                     target: job.target_finish_date ? job.target_finish_date.split('T')[0] : 'ยังไม่ระบุ',
@@ -291,11 +405,23 @@ async function loadData() {
             }
         });
 
-        latestBoardData=groupedData;render(latestBoardData);
-        let status=document.getElementById('board_status');if(!status){status=document.createElement('div');status.id='board_status';document.querySelector('header').append(status);}status.textContent='อัปเดตล่าสุด '+new Date().toLocaleTimeString('th-TH',{timeZone:'Asia/Bangkok'});
+        // ล้าง ID ที่ไม่อยู่บนบอร์ดแล้วออกจากการเลือก
+        selectedJobIds.forEach(id => { if (!validIds.has(id)) selectedJobIds.delete(id); });
+        updateSelectedCount();
+
+        latestBoardData = groupedData;
+        render(latestBoardData);
+        let status = document.getElementById('board_status');
+        if(!status){ status = document.createElement('div'); status.id = 'board_status'; document.querySelector('header').append(status); }
+        status.textContent = 'อัปเดตล่าสุด ' + new Date().toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok' });
 
     } catch (e) {
-        if (e.name !== 'AbortError'){console.error('ดึงข้อมูลกระดานล้มเหลว', e);let status=document.getElementById('board_status');if(!status){status=document.createElement('div');status.id='board_status';document.querySelector('header').append(status);}status.textContent='โหลดไม่สำเร็จ — ข้อมูลบนบอร์ดอาจยังเป็นข้อมูลเดิม';}
+        if (e.name !== 'AbortError'){
+            console.error('ดึงข้อมูลกระดานล้มเหลว', e);
+            let status = document.getElementById('board_status');
+            if(!status){ status = document.createElement('div'); status.id = 'board_status'; document.querySelector('header').append(status); }
+            status.textContent = 'โหลดไม่สำเร็จ — ข้อมูลบนบอร์ดอาจยังเป็นข้อมูลเดิม';
+        }
     } finally {
         if (boardRequest === request) boardRequest = undefined;
     }
@@ -321,7 +447,8 @@ function render(groupedData) {
         btn.textContent = station;
         btn.onclick = () => {
           hiddenStations.has(station) ? hiddenStations.delete(station) : hiddenStations.add(station);
-          btn.classList.toggle('off',hiddenStations.has(station));render(latestBoardData);
+          btn.classList.toggle('off', hiddenStations.has(station));
+          render(latestBoardData);
         };
         toggleBar.appendChild(btn);
       });
@@ -342,7 +469,8 @@ function render(groupedData) {
         html += `<div class="text-center text-slate-500 py-10 font-bold text-sm">ไม่มีรถในสถานีนี้</div>`;
     } else {
         items.forEach(item => {
-         const detailHTML = `
+          const isSelected = selectedJobIds.has(String(item.id));
+          const detailHTML = `
             <div><i class="fa-solid fa-car-side w-5 text-slate-400"></i> ${JobTeam.text(item.car)}</div>
             <div class="mt-1 font-mono text-[12px] text-emerald-400"><i class="fa-solid fa-barcode w-5 text-slate-400"></i> ${JobTeam.text(item.vin)}</div>
             <div class="mt-1"><i class="fa-solid fa-tag w-5 text-slate-400"></i> ${JobTeam.text(item.status)}</div>
@@ -350,7 +478,13 @@ function render(groupedData) {
           `;
 
           const cardHTML = `
-            <div class="card" onclick="showModal(this.innerHTML)">
+            <div class="card ${isSelected ? 'selected' : ''}" onclick="showModal(this.innerHTML)">
+              <div class="card-select-bar" onclick="event.stopPropagation()">
+                <label class="card-select-label">
+                  <input type="checkbox" class="card-select-checkbox" ${isSelected ? 'checked' : ''} onchange="toggleCarSelect('${item.id}', this)">
+                  <span>เลือกส่งออก</span>
+                </label>
+              </div>
               <div class="plate-big">${JobTeam.text(item.plate)}</div>
               ${getDamageHTML(item.damage)}
               <div class="detail-list">${detailHTML}<div>หลัก: ${JobTeam.text(item.primary)}</div><div>ร่วม: ${JobTeam.text(item.collaborators||"—")}</div></div>
