@@ -1,7 +1,7 @@
 const crypto=require('crypto');
 const {hash,authenticateEmployee}=require('../services/tracking_sessions');
 const TRACKING_FIELDS=`id,car_plate,car_brand,car_model,vin_no,branch_name,sa_owner,sa_owner_employee_id,sa_collaborator_employee_ids,service_visit_no,job_status,
- contact_date::date::text AS contact_date,appointment_date::date::text AS appointment_date,arrived_date::date::text AS arrived_date,target_finish_date::date::text AS target_finish_date,repair_finish_date::date::text AS repair_finish_date,delivery_date::date::text AS delivery_date,arrival_checkin_at,delivery_checkin_at,station_kho,station_pou,station_puan,station_pon,station_prak,station_kat,station_qc,station_ready`;
+ contact_date::date::text AS contact_date,appointment_date::date::text AS appointment_date,arrived_date::date::text AS arrived_date,target_finish_date::date::text AS target_finish_date,repair_finish_date::date::text AS repair_finish_date,delivery_date::date::text AS delivery_date,arrival_checkin_at,delivery_checkin_at,station_kho,station_pou,station_puan,station_pon,station_prak,station_kat,station_qc,station_ready,station_mag,station_kraj,station_film,station_pak`;
 const express=require('express'),pool=require('../config/db');
 const {normalizePlate,normalizePhone,buildTracking}=require('../services/customer_tracking');const router=express.Router();
 // Best-effort burst protection per running instance; it is not a distributed rate limit.
